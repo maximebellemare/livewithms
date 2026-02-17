@@ -6,6 +6,7 @@ import MoodSelector from "@/components/MoodSelector";
 import QuickCard from "@/components/QuickCard";
 import { Link } from "react-router-dom";
 import { Settings, Flame } from "lucide-react";
+import MedicationChecklist from "@/components/MedicationChecklist";
 
 const greetings = () => {
   const hour = new Date().getHours();
@@ -15,6 +16,7 @@ const greetings = () => {
 };
 
 const TodayPage = () => {
+  const navigate = useNavigate();
   const [fatigue, setFatigue] = useState(0);
   const [pain, setPain] = useState(0);
   const [brainFog, setBrainFog] = useState(0);
@@ -145,12 +147,17 @@ const TodayPage = () => {
           </div>
         </div>
 
+        {/* Medication checklist */}
+        <div className="animate-slide-up" style={{ animationDelay: "0.25s" }}>
+          <MedicationChecklist />
+        </div>
+
         {/* Reminders */}
         <div className="space-y-2 animate-slide-up" style={{ animationDelay: "0.3s" }}>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Reminders
           </p>
-          <QuickCard emoji="💊" title="Medication" subtitle="Log your meds for today" />
+          <QuickCard emoji="💊" title="Medications" subtitle="Manage your medications" onClick={() => navigate("/medications")} />
           <QuickCard emoji="📅" title="Appointments" subtitle="No upcoming appointments" />
           <QuickCard emoji="💧" title="Hydration" subtitle="Stay hydrated — drink water!" accent />
         </div>

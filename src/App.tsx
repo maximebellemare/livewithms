@@ -12,6 +12,7 @@ import InsightsPage from "./pages/InsightsPage";
 import LearnPage from "./pages/LearnPage";
 import CommunityPage from "./pages/CommunityPage";
 import ProfilePage from "./pages/ProfilePage";
+import MedicationsPage from "./pages/MedicationsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/learn" element={<LearnPage />} />
             <Route path="/community" element={<CommunityPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/medications" element={<MedicationsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppShell>
