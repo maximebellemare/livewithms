@@ -7,6 +7,7 @@ import QuickCard from "@/components/QuickCard";
 import { Link } from "react-router-dom";
 import { Settings, Flame } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
+import UpcomingAppointments from "@/components/UpcomingAppointments";
 
 const greetings = () => {
   const hour = new Date().getHours();
@@ -152,13 +153,18 @@ const TodayPage = () => {
           <MedicationChecklist />
         </div>
 
+        {/* Upcoming appointments */}
+        <div className="animate-slide-up" style={{ animationDelay: "0.28s" }}>
+          <UpcomingAppointments />
+        </div>
+
         {/* Reminders */}
         <div className="space-y-2 animate-slide-up" style={{ animationDelay: "0.3s" }}>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Reminders
           </p>
           <QuickCard emoji="💊" title="Medications" subtitle="Manage your medications" onClick={() => navigate("/medications")} />
-          <QuickCard emoji="📅" title="Appointments" subtitle="No upcoming appointments" />
+          <QuickCard emoji="📅" title="Appointments" subtitle="View & manage appointments" onClick={() => navigate("/appointments")} />
           <QuickCard emoji="💧" title="Hydration" subtitle="Stay hydrated — drink water!" accent />
         </div>
 

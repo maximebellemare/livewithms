@@ -13,6 +13,7 @@ import LearnPage from "./pages/LearnPage";
 import CommunityPage from "./pages/CommunityPage";
 import ProfilePage from "./pages/ProfilePage";
 import MedicationsPage from "./pages/MedicationsPage";
+import AppointmentsPage from "./pages/AppointmentsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/community" element={<CommunityPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/medications" element={<MedicationsPage />} />
+            <Route path="/appointments" element={<AppointmentsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppShell>

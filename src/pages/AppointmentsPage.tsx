@@ -1,0 +1,339 @@
+import { useState, useEffect, useMemo } from "react";
+import { format, isSameDay, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from "date-fns";
+import PageHeader from "@/components/PageHeader";
+import { Calendar } from "@/components/ui/calendar";
+import { Plus, ArrowLeft, Trash2, Edit2, MapPin, Clock, CalendarIcon } from "lucide-react";
+import {
+  Appointment,
+  AppointmentType,
+  APPOINTMENT_TYPES,
+  getAppointments,
+  saveAppointment,
+  deleteAppointment,
+  getAppointmentTypeInfo,
+} from "@/lib/appointments";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+const AppointmentsPage = () => {
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Partial<Appointment> | null>(null);
+  const [filterType, setFilterType] = useState<AppointmentType | "all">("all");
+
+  useEffect(() => {
+    setAppointments(getAppointments());
+  }, []);
+
+  const refresh = () => setAppointments(getAppointments());
+
+  // Days that have appointments (for calendar dots)
+  const appointmentDates = useMemo(() => {
+    return appointments.map((a) => parseISO(a.date));
+  }, [appointments]);
+
+  // Filtered appointments
+  const filteredAppointments = useMemo(() => {
+    let filtered = appointments;
+    if (filterType !== "all") {
+      filtered = filtered.filter((a) => a.type === filterType);
+    }
+    if (viewMode === "calendar") {
+      filtered = filtered.filter((a) => isSameDay(parseISO(a.date), selectedDate));
+    }
+    return filtered.sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || ""));
+  }, [appointments, filterType, viewMode, selectedDate]);
+
+  const openNew = () => {
+    setEditing({
+      title: "",
+      type: "neurologist",
+      date: format(selectedDate, "yyyy-MM-dd"),
+      time: "",
+      location: "",
+      notes: "",
+    });
+    setShowForm(true);
+  };
+
+  const openEdit = (appt: Appointment) => {
+    setEditing({ ...appt });
+    setShowForm(true);
+  };
+
+  const handleSave = () => {
+    if (!editing?.title || !editing?.date) return;
+    saveAppointment(editing as Omit<Appointment, "id" | "createdAt"> & { id?: string });
+    setShowForm(false);
+    setEditing(null);
+    refresh();
+  };
+
+  const handleDelete = (id: string) => {
+    deleteAppointment(id);
+    refresh();
+  };
+
+  // ---- Form view ----
+  if (showForm && editing) {
+    return (
+      <>
+        <PageHeader
+          title={editing.id ? "Edit Appointment" : "New Appointment"}
+          action={
+            <button onClick={() => { setShowForm(false); setEditing(null); }} className="rounded-full p-2 text-muted-foreground hover:bg-secondary">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          }
+        />
+        <div className="mx-auto max-w-lg space-y-4 px-4 py-4 animate-fade-in">
+          {/* Title */}
+          <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+            <label className="block text-sm font-medium text-foreground">Appointment title</label>
+            <input
+              value={editing.title || ""}
+              onChange={(e) => setEditing({ ...editing, title: e.target.value })}
+              placeholder="e.g. Neuro follow-up"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          {/* Type */}
+          <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+            <label className="block text-sm font-medium text-foreground">Type</label>
+            <div className="flex flex-wrap gap-2">
+              {APPOINTMENT_TYPES.map((t) => (
+                <button
+                  key={t.value}
+                  onClick={() => setEditing({ ...editing, type: t.value })}
+                  className={`rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                    editing.type === t.value
+                      ? "bg-primary text-primary-foreground shadow-soft"
+                      : "bg-secondary text-muted-foreground"
+                  }`}
+                >
+                  {t.emoji} {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Date & Time */}
+          <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+            <label className="block text-sm font-medium text-foreground">Date</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !editing.date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {editing.date ? format(parseISO(editing.date), "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={editing.date ? parseISO(editing.date) : undefined}
+                  onSelect={(d) => d && setEditing({ ...editing, date: format(d, "yyyy-MM-dd") })}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+
+            <label className="block text-sm font-medium text-foreground">Time (optional)</label>
+            <input
+              type="time"
+              value={editing.time || ""}
+              onChange={(e) => setEditing({ ...editing, time: e.target.value })}
+              className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm"
+            />
+          </div>
+
+          {/* Location */}
+          <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+            <label className="block text-sm font-medium text-foreground">Location (optional)</label>
+            <input
+              value={editing.location || ""}
+              onChange={(e) => setEditing({ ...editing, location: e.target.value })}
+              placeholder="e.g. City Hospital, Room 204"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          {/* Notes */}
+          <div className="rounded-xl bg-card p-4 shadow-soft">
+            <label className="block text-sm font-medium text-foreground mb-2">Notes (optional)</label>
+            <textarea
+              rows={2}
+              value={editing.notes || ""}
+              onChange={(e) => setEditing({ ...editing, notes: e.target.value })}
+              placeholder="Questions to ask, things to bring..."
+              className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <button
+            onClick={handleSave}
+            disabled={!editing.title || !editing.date}
+            className="w-full rounded-full bg-primary py-3.5 text-base font-semibold text-primary-foreground shadow-card transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+          >
+            {editing.id ? "Save Changes" : "Add Appointment"}
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  // ---- Main view ----
+  return (
+    <>
+      <PageHeader
+        title="Appointments"
+        subtitle="Your upcoming visits"
+        action={
+          <button onClick={openNew} className="rounded-full bg-primary p-2 text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]">
+            <Plus className="h-5 w-5" />
+          </button>
+        }
+      />
+      <div className="mx-auto max-w-lg px-4 py-4 space-y-4">
+        {/* View toggle */}
+        <div className="flex gap-2">
+          {(["calendar", "list"] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`flex-1 rounded-lg py-2 text-xs font-medium capitalize transition-all ${
+                viewMode === mode
+                  ? "bg-primary text-primary-foreground shadow-soft"
+                  : "bg-secondary text-muted-foreground"
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+
+        {/* Type filter */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <button
+            onClick={() => setFilterType("all")}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all ${
+              filterType === "all" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+            }`}
+          >
+            All
+          </button>
+          {APPOINTMENT_TYPES.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setFilterType(t.value)}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all ${
+                filterType === t.value ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+              }`}
+            >
+              {t.emoji} {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Calendar view */}
+        {viewMode === "calendar" && (
+          <div className="rounded-xl bg-card shadow-soft overflow-hidden animate-fade-in">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(d) => d && setSelectedDate(d)}
+              modifiers={{ hasAppointment: appointmentDates }}
+              modifiersClassNames={{ hasAppointment: "bg-accent text-accent-foreground font-bold" }}
+              className="p-3 pointer-events-auto"
+            />
+            <div className="border-t border-border px-4 py-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                {format(selectedDate, "EEEE, MMMM d")}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Appointment list */}
+        <div className="space-y-2">
+          {filteredAppointments.length === 0 ? (
+            <div className="py-8 text-center animate-fade-in">
+              <p className="text-sm text-muted-foreground">
+                {viewMode === "calendar"
+                  ? "No appointments on this day"
+                  : "No appointments found"}
+              </p>
+              <button
+                onClick={openNew}
+                className="mt-3 rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]"
+              >
+                Add one
+              </button>
+            </div>
+          ) : (
+            filteredAppointments.map((appt) => {
+              const typeInfo = getAppointmentTypeInfo(appt.type);
+              return (
+                <div
+                  key={appt.id}
+                  className="flex items-start gap-3 rounded-xl bg-card p-4 shadow-soft animate-fade-in"
+                >
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-lg">
+                    {typeInfo.emoji}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">{appt.title}</p>
+                    <p className="text-xs text-muted-foreground">{typeInfo.label}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                      {viewMode === "list" && (
+                        <span className="flex items-center gap-1">
+                          <CalendarIcon className="h-3 w-3" />
+                          {format(parseISO(appt.date), "MMM d")}
+                        </span>
+                      )}
+                      {appt.time && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {appt.time}
+                        </span>
+                      )}
+                      {appt.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {appt.location}
+                        </span>
+                      )}
+                    </div>
+                    {appt.notes && (
+                      <p className="mt-1 text-[11px] text-muted-foreground italic">{appt.notes}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => openEdit(appt)} className="rounded-full p-2 text-muted-foreground hover:bg-secondary">
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => handleDelete(appt.id)} className="rounded-full p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default AppointmentsPage;
