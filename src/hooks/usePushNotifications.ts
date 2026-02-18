@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+// Publishable VAPID key — safe to hardcode in client code
+const VAPID_PUBLIC_KEY = "BNS1ywsswLmjydLXn6FDZV0eKSr55Ma0K_O0bUZ7FGIS3Uay6iWm0WXG3zqAvR1QSKHUa5nKMmIhAaH9i02eWvw";
 
 function urlB64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -61,11 +62,6 @@ export const usePushNotifications = () => {
 
   const subscribe = useCallback(async (hour = reminderHour) => {
     if (!supported || !user) return;
-    if (!VAPID_PUBLIC_KEY) {
-      console.warn("VITE_VAPID_PUBLIC_KEY is not set — notifications disabled.");
-      return;
-    }
-
     setState("loading");
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
