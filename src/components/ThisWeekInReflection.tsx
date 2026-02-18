@@ -6,6 +6,68 @@ import { PenLine, ChevronDown, ChevronUp, CheckCircle2, Circle, Copy, Check, Sha
 import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 
+/* ── helpers ───────────────────────────────────────────────── */
+const ORANGE   = [234, 88,  12]  as [number, number, number];
+const DARK     = [15,  15,  15]  as [number, number, number];
+const GREY     = [110, 110, 110] as [number, number, number];
+const LIGHT_BG = [250, 247, 244] as [number, number, number];
+const DIVIDER  = [220, 210, 200] as [number, number, number];
+const GREEN    = [16,  185, 129] as [number, number, number];
+const AMBER    = [217, 119, 6]   as [number, number, number];
+const RED      = [220, 38,  38]  as [number, number, number];
+
+/** Map a 0-10 score to a traffic-light colour */
+function scoreColour(v: number): [number, number, number] {
+  if (v <= 3) return GREEN;
+  if (v <= 6) return AMBER;
+  return RED;
+}
+
+/** Draw a small filled pill bar representing a score */
+function drawScorePill(
+  doc: jsPDF,
+  label: string,
+  value: number | null,
+  x: number,
+  y: number,
+  colW: number
+) {
+  const barW = colW - 14;
+  const barH = 2.2;
+  const score = value ?? null;
+
+  doc.setTextColor(...GREY);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.text(label, x, y);
+
+  if (score === null) {
+    doc.setDrawColor(...DIVIDER);
+    doc.setLineWidth(0.3);
+    doc.line(x, y + 1.5, x + barW, y + 1.5);
+    doc.setTextColor(...GREY);
+    doc.setFontSize(6.5);
+    doc.text("—", x + barW + 1.5, y + 1.5);
+    return;
+  }
+
+  // Track (background)
+  doc.setFillColor(...DIVIDER);
+  doc.roundedRect(x, y + 0.8, barW, barH, 1, 1, "F");
+
+  // Fill
+  const fillW = (score / 10) * barW;
+  const col = scoreColour(score);
+  doc.setFillColor(...col);
+  doc.roundedRect(x, y + 0.8, fillW, barH, 1, 1, "F");
+
+  // Label
+  doc.setTextColor(...col);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.text(`${score}/10`, x + barW + 1.5, y + 2.5);
+}
+
 /* ── PDF generator ─────────────────────────────────────────── */
 function generateWeekPDF(
   weekDays: Date[],
@@ -22,21 +84,16 @@ function generateWeekPDF(
   const weekStart = format(startOfWeek(today, { weekStartsOn: 1 }), "MMMM d");
   const weekEnd = format(today, "MMMM d, yyyy");
 
-  /* ── Colour palette ── */
-  const ORANGE   = [234, 88,  12]  as [number, number, number]; // primary
-  const DARK     = [15,  15,  15]  as [number, number, number];
-  const GREY     = [100, 100, 100] as [number, number, number];
-  const LIGHT_BG = [250, 247, 244] as [number, number, number];
-  const DIVIDER  = [220, 210, 200] as [number, number, number];
-  const GREEN    = [16,  185, 129] as [number, number, number];
-
   /* ── Header banner ── */
   doc.setFillColor(...ORANGE);
-  doc.rect(0, 0, pageW, 42, "F");
+  doc.rect(0, 0, pageW, 44, "F");
 
-  doc.setFillColor(255, 255, 255, 0.08 as any);
-  doc.circle(pageW - 12, -8, 28, "F");
-  doc.circle(pageW - 30, 5, 14, "F");
+  // Decorative circles
+  doc.setFillColor(255, 255, 255);
+  (doc as any).setGState(new (doc as any).GState({ opacity: 0.06 }));
+  doc.circle(pageW - 10, -6, 30, "F");
+  doc.circle(pageW - 32, 8, 16, "F");
+  (doc as any).setGState(new (doc as any).GState({ opacity: 1 }));
 
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
@@ -47,7 +104,7 @@ function generateWeekPDF(
   doc.setFontSize(10);
   doc.text(`${weekStart} – ${weekEnd}`, margin, 24);
 
-  /* Progress pill */
+  // Progress pill
   const total = weekDays.length;
   const pillText = `${reflectedCount} of ${total} days reflected`;
   const pillW = doc.getStringUnitWidth(pillText) * 10 / doc.internal.scaleFactor + 8;
@@ -58,16 +115,22 @@ function generateWeekPDF(
   doc.setFontSize(8.5);
   doc.text(pillText, margin + 4, 34);
 
-  /* Generated timestamp */
+  // Generated date
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  doc.text(`Generated ${format(today, "PPP")}`, pageW - margin, 37, { align: "right" });
+  doc.text(`Generated ${format(today, "PPP")}`, pageW - margin, 38, { align: "right" });
 
-  /* ── Body ── */
+  /* ── Legend ── */
   let y = 52;
+  doc.setFontSize(7);
+  doc.setTextColor(...GREY);
+  doc.setFont("helvetica", "italic");
+  doc.text("Symptom scores: 0–3 = mild (green) · 4–6 = moderate (amber) · 7–10 = severe (red)", margin, y);
+  y += 7;
 
-  weekDays.forEach((day, idx) => {
+  /* ── Day cards ── */
+  weekDays.forEach((day) => {
     const key = format(day, "yyyy-MM-dd");
     const entry = entriesByDate[key];
     const note = entry?.notes?.trim() ?? null;
@@ -75,38 +138,38 @@ function generateWeekPDF(
     const dayLabel = format(day, "EEEE, MMMM d");
     const hasNote = !!note;
 
-    /* Card background */
-    doc.setFillColor(...LIGHT_BG);
-    const cardX = margin;
-    const cardY = y;
-
-    /* Estimate card height to check for page break later */
-    const noteLines = note
-      ? doc.splitTextToSize(note, contentW - 10)
-      : ["(no reflection written)"];
+    const noteLines   = doc.splitTextToSize(note ?? "(no reflection written)", contentW - 10);
     const promptLines = doc.splitTextToSize(`"${prompt}"`, contentW - 10);
-    const cardH = 6 + 5 + promptLines.length * 4.5 + 3 + noteLines.length * 4.5 + 6;
+
+    const hasSymptoms = entry && (
+      entry.pain !== null || entry.fatigue !== null ||
+      entry.mood !== null || entry.brain_fog !== null
+    );
+
+    // Card height: header + prompt + divider + note + optional symptom rows + padding
+    const symptomH = hasSymptoms ? 22 : 0;
+    const cardH = 6 + promptLines.length * 4.5 + 3 + noteLines.length * 4.5 + symptomH + 8;
 
     if (y + cardH > pageH - 20) {
       doc.addPage();
       y = 20;
     }
 
+    // Card background
     doc.setFillColor(...LIGHT_BG);
-    doc.roundedRect(cardX, y, contentW, cardH, 3, 3, "F");
+    doc.roundedRect(margin, y, contentW, cardH, 3, 3, "F");
 
-    /* Left accent bar */
+    // Left accent bar
     doc.setFillColor(...(hasNote ? GREEN : DIVIDER));
-    doc.roundedRect(cardX, y, 3, cardH, 1.5, 1.5, "F");
+    doc.roundedRect(margin, y, 3, cardH, 1.5, 1.5, "F");
 
-    /* Day header */
-    y += 5;
+    // Day label
+    y += 5.5;
     doc.setTextColor(...DARK);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text(dayLabel, cardX + 8, y);
+    doc.text(dayLabel, margin + 8, y);
 
-    /* Tick / circle */
     if (hasNote) {
       doc.setTextColor(...GREEN);
       doc.setFont("helvetica", "bold");
@@ -114,39 +177,63 @@ function generateWeekPDF(
       doc.text("✓", pageW - margin - 4, y, { align: "right" });
     }
 
-    /* Prompt */
+    // Prompt
     y += 5;
     doc.setTextColor(...GREY);
     doc.setFont("helvetica", "italic");
     doc.setFontSize(8.5);
     promptLines.forEach((line: string) => {
-      doc.text(line, cardX + 8, y);
+      doc.text(line, margin + 8, y);
       y += 4.5;
     });
 
-    /* Divider */
+    // Divider
     y += 1;
     doc.setDrawColor(...DIVIDER);
     doc.setLineWidth(0.2);
-    doc.line(cardX + 8, y, cardX + contentW - 4, y);
-    y += 3;
+    doc.line(margin + 8, y, margin + contentW - 4, y);
+    y += 3.5;
 
-    /* Note content */
+    // Note text
     doc.setTextColor(hasNote ? DARK[0] : GREY[0], hasNote ? DARK[1] : GREY[1], hasNote ? DARK[2] : GREY[2]);
     doc.setFont("helvetica", hasNote ? "normal" : "italic");
     doc.setFontSize(9.5);
     noteLines.forEach((line: string) => {
-      doc.text(line, cardX + 8, y);
+      doc.text(line, margin + 8, y);
       y += 4.5;
     });
 
-    y += 7; // gap between cards
+    // ── Symptom scores section ──
+    if (hasSymptoms) {
+      y += 3;
 
-    /* Section divider line between days (not after last) */
-    if (idx < weekDays.length - 1) {
+      // Mini section label
+      doc.setTextColor(...GREY);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.text("SYMPTOM SCORES", margin + 8, y);
+      y += 3;
+
+      // Thin rule
       doc.setDrawColor(...DIVIDER);
-      doc.setLineWidth(0.1);
+      doc.setLineWidth(0.15);
+      doc.line(margin + 8, y, margin + contentW - 4, y);
+      y += 4;
+
+      // 4 pills in a 2×2 grid
+      const colW = (contentW - 8) / 2;
+      const col1 = margin + 8;
+      const col2 = margin + 8 + colW;
+
+      drawScorePill(doc, "Pain",      entry.pain,      col1, y, colW);
+      drawScorePill(doc, "Fatigue",   entry.fatigue,   col2, y, colW);
+      y += 8;
+      drawScorePill(doc, "Mood",      entry.mood,      col1, y, colW);
+      drawScorePill(doc, "Brain Fog", entry.brain_fog, col2, y, colW);
+      y += 5;
     }
+
+    y += 6; // gap between cards
   });
 
   /* ── Footer ── */
@@ -157,7 +244,7 @@ function generateWeekPDF(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.text("Generated with MS Journal · This is not medical advice.", margin, footerY + 1);
-  doc.text(`Page 1`, pageW - margin, footerY + 1, { align: "right" });
+  doc.text("Page 1", pageW - margin, footerY + 1, { align: "right" });
 
   /* ── Save ── */
   const filename = `reflection-week-${format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd")}.pdf`;
@@ -203,7 +290,6 @@ const DayRow = ({ day, entriesByDate, navigate }: DayRowProps) => {
 
   return (
     <div className="px-4 py-3 space-y-1">
-      {/* Day label row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           {note ? (
@@ -243,19 +329,13 @@ const DayRow = ({ day, entriesByDate, navigate }: DayRowProps) => {
         </div>
       </div>
 
-      {/* Prompt */}
       <p className="text-[11px] text-muted-foreground italic leading-relaxed">
         💭 {prompt}
       </p>
 
-      {/* Note or empty state */}
       {note ? (
         <div className="space-y-1">
-          <p
-            className={`text-sm text-foreground leading-relaxed transition-all ${
-              !expanded && isLong ? "line-clamp-3" : ""
-            }`}
-          >
+          <p className={`text-sm text-foreground leading-relaxed transition-all ${!expanded && isLong ? "line-clamp-3" : ""}`}>
             {note}
           </p>
           {isLong && (
@@ -272,9 +352,7 @@ const DayRow = ({ day, entriesByDate, navigate }: DayRowProps) => {
           )}
         </div>
       ) : (
-        <p className="text-[11px] text-muted-foreground/60">
-          No reflection written yet.
-        </p>
+        <p className="text-[11px] text-muted-foreground/60">No reflection written yet.</p>
       )}
     </div>
   );
@@ -330,12 +408,19 @@ const ThisWeekInReflection = ({ entries }: Props) => {
     const weekEnd = format(today, "MMMM d, yyyy");
     const lines = weekDays.map((day) => {
       const key = format(day, "yyyy-MM-dd");
-      const note = entriesByDate[key]?.notes?.trim();
+      const entry = entriesByDate[key];
+      const note = entry?.notes?.trim();
       const prompt = getPromptForDate(day);
       const dayLabel = format(day, "EEEE, MMMM d");
-      return note
-        ? `${dayLabel}\n💭 ${prompt}\n${note}`
-        : `${dayLabel}\n💭 ${prompt}\n(no reflection written)`;
+      const scores = entry
+        ? `Pain: ${entry.pain ?? "—"}/10 · Fatigue: ${entry.fatigue ?? "—"}/10 · Mood: ${entry.mood ?? "—"}/10 · Brain Fog: ${entry.brain_fog ?? "—"}/10`
+        : null;
+      return [
+        dayLabel,
+        scores ? `📊 ${scores}` : null,
+        `💭 ${prompt}`,
+        note ?? "(no reflection written)",
+      ].filter(Boolean).join("\n");
     });
     return `My week in reflection — ${weekStart}–${weekEnd}\n${"─".repeat(40)}\n\n${lines.join("\n\n")}`;
   };
@@ -347,7 +432,7 @@ const ThisWeekInReflection = ({ entries }: Props) => {
         await navigator.share({ title: "My week in reflection", text });
         return;
       } catch {
-        // User cancelled — fall through to clipboard
+        // cancelled
       }
     }
     navigator.clipboard.writeText(text).then(() => {
@@ -371,7 +456,6 @@ const ThisWeekInReflection = ({ entries }: Props) => {
           This week in reflection
         </p>
         <div className="flex items-center gap-2">
-          {/* PDF export */}
           <button
             onClick={handleExportPDF}
             disabled={exporting}
@@ -382,7 +466,6 @@ const ThisWeekInReflection = ({ entries }: Props) => {
             {exporting ? "Generating…" : "PDF"}
           </button>
 
-          {/* Share / copy */}
           <button
             onClick={handleShareWeek}
             className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
