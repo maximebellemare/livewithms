@@ -14,6 +14,7 @@ import { Link } from "react-router-dom";
 import { Settings, CheckCircle2 } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
 import UpcomingAppointments from "@/components/UpcomingAppointments";
+import DailyPromptCard from "@/components/DailyPromptCard";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
@@ -276,6 +277,14 @@ const TodayPage = () => {
               className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
+
+          {/* Daily reflection prompt */}
+          <DailyPromptCard
+            onUsePrompt={(prompt) => {
+              const prefix = notes.trim() ? notes + "\n\n" : "";
+              setNotes(prefix + prompt + " ");
+            }}
+          />
 
           <div className="rounded-xl bg-card p-4 shadow-soft">
             <label className="mb-2 block text-sm font-medium text-foreground">
