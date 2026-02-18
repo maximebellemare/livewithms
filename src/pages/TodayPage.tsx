@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { subDays, format } from "date-fns";
 import PageHeader from "@/components/PageHeader";
@@ -9,10 +9,10 @@ import WeeklySummaryBanner from "@/components/WeeklySummaryBanner";
 import StreakBadge, { useStreak } from "@/components/StreakBadge";
 import StreakMilestoneBanner from "@/components/StreakMilestoneBanner";
 import { Link } from "react-router-dom";
-import { Settings } from "lucide-react";
+import { Settings, CheckCircle2 } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
 import UpcomingAppointments from "@/components/UpcomingAppointments";
-import { useSaveEntry, useEntriesInRange } from "@/hooks/useEntries";
+import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { toast } from "sonner";
 
 const MILESTONE_DAYS = [7, 14, 30];
@@ -36,10 +36,30 @@ const TodayPage = () => {
   const [sleepHours, setSleepHours] = useState("");
   const [logged, setLogged] = useState(false);
   const [milestoneDismissed, setMilestoneDismissed] = useState(false);
+  const [formInitialized, setFormInitialized] = useState(false);
 
   // Read streak BEFORE save so we detect the exact moment it hits a milestone
   const { streak } = useStreak();
   const isMilestone = MILESTONE_DAYS.includes(streak) && !milestoneDismissed;
+
+  // Check if user already logged today
+  const { data: todayEntry, isLoading: todayLoading } = useTodayEntry();
+  const alreadyLogged = !!todayEntry && !logged;
+
+  // Pre-populate form with today's existing entry (once loaded)
+  useEffect(() => {
+    if (todayEntry && !formInitialized) {
+      setFatigue(todayEntry.fatigue ?? 0);
+      setPain(todayEntry.pain ?? 0);
+      setBrainFog(todayEntry.brain_fog ?? 0);
+      setMood(todayEntry.mood ?? 0);
+      setMobility(todayEntry.mobility ?? 0);
+      setMoodTags(todayEntry.mood_tags ?? []);
+      setNotes(todayEntry.notes ?? "");
+      setSleepHours(todayEntry.sleep_hours != null ? String(todayEntry.sleep_hours) : "");
+      setFormInitialized(true);
+    }
+  }, [todayEntry, formInitialized]);
 
   const today = new Date();
   const weekStart = format(subDays(today, 7), "yyyy-MM-dd");
@@ -150,6 +170,17 @@ const TodayPage = () => {
           />
         )}
 
+      {/* Already logged today indicator */}
+        {!todayLoading && alreadyLogged && (
+          <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/8 px-4 py-3 animate-fade-in">
+            <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-primary" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">Already logged today 🧡</p>
+              <p className="text-xs text-muted-foreground">Your entry is saved — update it any time below.</p>
+            </div>
+          </div>
+        )}
+
         {/* Weekly summary banner */}
         <WeeklySummaryBanner />
 
@@ -232,7 +263,7 @@ const TodayPage = () => {
             disabled={saveEntry.isPending}
             className="w-full rounded-full bg-primary py-3.5 text-base font-semibold text-primary-foreground shadow-card transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
           >
-            {saveEntry.isPending ? "Saving..." : "Save today's entry"}
+            {saveEntry.isPending ? "Saving..." : alreadyLogged ? "Update today's entry" : "Save today's entry"}
           </button>
           <p className="mt-2 text-center text-xs text-muted-foreground">
             ⚕️ This is not medical advice. Always consult your neurologist.

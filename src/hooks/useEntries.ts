@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { format } from "date-fns";
 
 export interface DailyEntry {
   id: string;
@@ -27,6 +28,25 @@ export const useEntries = () => {
         .order("date", { ascending: false });
       if (error) throw error;
       return data as DailyEntry[];
+    },
+    enabled: !!user,
+  });
+};
+
+export const useTodayEntry = () => {
+  const { user } = useAuth();
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+
+  return useQuery({
+    queryKey: ["entries", user?.id, "today", todayStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("daily_entries")
+        .select("*")
+        .eq("date", todayStr)
+        .maybeSingle();
+      if (error) throw error;
+      return data as DailyEntry | null;
     },
     enabled: !!user,
   });
