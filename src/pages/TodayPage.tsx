@@ -169,7 +169,7 @@ const TodayPage = () => {
         </div>
 
         {/* Log button */}
-        <div className="pb-4 animate-slide-up" style={{ animationDelay: "0.4s" }}>
+        <div className="pb-8 animate-slide-up" style={{ animationDelay: "0.4s" }}>
           <button
             onClick={handleLog}
             className="w-full rounded-full bg-primary py-3.5 text-base font-semibold text-primary-foreground shadow-card transition-all hover:opacity-90 active:scale-[0.98]"
