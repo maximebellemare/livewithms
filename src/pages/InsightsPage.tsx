@@ -238,6 +238,105 @@ const InsightsPage = () => {
               Tap a card to focus that symptom
             </p>
 
+            {/* ── Weekly Progress Summary ── */}
+            {(() => {
+              const rows = SYMPTOMS.map(({ key, label, emoji }) => {
+                const curAvg  = avg(windowEntries.map((e) => e[key as keyof typeof e] as number | null));
+                const prevAvg = avg(prevWindowEntries.map((e) => e[key as keyof typeof e] as number | null));
+                if (curAvg === null) return null;
+                const diff = prevAvg !== null ? curAvg - prevAvg : null;
+                // For fatigue/pain/brain_fog lower is better; for mood/mobility higher is better
+                const lowerIsBetter = key === "fatigue" || key === "pain" || key === "brain_fog";
+                const improved = diff !== null && (lowerIsBetter ? diff < -0.4 : diff > 0.4);
+                const worsened = diff !== null && (lowerIsBetter ? diff > 0.4 : diff < -0.4);
+                return { key, label, emoji, curAvg, prevAvg, diff, improved, worsened };
+              }).filter(Boolean) as NonNullable<{
+                key: string; label: string; emoji: string; curAvg: number;
+                prevAvg: number | null; diff: number | null; improved: boolean; worsened: boolean;
+              }>[];
+
+              const improvedCount = rows.filter((r) => r.improved).length;
+              const worsenedCount = rows.filter((r) => r.worsened).length;
+              const stableCount   = rows.length - improvedCount - worsenedCount;
+
+              return (
+                <div className="rounded-xl bg-card shadow-soft overflow-hidden">
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Weekly Progress</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        vs. prior {range}-day period
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {improvedCount > 0 && (
+                        <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
+                          <TrendingDown className="h-3 w-3" />{improvedCount} better
+                        </span>
+                      )}
+                      {worsenedCount > 0 && (
+                        <span className="flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+                          <TrendingUp className="h-3 w-3" />{worsenedCount} worse
+                        </span>
+                      )}
+                      {stableCount > 0 && improvedCount === 0 && worsenedCount === 0 && (
+                        <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                          <Minus className="h-3 w-3" />Stable
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Rows */}
+                  <div className="divide-y divide-border">
+                    {rows.map(({ key, label, emoji, curAvg, prevAvg, diff, improved, worsened }) => (
+                      <div key={key} className="flex items-center gap-3 px-4 py-3">
+                        <span className="text-base w-6 text-center">{emoji}</span>
+                        <span className="flex-1 text-sm text-foreground">{label}</span>
+
+                        {/* Bar */}
+                        <div className="flex-1 max-w-[90px]">
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{
+                                width: `${(curAvg / 10) * 100}%`,
+                                backgroundColor: improved ? "hsl(145 45% 45%)" : worsened ? "hsl(0 72% 51%)" : "hsl(var(--muted-foreground))",
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Value + delta */}
+                        <div className="flex items-center gap-1.5 min-w-[56px] justify-end">
+                          <span className="text-sm font-bold text-foreground">{curAvg.toFixed(1)}</span>
+                          {diff !== null ? (
+                            <span
+                              className="flex items-center gap-0.5 text-[10px] font-medium"
+                              style={{ color: improved ? "hsl(145 45% 40%)" : worsened ? "hsl(0 72% 51%)" : "hsl(var(--muted-foreground))" }}
+                            >
+                              {improved ? <TrendingDown className="h-3 w-3" /> :
+                               worsened ? <TrendingUp className="h-3 w-3" /> :
+                                          <Minus className="h-3 w-3" />}
+                              {diff > 0 ? "+" : ""}{diff.toFixed(1)}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">new</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Footer note */}
+                  <p className="px-4 pb-3 pt-2 text-[10px] text-muted-foreground">
+                    ↓ lower is better for fatigue, pain & fog · ↑ higher is better for mood & mobility
+                  </p>
+                </div>
+              );
+            })()}
+
             {/* ── AI Weekly Insight ── */}
             <AIWeeklyInsight entries={windowEntries} range={range} />
 
