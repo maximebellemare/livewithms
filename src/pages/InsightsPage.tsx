@@ -12,6 +12,18 @@ import { useEntries } from "@/hooks/useEntries";
 import { useNavigate } from "react-router-dom";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
+const MOOD_TAG_META: Record<string, string> = {
+  Happy: "😊", Calm: "😌", Frustrated: "😤", Sad: "😔",
+  Anxious: "😰", Tired: "😴", Strong: "💪", Low: "🌧️",
+};
+
+// positive tags (green), negative (red), neutral (muted)
+const MOOD_TAG_SENTIMENT: Record<string, "positive" | "negative" | "neutral"> = {
+  Happy: "positive", Calm: "positive", Strong: "positive",
+  Frustrated: "negative", Sad: "negative", Anxious: "negative", Low: "negative",
+  Tired: "neutral",
+};
+
 /* ── colour palette (matches design tokens) ───────────────── */
 const COLORS = {
   fatigue:  { stroke: "hsl(25 85% 50%)",  fill: "hsl(25 85% 50% / 0.12)"  },
@@ -762,6 +774,72 @@ const InsightsPage = () => {
                 )}
               </div>
             )}
+
+            {/* ── Mood Tags Breakdown ── */}
+            {(() => {
+              const tagCounts: Record<string, number> = {};
+              windowEntries.forEach((e) => {
+                (e.mood_tags ?? []).forEach((tag) => {
+                  tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+                });
+              });
+
+              const sorted = Object.entries(tagCounts)
+                .sort((a, b) => b[1] - a[1]);
+
+              if (sorted.length === 0) return null;
+
+              const max = sorted[0][1];
+
+              return (
+                <div className="rounded-xl bg-card p-4 shadow-soft">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🏷️</span>
+                      <span className="text-sm font-semibold text-foreground">Mood Tags</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{range}-day view</span>
+                  </div>
+                  <div className="space-y-2.5">
+                    {sorted.map(([tag, count]) => {
+                      const sentiment = MOOD_TAG_SENTIMENT[tag] ?? "neutral";
+                      const emoji = MOOD_TAG_META[tag] ?? "🏷️";
+                      const pct = (count / max) * 100;
+                      const barColor =
+                        sentiment === "positive" ? "hsl(145 45% 45%)" :
+                        sentiment === "negative" ? "hsl(0 72% 51%)"   :
+                        "hsl(var(--muted-foreground))";
+                      return (
+                        <div key={tag} className="flex items-center gap-3">
+                          <span className="w-5 text-center text-sm flex-shrink-0">{emoji}</span>
+                          <span className="w-20 text-xs text-foreground flex-shrink-0 truncate">{tag}</span>
+                          <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{ width: `${pct}%`, backgroundColor: barColor }}
+                            />
+                          </div>
+                          <span className="w-8 text-right text-xs font-semibold text-foreground flex-shrink-0">
+                            {count}×
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 flex gap-3 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" />Positive
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-full bg-destructive inline-block" />Negative
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-full bg-muted-foreground inline-block" />Neutral
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ── CTA ── */}
             <button
