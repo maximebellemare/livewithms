@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ── VAPID helper (Web Crypto based, no external deps) ─────────────────────────
+// ── VAPID helper ────────────────────────────────────────────────────────────────
 
 function base64UrlDecode(str: string): Uint8Array {
   const b64 = str.replace(/-/g, "+").replace(/_/g, "/");
@@ -19,14 +19,14 @@ function base64UrlEncode(buf: ArrayBuffer): string {
 }
 
 async function buildVapidJwt(audience: string, privateKeyB64u: string): Promise<string> {
-  const header = base64UrlEncode(new TextEncoder().encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
+  const header  = base64UrlEncode(new TextEncoder().encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
   const payload = base64UrlEncode(new TextEncoder().encode(JSON.stringify({
     aud: audience,
     exp: Math.floor(Date.now() / 1000) + 12 * 3600,
     sub: "mailto:support@livewithms.app",
   })));
 
-  const keyData = base64UrlDecode(privateKeyB64u);
+  const keyData  = base64UrlDecode(privateKeyB64u);
   const cryptoKey = await crypto.subtle.importKey(
     "pkcs8", keyData,
     { name: "ECDSA", namedCurve: "P-256" },
@@ -34,7 +34,7 @@ async function buildVapidJwt(audience: string, privateKeyB64u: string): Promise<
   );
 
   const data = new TextEncoder().encode(`${header}.${payload}`);
-  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, cryptoKey, data);
+  const sig  = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, cryptoKey, data);
   return `${header}.${payload}.${base64UrlEncode(sig)}`;
 }
 
@@ -44,9 +44,9 @@ async function sendPushMessage(
   vapidPublicKey: string,
   vapidPrivateKey: string,
 ): Promise<{ ok: boolean; status: number }> {
-  const url = new URL(subscription.endpoint);
+  const url      = new URL(subscription.endpoint);
   const audience = `${url.protocol}//${url.host}`;
-  const jwt = await buildVapidJwt(audience, vapidPrivateKey);
+  const jwt      = await buildVapidJwt(audience, vapidPrivateKey);
 
   const res = await fetch(subscription.endpoint, {
     method: "POST",
@@ -61,7 +61,7 @@ async function sendPushMessage(
   return { ok: res.ok, status: res.status };
 }
 
-// ── Handler ────────────────────────────────────────────────────────────────────
+// ── Handler ─────────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -81,14 +81,17 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Fetch all subscriptions
+    // Current UTC hour — only send to subscribers whose reminder_hour matches
+    const currentUtcHour = new Date().getUTCHours();
+
     const { data: subs, error } = await supabase
       .from("push_subscriptions")
-      .select("endpoint, p256dh, auth");
+      .select("endpoint, p256dh, auth, reminder_hour")
+      .eq("reminder_hour", currentUtcHour);
 
     if (error) throw error;
     if (!subs || subs.length === 0) {
-      return new Response(JSON.stringify({ sent: 0, message: "No subscribers" }), {
+      return new Response(JSON.stringify({ sent: 0, message: "No subscribers due this hour" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -111,7 +114,6 @@ Deno.serve(async (req) => {
           sent++;
         } else {
           failed++;
-          // 410 Gone = subscription expired, clean up
           if (status === 410) staleEndpoints.push(sub.endpoint);
         }
       } catch {
@@ -119,14 +121,13 @@ Deno.serve(async (req) => {
       }
     }));
 
-    // Remove stale subscriptions
     if (staleEndpoints.length > 0) {
       await supabase.from("push_subscriptions")
         .delete()
         .in("endpoint", staleEndpoints);
     }
 
-    return new Response(JSON.stringify({ sent, failed }), {
+    return new Response(JSON.stringify({ sent, failed, hour: currentUtcHour }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: unknown) {
