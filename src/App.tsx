@@ -14,6 +14,7 @@ import CommunityPage from "./pages/CommunityPage";
 import ProfilePage from "./pages/ProfilePage";
 import MedicationsPage from "./pages/MedicationsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
+import ReportsPage from "./pages/ReportsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/medications" element={<MedicationsPage />} />
             <Route path="/appointments" element={<AppointmentsPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppShell>

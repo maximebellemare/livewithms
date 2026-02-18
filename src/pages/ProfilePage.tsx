@@ -1,6 +1,6 @@
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, Trash2, ExternalLink } from "lucide-react";
+import { ChevronRight, Download, Shield, Trash2, ExternalLink, FileText } from "lucide-react";
 
 const ProfilePage = () => {
   return (
@@ -26,6 +26,21 @@ const ProfilePage = () => {
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
+
+        {/* Doctor Report */}
+        <Link
+          to="/reports"
+          className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-primary/10 to-accent p-4 shadow-soft transition-all hover:shadow-card active:scale-[0.98]"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15">
+            <FileText className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-foreground">Doctor-Ready Report</p>
+            <p className="text-xs text-muted-foreground">Generate PDF for your neurologist</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
 
         {/* Settings */}
         <div className="space-y-1">
