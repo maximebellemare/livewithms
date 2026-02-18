@@ -150,10 +150,10 @@ const InsightsPage = () => {
             {/* ── Stat cards ── */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {SYMPTOMS.slice(0, 4).map(({ key, label, emoji }) => {
-                const cur = avg(windowEntries.map((e) => e[key]));
+                const cur = avg(windowEntries.map((e) => e[key as keyof typeof e] as number | null));
                 const t = trend(
-                  windowEntries.slice(0, Math.ceil(windowEntries.length / 2)).map((e) => e[key]),
-                  prevWindowEntries.map((e) => e[key]),
+                  windowEntries.map((e) => e[key as keyof typeof e] as number | null),
+                  prevWindowEntries.map((e) => e[key as keyof typeof e] as number | null),
                 );
                 return (
                   <button
@@ -259,7 +259,7 @@ const InsightsPage = () => {
             </p>
             <div className="grid grid-cols-1 gap-3">
               {SYMPTOMS.map(({ key, label, emoji }) => {
-                const vals = windowEntries.map((e) => e[key]);
+                const vals = windowEntries.map((e) => e[key as keyof typeof e] as number | null);
                 const curAvg = avg(vals);
                 const maxVal = Math.max(...vals.filter((v): v is number => v !== null));
                 return (
