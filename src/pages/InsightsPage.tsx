@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { format, parseISO, subDays, eachDayOfInterval } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import AIWeeklyInsight from "@/components/AIWeeklyInsight";
@@ -78,6 +79,7 @@ const InsightsPage = () => {
   const navigate = useNavigate();
   const [range, setRange] = useState<7 | 30>(30);
   const [activeSymptom, setActiveSymptom] = useState<SymptomKey | "all">("all");
+  const [showPeaks, setShowPeaks] = useState(false);
 
   /* Build a complete day-by-day series (fills gaps with null) */
   const chartData = useMemo(() => {
@@ -429,8 +431,74 @@ const InsightsPage = () => {
                     );
                   })()}
 
+                  {/* ── Per-symptom peaks collapsible ── */}
+                  {rows.some((r) => r.bestDay || r.worstDay) && (
+                    <div className="border-t border-border">
+                      <button
+                        onClick={() => setShowPeaks((p) => !p)}
+                        className="flex w-full items-center justify-between px-4 py-2.5 text-left hover:bg-secondary/50 transition-colors"
+                      >
+                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                          Per-symptom peaks
+                        </span>
+                        <ChevronDown
+                          className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${showPeaks ? "rotate-180" : ""}`}
+                        />
+                      </button>
+
+                      {showPeaks && (
+                        <div className="px-4 pb-4 space-y-3">
+                          {rows.map(({ key, label, emoji, bestDay, worstDay, lowerIsBetter }) => {
+                            if (!bestDay && !worstDay) return null;
+                            const fmtDate = (d: string) => {
+                              try { return format(parseISO(d), range === 7 ? "EEE d" : "MMM d"); }
+                              catch { return d; }
+                            };
+                            return (
+                              <div key={key} className="flex items-start gap-2">
+                                {/* Symptom label */}
+                                <span className="text-sm pt-0.5">{emoji}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[11px] font-medium text-foreground mb-1">{label}</p>
+                                  <div className="flex gap-2">
+                                    {bestDay && (
+                                      <div className="flex items-center gap-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 min-w-0">
+                                        <span className="text-[10px]">🌟</span>
+                                        <div className="min-w-0">
+                                          <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 truncate">
+                                            {fmtDate(bestDay.date)}
+                                          </p>
+                                          <p className="text-[9px] text-muted-foreground">
+                                            {bestDay.val}/10 · {lowerIsBetter ? "low" : "high"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {worstDay && (
+                                      <div className="flex items-center gap-1 rounded-md bg-destructive/8 border border-destructive/20 px-2 py-1 min-w-0">
+                                        <span className="text-[10px]">⚠️</span>
+                                        <div className="min-w-0">
+                                          <p className="text-[10px] font-semibold text-destructive truncate">
+                                            {fmtDate(worstDay.date)}
+                                          </p>
+                                          <p className="text-[9px] text-muted-foreground">
+                                            {worstDay.val}/10 · {lowerIsBetter ? "high" : "low"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Footer note */}
-                  <p className="px-4 pb-3 pt-2 text-[10px] text-muted-foreground">
+                  <p className="px-4 pb-3 pt-2 text-[10px] text-muted-foreground border-t border-border">
                      ↓ lower is better for fatigue, pain & fog · ↑ higher is better for mood & mobility
                   </p>
                 </div>
