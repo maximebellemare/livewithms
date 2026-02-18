@@ -25,9 +25,10 @@ function dateLabel(dateStr: string): string {
 interface EditorCardProps {
   date: string;
   entry: DailyEntry | null;
+  recentEntries?: DailyEntry[];
 }
 
-const EditorCard = ({ date, entry }: EditorCardProps) => {
+const EditorCard = ({ date, entry, recentEntries = [] }: EditorCardProps) => {
   const [text, setText] = useState(entry?.notes ?? "");
   const [saved, setSaved] = useState(false);
   const saveEntry = useSaveEntry();
@@ -65,6 +66,7 @@ const EditorCard = ({ date, entry }: EditorCardProps) => {
       {/* AI prompt suggestions */}
       <JournalPromptSuggestions
         entry={entry}
+        recentEntries={recentEntries}
         onSelectPrompt={(prompt) => {
           const prefix = text.trim() ? text + "\n\n" : "";
           setText(prefix + prompt + " ");
@@ -241,7 +243,7 @@ const JournalPage = () => {
               <span className="text-2xl animate-pulse">🧡</span>
             </div>
           ) : (
-            <EditorCard date={today} entry={todayEntry} />
+            <EditorCard date={today} entry={todayEntry} recentEntries={entries} />
           )}
         </section>
 

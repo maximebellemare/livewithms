@@ -6,10 +6,11 @@ import { DailyEntry } from "@/hooks/useEntries";
 
 interface JournalPromptSuggestionsProps {
   entry: DailyEntry | null;
+  recentEntries?: DailyEntry[];
   onSelectPrompt: (prompt: string) => void;
 }
 
-const JournalPromptSuggestions = ({ entry, onSelectPrompt }: JournalPromptSuggestionsProps) => {
+const JournalPromptSuggestions = ({ entry, recentEntries = [], onSelectPrompt }: JournalPromptSuggestionsProps) => {
   const [prompts, setPrompts] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -18,6 +19,21 @@ const JournalPromptSuggestions = ({ entry, onSelectPrompt }: JournalPromptSugges
   const generate = async () => {
     setLoading(true);
     try {
+      // Build a compact weekly history (exclude today — sent separately)
+      const weeklyHistory = recentEntries
+        .filter((e) => e.date !== entry?.date)
+        .slice(0, 6)
+        .map((e) => ({
+          date: e.date,
+          fatigue: e.fatigue,
+          pain: e.pain,
+          brain_fog: e.brain_fog,
+          mood: e.mood,
+          mobility: e.mobility,
+          sleep_hours: e.sleep_hours,
+          mood_tags: e.mood_tags ?? [],
+        }));
+
       const { data, error } = await supabase.functions.invoke("journal-prompt", {
         body: {
           fatigue: entry?.fatigue ?? null,
@@ -27,6 +43,7 @@ const JournalPromptSuggestions = ({ entry, onSelectPrompt }: JournalPromptSugges
           mobility: entry?.mobility ?? null,
           sleep_hours: entry?.sleep_hours ?? null,
           mood_tags: entry?.mood_tags ?? [],
+          weekly_history: weeklyHistory,
         },
       });
 
