@@ -7,6 +7,7 @@ import MoodSelector from "@/components/MoodSelector";
 import QuickCard from "@/components/QuickCard";
 import WeeklySummaryBanner from "@/components/WeeklySummaryBanner";
 import StreakBadge, { useStreak } from "@/components/StreakBadge";
+import WeekStreakBadge from "@/components/WeekStreakBadge";
 import StreakMilestoneBanner from "@/components/StreakMilestoneBanner";
 import { Link } from "react-router-dom";
 import { Settings, CheckCircle2 } from "lucide-react";
@@ -160,8 +161,9 @@ const TodayPage = () => {
           <p className="mt-2 text-sm text-muted-foreground">
             Great job taking care of yourself today. Every entry helps you understand your MS better.
           </p>
-          <div className="mt-5 mx-auto max-w-xs">
+          <div className="mt-5 mx-auto max-w-xs space-y-3">
             <StreakBadge />
+            <WeekStreakBadge />
           </div>
           <button
             onClick={() => setLogged(false)}
@@ -208,8 +210,9 @@ const TodayPage = () => {
         {/* Weekly summary banner */}
         <WeeklySummaryBanner />
 
-        {/* Streak tracker */}
+        {/* Streak trackers */}
         <StreakBadge />
+        <WeekStreakBadge />
 
         {/* Quick symptom logging */}
         <div className="space-y-3 animate-fade-in">

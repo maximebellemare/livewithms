@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
 import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails } from "lucide-react";
@@ -8,8 +8,9 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import NotificationToggle from "@/components/NotificationToggle";
 import { toast } from "sonner";
-import { useEntries, useEntriesInRange } from "@/hooks/useEntries";
-import { format, startOfWeek, subWeeks } from "date-fns";
+import { useEntriesInRange } from "@/hooks/useEntries";
+import { useWeekStreak } from "@/hooks/useWeekStreak";
+import { format, startOfWeek } from "date-fns";
 
 function getNextMonday(): string {
   const today = new Date();
@@ -43,36 +44,8 @@ const ProfilePage = () => {
   const { data: weekEntries } = useEntriesInRange(weekStart, weekEnd);
   const daysLoggedThisWeek = weekEntries?.length ?? 0;
 
-  // Consecutive-week streak computed from all entries
-  const { data: allEntries = [] } = useEntries();
-  const weekStreak = useMemo(() => {
-    if (!profile || allEntries.length === 0) return 0;
-    const goal = profile.weekly_log_goal ?? 7;
-
-    // Group entries by their Monday
-    const weekCounts = new Map<string, number>();
-    for (const entry of allEntries) {
-      const d = new Date(entry.date + "T00:00:00");
-      const day = d.getDay(); // 0=Sun
-      d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
-      const key = format(d, "yyyy-MM-dd");
-      weekCounts.set(key, (weekCounts.get(key) ?? 0) + 1);
-    }
-
-    // Start from current week, walk backwards
-    let streak = 0;
-    let cursor = startOfWeek(new Date(), { weekStartsOn: 1 });
-    for (let i = 0; i < 52; i++) {
-      const key = format(cursor, "yyyy-MM-dd");
-      if ((weekCounts.get(key) ?? 0) >= goal) {
-        streak++;
-        cursor = subWeeks(cursor, 1);
-      } else {
-        break;
-      }
-    }
-    return streak;
-  }, [allEntries, profile]);
+  // Consecutive-week streak — shared hook
+  const { weekStreak } = useWeekStreak();
 
   const [neuroEmail, setNeuroEmail] = useState<string>("");
   const [neuroEmailInit, setNeuroEmailInit] = useState(false);
