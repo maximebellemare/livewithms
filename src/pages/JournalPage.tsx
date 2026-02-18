@@ -1,13 +1,19 @@
 import { useState, useMemo } from "react";
-import { format, parseISO, isToday, isYesterday } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import { useEntries, useSaveEntry, DailyEntry } from "@/hooks/useEntries";
 import { PenLine, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
+/* ── Parse a yyyy-MM-dd string as local date (avoids UTC midnight shift) ── */
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 /* ── Date label helper ─────────────────────────────────────── */
 function dateLabel(dateStr: string): string {
-  const d = parseISO(dateStr);
+  const d = parseLocalDate(dateStr);
   if (isToday(d)) return "Today";
   if (isYesterday(d)) return "Yesterday";
   return format(d, "EEEE, MMMM d");
@@ -51,7 +57,7 @@ const EditorCard = ({ date, entry }: EditorCardProps) => {
     <div className="rounded-2xl bg-card border border-border shadow-soft p-4 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-foreground">{dateLabel(date)}</p>
-        <p className="text-xs text-muted-foreground">{format(parseISO(date), "MMM d, yyyy")}</p>
+        <p className="text-xs text-muted-foreground">{format(parseLocalDate(date), "MMM d, yyyy")}</p>
       </div>
       <textarea
         value={text}
@@ -105,7 +111,7 @@ const PastEntry = ({ entry }: PastEntryProps) => {
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-muted-foreground mb-1">
-            {format(parseISO(entry.date), "EEEE, MMMM d")}
+            {format(parseLocalDate(entry.date), "EEEE, MMMM d")}
           </p>
           <p className="text-sm text-foreground italic leading-relaxed">
             "{expanded ? entry.notes : preview}"
