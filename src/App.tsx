@@ -16,6 +16,7 @@ import InsightsPage from "./pages/InsightsPage";
 import LearnPage from "./pages/LearnPage";
 import CommunityPage from "./pages/CommunityPage";
 import ProfilePage from "./pages/ProfilePage";
+import JournalPage from "./pages/JournalPage";
 import MedicationsPage from "./pages/MedicationsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -50,6 +51,7 @@ const AppRoutes = () => {
         <Route path="/insights" element={<ProtectedRoute><InsightsPage /></ProtectedRoute>} />
         <Route path="/learn" element={<ProtectedRoute><LearnPage /></ProtectedRoute>} />
         <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
+        <Route path="/journal" element={<ProtectedRoute><JournalPage /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/medications" element={<ProtectedRoute><MedicationsPage /></ProtectedRoute>} />
         <Route path="/appointments" element={<ProtectedRoute><AppointmentsPage /></ProtectedRoute>} />

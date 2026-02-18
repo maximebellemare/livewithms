@@ -1,12 +1,12 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, BarChart3, TrendingUp, BookOpen, Users } from "lucide-react";
+import { Home, BarChart3, TrendingUp, BookOpen, NotebookPen } from "lucide-react";
 
 const tabs = [
-  { to: "/today", icon: Home, label: "Today" },
-  { to: "/track", icon: BarChart3, label: "Track" },
-  { to: "/insights", icon: TrendingUp, label: "Insights" },
-  { to: "/learn", icon: BookOpen, label: "Learn" },
-  { to: "/community", icon: Users, label: "Community" },
+  { to: "/today",   icon: Home,         label: "Today" },
+  { to: "/track",   icon: BarChart3,    label: "Track" },
+  { to: "/insights",icon: TrendingUp,   label: "Insights" },
+  { to: "/journal", icon: NotebookPen,  label: "Journal" },
+  { to: "/learn",   icon: BookOpen,     label: "Learn" },
 ];
 
 const BottomNav = () => {
