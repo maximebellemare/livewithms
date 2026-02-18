@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { format, parseISO, subDays, eachDayOfInterval } from "date-fns";
 import PageHeader from "@/components/PageHeader";
+import AIWeeklyInsight from "@/components/AIWeeklyInsight";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   ResponsiveContainer, Tooltip, Area, AreaChart, ReferenceLine,
@@ -236,6 +237,9 @@ const InsightsPage = () => {
             <p className="text-[10px] text-muted-foreground text-center -mt-1">
               Tap a card to focus that symptom
             </p>
+
+            {/* ── AI Weekly Insight ── */}
+            <AIWeeklyInsight entries={windowEntries} range={range} />
 
             {/* ── Main trend chart ── */}
             <div className="rounded-xl bg-card p-4 shadow-soft">
