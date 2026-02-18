@@ -83,7 +83,7 @@ serve(async (req) => {
       } catch { /* no body */ }
     }
 
-    let profiles: { user_id: string }[];
+    let profiles: { user_id: string; weekly_log_goal: number }[];
 
     if (testEmail) {
       // Find the user by email via admin API
@@ -96,12 +96,18 @@ serve(async (req) => {
           { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      profiles = [{ user_id: match.id }];
+      // Fetch their profile to get weekly_log_goal
+      const { data: profData } = await supabase
+        .from("profiles")
+        .select("user_id, weekly_log_goal")
+        .eq("user_id", match.id)
+        .single();
+      profiles = [{ user_id: match.id, weekly_log_goal: profData?.weekly_log_goal ?? 7 }];
     } else {
       // Fetch all opted-in profiles
       const { data, error: profErr } = await supabase
         .from("profiles")
-        .select("user_id")
+        .select("user_id, weekly_log_goal")
         .eq("weekly_digest_enabled", true);
 
       if (profErr) throw profErr;
@@ -111,7 +117,7 @@ serve(async (req) => {
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      profiles = data;
+      profiles = data.map((p) => ({ user_id: p.user_id, weekly_log_goal: p.weekly_log_goal ?? 7 }));
     }
 
     const now = new Date();
@@ -200,6 +206,11 @@ serve(async (req) => {
                 avg_mood_label: fmt(avgMood),
                 avg_mobility_label: fmt(avgMobility),
                 avg_sleep_label: fmt(avgSleep, " hrs"),
+                weekly_log_goal: profile.weekly_log_goal,
+                goal_achieved: entries.length >= profile.weekly_log_goal,
+                goal_summary: entries.length >= profile.weekly_log_goal
+                  ? `You hit your ${profile.weekly_log_goal}-day goal this week! 🔥`
+                  : `You logged ${entries.length} of your ${profile.weekly_log_goal}-day goal`,
                 unsubscribe_url: unsubscribeUrl,
               },
             },
