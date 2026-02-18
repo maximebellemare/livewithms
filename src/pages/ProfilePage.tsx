@@ -4,6 +4,7 @@ import { ChevronRight, Download, Shield, Trash2, ExternalLink, FileText, LogOut 
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
+import NotificationToggle from "@/components/NotificationToggle";
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
@@ -59,6 +60,7 @@ const ProfilePage = () => {
         {/* Settings */}
         <div className="space-y-1">
           <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Settings</p>
+          <NotificationToggle />
           {[
             { icon: Shield, label: "Privacy & Consent", desc: "Manage your data preferences" },
             { icon: Download, label: "Export Data", desc: "Download your health data" },
