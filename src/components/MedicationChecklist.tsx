@@ -1,58 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Check, X, Pill } from "lucide-react";
-import {
-  Medication,
-  MedicationLog,
-  getMedications,
-  getMedicationLogs,
-  logMedication,
-  getTodayDateStr,
-  isMedDueToday,
-} from "@/lib/medications";
-
-const generateId = () => Math.random().toString(36).slice(2, 10);
+import { useDbMedications, useDbMedicationLogs, useLogMedication } from "@/hooks/useMedications";
 
 const MedicationChecklist = () => {
-  const [meds, setMeds] = useState<Medication[]>([]);
-  const [logs, setLogs] = useState<MedicationLog[]>([]);
-  const today = getTodayDateStr();
+  const today = new Date().toISOString().split("T")[0];
+  const { data: allMeds = [] } = useDbMedications();
+  const { data: allLogs = [] } = useDbMedicationLogs(today, today);
+  const logMutation = useLogMedication();
 
-  useEffect(() => {
-    const allMeds = getMedications();
-    setMeds(allMeds.filter((m) => isMedDueToday(m, today)));
-    setLogs(getMedicationLogs().filter((l) => l.date === today));
-  }, [today]);
+  // Only show active daily meds for now
+  const meds = allMeds.filter((m) => m.active && m.schedule_type === "daily");
+  const logs = allLogs;
 
-  const getLogStatus = (medId: string, slot?: string) => {
-    return logs.find((l) => l.medicationId === medId && l.timeSlot === (slot || undefined))?.status;
+  const getLogStatus = (medId: string) => {
+    return logs.find((l) => l.medication_id === medId)?.status;
   };
 
-  const handleLog = (med: Medication, status: "taken" | "skipped", slot?: string) => {
-    const log: MedicationLog = {
-      id: generateId(),
-      medicationId: med.id,
+  const handleLog = async (medId: string, status: string) => {
+    await logMutation.mutateAsync({
+      medication_id: medId,
       date: today,
-      timeSlot: slot,
       status,
-      loggedAt: new Date().toISOString(),
-    };
-    logMedication(log);
-    setLogs((prev) => {
-      const filtered = prev.filter(
-        (l) => !(l.medicationId === med.id && l.timeSlot === (slot || undefined))
-      );
-      return [...filtered, log];
     });
   };
 
   if (meds.length === 0) return null;
 
-  const allDone = meds.every((med) => {
-    if (med.scheduleType === "daily" && med.timeSlots) {
-      return med.timeSlots.every((slot) => getLogStatus(med.id, slot));
-    }
-    return getLogStatus(med.id);
-  });
+  const allDone = meds.every((med) => getLogStatus(med.id));
 
   return (
     <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
@@ -68,54 +42,34 @@ const MedicationChecklist = () => {
         )}
       </div>
       {meds.map((med) => {
-        const slots =
-          med.scheduleType === "daily" && med.timeSlots && med.timeSlots.length > 1
-            ? med.timeSlots
-            : [undefined];
-
-        return slots.map((slot, i) => {
-          const status = getLogStatus(med.id, slot);
-          return (
-            <div
-              key={`${med.id}-${i}`}
-              className={`flex items-center justify-between rounded-lg px-3 py-2.5 transition-all ${
-                status === "taken"
-                  ? "bg-accent/50"
-                  : status === "skipped"
-                  ? "bg-secondary/50 opacity-60"
-                  : "bg-secondary/30"
-              }`}
-            >
-              <div className="min-w-0">
-                <p className={`text-sm font-medium ${status === "taken" ? "text-primary line-through" : "text-foreground"}`}>
-                  {med.name}
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {med.dosage}
-                  {slot && ` · ${slot}`}
-                </p>
-              </div>
-              {!status ? (
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => handleLog(med, "taken", slot)}
-                    className="rounded-full bg-primary p-1.5 text-primary-foreground shadow-soft transition-all active:scale-95"
-                  >
-                    <Check className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleLog(med, "skipped", slot)}
-                    className="rounded-full bg-secondary p-1.5 text-muted-foreground transition-all active:scale-95"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <span className="text-[10px] font-medium text-muted-foreground capitalize">{status}</span>
-              )}
+        const status = getLogStatus(med.id);
+        return (
+          <div
+            key={med.id}
+            className={`flex items-center justify-between rounded-lg px-3 py-2.5 transition-all ${
+              status === "taken" ? "bg-accent/50" : status === "skipped" ? "bg-secondary/50 opacity-60" : "bg-secondary/30"
+            }`}
+          >
+            <div className="min-w-0">
+              <p className={`text-sm font-medium ${status === "taken" ? "text-primary line-through" : "text-foreground"}`}>
+                {med.name}
+              </p>
+              <p className="text-[10px] text-muted-foreground">{med.dosage}</p>
             </div>
-          );
-        });
+            {!status ? (
+              <div className="flex gap-1.5">
+                <button onClick={() => handleLog(med.id, "taken")} className="rounded-full bg-primary p-1.5 text-primary-foreground shadow-soft transition-all active:scale-95">
+                  <Check className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => handleLog(med.id, "skipped")} className="rounded-full bg-secondary p-1.5 text-muted-foreground transition-all active:scale-95">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <span className="text-[10px] font-medium text-muted-foreground capitalize">{status}</span>
+            )}
+          </div>
+        );
       })}
     </div>
   );

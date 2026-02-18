@@ -13,7 +13,7 @@ const BottomNav = () => {
   const location = useLocation();
 
   // Hide on onboarding
-  if (location.pathname.startsWith("/onboarding") || location.pathname === "/") {
+  if (location.pathname.startsWith("/onboarding") || location.pathname === "/" || location.pathname === "/auth") {
     return null;
   }
 

@@ -1,32 +1,37 @@
 import { useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
+import { useEntries } from "@/hooks/useEntries";
+import { useNavigate } from "react-router-dom";
 
 const InsightsPage = () => {
-  const entries = useMemo(() => {
-    return JSON.parse(localStorage.getItem("ms-entries") || "[]");
-  }, []);
+  const { data: allEntries = [], isLoading } = useEntries();
+  const navigate = useNavigate();
 
+  // Entries come sorted desc, reverse for chart
+  const entries = useMemo(() => [...allEntries].reverse(), [allEntries]);
   const last7 = entries.slice(-7);
 
-  const chartData = last7.map((e: any) => ({
+  const chartData = last7.map((e) => ({
     date: new Date(e.date).toLocaleDateString("en-US", { weekday: "short" }),
     fatigue: e.fatigue,
     pain: e.pain,
-    brainFog: e.brainFog,
+    brainFog: e.brain_fog,
     mood: e.mood,
   }));
 
-  const avg = (key: string) => {
+  const avg = (key: keyof typeof entries[0]) => {
     if (last7.length === 0) return 0;
-    return (last7.reduce((acc: number, e: any) => acc + (e[key] || 0), 0) / last7.length).toFixed(1);
+    return (last7.reduce((acc, e) => acc + (Number(e[key]) || 0), 0) / last7.length).toFixed(1);
   };
 
   return (
     <>
       <PageHeader title="Insights" subtitle="Your weekly summary" />
       <div className="mx-auto max-w-lg px-4 py-4">
-        {entries.length < 2 ? (
+        {isLoading ? (
+          <div className="py-16 text-center"><span className="text-2xl">🧡</span></div>
+        ) : entries.length < 2 ? (
           <div className="py-16 text-center animate-fade-in">
             <span className="text-4xl">📈</span>
             <p className="mt-3 font-display text-lg font-medium text-foreground">Not enough data yet</p>
@@ -41,7 +46,7 @@ const InsightsPage = () => {
               {[
                 { label: "Avg Fatigue", val: avg("fatigue"), emoji: "🔋" },
                 { label: "Avg Pain", val: avg("pain"), emoji: "⚡" },
-                { label: "Avg Brain Fog", val: avg("brainFog"), emoji: "🌫️" },
+                { label: "Avg Brain Fog", val: avg("brain_fog"), emoji: "🌫️" },
                 { label: "Avg Mood", val: avg("mood"), emoji: "😊" },
               ].map(({ label, val, emoji }) => (
                 <div key={label} className="rounded-xl bg-card p-4 shadow-soft text-center">
@@ -84,8 +89,11 @@ const InsightsPage = () => {
               </div>
             </div>
 
-            {/* Export stub */}
-            <button className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]">
+            {/* Export */}
+            <button
+              onClick={() => navigate("/reports")}
+              className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]"
+            >
               📄 Generate Doctor Report
             </button>
             <p className="text-center text-xs text-muted-foreground">

@@ -1,24 +1,12 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
 import { Calendar, List } from "lucide-react";
-
-interface Entry {
-  date: string;
-  fatigue: number;
-  pain: number;
-  brainFog: number;
-  mood: number;
-  mobility: number;
-  moodTags: string[];
-  notes: string;
-  sleepHours: number | null;
-}
+import { useState } from "react";
+import { useEntries } from "@/hooks/useEntries";
 
 const TrackPage = () => {
   const [view, setView] = useState<"list" | "calendar">("list");
-  const entries: Entry[] = useMemo(() => {
-    return JSON.parse(localStorage.getItem("ms-entries") || "[]").reverse();
-  }, []);
+  const { data: entries = [], isLoading } = useEntries();
 
   return (
     <>
@@ -43,7 +31,9 @@ const TrackPage = () => {
         }
       />
       <div className="mx-auto max-w-lg px-4 py-4">
-        {entries.length === 0 ? (
+        {isLoading ? (
+          <div className="py-16 text-center"><span className="text-2xl">🧡</span></div>
+        ) : entries.length === 0 ? (
           <div className="py-16 text-center animate-fade-in">
             <span className="text-4xl">📊</span>
             <p className="mt-3 font-display text-lg font-medium text-foreground">No entries yet</p>
@@ -53,8 +43,8 @@ const TrackPage = () => {
           </div>
         ) : (
           <div className="space-y-3 animate-fade-in">
-            {entries.map((entry, i) => (
-              <div key={i} className="rounded-xl bg-card p-4 shadow-soft">
+            {entries.map((entry) => (
+              <div key={entry.id} className="rounded-xl bg-card p-4 shadow-soft">
                 <p className="mb-2 text-xs font-medium text-muted-foreground">
                   {new Date(entry.date).toLocaleDateString("en-US", {
                     weekday: "long",
@@ -66,20 +56,20 @@ const TrackPage = () => {
                   {[
                     { label: "Fatigue", value: entry.fatigue, emoji: "🔋" },
                     { label: "Pain", value: entry.pain, emoji: "⚡" },
-                    { label: "Fog", value: entry.brainFog, emoji: "🌫️" },
+                    { label: "Fog", value: entry.brain_fog, emoji: "🌫️" },
                     { label: "Mood", value: entry.mood, emoji: "😊" },
                     { label: "Move", value: entry.mobility, emoji: "🚶" },
                   ].map(({ label, value, emoji }) => (
                     <div key={label}>
                       <span className="text-base">{emoji}</span>
-                      <p className="text-lg font-bold text-foreground">{value}</p>
+                      <p className="text-lg font-bold text-foreground">{value ?? "—"}</p>
                       <p className="text-[10px] text-muted-foreground">{label}</p>
                     </div>
                   ))}
                 </div>
-                {entry.moodTags.length > 0 && (
+                {entry.mood_tags && entry.mood_tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {entry.moodTags.map((tag) => (
+                    {entry.mood_tags.map((tag) => (
                       <span key={tag} className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground">
                         {tag}
                       </span>

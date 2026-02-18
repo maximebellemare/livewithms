@@ -1,15 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 
 const Index = () => {
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const onboarded = localStorage.getItem("ms-onboarded");
-    if (onboarded) {
-      navigate("/today", { replace: true });
-    }
-  }, [navigate]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 text-center">
@@ -22,7 +14,7 @@ const Index = () => {
           Your personal companion for living well with Multiple Sclerosis
         </p>
         <button
-          onClick={() => navigate("/onboarding")}
+          onClick={() => navigate("/auth")}
           className="mt-8 rounded-full bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground shadow-card transition-all hover:opacity-90 active:scale-[0.98]"
         >
           Get Started

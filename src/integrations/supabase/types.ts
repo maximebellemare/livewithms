@@ -14,7 +14,212 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      appointments: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          location: string | null
+          notes: string | null
+          time: string | null
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          time?: string | null
+          title: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          time?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_entries: {
+        Row: {
+          brain_fog: number | null
+          created_at: string
+          date: string
+          fatigue: number | null
+          id: string
+          mobility: number | null
+          mood: number | null
+          mood_tags: string[] | null
+          notes: string | null
+          pain: number | null
+          sleep_hours: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brain_fog?: number | null
+          created_at?: string
+          date: string
+          fatigue?: number | null
+          id?: string
+          mobility?: number | null
+          mood?: number | null
+          mood_tags?: string[] | null
+          notes?: string | null
+          pain?: number | null
+          sleep_hours?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brain_fog?: number | null
+          created_at?: string
+          date?: string
+          fatigue?: number | null
+          id?: string
+          mobility?: number | null
+          mood?: number | null
+          mood_tags?: string[] | null
+          notes?: string | null
+          pain?: number | null
+          sleep_hours?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      medication_logs: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          medication_id: string
+          status: string
+          time: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          medication_id: string
+          status?: string
+          time?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          medication_id?: string
+          status?: string
+          time?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medication_logs_medication_id_fkey"
+            columns: ["medication_id"]
+            isOneToOne: false
+            referencedRelation: "medications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medications: {
+        Row: {
+          active: boolean
+          color: string | null
+          created_at: string
+          dosage: string | null
+          id: string
+          infusion_interval_months: number | null
+          name: string
+          schedule_type: string
+          times_per_day: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          color?: string | null
+          created_at?: string
+          dosage?: string | null
+          id?: string
+          infusion_interval_months?: number | null
+          name: string
+          schedule_type?: string
+          times_per_day?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          color?: string | null
+          created_at?: string
+          dosage?: string | null
+          id?: string
+          infusion_interval_months?: number | null
+          name?: string
+          schedule_type?: string
+          times_per_day?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          age_range: string | null
+          created_at: string
+          goals: string[] | null
+          id: string
+          medications: string[] | null
+          ms_type: string | null
+          symptoms: string[] | null
+          updated_at: string
+          user_id: string
+          year_diagnosed: string | null
+        }
+        Insert: {
+          age_range?: string | null
+          created_at?: string
+          goals?: string[] | null
+          id?: string
+          medications?: string[] | null
+          ms_type?: string | null
+          symptoms?: string[] | null
+          updated_at?: string
+          user_id: string
+          year_diagnosed?: string | null
+        }
+        Update: {
+          age_range?: string | null
+          created_at?: string
+          goals?: string[] | null
+          id?: string
+          medications?: string[] | null
+          ms_type?: string | null
+          symptoms?: string[] | null
+          updated_at?: string
+          user_id?: string
+          year_diagnosed?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

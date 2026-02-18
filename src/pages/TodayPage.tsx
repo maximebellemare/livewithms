@@ -8,6 +8,8 @@ import { Link } from "react-router-dom";
 import { Settings, Flame } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
 import UpcomingAppointments from "@/components/UpcomingAppointments";
+import { useSaveEntry } from "@/hooks/useEntries";
+import { toast } from "sonner";
 
 const greetings = () => {
   const hour = new Date().getHours();
@@ -28,29 +30,31 @@ const TodayPage = () => {
   const [sleepHours, setSleepHours] = useState("");
   const [logged, setLogged] = useState(false);
 
+  const saveEntry = useSaveEntry();
+
   const toggleMoodTag = (tag: string) => {
     setMoodTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
   };
 
-  const handleLog = () => {
-    // For now, save to localStorage
-    const entry = {
-      date: new Date().toISOString().split("T")[0],
-      fatigue,
-      pain,
-      brainFog,
-      mood,
-      mobility,
-      moodTags,
-      notes,
-      sleepHours: sleepHours ? Number(sleepHours) : null,
-    };
-    const entries = JSON.parse(localStorage.getItem("ms-entries") || "[]");
-    entries.push(entry);
-    localStorage.setItem("ms-entries", JSON.stringify(entries));
-    setLogged(true);
+  const handleLog = async () => {
+    try {
+      await saveEntry.mutateAsync({
+        date: new Date().toISOString().split("T")[0],
+        fatigue,
+        pain,
+        brain_fog: brainFog,
+        mood,
+        mobility,
+        mood_tags: moodTags,
+        notes: notes || null,
+        sleep_hours: sleepHours ? Number(sleepHours) : null,
+      });
+      setLogged(true);
+    } catch (err: any) {
+      toast.error("Failed to save entry: " + err.message);
+    }
   };
 
   if (logged) {
@@ -172,9 +176,10 @@ const TodayPage = () => {
         <div className="pb-8 animate-slide-up" style={{ animationDelay: "0.4s" }}>
           <button
             onClick={handleLog}
-            className="w-full rounded-full bg-primary py-3.5 text-base font-semibold text-primary-foreground shadow-card transition-all hover:opacity-90 active:scale-[0.98]"
+            disabled={saveEntry.isPending}
+            className="w-full rounded-full bg-primary py-3.5 text-base font-semibold text-primary-foreground shadow-card transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
           >
-            Save today's entry
+            {saveEntry.isPending ? "Saving..." : "Save today's entry"}
           </button>
           <p className="mt-2 text-center text-xs text-muted-foreground">
             ⚕️ This is not medical advice. Always consult your neurologist.

@@ -8,7 +8,7 @@ interface AppShellProps {
 
 const AppShell = ({ children }: AppShellProps) => {
   const location = useLocation();
-  const showNav = !location.pathname.startsWith("/onboarding") && location.pathname !== "/";
+  const showNav = !location.pathname.startsWith("/onboarding") && location.pathname !== "/" && location.pathname !== "/auth";
 
   return (
     <div className="min-h-screen bg-background">
