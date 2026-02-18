@@ -1,15 +1,19 @@
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, Trash2, ExternalLink, FileText, LogOut } from "lucide-react";
+import { ChevronRight, Download, Shield, Trash2, ExternalLink, FileText, LogOut, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "next-themes";
 import NotificationToggle from "@/components/NotificationToggle";
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
+
+  const isDark = theme === "dark";
 
   const handleSignOut = async () => {
     await signOut();
@@ -60,6 +64,23 @@ const ProfilePage = () => {
         {/* Settings */}
         <div className="space-y-1">
           <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Settings</p>
+          <button
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            className="tap-highlight-none flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary text-foreground"
+          >
+            {isDark ? (
+              <Sun className="h-4 w-4 flex-shrink-0" />
+            ) : (
+              <Moon className="h-4 w-4 flex-shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">{isDark ? "Light Mode" : "Dark Mode"}</p>
+              <p className="text-xs text-muted-foreground">{isDark ? "Switch to light theme" : "Switch to dark theme"}</p>
+            </div>
+            <div className={`relative h-5 w-9 rounded-full transition-colors flex-shrink-0 ${isDark ? "bg-primary" : "bg-muted"}`}>
+              <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${isDark ? "translate-x-4" : "translate-x-0.5"}`} />
+            </div>
+          </button>
           <NotificationToggle />
           {[
             { icon: Shield, label: "Privacy & Consent", desc: "Manage your data preferences" },
