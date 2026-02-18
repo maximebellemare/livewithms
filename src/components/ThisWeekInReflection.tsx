@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { format, startOfWeek, addDays, isToday, isFuture } from "date-fns";
 import { getPromptForDate } from "@/lib/dailyPrompts";
 import { DailyEntry } from "@/hooks/useEntries";
-import { PenLine, ChevronDown, ChevronUp } from "lucide-react";
+import { PenLine, ChevronDown, ChevronUp, CheckCircle2, Circle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 /* ── Per-day row with expand/collapse ─────────────────────── */
@@ -27,9 +27,16 @@ const DayRow = ({ day, entriesByDate, navigate }: DayRowProps) => {
     <div className="px-4 py-3 space-y-1">
       {/* Day label row */}
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {dayIsToday ? "Today" : format(day, "EEE, MMM d")}
-        </p>
+        <div className="flex items-center gap-1.5">
+          {note ? (
+            <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500 dark:text-emerald-400" />
+          ) : (
+            <Circle className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/30" />
+          )}
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {dayIsToday ? "Today" : format(day, "EEE, MMM d")}
+          </p>
+        </div>
         {dayIsToday && !note && (
           <button
             onClick={() => navigate("/journal")}
