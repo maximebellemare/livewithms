@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format, subDays } from "date-fns";
 import PageHeader from "@/components/PageHeader";
-import { FileText, Download, Calendar as CalendarIcon, ArrowLeft } from "lucide-react";
+import { FileText, Download, Calendar as CalendarIcon, ArrowLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,6 +12,9 @@ import { useProfile } from "@/hooks/useProfile";
 import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
 import { useDbAppointments } from "@/hooks/useAppointments";
 import { generateReportFromData } from "@/lib/report-generator-db";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
 
 const PRESETS = [
   { label: "Last 7 days", days: 7 },
@@ -28,6 +31,7 @@ const ReportsPage = () => {
   const [includeAppointments, setIncludeAppointments] = useState(true);
   const [includeProfile, setIncludeProfile] = useState(true);
   const [includeNotes, setIncludeNotes] = useState(true);
+  const [includeAiInsight, setIncludeAiInsight] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
 
@@ -40,9 +44,22 @@ const ReportsPage = () => {
   const { data: medLogs = [] } = useDbMedicationLogs(startStr, endStr);
   const { data: appointments = [] } = useDbAppointments();
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setGenerating(true);
-    setTimeout(() => {
+    try {
+      let aiInsight: string | null = null;
+
+      if (includeAiInsight && entries.length > 0) {
+        try {
+          const { data, error } = await supabase.functions.invoke("weekly-insight", {
+            body: { entries, range: entries.length },
+          });
+          if (!error && data?.insight) aiInsight = data.insight;
+        } catch {
+          // Non-fatal — generate without insight if it fails
+        }
+      }
+
       const filteredAppts = appointments.filter((a) => a.date >= startStr && a.date <= endStr);
       generateReportFromData({
         startDate: startStr,
@@ -52,16 +69,21 @@ const ReportsPage = () => {
         includeAppointments,
         includeProfile,
         includeNotes,
+        aiInsight,
         entries,
         profile: profile || null,
         medications,
         medLogs,
         appointments: filteredAppts,
       });
-      setGenerating(false);
       setGenerated(true);
-    }, 400);
+    } catch (err: any) {
+      toast.error("Failed to generate report: " + err.message);
+    } finally {
+      setGenerating(false);
+    }
   };
+
 
   const applyPreset = (days: number) => {
     setStartDate(subDays(today, days));
@@ -133,6 +155,7 @@ const ReportsPage = () => {
             { label: "Medication Adherence", checked: includeMedications, toggle: setIncludeMedications, emoji: "💊" },
             { label: "Appointment History", checked: includeAppointments, toggle: setIncludeAppointments, emoji: "📅" },
             { label: "Notes & Observations", checked: includeNotes, toggle: setIncludeNotes, emoji: "📝" },
+            { label: "AI Weekly Insight", checked: includeAiInsight, toggle: setIncludeAiInsight, emoji: "✨" },
           ].map(({ label, checked, toggle, emoji }) => (
             <button key={label} onClick={() => toggle(!checked)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all hover:bg-secondary/50">
               <span className="text-base">{emoji}</span>
@@ -142,11 +165,12 @@ const ReportsPage = () => {
               </div>
             </button>
           ))}
+
         </div>
 
         <div className="space-y-3">
           <button onClick={handleGenerate} disabled={generating} className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 text-base font-semibold text-primary-foreground shadow-card transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60">
-            {generating ? (<><div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />Generating...</>) : (<><Download className="h-5 w-5" />Generate PDF Report</>)}
+            {generating ? (<><div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />{includeAiInsight ? "Generating AI insight…" : "Generating…"}</>) : (<><Download className="h-5 w-5" />Generate PDF Report</>)}
           </button>
           {generated && (
             <div className="rounded-xl bg-accent p-4 text-center animate-fade-in">
