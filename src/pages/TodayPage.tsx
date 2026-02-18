@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { subDays, format } from "date-fns";
+import { subDays, format, startOfWeek } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import SymptomSlider from "@/components/SymptomSlider";
 import MoodSelector from "@/components/MoodSelector";
@@ -14,6 +14,7 @@ import { Settings, CheckCircle2 } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
 import UpcomingAppointments from "@/components/UpcomingAppointments";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
+import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
 
 const MILESTONE_DAYS = [7, 14, 30];
@@ -85,6 +86,11 @@ const TodayPage = () => {
   const weekEnd = format(subDays(today, 1), "yyyy-MM-dd");
   const { data: weekEntries = [] } = useEntriesInRange(weekStart, weekEnd);
 
+  // Current calendar week (Mon → today) — used for goal completion detection
+  const { data: profile } = useProfile();
+  const thisWeekMonday = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
+  const { data: thisWeekEntries = [] } = useEntriesInRange(thisWeekMonday, format(today, "yyyy-MM-dd"));
+
   const weekAvgs = useMemo(() => {
     const avg = (key: "fatigue" | "pain" | "brain_fog" | "mood" | "mobility") => {
       const vals = weekEntries.map((e) => e[key]).filter((v): v is number => v != null);
@@ -109,6 +115,14 @@ const TodayPage = () => {
 
   const handleLog = async () => {
     try {
+      // Snapshot goal state BEFORE saving so we can detect the crossing moment
+      const goal = profile?.weekly_log_goal ?? 7;
+      const countBefore = thisWeekEntries.length;
+      // If already logged today, saving doesn't add a new entry to the count
+      const countAfter = alreadyLogged ? countBefore : countBefore + 1;
+      const goalJustReached = countAfter >= goal && countBefore < goal;
+      const goalToastKey = `goal_toast_${thisWeekMonday}_${goal}`;
+
       await saveEntry.mutateAsync({
         date: new Date().toISOString().split("T")[0],
         fatigue,
@@ -120,6 +134,16 @@ const TodayPage = () => {
         notes: notes || null,
         sleep_hours: sleepHours ? Number(sleepHours) : null,
       });
+
+      // Show weekly goal toast exactly once per week
+      if (goalJustReached && !localStorage.getItem(goalToastKey)) {
+        localStorage.setItem(goalToastKey, "1");
+        toast.success(`You hit your ${goal}-day goal this week! 🎉`, {
+          description: "Amazing consistency — keep it up!",
+          duration: 5000,
+        });
+      }
+
       // After saving, streak will increment by 1 (today wasn't logged yet)
       const newStreak = alreadyLogged ? streak : streak + 1;
       if (MILESTONE_DAYS.includes(newStreak) && shouldCelebrate(newStreak)) {
