@@ -118,6 +118,7 @@ interface Props {
 const ThisWeekInReflection = ({ entries }: Props) => {
   const navigate = useNavigate();
   const today = new Date();
+  const [weekCopied, setWeekCopied] = useState(false);
 
   const weekDays = useMemo(() => {
     const monday = startOfWeek(today, { weekStartsOn: 1 });
@@ -153,21 +154,53 @@ const ThisWeekInReflection = ({ entries }: Props) => {
       ? "Good start — build the habit!"
       : "Great start — keep writing!";
 
+  const handleCopyWeek = () => {
+    const weekStart = format(startOfWeek(today, { weekStartsOn: 1 }), "MMMM d");
+    const weekEnd = format(today, "MMMM d, yyyy");
+    const lines = weekDays.map((day) => {
+      const key = format(day, "yyyy-MM-dd");
+      const note = entriesByDate[key]?.notes?.trim();
+      const prompt = getPromptForDate(day);
+      const dayLabel = format(day, "EEEE, MMMM d");
+      return note
+        ? `${dayLabel}\n💭 ${prompt}\n${note}`
+        : `${dayLabel}\n💭 ${prompt}\n(no reflection written)`;
+    });
+    const text = `My week in reflection — ${weekStart}–${weekEnd}\n${"─".repeat(40)}\n\n${lines.join("\n\n")}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setWeekCopied(true);
+      setTimeout(() => setWeekCopied(false), 2500);
+    });
+  };
+
   return (
     <section className="space-y-2 animate-fade-in">
       <div className="px-1 flex items-center justify-between">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           This week in reflection
         </p>
-        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-          allDone
-            ? "bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300"
-            : reflectedCount >= Math.ceil(total / 2)
-            ? "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300"
-            : "bg-primary/10 text-primary"
-        }`}>
-          {badgeEmoji} {reflectedCount} of {total} day{total !== 1 ? "s" : ""} reflected
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopyWeek}
+            className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+            title="Copy whole week to clipboard"
+          >
+            {weekCopied ? (
+              <><Check className="h-2.5 w-2.5 text-emerald-500" /><span className="text-emerald-500">Copied!</span></>
+            ) : (
+              <><Copy className="h-2.5 w-2.5" />Copy week</>
+            )}
+          </button>
+          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+            allDone
+              ? "bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300"
+              : reflectedCount >= Math.ceil(total / 2)
+              ? "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300"
+              : "bg-primary/10 text-primary"
+          }`}>
+            {badgeEmoji} {reflectedCount} of {total} day{total !== 1 ? "s" : ""} reflected
+          </span>
+        </div>
       </div>
       <p className="px-1 text-[11px] text-muted-foreground -mt-1">{motivationalMessage}</p>
       <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden divide-y divide-border">
