@@ -11,6 +11,20 @@ const corsHeaders = {
 const KLAVIYO_BASE = "https://a.klaviyo.com/api";
 const KLAVIYO_REVISION = "2024-10-15";
 
+async function generateUnsubscribeToken(userId: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(userId));
+  return btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+
 function avg(vals: (number | null)[]): number | null {
   const v = vals.filter((x): x is number => x !== null);
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
@@ -141,6 +155,10 @@ serve(async (req) => {
         const avgMobility = avg(entries.map((e) => e.mobility));
         const avgSleep = avg(entries.map((e) => e.sleep_hours));
 
+        // Generate a secure unsubscribe token (HMAC-SHA256 of user_id)
+        const unsubToken = await generateUnsubscribeToken(profile.user_id, SUPABASE_SERVICE_ROLE_KEY);
+        const unsubscribeUrl = `https://fpjfoadvytpvrhligdye.supabase.co/functions/v1/unsubscribe?uid=${encodeURIComponent(profile.user_id)}&token=${encodeURIComponent(unsubToken)}`;
+
         // Step 1: Upsert a Klaviyo profile (409 = already exists, that's fine)
         await klaviyoPost("/profiles/", {
           data: {
@@ -182,6 +200,7 @@ serve(async (req) => {
                 avg_mood_label: fmt(avgMood),
                 avg_mobility_label: fmt(avgMobility),
                 avg_sleep_label: fmt(avgSleep, " hrs"),
+                unsubscribe_url: unsubscribeUrl,
               },
             },
           },
