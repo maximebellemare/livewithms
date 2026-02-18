@@ -11,6 +11,7 @@ export interface Profile {
   symptoms: string[];
   goals: string[];
   medications: string[];
+  neurologist_email: string | null;
 }
 
 export const useProfile = () => {

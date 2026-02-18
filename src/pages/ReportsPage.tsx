@@ -203,6 +203,7 @@ const ReportsPage = () => {
                 <button
                   onClick={async () => {
                     const file = new File([reportBlob], reportFileName, { type: "application/pdf" });
+                    const neuroEmail = profile?.neurologist_email ?? "";
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                       try {
                         await navigator.share({
@@ -214,17 +215,18 @@ const ReportsPage = () => {
                         // User cancelled — no-op
                       }
                     } else {
-                      // Fallback: open email with instructions
+                      // Fallback: mailto with pre-filled recipient if saved
+                      const to = neuroEmail ? encodeURIComponent(neuroEmail) : "";
                       const subject = encodeURIComponent("My MS Health Report");
                       const body = encodeURIComponent("Hi,\n\nPlease find my LiveWithMS health report attached.\n\nThe PDF was downloaded to your device — please attach it to this email before sending.\n\nThank you.");
-                      window.open(`mailto:?subject=${subject}&body=${body}`);
-                      toast.info("PDF saved to your device — attach it to the email that opened.");
+                      window.open(`mailto:${to}?subject=${subject}&body=${body}`);
+                      toast.info(neuroEmail ? `Email draft opened for ${neuroEmail} — attach the PDF before sending.` : "PDF saved — attach it to the email that opened.");
                     }
                   }}
                   className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]"
                 >
                   <Share2 className="h-4 w-4" />
-                  Share
+                  {profile?.neurologist_email ? "Email Neurologist" : "Share"}
                 </button>
               </div>
             </div>

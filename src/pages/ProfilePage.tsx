@@ -1,19 +1,48 @@
+import { useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, Trash2, ExternalLink, FileText, LogOut, Moon, Sun } from "lucide-react";
+import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useProfile } from "@/hooks/useProfile";
+import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import NotificationToggle from "@/components/NotificationToggle";
+import { toast } from "sonner";
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
+  const updateProfile = useUpdateProfile();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
-
   const isDark = theme === "dark";
+
+  const [neuroEmail, setNeuroEmail] = useState<string>("");
+  const [neuroEmailInit, setNeuroEmailInit] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
+
+  // Initialise local state from loaded profile (once)
+  if (profile && !neuroEmailInit) {
+    setNeuroEmail(profile.neurologist_email ?? "");
+    setNeuroEmailInit(true);
+  }
+
+  const handleSaveNeuroEmail = async () => {
+    const trimmed = neuroEmail.trim();
+    if (trimmed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+    setSavingEmail(true);
+    try {
+      await updateProfile.mutateAsync({ neurologist_email: trimmed || null });
+      toast.success("Neurologist email saved.");
+    } catch {
+      toast.error("Failed to save email.");
+    } finally {
+      setSavingEmail(false);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -44,6 +73,38 @@ const ProfilePage = () => {
             <span>Edit MS Profile</span>
             <ChevronRight className="h-4 w-4" />
           </Link>
+        </div>
+
+        {/* Neurologist email */}
+        <div className="rounded-xl bg-card p-4 shadow-soft space-y-2">
+          <div className="flex items-center gap-2">
+            <Mail className="h-4 w-4 text-primary" />
+            <p className="text-sm font-medium text-foreground">Neurologist Email</p>
+          </div>
+          <p className="text-xs text-muted-foreground">Pre-fills the recipient when you share a PDF report.</p>
+          <div className="flex gap-2 pt-1">
+            <input
+              type="email"
+              value={neuroEmail}
+              onChange={(e) => setNeuroEmail(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSaveNeuroEmail()}
+              placeholder="doctor@neurology.com"
+              maxLength={255}
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <button
+              onClick={handleSaveNeuroEmail}
+              disabled={savingEmail}
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+            >
+              {savingEmail ? (
+                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              Save
+            </button>
+          </div>
         </div>
 
         {/* Doctor Report */}
