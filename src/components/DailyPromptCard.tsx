@@ -54,7 +54,7 @@ const DailyPromptCard = ({ onUsePrompt }: DailyPromptCardProps) => {
   };
 
   return (
-    <div className="rounded-xl border border-primary/15 bg-primary/5 p-4 space-y-3">
+    <div className="rounded-xl border border-primary/15 bg-primary/5 p-4 space-y-3 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
