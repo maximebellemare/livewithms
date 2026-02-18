@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { format, isToday, isYesterday } from "date-fns";
+import { format, isToday, isYesterday, startOfWeek, addDays, isFuture } from "date-fns";
+import confetti from "canvas-confetti";
 import PageHeader from "@/components/PageHeader";
 import { useEntries, useSaveEntry, DailyEntry } from "@/hooks/useEntries";
 import { PenLine, ChevronDown, ChevronUp, CheckCircle2, X } from "lucide-react";
@@ -28,9 +29,10 @@ interface EditorCardProps {
   date: string;
   entry: DailyEntry | null;
   recentEntries?: DailyEntry[];
+  onFirstReflection?: () => void;
 }
 
-const EditorCard = ({ date, entry, recentEntries = [] }: EditorCardProps) => {
+const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: EditorCardProps) => {
   const [text, setText] = useState(entry?.notes ?? "");
   const [saved, setSaved] = useState(false);
   const saveEntry = useSaveEntry();
@@ -42,6 +44,7 @@ const EditorCard = ({ date, entry, recentEntries = [] }: EditorCardProps) => {
       toast.error("Note is too long (max 2000 characters).");
       return;
     }
+    const isFirstNote = !entry?.notes?.trim() && !!text.trim();
     await saveEntry.mutateAsync({
       date,
       notes: text.trim() || null,
@@ -56,6 +59,7 @@ const EditorCard = ({ date, entry, recentEntries = [] }: EditorCardProps) => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     toast.success("Journal entry saved 🧡");
+    if (isFirstNote) onFirstReflection?.();
   };
 
   return (
@@ -239,6 +243,22 @@ const JournalPage = () => {
     [entries, today]
   );
 
+  // Is this the first reflection of the week? True if no other day this week has notes yet
+  const isFirstThisWeek = useMemo(() => {
+    const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const weekDates = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
+      .filter((d) => !isFuture(d))
+      .map((d) => format(d, "yyyy-MM-dd"))
+      .filter((d) => d !== today);
+    return !weekDates.some((d) => !!entriesByDate[d]?.notes?.trim());
+  }, [entries, today]);
+
+  const fireConfetti = () => {
+    confetti({ particleCount: 80, spread: 70, origin: { y: 0.55 }, colors: ["#E8751A", "#f59e0b", "#10b981", "#6366f1"] });
+    setTimeout(() => confetti({ particleCount: 40, spread: 50, origin: { y: 0.5 }, angle: 60 }), 200);
+    setTimeout(() => confetti({ particleCount: 40, spread: 50, origin: { y: 0.5 }, angle: 120 }), 350);
+  };
+
   return (
     <>
       <PageHeader title="Journal" subtitle="Your daily thoughts & feelings" />
@@ -254,7 +274,12 @@ const JournalPage = () => {
               <span className="text-2xl animate-pulse">🧡</span>
             </div>
           ) : (
-            <EditorCard date={today} entry={todayEntry} recentEntries={entries} />
+            <EditorCard
+              date={today}
+              entry={todayEntry}
+              recentEntries={entries}
+              onFirstReflection={isFirstThisWeek ? fireConfetti : undefined}
+            />
           )}
         </section>
 
