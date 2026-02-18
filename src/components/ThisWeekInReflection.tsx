@@ -99,18 +99,33 @@ const ThisWeekInReflection = ({ entries }: Props) => {
     [entries]
   );
 
-  const anyNotes = weekDays.some((d) => {
+  const reflectedCount = weekDays.filter((d) => {
     const key = format(d, "yyyy-MM-dd");
     return !!entriesByDate[key]?.notes?.trim();
-  });
+  }).length;
 
-  if (!anyNotes) return null;
+  if (reflectedCount === 0) return null;
+
+  const total = weekDays.length;
+  const allDone = reflectedCount === total;
+  const badgeEmoji = allDone ? "🔥" : reflectedCount >= Math.ceil(total / 2) ? "⚡" : "💭";
 
   return (
     <section className="space-y-2 animate-fade-in">
-      <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        This week in reflection
-      </p>
+      <div className="px-1 flex items-center justify-between">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          This week in reflection
+        </p>
+        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+          allDone
+            ? "bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300"
+            : reflectedCount >= Math.ceil(total / 2)
+            ? "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300"
+            : "bg-primary/10 text-primary"
+        }`}>
+          {badgeEmoji} {reflectedCount} of {total} day{total !== 1 ? "s" : ""} reflected
+        </span>
+      </div>
       <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden divide-y divide-border">
         {weekDays.map((day) => (
           <DayRow
