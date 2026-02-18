@@ -257,6 +257,7 @@ const JournalPage = () => {
     confetti({ particleCount: 80, spread: 70, origin: { y: 0.55 }, colors: ["#E8751A", "#f59e0b", "#10b981", "#6366f1"] });
     setTimeout(() => confetti({ particleCount: 40, spread: 50, origin: { y: 0.5 }, angle: 60 }), 200);
     setTimeout(() => confetti({ particleCount: 40, spread: 50, origin: { y: 0.5 }, angle: 120 }), 350);
+    toast.success("First reflection of the week — brilliant! 🎉", { duration: 4000 });
   };
 
   return (
