@@ -249,10 +249,36 @@ const InsightsPage = () => {
                 const lowerIsBetter = key === "fatigue" || key === "pain" || key === "brain_fog";
                 const improved = diff !== null && (lowerIsBetter ? diff < -0.4 : diff > 0.4);
                 const worsened = diff !== null && (lowerIsBetter ? diff > 0.4 : diff < -0.4);
-                return { key, label, emoji, curAvg, prevAvg, diff, improved, worsened };
+
+                // Find best/worst day within current window
+                const entriesWithVal = windowEntries
+                  .map((e) => ({ date: e.date, val: e[key as keyof typeof e] as number | null }))
+                  .filter((e): e is { date: string; val: number } => e.val !== null);
+
+                let bestDay: { date: string; val: number } | null = null;
+                let worstDay: { date: string; val: number } | null = null;
+
+                if (entriesWithVal.length > 0) {
+                  if (lowerIsBetter) {
+                    // best = lowest value, worst = highest value
+                    bestDay  = entriesWithVal.reduce((a, b) => b.val < a.val ? b : a);
+                    worstDay = entriesWithVal.reduce((a, b) => b.val > a.val ? b : a);
+                  } else {
+                    // best = highest value, worst = lowest value
+                    bestDay  = entriesWithVal.reduce((a, b) => b.val > a.val ? b : a);
+                    worstDay = entriesWithVal.reduce((a, b) => b.val < a.val ? b : a);
+                  }
+                  // Don't show if best === worst (only one unique value)
+                  if (bestDay?.val === worstDay?.val) { bestDay = null; worstDay = null; }
+                }
+
+                return { key, label, emoji, curAvg, prevAvg, diff, improved, worsened, bestDay, worstDay, lowerIsBetter };
               }).filter(Boolean) as NonNullable<{
                 key: string; label: string; emoji: string; curAvg: number;
                 prevAvg: number | null; diff: number | null; improved: boolean; worsened: boolean;
+                bestDay: { date: string; val: number } | null;
+                worstDay: { date: string; val: number } | null;
+                lowerIsBetter: boolean;
               }>[];
 
               const improvedCount = rows.filter((r) => r.improved).length;
@@ -329,9 +355,83 @@ const InsightsPage = () => {
                     ))}
                   </div>
 
+                  {/* Best / Worst day callouts */}
+                  {(() => {
+                    // Find the overall best & worst day across all symptoms
+                    // "Best day" = fewest total burden (low fatigue/pain/fog + high mood/mobility)
+                    // Compute a composite "health score" per day (higher = better day)
+                    const dayScores: Record<string, number> = {};
+                    const dayCount:  Record<string, number> = {};
+                    windowEntries.forEach((e) => {
+                      let score = 0;
+                      let count = 0;
+                      SYMPTOMS.forEach(({ key }) => {
+                        const v = e[key as keyof typeof e] as number | null;
+                        if (v === null) return;
+                        const lowerIsBetter = key === "fatigue" || key === "pain" || key === "brain_fog";
+                        // Normalise so "higher contribution = better"
+                        score += lowerIsBetter ? (10 - v) : v;
+                        count++;
+                      });
+                      if (count > 0) {
+                        dayScores[e.date] = (dayScores[e.date] ?? 0) + score / count;
+                        dayCount[e.date]  = (dayCount[e.date]  ?? 0) + 1;
+                      }
+                    });
+
+                    const scoredDays = Object.entries(dayScores).map(([date, raw]) => ({
+                      date,
+                      score: raw / dayCount[date],
+                    }));
+
+                    if (scoredDays.length < 2) return null;
+
+                    const bestDay  = scoredDays.reduce((a, b) => b.score > a.score ? b : a);
+                    const worstDay = scoredDays.reduce((a, b) => b.score < a.score ? b : a);
+
+                    if (bestDay.date === worstDay.date) return null;
+
+                    const fmtDate = (d: string) => {
+                      try { return format(parseISO(d), range === 7 ? "EEE, MMM d" : "MMM d"); }
+                      catch { return d; }
+                    };
+
+                    return (
+                      <div className="mx-4 mb-4 mt-1 grid grid-cols-2 gap-2">
+                        {/* Best day */}
+                        <div className="rounded-lg bg-emerald-500/8 border border-emerald-500/20 px-3 py-2">
+                          <div className="flex items-center gap-1 mb-0.5">
+                            <span className="text-sm">🌟</span>
+                            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                              Best day
+                            </span>
+                          </div>
+                          <p className="text-xs font-bold text-foreground">{fmtDate(bestDay.date)}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            Score {bestDay.score.toFixed(1)}/10
+                          </p>
+                        </div>
+
+                        {/* Worst day */}
+                        <div className="rounded-lg bg-destructive/8 border border-destructive/20 px-3 py-2">
+                          <div className="flex items-center gap-1 mb-0.5">
+                            <span className="text-sm">💙</span>
+                            <span className="text-[10px] font-semibold text-destructive uppercase tracking-wide">
+                              Toughest day
+                            </span>
+                          </div>
+                          <p className="text-xs font-bold text-foreground">{fmtDate(worstDay.date)}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            Score {worstDay.score.toFixed(1)}/10
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Footer note */}
                   <p className="px-4 pb-3 pt-2 text-[10px] text-muted-foreground">
-                    ↓ lower is better for fatigue, pain & fog · ↑ higher is better for mood & mobility
+                     ↓ lower is better for fatigue, pain & fog · ↑ higher is better for mood & mobility
                   </p>
                 </div>
               );
