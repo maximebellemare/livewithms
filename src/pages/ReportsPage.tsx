@@ -129,7 +129,7 @@ const ReportsPage = () => {
         window.open(`mailto:${to}?subject=${subject}&body=${body}`);
         toast.info(`Email draft opened for ${profile.neurologist_email} — please attach the downloaded PDF.`);
       } else {
-        toast.success(`Report sent to ${profile.neurologist_email} ✓`);
+        toast.success(`Report emailed to ${profile.neurologist_email} — your neurologist will receive a download link ✓`);
       }
     } catch (err: any) {
       toast.error("Failed to send: " + err.message);

@@ -10,6 +10,24 @@ const corsHeaders = {
 const KLAVIYO_BASE = "https://a.klaviyo.com/api";
 const KLAVIYO_REVISION = "2024-10-15";
 
+async function klaviyoPost(path: string, body: unknown, apiKey: string, allow409 = false) {
+  const res = await fetch(`${KLAVIYO_BASE}${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Klaviyo-API-Key ${apiKey}`,
+      "Content-Type": "application/json",
+      revision: KLAVIYO_REVISION,
+      accept: "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  if (!res.ok && !(allow409 && res.status === 409)) {
+    throw new Error(`Klaviyo ${path} [${res.status}]: ${text}`);
+  }
+  return text ? JSON.parse(text) : null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -25,11 +43,13 @@ serve(async (req) => {
       });
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
 
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
@@ -40,13 +60,12 @@ serve(async (req) => {
       });
     }
 
+    const userId = claimsData.claims.sub as string;
     const userEmail = claimsData.claims.email as string;
 
     // ── Secrets ──────────────────────────────────────────────
     const KLAVIYO_API_KEY = Deno.env.get("KLAVIYO_API_KEY");
-    const KLAVIYO_FROM_EMAIL = Deno.env.get("KLAVIYO_FROM_EMAIL");
     if (!KLAVIYO_API_KEY) throw new Error("KLAVIYO_API_KEY is not configured");
-    if (!KLAVIYO_FROM_EMAIL) throw new Error("KLAVIYO_FROM_EMAIL is not configured");
 
     // ── Payload ──────────────────────────────────────────────
     const { recipientEmail, pdfBase64, fileName, reportPeriod } = await req.json();
@@ -66,91 +85,73 @@ serve(async (req) => {
     const safeFileName = fileName ?? "LiveWithMS-Report.pdf";
     const period = reportPeriod ?? "recent period";
 
-    // ── Send via Klaviyo Messages API ────────────────────────
-    // Klaviyo's /api/messages endpoint supports attachments
-    const body = {
-      data: {
-        type: "message",
-        attributes: {
-          channel: "email",
-          to: [recipientEmail],
-          from_email: KLAVIYO_FROM_EMAIL,
-          from_label: "LiveWithMS",
-          subject: `MS Health Report – ${period}`,
-          body: {
-            html: `
-              <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                <div style="background:#EA580C;padding:20px;border-radius:8px 8px 0 0;">
-                  <h1 style="color:white;margin:0;font-size:22px;">LiveWithMS</h1>
-                  <p style="color:rgba(255,255,255,0.85);margin:4px 0 0;font-size:13px;">Doctor-Ready Health Report</p>
-                </div>
-                <div style="background:#FFFAF7;padding:24px;border:1px solid #F0E6D8;border-top:none;border-radius:0 0 8px 8px;">
-                  <p style="color:#1F1F1F;font-size:15px;">Dear Dr.,</p>
-                  <p style="color:#444;font-size:14px;line-height:1.6;">
-                    Please find attached a health report from your patient covering the <strong>${period}</strong>.
-                    This report was generated via LiveWithMS and includes symptom tracking data, medication adherence,
-                    and personal observations.
-                  </p>
-                  <p style="color:#444;font-size:14px;line-height:1.6;">
-                    The PDF is attached to this email for your records.
-                  </p>
-                  <div style="margin:20px 0;padding:12px 16px;background:#FFF7ED;border-left:4px solid #EA580C;border-radius:4px;">
-                    <p style="color:#7C2D12;font-size:12px;margin:0;">
-                      ⚕️ This report is for informational purposes only and does not constitute medical advice.
-                      Always consult with your neurologist for medical decisions.
-                    </p>
-                  </div>
-                  <p style="color:#666;font-size:12px;">
-                    Sent on behalf of patient (${userEmail}) via LiveWithMS
-                  </p>
-                </div>
-              </div>
-            `,
-            text: `LiveWithMS Health Report\n\nDear Dr.,\n\nPlease find the attached health report for the period: ${period}.\n\nSent on behalf of ${userEmail}.\n\n⚕️ Not medical advice. Always consult your neurologist.`,
-          },
-          attachments: [
-            {
-              filename: safeFileName,
-              content: pdfBase64,
-              content_type: "application/pdf",
-            },
-          ],
-        },
-      },
-    };
-
-    const res = await fetch(`${KLAVIYO_BASE}/messages/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
-        "Content-Type": "application/json",
-        revision: KLAVIYO_REVISION,
-        accept: "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    const text = await res.text();
-    const parsed = text ? JSON.parse(text) : {};
-
-    if (!res.ok) {
-      console.error("Klaviyo error:", res.status, text);
-      // Fall back to a mailto approach if Klaviyo messages API isn't enabled
-      // Return a structured error so the client can handle it gracefully
-      return new Response(
-        JSON.stringify({
-          error: "email_send_failed",
-          klaviyo_status: res.status,
-          detail: parsed,
-        }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // ── Upload PDF to storage ────────────────────────────────
+    // Decode base64 to bytes
+    const binaryStr = atob(pdfBase64);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
     }
 
-    return new Response(JSON.stringify({ success: true, recipientEmail }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Use service role client to upload (storage RLS requires auth.uid match on folder)
+    const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const storagePath = `${userId}/${safeFileName}`;
+
+    const { error: uploadError } = await serviceClient.storage
+      .from("reports")
+      .upload(storagePath, bytes, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      throw new Error(`Storage upload failed: ${uploadError.message}`);
+    }
+
+    // Get public URL for the uploaded PDF
+    const { data: urlData } = serviceClient.storage
+      .from("reports")
+      .getPublicUrl(storagePath);
+
+    const pdfUrl = urlData.publicUrl;
+
+    // ── Upsert Klaviyo profile ───────────────────────────────
+    await klaviyoPost("/profiles/", {
+      data: {
+        type: "profile",
+        attributes: { email: recipientEmail },
+      },
+    }, KLAVIYO_API_KEY, true);
+
+    // ── Fire Klaviyo "Send Report" event → triggers flow ─────
+    // Create a flow in Klaviyo triggered by the "Send Report" metric
+    // that emails the doctor with the PDF download link.
+    await klaviyoPost("/events/", {
+      data: {
+        type: "event",
+        attributes: {
+          time: new Date().toISOString(),
+          metric: {
+            data: { type: "metric", attributes: { name: "Send Report" } },
+          },
+          profile: {
+            data: { type: "profile", attributes: { email: recipientEmail } },
+          },
+          properties: {
+            patient_email: userEmail,
+            report_period: period,
+            pdf_url: pdfUrl,
+            file_name: safeFileName,
+            report_title: `MS Health Report – ${period}`,
+          },
+        },
+      },
+    }, KLAVIYO_API_KEY);
+
+    return new Response(
+      JSON.stringify({ success: true, recipientEmail, pdfUrl }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (e) {
     console.error("send-report error:", e);
     return new Response(
