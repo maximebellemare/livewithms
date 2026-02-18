@@ -5,8 +5,9 @@ import SymptomSlider from "@/components/SymptomSlider";
 import MoodSelector from "@/components/MoodSelector";
 import QuickCard from "@/components/QuickCard";
 import WeeklySummaryBanner from "@/components/WeeklySummaryBanner";
+import StreakBadge from "@/components/StreakBadge";
 import { Link } from "react-router-dom";
-import { Settings, Flame } from "lucide-react";
+import { Settings } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
 import UpcomingAppointments from "@/components/UpcomingAppointments";
 import { useSaveEntry } from "@/hooks/useEntries";
@@ -77,9 +78,8 @@ const TodayPage = () => {
           <p className="mt-2 text-sm text-muted-foreground">
             Great job taking care of yourself today. Every entry helps you understand your MS better.
           </p>
-          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-primary">
-            <Flame className="h-4 w-4" />
-            <span className="font-medium">Keep your streak going!</span>
+          <div className="mt-5 mx-auto max-w-xs">
+            <StreakBadge />
           </div>
           <button
             onClick={() => setLogged(false)}
@@ -106,6 +106,9 @@ const TodayPage = () => {
       <div className="mx-auto max-w-lg space-y-4 px-4 py-4">
         {/* Weekly summary banner */}
         <WeeklySummaryBanner />
+
+        {/* Streak tracker */}
+        <StreakBadge />
 
         {/* Quick symptom logging */}
         <div className="space-y-3 animate-fade-in">
