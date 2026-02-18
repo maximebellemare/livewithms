@@ -17,6 +17,17 @@ import { toast } from "sonner";
 
 const MILESTONE_DAYS = [7, 14, 30];
 
+/** Returns true if this streak number is a milestone we haven't celebrated yet */
+function shouldCelebrate(streak: number): boolean {
+  if (!MILESTONE_DAYS.includes(streak)) return false;
+  const key = `milestone_celebrated_${streak}`;
+  return !localStorage.getItem(key);
+}
+
+function markCelebrated(streak: number) {
+  localStorage.setItem(`milestone_celebrated_${streak}`, "1");
+}
+
 const greetings = () => {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
@@ -36,11 +47,18 @@ const TodayPage = () => {
   const [sleepHours, setSleepHours] = useState("");
   const [logged, setLogged] = useState(false);
   const [milestoneDismissed, setMilestoneDismissed] = useState(false);
+  const [celebratedStreak, setCelebratedStreak] = useState<number | null>(null);
   const [formInitialized, setFormInitialized] = useState(false);
 
-  // Read streak BEFORE save so we detect the exact moment it hits a milestone
+  // Read streak — used both before and after save
   const { streak } = useStreak();
-  const isMilestone = MILESTONE_DAYS.includes(streak) && !milestoneDismissed;
+
+  // After logging, if the new streak hits a milestone we haven't celebrated → show banner
+  const isMilestone = celebratedStreak !== null
+    ? MILESTONE_DAYS.includes(celebratedStreak) && !milestoneDismissed
+    : MILESTONE_DAYS.includes(streak) && shouldCelebrate(streak) && !milestoneDismissed;
+
+  const activeMilestoneStreak = celebratedStreak ?? streak;
 
   // Check if user already logged today
   const { data: todayEntry, isLoading: todayLoading } = useTodayEntry();
@@ -101,6 +119,12 @@ const TodayPage = () => {
         notes: notes || null,
         sleep_hours: sleepHours ? Number(sleepHours) : null,
       });
+      // After saving, streak will increment by 1 (today wasn't logged yet)
+      const newStreak = alreadyLogged ? streak : streak + 1;
+      if (MILESTONE_DAYS.includes(newStreak) && shouldCelebrate(newStreak)) {
+        setCelebratedStreak(newStreak);
+        markCelebrated(newStreak);
+      }
       setLogged(true);
     } catch (err: any) {
       toast.error("Failed to save entry: " + err.message);
@@ -123,7 +147,7 @@ const TodayPage = () => {
           {isMilestone && (
             <div className="mb-6 text-left">
               <StreakMilestoneBanner
-                streak={streak}
+                streak={activeMilestoneStreak}
                 onDismiss={() => setMilestoneDismissed(true)}
               />
             </div>
@@ -165,7 +189,7 @@ const TodayPage = () => {
         {/* Milestone celebration — shown at top when streak is at a milestone */}
         {isMilestone && (
           <StreakMilestoneBanner
-            streak={streak}
+            streak={activeMilestoneStreak}
             onDismiss={() => setMilestoneDismissed(true)}
           />
         )}

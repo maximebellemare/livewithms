@@ -107,7 +107,15 @@ const ConfettiCanvas = () => {
 /* ── Main banner ──────────────────────────────────────────── */
 const StreakMilestoneBanner = ({ streak, onDismiss }: Props) => {
   const [visible, setVisible] = useState(true);
+  const [entered, setEntered] = useState(false);
   const milestone = MILESTONES[streak];
+
+  useEffect(() => {
+    // Small delay before entrance so the animation is noticeable
+    const t = setTimeout(() => setEntered(true), 50);
+    return () => clearTimeout(t);
+  }, []);
+
   if (!milestone || !visible) return null;
 
   const handleDismiss = () => {
@@ -116,31 +124,44 @@ const StreakMilestoneBanner = ({ streak, onDismiss }: Props) => {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-accent via-card to-accent shadow-card animate-fade-in">
+    <div
+      className={`relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-accent via-card to-accent shadow-card transition-all duration-500 ${
+        entered ? "opacity-100 scale-100" : "opacity-0 scale-95"
+      }`}
+    >
       {/* Confetti layer */}
       <ConfettiCanvas />
 
-      {/* Content */}
-      <div className="relative px-5 py-5 text-center">
-        {/* Dismiss */}
-        <button
-          onClick={handleDismiss}
-          className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground hover:bg-secondary transition-colors"
-          aria-label="Dismiss"
-        >
-          <X className="h-4 w-4" />
-        </button>
+      {/* Dismiss */}
+      <button
+        onClick={handleDismiss}
+        className="absolute right-3 top-3 z-10 rounded-full p-1 text-muted-foreground hover:bg-secondary transition-colors"
+        aria-label="Dismiss"
+      >
+        <X className="h-4 w-4" />
+      </button>
 
-        {/* Emoji + headline */}
-        <div className="mb-2 flex items-center justify-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-          <span className="text-3xl">{milestone.emoji}</span>
-          <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+      {/* Content */}
+      <div className="relative px-5 py-6 text-center">
+        {/* Pulsing glow ring behind emoji */}
+        <div className="relative mx-auto mb-3 flex items-center justify-center">
+          <span
+            className="absolute inline-flex h-20 w-20 rounded-full bg-primary/20 animate-ping"
+            style={{ animationDuration: "1.5s" }}
+          />
+          <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 border border-primary/30 text-4xl shadow-[0_0_24px_rgba(var(--primary),0.25)]">
+            {milestone.emoji}
+          </span>
         </div>
-        <p className="text-xl font-bold text-foreground font-display">
-          {milestone.headline}
-        </p>
-        <p className="mt-1.5 text-sm text-muted-foreground leading-snug max-w-[260px] mx-auto">
+
+        {/* Sparkles + headline */}
+        <div className="flex items-center justify-center gap-1.5 mb-1">
+          <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+          <p className="text-xl font-bold text-foreground font-display">{milestone.headline}</p>
+          <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+        </div>
+
+        <p className="text-sm text-muted-foreground leading-snug max-w-[260px] mx-auto">
           {milestone.sub}
         </p>
 
@@ -150,7 +171,6 @@ const StreakMilestoneBanner = ({ streak, onDismiss }: Props) => {
           <span className="text-sm font-bold text-primary">{streak} days in a row</span>
         </div>
 
-        {/* Dismiss text */}
         <p className="mt-3 text-[10px] text-muted-foreground">
           Tap ✕ to dismiss · Keep going!
         </p>
