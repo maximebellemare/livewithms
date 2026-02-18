@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { subDays, format, startOfWeek } from "date-fns";
 import PageHeader from "@/components/PageHeader";
@@ -53,6 +53,7 @@ const TodayPage = () => {
   const [milestoneDismissed, setMilestoneDismissed] = useState(false);
   const [celebratedStreak, setCelebratedStreak] = useState<number | null>(null);
   const [formInitialized, setFormInitialized] = useState(false);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
 
   // Read streak — used both before and after save
   const { streak } = useStreak();
@@ -283,6 +284,10 @@ const TodayPage = () => {
             onUsePrompt={(prompt) => {
               const prefix = notes.trim() ? notes + "\n\n" : "";
               setNotes(prefix + prompt + " ");
+              setTimeout(() => {
+                notesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                notesRef.current?.focus();
+              }, 50);
             }}
           />
 
@@ -291,6 +296,7 @@ const TodayPage = () => {
               📝 Notes
             </label>
             <textarea
+              ref={notesRef}
               rows={3}
               placeholder="Anything else you want to remember..."
               value={notes}
