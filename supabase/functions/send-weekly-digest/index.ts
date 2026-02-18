@@ -41,6 +41,53 @@ function fmt(v: number | null, unit = "/10"): string {
   return v !== null ? `${v.toFixed(1)}${unit}` : "not recorded";
 }
 
+/** Returns how many consecutive past weeks (including current) the user hit their goal. */
+async function computeWeekStreak(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  userId: string,
+  goal: number,
+  currentWeekStart: string,
+  currentWeekGoalAchieved: boolean,
+): Promise<number> {
+  if (!currentWeekGoalAchieved) return 0;
+
+  // Fetch up to 52 weeks of past entries (before current week)
+  const lookbackStart = new Date(currentWeekStart + "T00:00:00Z");
+  lookbackStart.setUTCDate(lookbackStart.getUTCDate() - 52 * 7);
+
+  const { data: pastEntries } = await supabase
+    .from("daily_entries")
+    .select("date")
+    .eq("user_id", userId)
+    .gte("date", lookbackStart.toISOString().slice(0, 10))
+    .lt("date", currentWeekStart);
+
+  // Group entries by their Monday (week key)
+  const weekCounts = new Map<string, number>();
+  for (const entry of (pastEntries ?? [])) {
+    const d = new Date(entry.date + "T00:00:00Z");
+    const day = d.getUTCDay(); // 0=Sun
+    d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day));
+    const key = d.toISOString().slice(0, 10);
+    weekCounts.set(key, (weekCounts.get(key) ?? 0) + 1);
+  }
+
+  // Count backward from the week before current
+  let streak = 1; // current week already confirmed
+  const check = new Date(currentWeekStart + "T00:00:00Z");
+  for (let i = 0; i < 52; i++) {
+    check.setUTCDate(check.getUTCDate() - 7);
+    const key = check.toISOString().slice(0, 10);
+    if ((weekCounts.get(key) ?? 0) >= goal) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
 async function klaviyoPost(path: string, body: unknown, apiKey: string, allow409 = false) {
   const res = await fetch(`${KLAVIYO_BASE}${path}`, {
     method: "POST",
@@ -143,7 +190,7 @@ serve(async (req) => {
         // Fetch last 7 days of entries
         const { data: entries, error: entErr } = await supabase
           .from("daily_entries")
-          .select("fatigue, pain, brain_fog, mood, mobility, sleep_hours")
+          .select("date, fatigue, pain, brain_fog, mood, mobility, sleep_hours")
           .eq("user_id", profile.user_id)
           .gte("date", weekStart)
           .lte("date", weekEnd);
@@ -160,6 +207,22 @@ serve(async (req) => {
         const avgMood = avg(entries.map((e) => e.mood));
         const avgMobility = avg(entries.map((e) => e.mobility));
         const avgSleep = avg(entries.map((e) => e.sleep_hours));
+
+        const goalAchieved = entries.length >= profile.weekly_log_goal;
+
+        // Compute consecutive-week streak
+        const weekStreak = await computeWeekStreak(
+          supabase,
+          profile.user_id,
+          profile.weekly_log_goal,
+          weekStart,
+          goalAchieved,
+        );
+        const weekStreakLabel = weekStreak === 0
+          ? `You logged ${entries.length} of your ${profile.weekly_log_goal}-day goal`
+          : weekStreak === 1
+          ? `Week 1 goal hit — keep it up! ⚡`
+          : `Week ${weekStreak} in a row! 🔥`;
 
         // Generate a secure unsubscribe token (HMAC-SHA256 of user_id)
         const unsubToken = await generateUnsubscribeToken(profile.user_id, SUPABASE_SERVICE_ROLE_KEY);
@@ -207,10 +270,12 @@ serve(async (req) => {
                 avg_mobility_label: fmt(avgMobility),
                 avg_sleep_label: fmt(avgSleep, " hrs"),
                 weekly_log_goal: profile.weekly_log_goal,
-                goal_achieved: entries.length >= profile.weekly_log_goal,
-                goal_summary: entries.length >= profile.weekly_log_goal
+                goal_achieved: goalAchieved,
+                goal_summary: goalAchieved
                   ? `You hit your ${profile.weekly_log_goal}-day goal this week! 🔥`
                   : `You logged ${entries.length} of your ${profile.weekly_log_goal}-day goal`,
+                week_streak: weekStreak,
+                week_streak_label: weekStreakLabel,
                 unsubscribe_url: unsubscribeUrl,
               },
             },
