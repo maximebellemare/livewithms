@@ -10,15 +10,27 @@ function avg(vals: (number | null | undefined)[]): number | null {
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
 }
 
+// Severity scale: lower = better (fatigue, pain, etc.)
 function scoreColor(v: number): string {
   if (v <= 3) return "text-emerald-600 dark:text-emerald-400";
   if (v <= 6) return "text-amber-600 dark:text-amber-400";
   return "text-red-600 dark:text-red-400";
 }
-
 function scoreBg(v: number): string {
   if (v <= 3) return "bg-emerald-100 dark:bg-emerald-900/40";
   if (v <= 6) return "bg-amber-100 dark:bg-amber-900/40";
+  return "bg-red-100 dark:bg-red-900/40";
+}
+
+// Sleep scale: higher = better
+function sleepColor(hrs: number): string {
+  if (hrs >= 7) return "text-emerald-600 dark:text-emerald-400";
+  if (hrs >= 5) return "text-amber-600 dark:text-amber-400";
+  return "text-red-600 dark:text-red-400";
+}
+function sleepBg(hrs: number): string {
+  if (hrs >= 7) return "bg-emerald-100 dark:bg-emerald-900/40";
+  if (hrs >= 5) return "bg-amber-100 dark:bg-amber-900/40";
   return "bg-red-100 dark:bg-red-900/40";
 }
 
@@ -41,8 +53,9 @@ const SYMPTOMS = [
 
 /* ── component ───────────────────────────────────────────── */
 const MondayRecapCard = () => {
-  // Only render on Mondays
-  const isMonday = new Date().getDay() === 1;
+  // Only render on Mondays (temporarily Wednesday for preview)
+  const day = new Date().getDay();
+  const isMonday = day === 1 || day === 3;
 
   // Dismissal — keyed to this Monday so it reappears next Monday
   const thisMonday = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
@@ -62,12 +75,13 @@ const MondayRecapCard = () => {
   const { data: profile, isLoading: profileLoading }      = useProfile();
 
   const stats = useMemo(() => ({
-    daysLogged: entries.length,
-    fatigue:   avg(entries.map(e => e.fatigue)),
-    pain:      avg(entries.map(e => e.pain)),
-    brain_fog: avg(entries.map(e => e.brain_fog)),
-    mood:      avg(entries.map(e => e.mood)),
-    mobility:  avg(entries.map(e => e.mobility)),
+    daysLogged:  entries.length,
+    fatigue:     avg(entries.map(e => e.fatigue)),
+    pain:        avg(entries.map(e => e.pain)),
+    brain_fog:   avg(entries.map(e => e.brain_fog)),
+    mood:        avg(entries.map(e => e.mood)),
+    mobility:    avg(entries.map(e => e.mobility)),
+    sleep_hours: avg(entries.map(e => e.sleep_hours)),
   }), [entries]);
 
   if (!isMonday || dismissed || entriesLoading || profileLoading) return null;
@@ -123,7 +137,7 @@ const MondayRecapCard = () => {
       {entries.length > 0 && (
         <div className="px-4 py-2">
           <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Avg Symptoms</p>
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
             {SYMPTOMS.map(({ key, label, emoji }) => {
               const val = stats[key];
               return (
@@ -139,6 +153,19 @@ const MondayRecapCard = () => {
                 </div>
               );
             })}
+            {/* Sleep tile — inverted scale */}
+            {(() => {
+              const s = stats.sleep_hours;
+              return (
+                <div className={`flex flex-col items-center rounded-xl px-1 py-2 ${s !== null ? sleepBg(s) : "bg-muted/40"}`}>
+                  <span className="text-base leading-none">💤</span>
+                  <span className={`mt-1 text-sm font-bold tabular-nums leading-none ${s !== null ? sleepColor(s) : "text-muted-foreground"}`}>
+                    {s !== null ? `${s.toFixed(1)}h` : "–"}
+                  </span>
+                  <span className="mt-0.5 text-center text-[9px] leading-tight text-muted-foreground">Sleep</span>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
