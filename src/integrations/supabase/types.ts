@@ -194,6 +194,7 @@ export type Database = {
           updated_at: string
           user_id: string
           weekly_digest_enabled: boolean
+          weekly_log_goal: number
           year_diagnosed: string | null
         }
         Insert: {
@@ -208,6 +209,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           weekly_digest_enabled?: boolean
+          weekly_log_goal?: number
           year_diagnosed?: string | null
         }
         Update: {
@@ -222,6 +224,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           weekly_digest_enabled?: boolean
+          weekly_log_goal?: number
           year_diagnosed?: string | null
         }
         Relationships: []

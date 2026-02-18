@@ -22,12 +22,11 @@ function getNextMonday(): string {
   return `${weekday} ${monthDay}`;
 }
 
-function getWeeklyMotivation(daysLogged: number): string {
+function getWeeklyMotivation(daysLogged: number, goal: number): string {
   if (daysLogged === 0) return "Log today to start your week strong 💪";
-  if (daysLogged === 1) return "1 day logged — keep it going!";
-  if (daysLogged <= 3) return `${daysLogged} days logged this week ⚡`;
-  if (daysLogged <= 6) return `${daysLogged} days logged this week 🎉`;
-  return "Perfect week — 7/7 days logged! 🔥";
+  if (daysLogged < goal * 0.5) return `${daysLogged} day${daysLogged > 1 ? "s" : ""} logged — keep going! ⚡`;
+  if (daysLogged < goal) return `${daysLogged}/${goal} days — almost there! 🎉`;
+  return `Goal reached — ${daysLogged}/${goal} days logged! 🔥`;
 }
 
 const ProfilePage = () => {
@@ -197,21 +196,46 @@ const ProfilePage = () => {
               <p className="text-xs text-muted-foreground">Symptom summary every Monday morning</p>
 
               {profile?.weekly_digest_enabled && (
-                <div className="mt-2 space-y-1.5">
+                <div className="mt-2 space-y-2">
+                  {/* Goal picker */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-muted-foreground mr-0.5">Goal:</span>
+                    {[3, 5, 7].map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateProfile.mutate({ weekly_log_goal: g } as any);
+                        }}
+                        className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors border ${
+                          (profile.weekly_log_goal ?? 7) === g
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-transparent text-muted-foreground border-border hover:border-primary/50"
+                        }`}
+                      >
+                        {g}×/wk
+                      </button>
+                    ))}
+                  </div>
+
                   {/* Progress bar */}
                   <div className="flex items-center gap-2">
                     <div className="relative flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                       <div
                         className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-500"
-                        style={{ width: `${Math.min((daysLoggedThisWeek / 7) * 100, 100)}%` }}
+                        style={{ width: `${Math.min((daysLoggedThisWeek / (profile.weekly_log_goal ?? 7)) * 100, 100)}%` }}
                       />
                     </div>
                     <span className="text-[11px] font-semibold tabular-nums text-foreground shrink-0">
-                      {daysLoggedThisWeek}/7
+                      {daysLoggedThisWeek}/{profile.weekly_log_goal ?? 7}
                     </span>
                   </div>
+
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] text-muted-foreground leading-tight">{getWeeklyMotivation(daysLoggedThisWeek)}</p>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      {getWeeklyMotivation(daysLoggedThisWeek, profile.weekly_log_goal ?? 7)}
+                    </p>
                     <p className="text-[11px] text-primary shrink-0">Next: {getNextMonday()}</p>
                   </div>
                 </div>
