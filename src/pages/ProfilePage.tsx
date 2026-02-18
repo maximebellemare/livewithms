@@ -8,6 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import NotificationToggle from "@/components/NotificationToggle";
 import { toast } from "sonner";
+import { useEntriesInRange } from "@/hooks/useEntries";
+import { format, startOfWeek } from "date-fns";
 
 function getNextMonday(): string {
   const today = new Date();
@@ -20,6 +22,14 @@ function getNextMonday(): string {
   return `${weekday} ${monthDay}`;
 }
 
+function getWeeklyMotivation(daysLogged: number): string {
+  if (daysLogged === 0) return "Log today to start your week strong 💪";
+  if (daysLogged === 1) return "1 day logged this week — keep it up!";
+  if (daysLogged <= 3) return `${daysLogged} days logged this week ⚡`;
+  if (daysLogged <= 6) return `${daysLogged} days logged this week 🎉`;
+  return "7 days logged — perfect week! 🔥";
+}
+
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
@@ -27,6 +37,12 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
+
+  // This week's entries (Monday → today)
+  const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
+  const weekEnd = format(new Date(), "yyyy-MM-dd");
+  const { data: weekEntries } = useEntriesInRange(weekStart, weekEnd);
+  const daysLoggedThisWeek = weekEntries?.length ?? 0;
 
   const [neuroEmail, setNeuroEmail] = useState<string>("");
   const [neuroEmailInit, setNeuroEmailInit] = useState(false);
@@ -178,9 +194,12 @@ const ProfilePage = () => {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium">Weekly Email Digest</p>
               <p className="text-xs text-muted-foreground">Symptom summary every Monday morning</p>
-              {profile?.weekly_digest_enabled && (
-                <p className="text-xs text-primary mt-0.5">Next digest: {getNextMonday()}</p>
-              )}
+              {profile?.weekly_digest_enabled ? (
+                <div className="mt-0.5 flex flex-col gap-0.5">
+                  <p className="text-xs text-primary">Next digest: {getNextMonday()}</p>
+                  <p className="text-xs text-muted-foreground">{getWeeklyMotivation(daysLoggedThisWeek)}</p>
+                </div>
+              ) : null}
             </div>
             <div className={`relative h-5 w-9 rounded-full transition-colors flex-shrink-0 ${profile?.weekly_digest_enabled ? "bg-primary" : "bg-muted"}`}>
               <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${profile?.weekly_digest_enabled ? "translate-x-4" : "translate-x-0.5"}`} />
