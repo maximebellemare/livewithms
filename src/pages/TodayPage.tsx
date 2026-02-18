@@ -6,13 +6,16 @@ import SymptomSlider from "@/components/SymptomSlider";
 import MoodSelector from "@/components/MoodSelector";
 import QuickCard from "@/components/QuickCard";
 import WeeklySummaryBanner from "@/components/WeeklySummaryBanner";
-import StreakBadge from "@/components/StreakBadge";
+import StreakBadge, { useStreak } from "@/components/StreakBadge";
+import StreakMilestoneBanner from "@/components/StreakMilestoneBanner";
 import { Link } from "react-router-dom";
 import { Settings } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
 import UpcomingAppointments from "@/components/UpcomingAppointments";
 import { useSaveEntry, useEntriesInRange } from "@/hooks/useEntries";
 import { toast } from "sonner";
+
+const MILESTONE_DAYS = [7, 14, 30];
 
 const greetings = () => {
   const hour = new Date().getHours();
@@ -32,6 +35,11 @@ const TodayPage = () => {
   const [notes, setNotes] = useState("");
   const [sleepHours, setSleepHours] = useState("");
   const [logged, setLogged] = useState(false);
+  const [milestoneDismissed, setMilestoneDismissed] = useState(false);
+
+  // Read streak BEFORE save so we detect the exact moment it hits a milestone
+  const { streak } = useStreak();
+  const isMilestone = MILESTONE_DAYS.includes(streak) && !milestoneDismissed;
 
   const today = new Date();
   const weekStart = format(subDays(today, 7), "yyyy-MM-dd");
@@ -91,6 +99,16 @@ const TodayPage = () => {
           }
         />
         <div className="mx-auto max-w-lg px-4 py-12 text-center animate-fade-in">
+          {/* Milestone banner — shown immediately after logging the milestone day */}
+          {isMilestone && (
+            <div className="mb-6 text-left">
+              <StreakMilestoneBanner
+                streak={streak}
+                onDismiss={() => setMilestoneDismissed(true)}
+              />
+            </div>
+          )}
+
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent">
             <span className="text-3xl">🧡</span>
           </div>
@@ -124,6 +142,14 @@ const TodayPage = () => {
         }
       />
       <div className="mx-auto max-w-lg space-y-4 px-4 py-4">
+        {/* Milestone celebration — shown at top when streak is at a milestone */}
+        {isMilestone && (
+          <StreakMilestoneBanner
+            streak={streak}
+            onDismiss={() => setMilestoneDismissed(true)}
+          />
+        )}
+
         {/* Weekly summary banner */}
         <WeeklySummaryBanner />
 
