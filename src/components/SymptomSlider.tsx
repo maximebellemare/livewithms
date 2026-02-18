@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface SymptomSliderProps {
   label: string;
@@ -6,9 +6,36 @@ interface SymptomSliderProps {
   value: number;
   onChange: (v: number) => void;
   color?: string;
+  weekAvg?: number | null;
 }
 
-const SymptomSlider = ({ label, emoji, value, onChange, color = "bg-primary" }: SymptomSliderProps) => {
+const TrendArrow = ({ current, avg }: { current: number; avg: number }) => {
+  const diff = current - avg;
+  if (Math.abs(diff) < 0.5) {
+    return (
+      <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+        <Minus className="h-3 w-3" />
+        <span>avg</span>
+      </span>
+    );
+  }
+  if (diff > 0) {
+    return (
+      <span className="flex items-center gap-0.5 text-[10px] text-destructive">
+        <TrendingUp className="h-3 w-3" />
+        <span>+{diff.toFixed(1)}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-0.5 text-[10px] text-emerald-500">
+      <TrendingDown className="h-3 w-3" />
+      <span>{diff.toFixed(1)}</span>
+    </span>
+  );
+};
+
+const SymptomSlider = ({ label, emoji, value, onChange, color = "bg-primary", weekAvg }: SymptomSliderProps) => {
   const percentage = (value / 10) * 100;
 
   return (
@@ -18,7 +45,10 @@ const SymptomSlider = ({ label, emoji, value, onChange, color = "bg-primary" }: 
           <span className="text-lg">{emoji}</span>
           <span className="text-sm font-medium text-foreground">{label}</span>
         </div>
-        <span className="min-w-[2rem] text-right text-lg font-bold text-primary">{value}</span>
+        <div className="flex items-center gap-2">
+          {weekAvg != null && <TrendArrow current={value} avg={weekAvg} />}
+          <span className="min-w-[2rem] text-right text-lg font-bold text-primary">{value}</span>
+        </div>
       </div>
       <div className="relative">
         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { subDays, format } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import SymptomSlider from "@/components/SymptomSlider";
 import MoodSelector from "@/components/MoodSelector";
@@ -10,7 +11,7 @@ import { Link } from "react-router-dom";
 import { Settings } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
 import UpcomingAppointments from "@/components/UpcomingAppointments";
-import { useSaveEntry } from "@/hooks/useEntries";
+import { useSaveEntry, useEntriesInRange } from "@/hooks/useEntries";
 import { toast } from "sonner";
 
 const greetings = () => {
@@ -31,6 +32,25 @@ const TodayPage = () => {
   const [notes, setNotes] = useState("");
   const [sleepHours, setSleepHours] = useState("");
   const [logged, setLogged] = useState(false);
+
+  const today = new Date();
+  const weekStart = format(subDays(today, 7), "yyyy-MM-dd");
+  const weekEnd = format(subDays(today, 1), "yyyy-MM-dd");
+  const { data: weekEntries = [] } = useEntriesInRange(weekStart, weekEnd);
+
+  const weekAvgs = useMemo(() => {
+    const avg = (key: "fatigue" | "pain" | "brain_fog" | "mood" | "mobility") => {
+      const vals = weekEntries.map((e) => e[key]).filter((v): v is number => v != null);
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    };
+    return {
+      fatigue: avg("fatigue"),
+      pain: avg("pain"),
+      brain_fog: avg("brain_fog"),
+      mood: avg("mood"),
+      mobility: avg("mobility"),
+    };
+  }, [weekEntries]);
 
   const saveEntry = useSaveEntry();
 
@@ -115,11 +135,11 @@ const TodayPage = () => {
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Quick Log
           </p>
-          <SymptomSlider label="Fatigue" emoji="🔋" value={fatigue} onChange={setFatigue} />
-          <SymptomSlider label="Pain" emoji="⚡" value={pain} onChange={setPain} />
-          <SymptomSlider label="Brain Fog" emoji="🌫️" value={brainFog} onChange={setBrainFog} />
-          <SymptomSlider label="Mood" emoji="😊" value={mood} onChange={setMood} />
-          <SymptomSlider label="Mobility" emoji="🚶" value={mobility} onChange={setMobility} />
+          <SymptomSlider label="Fatigue" emoji="🔋" value={fatigue} onChange={setFatigue} weekAvg={weekAvgs.fatigue} />
+          <SymptomSlider label="Pain" emoji="⚡" value={pain} onChange={setPain} weekAvg={weekAvgs.pain} />
+          <SymptomSlider label="Brain Fog" emoji="🌫️" value={brainFog} onChange={setBrainFog} weekAvg={weekAvgs.brain_fog} />
+          <SymptomSlider label="Mood" emoji="😊" value={mood} onChange={setMood} weekAvg={weekAvgs.mood} />
+          <SymptomSlider label="Mobility" emoji="🚶" value={mobility} onChange={setMobility} weekAvg={weekAvgs.mobility} />
         </div>
 
         {/* Mood tags */}
