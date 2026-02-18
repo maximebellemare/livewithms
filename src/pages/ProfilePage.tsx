@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
 import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails } from "lucide-react";
@@ -8,8 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import NotificationToggle from "@/components/NotificationToggle";
 import { toast } from "sonner";
-import { useEntriesInRange } from "@/hooks/useEntries";
-import { format, startOfWeek } from "date-fns";
+import { useEntries, useEntriesInRange } from "@/hooks/useEntries";
+import { format, startOfWeek, subWeeks } from "date-fns";
 
 function getNextMonday(): string {
   const today = new Date();
@@ -42,6 +42,37 @@ const ProfilePage = () => {
   const weekEnd = format(new Date(), "yyyy-MM-dd");
   const { data: weekEntries } = useEntriesInRange(weekStart, weekEnd);
   const daysLoggedThisWeek = weekEntries?.length ?? 0;
+
+  // Consecutive-week streak computed from all entries
+  const { data: allEntries = [] } = useEntries();
+  const weekStreak = useMemo(() => {
+    if (!profile || allEntries.length === 0) return 0;
+    const goal = profile.weekly_log_goal ?? 7;
+
+    // Group entries by their Monday
+    const weekCounts = new Map<string, number>();
+    for (const entry of allEntries) {
+      const d = new Date(entry.date + "T00:00:00");
+      const day = d.getDay(); // 0=Sun
+      d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+      const key = format(d, "yyyy-MM-dd");
+      weekCounts.set(key, (weekCounts.get(key) ?? 0) + 1);
+    }
+
+    // Start from current week, walk backwards
+    let streak = 0;
+    let cursor = startOfWeek(new Date(), { weekStartsOn: 1 });
+    for (let i = 0; i < 52; i++) {
+      const key = format(cursor, "yyyy-MM-dd");
+      if ((weekCounts.get(key) ?? 0) >= goal) {
+        streak++;
+        cursor = subWeeks(cursor, 1);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }, [allEntries, profile]);
 
   const [neuroEmail, setNeuroEmail] = useState<string>("");
   const [neuroEmailInit, setNeuroEmailInit] = useState(false);
@@ -219,7 +250,7 @@ const ProfilePage = () => {
                     ))}
                   </div>
 
-                  {/* Progress bar */}
+                  {/* Progress bar + week streak badge */}
                   <div className="flex items-center gap-2">
                     <div className="relative flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                       <div
@@ -230,6 +261,16 @@ const ProfilePage = () => {
                     <span className="text-[11px] font-semibold tabular-nums text-foreground shrink-0">
                       {daysLoggedThisWeek}/{profile.weekly_log_goal ?? 7}
                     </span>
+                    {weekStreak >= 2 && (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-100 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800 px-2 py-0.5 text-[10px] font-semibold text-orange-700 dark:text-orange-300 shrink-0">
+                        {weekStreak} wk 🔥
+                      </span>
+                    )}
+                    {weekStreak === 1 && (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300 shrink-0">
+                        1 wk ⚡
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between gap-2">
