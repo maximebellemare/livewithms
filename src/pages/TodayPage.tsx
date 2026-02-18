@@ -4,6 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import SymptomSlider from "@/components/SymptomSlider";
 import MoodSelector from "@/components/MoodSelector";
 import QuickCard from "@/components/QuickCard";
+import WeeklySummaryBanner from "@/components/WeeklySummaryBanner";
 import { Link } from "react-router-dom";
 import { Settings, Flame } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
@@ -103,6 +104,9 @@ const TodayPage = () => {
         }
       />
       <div className="mx-auto max-w-lg space-y-4 px-4 py-4">
+        {/* Weekly summary banner */}
+        <WeeklySummaryBanner />
+
         {/* Quick symptom logging */}
         <div className="space-y-3 animate-fade-in">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
