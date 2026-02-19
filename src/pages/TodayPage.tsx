@@ -283,7 +283,7 @@ const TodayPage = () => {
 
         {/* Inline mood input — expands when Mood card is tapped */}
         {moodInputOpen && (
-          <div className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
+          <div onClick={(e) => e.stopPropagation()} className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
             <div className="flex items-center justify-between mb-3">
               <label className="text-sm font-semibold text-foreground">😊 How's your mood? (0–10)</label>
               <button
@@ -346,7 +346,7 @@ const TodayPage = () => {
 
         {/* Inline fatigue input — expands when Fatigue card is tapped */}
         {fatigueInputOpen && (
-          <div className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
+          <div onClick={(e) => e.stopPropagation()} className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
             <div className="flex items-center justify-between mb-3">
               <label className="text-sm font-semibold text-foreground">🔋 Fatigue level today (0–10)</label>
               <button
@@ -409,7 +409,7 @@ const TodayPage = () => {
 
         {/* Inline sleep input — expands when Sleep card is tapped */}
         {sleepInputOpen && (
-          <div className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
+          <div onClick={(e) => e.stopPropagation()} className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-semibold text-foreground">🌙 Hours of sleep last night</label>
               <button
