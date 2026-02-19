@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import { UseMutateAsyncFunction } from "@tanstack/react-query";
+import HoldButton from "@/components/HoldButton";
 
 type EntryPayload = {
   date: string;
@@ -51,13 +52,11 @@ export default function InlineQuickLog({
   saveAsync,
   isSaving,
 }: InlineQuickLogProps) {
-  const handleSave = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
+  const handleSave = async () => {
     try {
       await saveAsync(entryPayload);
-      onSaved?.();        // fires blockGrid() synchronously before panel unmounts
-      onClose();          // unmounts the panel
+      onSaved?.();
+      onClose();
       toast.success(`${label} logged: ${value}/10 ${emoji}`);
     } catch (err: any) {
       toast.error("Failed to save: " + err.message);
@@ -102,15 +101,15 @@ export default function InlineQuickLog({
         })}
       </div>
 
-      <button
-        onClick={handleSave}
+      <HoldButton
+        onHold={handleSave}
         disabled={isSaving}
-        className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.98]"
+        className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90"
       >
         {isSaving ? "Saving…" : `Save ${label.toLowerCase()}`}
-      </button>
+      </HoldButton>
       <p className="mt-1.5 text-[10px] text-muted-foreground text-center">
-        Tap a number then <strong>Save {label.toLowerCase()}</strong>, or adjust below with the full form.
+        Tap a number then hold <strong>Save {label.toLowerCase()}</strong>, or adjust below with the full form.
       </p>
     </div>
   );
