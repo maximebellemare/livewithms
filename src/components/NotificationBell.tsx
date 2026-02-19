@@ -15,6 +15,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const NotificationBell = () => {
   const { data: notifications = [] } = useNotifications();
@@ -58,12 +69,30 @@ const NotificationBell = () => {
               </button>
             )}
             {notifications.length > 0 && (
-              <button
-                onClick={() => clearAll.mutate()}
-                className="flex items-center gap-1 text-[11px] text-destructive hover:underline"
-              >
-                <Trash2 className="h-3 w-3" /> Clear all
-              </button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button className="flex items-center gap-1 text-[11px] text-destructive hover:underline">
+                    <Trash2 className="h-3 w-3" /> Clear all
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Clear all notifications?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete all your notifications. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => clearAll.mutate()}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Clear all
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
         </div>
