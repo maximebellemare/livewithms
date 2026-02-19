@@ -71,7 +71,8 @@ const SwipeableNotification = ({ notification: n, onClick, onDelete }: Swipeable
   const handleTouchEnd = useCallback(() => {
     swiping.current = false;
     if (offset < -SWIPE_THRESHOLD) {
-      // Animate out and delete
+      // Haptic feedback (best-effort for Android)
+      if (navigator.vibrate) navigator.vibrate(15);
       setDismissed(true);
       setTimeout(() => onDelete(), 250);
     } else {
