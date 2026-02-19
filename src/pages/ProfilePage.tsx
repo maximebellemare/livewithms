@@ -346,16 +346,17 @@ const ProfilePage = () => {
           </button>
 
           {[
-            { icon: Shield, label: "Privacy & Consent", desc: "Manage your data preferences" },
-            { icon: Download, label: "Export Data", desc: "Download your health data" },
-          ].map(({ icon: Icon, label, desc }) => (
-            <button key={label} className="tap-highlight-none flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary text-foreground">
+            { icon: Shield, label: "Privacy & Data", desc: "Manage your data preferences", to: "/privacy" },
+            { icon: Download, label: "Export Data", desc: "Download your health data", to: "/privacy" },
+          ].map(({ icon: Icon, label, desc, to }) => (
+            <Link key={label} to={to} className="tap-highlight-none flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary text-foreground">
               <Icon className="h-4 w-4 flex-shrink-0" />
               <div>
                 <p className="text-sm font-medium">{label}</p>
                 <p className="text-xs text-muted-foreground">{desc}</p>
               </div>
-            </button>
+              <ChevronRight className="h-4 w-4 ml-auto text-muted-foreground" />
+            </Link>
           ))}
 
           <button
