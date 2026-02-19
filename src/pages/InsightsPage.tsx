@@ -642,7 +642,7 @@ const InsightsPage = () => {
               By symptom
             </p>
             <div className="grid grid-cols-1 gap-3">
-              {SYMPTOMS.map(({ key, label, emoji }) => {
+              {SYMPTOMS.filter((s) => s.key !== "sleep_hours").map(({ key, label, emoji }) => {
                 const vals = windowEntries.map((e) => e[key as keyof typeof e] as number | null);
                 const curAvg = avg(vals);
                 const maxVal = Math.max(...vals.filter((v): v is number => v !== null));
