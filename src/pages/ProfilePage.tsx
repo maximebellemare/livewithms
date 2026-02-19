@@ -6,6 +6,7 @@ import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, S
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
+import { useIsAdmin } from "@/hooks/useAdmin";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import NotificationToggle from "@/components/NotificationToggle";
@@ -37,6 +38,7 @@ const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
+  const { data: isAdmin } = useIsAdmin();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
@@ -256,6 +258,15 @@ const ProfilePage = () => {
             <span>Re-run Onboarding</span>
             <ChevronRight className="h-4 w-4" />
           </Link>
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="mt-2 flex items-center justify-between rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
+            >
+              <span className="flex items-center gap-2"><Shield className="h-4 w-4" /> Admin Dashboard</span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          )}
         </div>
 
         {/* Community Display Name */}
