@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { format, parseISO, startOfWeek, endOfWeek } from "date-fns";
+import { format, startOfWeek, endOfWeek, parseISO } from "date-fns";
 import SymptomHeatmap, { MetricKey } from "./SymptomHeatmap";
 
 interface DayEntry {
@@ -50,7 +50,6 @@ function bestWorstWeeks(
   const byDate = Object.fromEntries(entries.map((e) => [e.date, e]));
 
   // Group days into Mon-anchored weeks
-  const firstDay = parseISO(days[0]);
   const weekMap = new Map<string, { weekStart: Date; values: number[] }>();
 
   for (const day of days) {
@@ -66,7 +65,7 @@ function bestWorstWeeks(
   // Compute average per week, require at least 2 data points
   const weeks = Array.from(weekMap.values())
     .map(({ weekStart, values }) => ({ weekStart, avg: avg(values), count: values.length }))
-    .filter((w) => w.count >= 2 && w.avg !== null) as { weekStart: Date; avg: number; count: number }[];
+    .filter((w) => w.count >= 1 && w.avg !== null) as { weekStart: Date; avg: number; count: number }[];
 
   if (weeks.length < 2) return null;
 
