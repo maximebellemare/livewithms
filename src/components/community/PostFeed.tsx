@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Plus, ArrowLeft, AlertTriangle, Search, ArrowUpDown } from "lucide-react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { Plus, ArrowLeft, AlertTriangle, Search, ArrowUpDown, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Channel, Post, usePosts, useCreatePost, useHidePost, useDisplayName,
@@ -14,7 +14,8 @@ export const PostFeed = ({
   channel, onBack, onSelectPost, roles,
 }: { channel: Channel; onBack: () => void; onSelectPost: (p: Post) => void; roles: string[] }) => {
   const { user } = useAuth();
-  const { data: posts = [], isLoading } = usePosts(channel.id);
+  const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = usePosts(channel.id);
+  const posts = useMemo(() => data?.pages.flatMap((p) => p) ?? [], [data]);
   const { data: displayName = "Anonymous" } = useDisplayName();
   const createPost = useCreatePost();
   const hidePost = useHidePost();
@@ -25,6 +26,25 @@ export const PostFeed = ({
   const [sortBy, setSortBy] = useState<"newest" | "reactions" | "comments">("newest");
 
   const isMod = roles.includes("admin") || roles.includes("moderator");
+
+  /* ─── Infinite scroll sentinel ─────────────────────────── */
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const handleIntersect = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    },
+    [hasNextPage, isFetchingNextPage, fetchNextPage],
+  );
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(handleIntersect, { rootMargin: "200px" });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [handleIntersect]);
 
   const handleSubmit = async () => {
     if (!title.trim() || !body.trim() || !user) return;
@@ -168,6 +188,14 @@ export const PostFeed = ({
           {filteredPosts.map((post) => (
             <PostCard key={post.id} post={post} onClick={() => onSelectPost(post)} isMod={isMod} onHide={hidePost} />
           ))}
+
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} className="h-1" />
+          {isFetchingNextPage && (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </div>
       )}
     </div>
