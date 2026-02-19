@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import NotificationBell from "./NotificationBell";
 
 interface PageHeaderProps {
   title: string;
@@ -13,7 +14,10 @@ const PageHeader = ({ title, subtitle, action }: PageHeaderProps) => (
         <h1 className="font-display text-xl font-semibold tracking-tight text-foreground">{title}</h1>
         {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </div>
-      {action}
+      <div className="flex items-center gap-1">
+        {action}
+        <NotificationBell />
+      </div>
     </div>
   </header>
 );
