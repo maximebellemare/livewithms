@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, ArrowLeft, AlertTriangle } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, ArrowLeft, AlertTriangle, Search } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Channel, Post, usePosts, useCreatePost, useHidePost, useDisplayName,
@@ -21,6 +21,7 @@ export const PostFeed = ({
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [search, setSearch] = useState("");
 
   const isMod = roles.includes("admin") || roles.includes("moderator");
 
@@ -46,6 +47,14 @@ export const PostFeed = ({
   };
 
   const isCrisis = channel.is_locked;
+
+  const filteredPosts = useMemo(() => {
+    if (!search.trim()) return posts;
+    const q = search.toLowerCase();
+    return posts.filter(
+      (p) => p.title.toLowerCase().includes(q) || p.body.toLowerCase().includes(q) || p.display_name.toLowerCase().includes(q)
+    );
+  }, [posts, search]);
 
   return (
     <div className="animate-fade-in">
@@ -80,6 +89,16 @@ export const PostFeed = ({
 
       {!isCrisis && (
         <>
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search posts…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-9 text-sm"
+            />
+          </div>
+
           {!showCreate ? (
             <Button onClick={() => setShowCreate(true)} className="w-full mb-4" variant="outline">
               <Plus className="h-4 w-4 mr-2" /> New Post
@@ -110,13 +129,15 @@ export const PostFeed = ({
 
       {isLoading ? (
         <div className="py-12 text-center"><p className="text-sm text-muted-foreground">Loading posts…</p></div>
-      ) : posts.length === 0 ? (
+      ) : filteredPosts.length === 0 ? (
         <div className="py-12 text-center">
-          <p className="text-sm text-muted-foreground">{isCrisis ? "Resources are pinned above." : "No posts yet. Be the first!"}</p>
+          <p className="text-sm text-muted-foreground">
+            {isCrisis ? "Resources are pinned above." : search.trim() ? "No posts match your search." : "No posts yet. Be the first!"}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {posts.map((post) => (
+          {filteredPosts.map((post) => (
             <PostCard key={post.id} post={post} onClick={() => onSelectPost(post)} isMod={isMod} onHide={hidePost} />
           ))}
         </div>
