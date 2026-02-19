@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
-import { Bookmark, BookmarkCheck, ChevronDown, ChevronUp, Search, X, Clock } from "lucide-react";
+import { Bookmark, BookmarkCheck, ChevronDown, ChevronUp, Search, X, Clock, EyeOff } from "lucide-react";
 import { useLearnArticles, useLearnBookmarkIds, useToggleLearnBookmark, useLearnReads, useMarkArticleRead } from "@/hooks/useLearnArticles";
 import { Skeleton } from "@/components/ui/skeleton";
 import ArticleBody from "@/components/learn/ArticleBody";
@@ -9,6 +9,7 @@ const LearnPage = () => {
   const [filter, setFilter] = useState("All");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showBookmarked, setShowBookmarked] = useState(false);
+  const [showUnread, setShowUnread] = useState(false);
   const [search, setSearch] = useState("");
 
   const { data: articles = [], isLoading } = useLearnArticles();
@@ -19,13 +20,16 @@ const LearnPage = () => {
 
   const categories = ["All", ...Array.from(new Set(articles.map((a) => a.category)))];
 
+  const readArticleIds = useMemo(() => new Set(recentReads.map((r) => r.article_id)), [recentReads]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return articles
       .filter((a) => filter === "All" || a.category === filter)
       .filter((a) => !showBookmarked || bookmarkIds.has(a.id))
+      .filter((a) => !showUnread || !readArticleIds.has(a.id))
       .filter((a) => !q || a.title.toLowerCase().includes(q) || a.summary.toLowerCase().includes(q) || a.category.toLowerCase().includes(q));
-  }, [articles, filter, showBookmarked, bookmarkIds, search]);
+  }, [articles, filter, showBookmarked, showUnread, bookmarkIds, readArticleIds, search]);
 
   return (
     <>
@@ -65,18 +69,31 @@ const LearnPage = () => {
           ))}
         </div>
 
-        {/* Saved toggle */}
-        <button
-          onClick={() => setShowBookmarked((v) => !v)}
-          className={`mb-4 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-            showBookmarked
-              ? "bg-primary text-primary-foreground"
-              : "bg-secondary text-secondary-foreground"
-          }`}
-        >
-          <BookmarkCheck className="h-3.5 w-3.5" />
-          Saved
-        </button>
+        {/* Filter toggles */}
+        <div className="mb-4 flex gap-2">
+          <button
+            onClick={() => setShowBookmarked((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+              showBookmarked
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground"
+            }`}
+          >
+            <BookmarkCheck className="h-3.5 w-3.5" />
+            Saved
+          </button>
+          <button
+            onClick={() => setShowUnread((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+              showUnread
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground"
+            }`}
+          >
+            <EyeOff className="h-3.5 w-3.5" />
+            Unread
+          </button>
+        </div>
 
         {/* Recently read */}
         {!isLoading && !search && filter === "All" && !showBookmarked && recentReads.length > 0 && (
@@ -122,7 +139,7 @@ const LearnPage = () => {
           <div className="py-12 text-center">
             <Bookmark className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">
-              {showBookmarked ? "No saved articles yet" : "No articles in this category"}
+              {showBookmarked ? "No saved articles yet" : showUnread ? "You've read all the articles!" : "No articles in this category"}
             </p>
           </div>
         )}
