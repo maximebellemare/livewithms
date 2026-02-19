@@ -12,3 +12,6 @@ verify_jwt = false
 [functions.send-weekly-digest]
 verify_jwt = false
 
+[functions.article-recommendations]
+verify_jwt = false
+

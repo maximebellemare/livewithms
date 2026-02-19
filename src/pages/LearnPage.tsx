@@ -4,6 +4,7 @@ import { Bookmark, BookmarkCheck, ChevronDown, ChevronUp, Search, X, Clock, EyeO
 import { useLearnArticles, useLearnBookmarkIds, useToggleLearnBookmark, useLearnReads, useMarkArticleRead } from "@/hooks/useLearnArticles";
 import { Skeleton } from "@/components/ui/skeleton";
 import ArticleBody from "@/components/learn/ArticleBody";
+import RecommendedArticles from "@/components/learn/RecommendedArticles";
 
 const LearnPage = () => {
   const [filter, setFilter] = useState("All");
@@ -94,6 +95,17 @@ const LearnPage = () => {
             Unread
           </button>
         </div>
+
+        {/* Recommended for you */}
+        {!isLoading && !search && filter === "All" && !showBookmarked && !showUnread && (
+          <RecommendedArticles
+            articles={articles}
+            onSelect={(id) => {
+              setExpandedId(id);
+              markRead.mutate(id);
+            }}
+          />
+        )}
 
         {/* Recently read */}
         {!isLoading && !search && filter === "All" && !showBookmarked && recentReads.length > 0 && (
