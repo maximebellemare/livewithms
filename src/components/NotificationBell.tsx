@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Bell, MessageCircle, Heart, Bookmark, Check } from "lucide-react";
+import { Bell, MessageCircle, Heart, Bookmark, Check, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
   useNotifications,
   useUnreadNotificationCount,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
+  useClearAllNotifications,
 } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ const NotificationBell = () => {
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
+  const clearAll = useClearAllNotifications();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -46,14 +48,24 @@ const NotificationBell = () => {
       <PopoverContent className="w-80 p-0" align="end">
         <div className="flex items-center justify-between border-b border-border px-3 py-2">
           <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
-          {unreadCount > 0 && (
-            <button
-              onClick={() => markAllRead.mutate()}
-              className="flex items-center gap-1 text-[11px] text-primary hover:underline"
-            >
-              <Check className="h-3 w-3" /> Mark all read
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <button
+                onClick={() => markAllRead.mutate()}
+                className="flex items-center gap-1 text-[11px] text-primary hover:underline"
+              >
+                <Check className="h-3 w-3" /> Mark all read
+              </button>
+            )}
+            {notifications.length > 0 && (
+              <button
+                onClick={() => clearAll.mutate()}
+                className="flex items-center gap-1 text-[11px] text-destructive hover:underline"
+              >
+                <Trash2 className="h-3 w-3" /> Clear all
+              </button>
+            )}
+          </div>
         </div>
         <div className="max-h-80 overflow-y-auto">
           {notifications.length === 0 ? (
