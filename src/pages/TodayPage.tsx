@@ -251,6 +251,9 @@ const TodayPage = () => {
           <SymptomSparkline entries={weekEntries} metric="fatigue" label="Fatigue" emoji="🔋" onClick={() => navigate("/insights", { state: { heatmapMetric: "fatigue" } })} />
           <SymptomSparkline entries={weekEntries} metric="pain" label="Pain" emoji="⚡" onClick={() => navigate("/insights", { state: { heatmapMetric: "pain" } })} />
         </div>
+        <p className="text-[10px] text-muted-foreground text-center -mt-1">
+          Tap a card to see insights →
+        </p>
 
         {/* Quick symptom logging */}
         <div className="space-y-3 animate-fade-in">
