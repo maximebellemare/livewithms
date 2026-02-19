@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Heart, MessageCircle, Pin, ArrowLeft, Send, Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
+import { CommunityAvatar } from "./CommunityAvatar";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Post, useComments, useCreateComment, usePostLikes, useToggleLike,
@@ -64,6 +65,7 @@ export const PostDetail = ({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             {post.is_pinned && <Pin className="h-3 w-3 text-primary" />}
+            <CommunityAvatar userId={post.user_id} displayName={post.display_name} size="md" />
             <p className="text-xs font-medium text-primary">{post.display_name}</p>
           </div>
           <p className="text-[10px] text-muted-foreground">{timeAgo(post.created_at)}</p>
@@ -101,7 +103,10 @@ export const PostDetail = ({
             return (
               <div key={c.id} className={`rounded-lg bg-accent/50 p-3 ${c.is_hidden ? "opacity-50" : ""}`}>
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-[11px] font-medium text-primary">{c.display_name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <CommunityAvatar userId={c.user_id} displayName={c.display_name} />
+                    <p className="text-[11px] font-medium text-primary">{c.display_name}</p>
+                  </div>
                   <div className="flex items-center gap-2">
                     <p className="text-[10px] text-muted-foreground">{timeAgo(c.created_at)}</p>
                     {isCommentOwner && !isEditing && (

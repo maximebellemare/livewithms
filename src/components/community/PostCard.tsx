@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Heart, MessageCircle, Flag, Pin, EyeOff, Eye, Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { CommunityAvatar } from "./CommunityAvatar";
 import {
   Post, usePostLikes, useToggleLike, useCreateReport,
   useEditPost, useDeletePost,
@@ -43,6 +44,7 @@ export const PostCard = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           {post.is_pinned && <Pin className="h-3 w-3 text-primary" />}
+          <CommunityAvatar userId={post.user_id} displayName={post.display_name} />
           <p className="text-xs font-medium text-primary">{post.display_name}</p>
         </div>
         <p className="text-[10px] text-muted-foreground">{timeAgo(post.created_at)}</p>
