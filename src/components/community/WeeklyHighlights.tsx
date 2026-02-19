@@ -1,5 +1,7 @@
 import { CalendarDays, MessageCircle, Heart } from "lucide-react";
 import { Post, useWeeklyHighlights, Channel } from "@/hooks/useCommunity";
+import { useCommunityRoles } from "@/hooks/useCommunityRoles";
+import { RoleBadge } from "./RoleBadge";
 
 interface WeeklyHighlightsProps {
   channels: Channel[];
@@ -9,6 +11,7 @@ interface WeeklyHighlightsProps {
 
 export const WeeklyHighlights = ({ channels, onSelectPost, onSelectChannel }: WeeklyHighlightsProps) => {
   const { data: posts = [], isLoading } = useWeeklyHighlights(5);
+  const { data: communityRoles = {} } = useCommunityRoles();
 
   const highlights = posts.filter((p) => (p.likes_count ?? 0) + (p.comments_count ?? 0) > 0);
 
@@ -39,11 +42,12 @@ export const WeeklyHighlights = ({ channels, onSelectPost, onSelectChannel }: We
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <p className="text-xs text-muted-foreground truncate">
+                     <p className="text-xs text-muted-foreground truncate">
                       {ch ? `${ch.emoji} ${ch.name}` : ""}
                     </p>
                     <span className="text-[10px] text-muted-foreground/70">·</span>
                     <span className="text-[10px] text-muted-foreground/70">{timeLabel}</span>
+                    {communityRoles[post.user_id] && <RoleBadge roles={communityRoles[post.user_id]} />}
                   </div>
                   <p className="text-sm font-medium text-foreground truncate">{post.title}</p>
                   <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{post.body}</p>

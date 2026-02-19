@@ -1,5 +1,7 @@
 import { TrendingUp, MessageCircle, Heart } from "lucide-react";
 import { Post, useTrendingPosts, Channel } from "@/hooks/useCommunity";
+import { useCommunityRoles } from "@/hooks/useCommunityRoles";
+import { RoleBadge } from "./RoleBadge";
 
 interface TrendingPostsProps {
   channels: Channel[];
@@ -9,6 +11,7 @@ interface TrendingPostsProps {
 
 export const TrendingPosts = ({ channels, onSelectPost, onSelectChannel }: TrendingPostsProps) => {
   const { data: posts = [], isLoading } = useTrendingPosts(5);
+  const { data: communityRoles = {} } = useCommunityRoles();
 
   const trendingPosts = posts.filter((p) => (p.likes_count ?? 0) + (p.comments_count ?? 0) > 0);
 
@@ -36,9 +39,12 @@ export const TrendingPosts = ({ channels, onSelectPost, onSelectChannel }: Trend
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs text-muted-foreground mb-0.5 truncate">
-                    {ch ? `${ch.emoji} ${ch.name}` : ""}
-                  </p>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <p className="text-xs text-muted-foreground truncate">
+                      {ch ? `${ch.emoji} ${ch.name}` : ""}
+                    </p>
+                    {communityRoles[post.user_id] && <RoleBadge roles={communityRoles[post.user_id]} />}
+                  </div>
                   <p className="text-sm font-medium text-foreground truncate">{post.title}</p>
                   <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{post.body}</p>
                 </div>
