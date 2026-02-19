@@ -2,7 +2,7 @@ import { useState } from "react";
 import confetti from "canvas-confetti";
 import { format, subDays } from "date-fns";
 import PageHeader from "@/components/PageHeader";
-import { FileText, Download, Calendar as CalendarIcon, ArrowLeft, Share2, Send, History, ChevronDown, ChevronUp } from "lucide-react";
+import { FileText, Download, Calendar as CalendarIcon, ArrowLeft, Share2, Send, History, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -24,7 +24,7 @@ import { useDbAppointments } from "@/hooks/useAppointments";
 import { generateReportFromData } from "@/lib/report-generator-db";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useReportHistory, useAddReportHistory } from "@/hooks/useReportHistory";
+import { useReportHistory, useAddReportHistory, useDeleteReportHistory } from "@/hooks/useReportHistory";
 
 
 const PRESETS = [
@@ -57,6 +57,7 @@ const ReportsPage = () => {
   const [reportBlob, setReportBlob] = useState<Blob | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const reportFileName = `LiveWithMS-Report-${format(new Date(), "yyyy-MM-dd")}.pdf`;
 
 
@@ -71,6 +72,7 @@ const ReportsPage = () => {
   const { data: appointments = [] } = useDbAppointments();
   const { data: reportHistory = [] } = useReportHistory();
   const addReportHistory = useAddReportHistory();
+  const deleteReportHistory = useDeleteReportHistory();
 
 
   /** Build the report blob (shared by generate + send flows) */
@@ -189,6 +191,33 @@ const ReportsPage = () => {
 
   return (
     <>
+      {/* Delete history entry confirmation */}
+      <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the record from your sent history. The report already delivered to your neurologist won't be affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!deletingId) return;
+                await deleteReportHistory.mutateAsync(deletingId);
+                setDeletingId(null);
+                toast.success("Entry removed from history.");
+              }}
+              className="bg-destructive text-destructive-foreground hover:opacity-90"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -415,7 +444,7 @@ const ReportsPage = () => {
             {showHistory && (
               <div className="divide-y divide-border/50">
                 {reportHistory.map((entry) => (
-                  <div key={entry.id} className="px-4 py-3 space-y-1">
+                  <div key={entry.id} className="px-4 py-3 space-y-1 group relative animate-fade-in">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-foreground truncate">
@@ -423,9 +452,18 @@ const ReportsPage = () => {
                         </p>
                         <p className="text-[11px] text-muted-foreground truncate">{entry.recipient_email}</p>
                       </div>
-                      <p className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">
-                        {new Date(entry.sent_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
-                      </p>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <p className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">
+                          {new Date(entry.sent_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
+                        </p>
+                        <button
+                          onClick={() => setDeletingId(entry.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          aria-label="Delete entry"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
                       Period: <span className="text-foreground font-medium">

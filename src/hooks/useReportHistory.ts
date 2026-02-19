@@ -52,3 +52,22 @@ export const useAddReportHistory = () => {
     },
   });
 };
+
+export const useDeleteReportHistory = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("report_history" as any)
+        .delete()
+        .eq("id", id)
+        .eq("user_id", user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["report_history"] });
+    },
+  });
+};
