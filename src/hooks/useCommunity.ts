@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
@@ -73,7 +73,9 @@ export const useTrendingPosts = (limit = 5) => {
   });
 };
 
-/* ─── Posts ──────────────────────────────────────────────── */
+/* ─── Posts (infinite scroll) ────────────────────────────── */
+const POSTS_PAGE_SIZE = 10;
+
 export const usePosts = (channelId: string | null) => {
   const queryClient = useQueryClient();
 
@@ -92,17 +94,24 @@ export const usePosts = (channelId: string | null) => {
     return () => { supabase.removeChannel(channel); };
   }, [channelId, queryClient]);
 
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["community-posts", channelId],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 0 }) => {
+      const from = pageParam * POSTS_PAGE_SIZE;
+      const to = from + POSTS_PAGE_SIZE - 1;
       const { data, error } = await supabase
         .from("community_posts")
         .select("*")
         .eq("channel_id", channelId!)
         .order("is_pinned", { ascending: false })
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(from, to);
       if (error) throw error;
       return data as Post[];
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.length === POSTS_PAGE_SIZE ? allPages.length : undefined;
     },
     enabled: !!channelId,
   });
