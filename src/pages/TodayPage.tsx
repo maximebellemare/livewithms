@@ -83,7 +83,7 @@ const TodayPage = () => {
     // through to sparkline cards after the panel unmounts.
     blockGrid();
     setSavedMetric(metric);
-    setTimeout(() => setSavedMetric(null), 1800);
+    setTimeout(() => setSavedMetric(null), 4000);
   };
 
   // Hide FAB once the Quick Log section is visible
@@ -125,8 +125,8 @@ const TodayPage = () => {
   }, [todayEntry, formInitialized]);
 
   const today = new Date();
-  const weekStart = format(subDays(today, 7), "yyyy-MM-dd");
-  const weekEnd = format(subDays(today, 1), "yyyy-MM-dd");
+  const weekStart = format(subDays(today, 6), "yyyy-MM-dd");
+  const weekEnd = format(today, "yyyy-MM-dd");
   const { data: weekEntries = [] } = useEntriesInRange(weekStart, weekEnd);
 
   const { data: profile } = useProfile();

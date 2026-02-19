@@ -134,7 +134,7 @@ export default function SymptomSparkline({
   return (
     <Tag
       onClick={onClick}
-      className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full overflow-hidden transition-all duration-300${onClick ? " cursor-pointer hover:bg-secondary/70 active:scale-95 transition-all duration-150" : ""}${saved ? " ring-2 ring-[hsl(145_45%_45%)] shadow-[0_0_12px_2px_hsl(145_45%_45%/0.35)]" : ""}`}
+      className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full overflow-hidden transition-all duration-300${onClick ? " cursor-pointer hover:bg-secondary/70 active:scale-95 transition-all duration-150" : ""}${saved ? " ring-2 ring-[hsl(145_50%_48%)] shadow-[0_0_16px_4px_hsl(145_50%_48%/0.4)]" : ""}`}
     >
       {/* Header row */}
       <div className="flex items-center justify-between">
