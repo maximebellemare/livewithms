@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
-import { Bookmark, BookmarkCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { Bookmark, BookmarkCheck, ChevronDown, ChevronUp, Search, X } from "lucide-react";
 import { useLearnArticles, useLearnBookmarkIds, useToggleLearnBookmark } from "@/hooks/useLearnArticles";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -8,6 +8,7 @@ const LearnPage = () => {
   const [filter, setFilter] = useState("All");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showBookmarked, setShowBookmarked] = useState(false);
+  const [search, setSearch] = useState("");
 
   const { data: articles = [], isLoading } = useLearnArticles();
   const { data: bookmarkIds = new Set<string>() } = useLearnBookmarkIds();
@@ -15,14 +16,35 @@ const LearnPage = () => {
 
   const categories = ["All", ...Array.from(new Set(articles.map((a) => a.category)))];
 
-  const filtered = articles
-    .filter((a) => filter === "All" || a.category === filter)
-    .filter((a) => !showBookmarked || bookmarkIds.has(a.id));
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return articles
+      .filter((a) => filter === "All" || a.category === filter)
+      .filter((a) => !showBookmarked || bookmarkIds.has(a.id))
+      .filter((a) => !q || a.title.toLowerCase().includes(q) || a.summary.toLowerCase().includes(q) || a.category.toLowerCase().includes(q));
+  }, [articles, filter, showBookmarked, bookmarkIds, search]);
 
   return (
     <>
       <PageHeader title="Learn" subtitle="Evidence-based MS education" />
       <div className="mx-auto max-w-lg px-4 py-4">
+        {/* Search bar */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search articles..."
+            className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          {search && (
+            <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
         {/* Category filters */}
         <div className="mb-3 flex gap-2 overflow-x-auto pb-2 scrollbar-none">
           {categories.map((cat) => (
