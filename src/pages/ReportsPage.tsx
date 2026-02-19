@@ -160,6 +160,7 @@ const ReportsPage = () => {
   };
 
   const neuroEmail = profile?.neurologist_email;
+  const neuroName = profile?.neurologist_name;
 
   const period = `${format(startDate, "MMM d")}–${format(endDate, "MMM d, yyyy")}`;
 
@@ -168,19 +169,25 @@ const ReportsPage = () => {
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Send report to neurologist?</AlertDialogTitle>
+            <AlertDialogTitle>Send report to {neuroName || "neurologist"}?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 pt-1">
-                <div className="rounded-lg bg-muted px-4 py-3 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Recipient</span>
-                    <span className="font-medium text-foreground">{neuroEmail}</span>
+                  <div className="rounded-lg bg-muted px-4 py-3 space-y-2 text-sm">
+                    {neuroName && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Neurologist</span>
+                        <span className="font-medium text-foreground">{neuroName}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Recipient</span>
+                      <span className="font-medium text-foreground">{neuroEmail}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Report period</span>
+                      <span className="font-medium text-foreground">{period}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Report period</span>
-                    <span className="font-medium text-foreground">{period}</span>
-                  </div>
-                </div>
                 <p className="text-xs text-muted-foreground">
                   Your neurologist will receive an email with a secure link to download the PDF report.
                 </p>

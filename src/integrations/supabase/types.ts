@@ -190,6 +190,7 @@ export type Database = {
           medications: string[] | null
           ms_type: string | null
           neurologist_email: string | null
+          neurologist_name: string | null
           symptoms: string[] | null
           updated_at: string
           user_id: string
@@ -205,6 +206,7 @@ export type Database = {
           medications?: string[] | null
           ms_type?: string | null
           neurologist_email?: string | null
+          neurologist_name?: string | null
           symptoms?: string[] | null
           updated_at?: string
           user_id: string
@@ -220,6 +222,7 @@ export type Database = {
           medications?: string[] | null
           ms_type?: string | null
           neurologist_email?: string | null
+          neurologist_name?: string | null
           symptoms?: string[] | null
           updated_at?: string
           user_id?: string

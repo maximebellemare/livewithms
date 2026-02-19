@@ -48,6 +48,7 @@ const ProfilePage = () => {
   const { weekStreak } = useWeekStreak();
 
   const [neuroEmail, setNeuroEmail] = useState<string>("");
+  const [neuroName, setNeuroName] = useState<string>("");
   const [neuroEmailInit, setNeuroEmailInit] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
   const [togglingDigest, setTogglingDigest] = useState(false);
@@ -55,6 +56,7 @@ const ProfilePage = () => {
   // Initialise local state from loaded profile (once)
   if (profile && !neuroEmailInit) {
     setNeuroEmail(profile.neurologist_email ?? "");
+    setNeuroName(profile.neurologist_name ?? "");
     setNeuroEmailInit(true);
   }
 
@@ -80,10 +82,13 @@ const ProfilePage = () => {
     }
     setSavingEmail(true);
     try {
-      await updateProfile.mutateAsync({ neurologist_email: trimmed || null });
-      toast.success("Neurologist email saved.");
+      await updateProfile.mutateAsync({
+        neurologist_email: trimmed || null,
+        neurologist_name: neuroName.trim() || null,
+      } as any);
+      toast.success("Neurologist details saved.");
     } catch {
-      toast.error("Failed to save email.");
+      toast.error("Failed to save.");
     } finally {
       setSavingEmail(false);
     }
@@ -120,35 +125,46 @@ const ProfilePage = () => {
           </Link>
         </div>
 
-        {/* Neurologist email */}
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-2">
+        {/* Neurologist details */}
+        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
           <div className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-primary" />
-            <p className="text-sm font-medium text-foreground">Neurologist Email</p>
+            <p className="text-sm font-medium text-foreground">Neurologist Details</p>
           </div>
-          <p className="text-xs text-muted-foreground">Pre-fills the recipient when you share a PDF report.</p>
-          <div className="flex gap-2 pt-1">
+          <p className="text-xs text-muted-foreground">Used when sending PDF reports directly to your neurologist.</p>
+          <div className="space-y-2 pt-1">
             <input
-              type="email"
-              value={neuroEmail}
-              onChange={(e) => setNeuroEmail(e.target.value)}
+              type="text"
+              value={neuroName}
+              onChange={(e) => setNeuroName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSaveNeuroEmail()}
-              placeholder="doctor@neurology.com"
-              maxLength={255}
-              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="Dr. Smith"
+              maxLength={100}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
-            <button
-              onClick={handleSaveNeuroEmail}
-              disabled={savingEmail}
-              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
-            >
-              {savingEmail ? (
-                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              ) : (
-                <Check className="h-3.5 w-3.5" />
-              )}
-              Save
-            </button>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={neuroEmail}
+                onChange={(e) => setNeuroEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSaveNeuroEmail()}
+                placeholder="doctor@neurology.com"
+                maxLength={255}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+              <button
+                onClick={handleSaveNeuroEmail}
+                disabled={savingEmail}
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+              >
+                {savingEmail ? (
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                ) : (
+                  <Check className="h-3.5 w-3.5" />
+                )}
+                Save
+              </button>
+            </div>
           </div>
         </div>
 
