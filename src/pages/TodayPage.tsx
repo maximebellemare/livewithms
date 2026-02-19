@@ -51,6 +51,7 @@ const TodayPage = () => {
   const [notes, setNotes] = useState("");
   const [sleepHours, setSleepHours] = useState("");
   const [logged, setLogged] = useState(false);
+  const [sleepInputOpen, setSleepInputOpen] = useState(false);
   const [milestoneDismissed, setMilestoneDismissed] = useState(false);
   const [celebratedStreak, setCelebratedStreak] = useState<number | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -264,12 +265,80 @@ const TodayPage = () => {
           <SymptomSparkline entries={weekEntries} metric="mood" label="Mood" emoji="😊" higherIsBetter onClick={() => navigate("/insights", { state: { heatmapMetric: "mood" } })} />
           <SymptomSparkline entries={weekEntries} metric="fatigue" label="Fatigue" emoji="🔋" onClick={() => navigate("/insights", { state: { heatmapMetric: "fatigue" } })} />
           <SymptomSparkline entries={weekEntries} metric="pain" label="Pain" emoji="⚡" onClick={() => navigate("/insights", { state: { heatmapMetric: "pain" } })} />
-          <SymptomSparkline entries={weekEntries} metric="sleep_hours" label="Sleep" emoji="🌙" higherIsBetter maxValue={12} unit=" hrs" onClick={() => navigate("/insights")} />
+          <SymptomSparkline
+            entries={weekEntries}
+            metric="sleep_hours"
+            label="Sleep"
+            emoji="🌙"
+            higherIsBetter
+            maxValue={12}
+            unit=" hrs"
+            onClick={() => setSleepInputOpen((o) => !o)}
+          />
           <SymptomSparkline entries={weekEntries} metric="brain_fog" label="Brain Fog" emoji="🌫️" onClick={() => navigate("/insights", { state: { heatmapMetric: "brain_fog" } })} />
           <SymptomSparkline entries={weekEntries} metric="mobility" label="Mobility" emoji="🚶" higherIsBetter onClick={() => navigate("/insights", { state: { heatmapMetric: "mobility" } })} />
         </div>
+
+        {/* Inline sleep input — expands when Sleep card is tapped */}
+        {sleepInputOpen && (
+          <div className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-semibold text-foreground">🌙 Hours of sleep last night</label>
+              <button
+                onClick={() => setSleepInputOpen(false)}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-0.5 rounded-md hover:bg-secondary"
+              >
+                Done
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={0}
+                max={24}
+                step={0.5}
+                placeholder="e.g. 7.5"
+                value={sleepHours}
+                onChange={(e) => setSleepHours(e.target.value)}
+                autoFocus
+                className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <span className="text-sm text-muted-foreground">hrs</span>
+              <button
+                onClick={async () => {
+                  if (!sleepHours) { setSleepInputOpen(false); return; }
+                  try {
+                    await saveEntry.mutateAsync({
+                      date: new Date().toISOString().split("T")[0],
+                      fatigue,
+                      pain,
+                      brain_fog: brainFog,
+                      mood,
+                      mobility,
+                      mood_tags: moodTags,
+                      notes: notes || null,
+                      sleep_hours: Number(sleepHours),
+                    });
+                    setSleepInputOpen(false);
+                    toast.success("Sleep logged! 🌙");
+                  } catch (err: any) {
+                    toast.error("Failed to save: " + err.message);
+                  }
+                }}
+                disabled={saveEntry.isPending || !sleepHours}
+                className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 active:scale-95"
+              >
+                Save
+              </button>
+            </div>
+            <p className="mt-1.5 text-[10px] text-muted-foreground">
+              Tap <strong>Save</strong> to log instantly, or update below with the full form.
+            </p>
+          </div>
+        )}
+
         <p className="text-[10px] text-muted-foreground text-center -mt-1">
-          Tap a card to see insights →
+          Tap a card to see insights · tap 🌙 to log sleep
         </p>
 
         {/* Quick symptom logging */}
