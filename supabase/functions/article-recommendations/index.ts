@@ -95,7 +95,7 @@ Return JSON array: [{"id":"<uuid>","reason":"<short reason>"}]. Only JSON, no ma
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "openai/gpt-5-nano",
         messages: [
           { role: "system", content: "You recommend MS-related articles. Return only a JSON array." },
           { role: "user", content: prompt },
