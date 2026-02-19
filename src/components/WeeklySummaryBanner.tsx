@@ -28,9 +28,11 @@ interface Metric {
 }
 
 const METRICS: Metric[] = [
-  { label: "Fatigue", emoji: "🔋", key: "fatigue",   higherIsBetter: false },
-  { label: "Pain",    emoji: "⚡", key: "pain",      higherIsBetter: false },
-  { label: "Mood",    emoji: "😊", key: "mood",      higherIsBetter: true  },
+  { label: "Fatigue",    emoji: "🔋", key: "fatigue",    higherIsBetter: false },
+  { label: "Pain",       emoji: "⚡", key: "pain",       higherIsBetter: false },
+  { label: "Mood",       emoji: "😊", key: "mood",       higherIsBetter: true  },
+  { label: "Spasticity", emoji: "🦵", key: "spasticity", higherIsBetter: false },
+  { label: "Stress",     emoji: "😰", key: "stress",     higherIsBetter: false },
 ];
 
 /* ─── Trend pill ──────────────────────────────────────────── */
