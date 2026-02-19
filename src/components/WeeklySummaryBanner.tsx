@@ -25,16 +25,18 @@ interface Metric {
   emoji: string;
   key: keyof DailyEntry;
   higherIsBetter: boolean;
+  unit?: string;
 }
 
 const METRICS: Metric[] = [
-  { label: "Fatigue",    emoji: "🔋", key: "fatigue",    higherIsBetter: false },
-  { label: "Pain",       emoji: "⚡", key: "pain",       higherIsBetter: false },
-  { label: "Mood",       emoji: "😊", key: "mood",       higherIsBetter: true  },
-  { label: "Brain Fog",  emoji: "🌫️", key: "brain_fog",  higherIsBetter: false },
-  { label: "Mobility",   emoji: "🚶", key: "mobility",   higherIsBetter: true  },
-  { label: "Spasticity", emoji: "🦵", key: "spasticity", higherIsBetter: false },
-  { label: "Stress",     emoji: "😰", key: "stress",     higherIsBetter: false },
+  { label: "Fatigue",    emoji: "🔋", key: "fatigue",      higherIsBetter: false },
+  { label: "Pain",       emoji: "⚡", key: "pain",         higherIsBetter: false },
+  { label: "Mood",       emoji: "😊", key: "mood",         higherIsBetter: true  },
+  { label: "Brain Fog",  emoji: "🌫️", key: "brain_fog",    higherIsBetter: false },
+  { label: "Mobility",   emoji: "🚶", key: "mobility",     higherIsBetter: true  },
+  { label: "Spasticity", emoji: "🦵", key: "spasticity",   higherIsBetter: false },
+  { label: "Stress",     emoji: "😰", key: "stress",       higherIsBetter: false },
+  { label: "Sleep",      emoji: "🌙", key: "sleep_hours",  higherIsBetter: true, unit: "hrs" },
 ];
 
 /* ─── Trend pill ──────────────────────────────────────────── */
@@ -83,12 +85,12 @@ const WeeklySummaryBanner = () => {
   // Need at least 1 entry in each window to show comparison
   if (isLoading || thisWeek.length === 0 || lastWeek.length === 0) return null;
 
-  const stats = METRICS.map(({ label, emoji, key, higherIsBetter }) => {
+  const stats = METRICS.map(({ label, emoji, key, higherIsBetter, unit }) => {
     const cur  = avg(thisWeek.map((e) => e[key] as number | null));
     const prev = avg(lastWeek.map((e) => e[key] as number | null));
     const dir  = direction(cur, prev);
     const delta = cur !== null && prev !== null ? cur - prev : null;
-    return { label, emoji, cur, prev, dir, delta, higherIsBetter };
+    return { label, emoji, cur, prev, dir, delta, higherIsBetter, unit: unit ?? "/10" };
   });
 
   // Count improvements
@@ -116,7 +118,7 @@ const WeeklySummaryBanner = () => {
 
       {/* Metric rows */}
       <div className="space-y-2">
-        {stats.map(({ label, emoji, cur, prev, dir, delta, higherIsBetter }) => (
+        {stats.map(({ label, emoji, cur, prev, dir, delta, higherIsBetter, unit }) => (
           <div key={label} className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-base">{emoji}</span>
@@ -126,7 +128,7 @@ const WeeklySummaryBanner = () => {
               {/* This week avg */}
               <span className="text-xs text-muted-foreground tabular-nums">
                 {cur !== null ? cur.toFixed(1) : "—"}
-                <span className="text-[10px]"> /10</span>
+                <span className="text-[10px]"> {unit}</span>
               </span>
               {/* vs last week */}
               <span className="text-[10px] text-muted-foreground hidden sm:inline">
