@@ -259,15 +259,14 @@ const TodayPage = () => {
         <StreakBadge />
         <WeekStreakBadge />
 
-        {/* 7-day sparklines — all five tracked metrics at a glance */}
+        {/* 7-day sparklines — all six tracked metrics at a glance */}
         <div className="grid grid-cols-2 gap-2">
           <SymptomSparkline entries={weekEntries} metric="mood" label="Mood" emoji="😊" higherIsBetter onClick={() => navigate("/insights", { state: { heatmapMetric: "mood" } })} />
           <SymptomSparkline entries={weekEntries} metric="fatigue" label="Fatigue" emoji="🔋" onClick={() => navigate("/insights", { state: { heatmapMetric: "fatigue" } })} />
           <SymptomSparkline entries={weekEntries} metric="pain" label="Pain" emoji="⚡" onClick={() => navigate("/insights", { state: { heatmapMetric: "pain" } })} />
           <SymptomSparkline entries={weekEntries} metric="sleep_hours" label="Sleep" emoji="🌙" higherIsBetter maxValue={12} unit=" hrs" onClick={() => navigate("/insights")} />
-          <div className="col-span-2">
-            <SymptomSparkline entries={weekEntries} metric="brain_fog" label="Brain Fog" emoji="🌫️" onClick={() => navigate("/insights", { state: { heatmapMetric: "brain_fog" } })} />
-          </div>
+          <SymptomSparkline entries={weekEntries} metric="brain_fog" label="Brain Fog" emoji="🌫️" onClick={() => navigate("/insights", { state: { heatmapMetric: "brain_fog" } })} />
+          <SymptomSparkline entries={weekEntries} metric="mobility" label="Mobility" emoji="🚶" higherIsBetter onClick={() => navigate("/insights", { state: { heatmapMetric: "mobility" } })} />
         </div>
         <p className="text-[10px] text-muted-foreground text-center -mt-1">
           Tap a card to see insights →
