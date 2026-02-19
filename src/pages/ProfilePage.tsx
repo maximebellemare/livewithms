@@ -2,7 +2,7 @@ import { useState } from "react";
 import DigestPreviewCard from "@/components/DigestPreviewCard";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing } from "lucide-react";
+import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
@@ -286,40 +286,15 @@ const ProfilePage = () => {
 
           <NotificationToggle />
 
-          {/* Notification Preferences */}
-          {profile && (
-            <div className="mx-3 mb-1 space-y-1.5 animate-fade-in">
-              <div className="flex items-center gap-2 pt-1 pb-0.5">
-                <BellRing className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Notification Preferences</span>
-              </div>
-              {[
-                { key: "notify_post_comments" as const, label: "Comments on my posts", desc: "Get notified when someone comments on your post" },
-                { key: "notify_post_likes" as const, label: "Likes on my posts", desc: "Get notified when someone reacts to your post" },
-                { key: "notify_post_bookmarks" as const, label: "Saves on my posts", desc: "Get notified when someone bookmarks your post" },
-                { key: "notify_thread_replies" as const, label: "Thread replies", desc: "Get notified when someone comments on a thread you joined" },
-                { key: "notify_push_enabled" as const, label: "Browser push notifications", desc: "Receive push notifications even when the app is closed" },
-              ].map(({ key, label, desc }) => (
-                <button
-                  key={key}
-                  onClick={() => {
-                    const current = (profile as any)[key] ?? true;
-                    updateProfile.mutate({ [key]: !current } as any);
-                    toast.success(!current ? `${label} enabled` : `${label} disabled`);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-secondary/60"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-foreground">{label}</p>
-                    <p className="text-[11px] text-muted-foreground">{desc}</p>
-                  </div>
-                  <div className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${(profile as any)[key] !== false ? "bg-primary" : "bg-muted"}`}>
-                    <div className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${(profile as any)[key] !== false ? "translate-x-3" : "translate-x-0.5"}`} />
-                  </div>
-                </button>
-              ))}
+          {/* Notification Settings Link */}
+          <Link to="/notifications/settings" className="tap-highlight-none flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary text-foreground">
+            <Bell className="h-4 w-4 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Notification Settings</p>
+              <p className="text-xs text-muted-foreground">Manage all your notification preferences</p>
             </div>
-          )}
+            <ChevronRight className="h-4 w-4 ml-auto text-muted-foreground" />
+          </Link>
 
           {/* Weekly digest toggle */}
           <button
