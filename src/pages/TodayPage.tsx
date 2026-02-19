@@ -52,6 +52,7 @@ const TodayPage = () => {
   const [sleepHours, setSleepHours] = useState("");
   const [logged, setLogged] = useState(false);
   const [sleepInputOpen, setSleepInputOpen] = useState(false);
+  const [moodInputOpen, setMoodInputOpen] = useState(false);
   const [milestoneDismissed, setMilestoneDismissed] = useState(false);
   const [celebratedStreak, setCelebratedStreak] = useState<number | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -262,7 +263,7 @@ const TodayPage = () => {
 
         {/* 7-day sparklines — all six tracked metrics at a glance */}
         <div className="grid grid-cols-2 gap-2">
-          <SymptomSparkline entries={weekEntries} metric="mood" label="Mood" emoji="😊" higherIsBetter onClick={() => navigate("/insights", { state: { heatmapMetric: "mood" } })} />
+          <SymptomSparkline entries={weekEntries} metric="mood" label="Mood" emoji="😊" higherIsBetter onClick={() => { setSleepInputOpen(false); setMoodInputOpen((o) => !o); }} />
           <SymptomSparkline entries={weekEntries} metric="fatigue" label="Fatigue" emoji="🔋" onClick={() => navigate("/insights", { state: { heatmapMetric: "fatigue" } })} />
           <SymptomSparkline entries={weekEntries} metric="pain" label="Pain" emoji="⚡" onClick={() => navigate("/insights", { state: { heatmapMetric: "pain" } })} />
           <SymptomSparkline
@@ -273,11 +274,74 @@ const TodayPage = () => {
             higherIsBetter
             maxValue={12}
             unit=" hrs"
-            onClick={() => setSleepInputOpen((o) => !o)}
+            onClick={() => { setMoodInputOpen(false); setSleepInputOpen((o) => !o); }}
           />
           <SymptomSparkline entries={weekEntries} metric="brain_fog" label="Brain Fog" emoji="🌫️" onClick={() => navigate("/insights", { state: { heatmapMetric: "brain_fog" } })} />
           <SymptomSparkline entries={weekEntries} metric="mobility" label="Mobility" emoji="🚶" higherIsBetter onClick={() => navigate("/insights", { state: { heatmapMetric: "mobility" } })} />
         </div>
+
+        {/* Inline mood input — expands when Mood card is tapped */}
+        {moodInputOpen && (
+          <div className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-semibold text-foreground">😊 How's your mood? (0–10)</label>
+              <button
+                onClick={() => setMoodInputOpen(false)}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-0.5 rounded-md hover:bg-secondary"
+              >
+                Done
+              </button>
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => {
+                const isSelected = mood === val;
+                const color = val >= 7 ? "hsl(145 45% 45%)" : val >= 4 ? "hsl(45 90% 52%)" : "hsl(0 72% 51%)";
+                return (
+                  <button
+                    key={val}
+                    onClick={() => setMood(val)}
+                    className="flex-1 min-w-[2rem] rounded-lg py-2 text-sm font-bold transition-all active:scale-95"
+                    style={{
+                      background: isSelected ? color : "hsl(var(--secondary))",
+                      color: isSelected ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+                      border: isSelected ? `1.5px solid ${color}` : "1.5px solid transparent",
+                    }}
+                  >
+                    {val}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  await saveEntry.mutateAsync({
+                    date: new Date().toISOString().split("T")[0],
+                    fatigue,
+                    pain,
+                    brain_fog: brainFog,
+                    mood,
+                    mobility,
+                    mood_tags: moodTags,
+                    notes: notes || null,
+                    sleep_hours: sleepHours ? Number(sleepHours) : null,
+                  });
+                  setMoodInputOpen(false);
+                  toast.success(`Mood logged: ${mood}/10 😊`);
+                } catch (err: any) {
+                  toast.error("Failed to save: " + err.message);
+                }
+              }}
+              disabled={saveEntry.isPending}
+              className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.98]"
+            >
+              Save mood
+            </button>
+            <p className="mt-1.5 text-[10px] text-muted-foreground text-center">
+              Tap a number then <strong>Save mood</strong>, or adjust below with the full form.
+            </p>
+          </div>
+        )}
 
         {/* Inline sleep input — expands when Sleep card is tapped */}
         {sleepInputOpen && (
@@ -338,7 +402,7 @@ const TodayPage = () => {
         )}
 
         <p className="text-[10px] text-muted-foreground text-center -mt-1">
-          Tap a card to see insights · tap 🌙 to log sleep
+          Tap a card to see insights · tap 😊 or 🌙 to log quickly
         </p>
 
         {/* Quick symptom logging */}
