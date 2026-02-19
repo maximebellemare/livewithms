@@ -15,7 +15,7 @@ type EntryPayload = {
 
 interface InlineQuickLogProps {
   /** The metric this panel controls */
-  metric: "mood" | "fatigue" | "pain" | "brain_fog";
+  metric: "mood" | "fatigue" | "pain" | "brain_fog" | "mobility";
   label: string;
   emoji: string;
   /** Whether higher values are better (affects colour direction) */

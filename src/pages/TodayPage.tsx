@@ -40,7 +40,7 @@ const greetings = () => {
 };
 
 // Which quick-log panel is open (null = none)
-type QuickLogMetric = "mood" | "fatigue" | "pain" | "brain_fog" | "sleep" | null;
+type QuickLogMetric = "mood" | "fatigue" | "pain" | "brain_fog" | "sleep" | "mobility" | null;
 
 const TodayPage = () => {
   const navigate = useNavigate();
@@ -294,7 +294,8 @@ const TodayPage = () => {
             saved={savedMetric === "brain_fog"}
             onClick={() => setOpenPanel((p) => p === "brain_fog" ? null : "brain_fog")} />
           <SymptomSparkline entries={weekEntries} metric="mobility" label="Mobility" emoji="🚶" higherIsBetter
-            onClick={() => navigate("/insights", { state: { heatmapMetric: "mobility" } })} />
+            saved={savedMetric === "mobility"}
+            onClick={() => setOpenPanel((p) => p === "mobility" ? null : "mobility")} />
         </div>
 
         {/* Inline quick-log panels */}
@@ -337,6 +338,17 @@ const TodayPage = () => {
             value={brainFog} onChange={setBrainFog}
             onClose={closePanel}
             onSaved={() => flashSaved("brain_fog")}
+            entryPayload={entryPayload}
+            saveAsync={saveEntry.mutateAsync}
+            isSaving={saveEntry.isPending}
+          />
+        )}
+        {openPanel === "mobility" && (
+          <InlineQuickLog
+            metric="mobility" label="Mobility" emoji="🚶" higherIsBetter
+            value={mobility} onChange={setMobility}
+            onClose={closePanel}
+            onSaved={() => flashSaved("mobility")}
             entryPayload={entryPayload}
             saveAsync={saveEntry.mutateAsync}
             isSaving={saveEntry.isPending}
@@ -395,7 +407,7 @@ const TodayPage = () => {
         )}
 
         <p className="text-[10px] text-muted-foreground text-center -mt-1">
-          Tap a card to see insights · tap 😊, 🔋, ⚡, 🌫️ or 🌙 to log quickly
+          Tap a card to log quickly · hold to see insights
         </p>
 
         {/* Quick symptom logging */}
