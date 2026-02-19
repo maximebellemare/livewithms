@@ -9,3 +9,6 @@ verify_jwt = false
 [functions.send-report]
 verify_jwt = false
 
+[functions.send-weekly-digest]
+verify_jwt = false
+
