@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Bookmark } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Bookmark, Shield } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import {
   useChannels, useUserRoles, Channel, Post,
@@ -80,6 +81,13 @@ const CommunityPage = () => {
               onSelect={setSelectedChannel}
               roles={roles}
             />
+            <Link
+              to="/community/guidelines"
+              className="flex items-center gap-2 rounded-xl bg-secondary px-4 py-3 text-sm text-secondary-foreground transition-colors hover:bg-muted"
+            >
+              <Shield className="h-4 w-4 text-primary" />
+              <span>Community Guidelines</span>
+            </Link>
           </>
         )}
       </div>

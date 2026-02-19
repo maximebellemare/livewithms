@@ -26,6 +26,7 @@ import ComingSoonPage from "./pages/ComingSoonPage";
 import FeaturesRoadmapPage from "./pages/FeaturesRoadmapPage";
 import NotificationSettingsPage from "./pages/NotificationSettingsPage";
 import MyMSHistoryPage from "./pages/MyMSHistoryPage";
+import CommunityGuidelinesPage from "./pages/CommunityGuidelinesPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -64,6 +65,7 @@ const AppRoutes = () => {
         <Route path="/privacy" element={<ProtectedRoute><PrivacyPage /></ProtectedRoute>} />
         <Route path="/notifications/settings" element={<ProtectedRoute><NotificationSettingsPage /></ProtectedRoute>} />
         <Route path="/my-ms-history" element={<ProtectedRoute><MyMSHistoryPage /></ProtectedRoute>} />
+        <Route path="/community/guidelines" element={<ProtectedRoute><CommunityGuidelinesPage /></ProtectedRoute>} />
         <Route path="/roadmap" element={<ProtectedRoute><FeaturesRoadmapPage /></ProtectedRoute>} />
         <Route path="/coming-soon/:feature" element={<ProtectedRoute><ComingSoonPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
