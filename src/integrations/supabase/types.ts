@@ -187,6 +187,7 @@ export type Database = {
           created_at: string
           goals: string[] | null
           id: string
+          last_report_sent_at: string | null
           medications: string[] | null
           ms_type: string | null
           neurologist_email: string | null
@@ -203,6 +204,7 @@ export type Database = {
           created_at?: string
           goals?: string[] | null
           id?: string
+          last_report_sent_at?: string | null
           medications?: string[] | null
           ms_type?: string | null
           neurologist_email?: string | null
@@ -219,6 +221,7 @@ export type Database = {
           created_at?: string
           goals?: string[] | null
           id?: string
+          last_report_sent_at?: string | null
           medications?: string[] | null
           ms_type?: string | null
           neurologist_email?: string | null

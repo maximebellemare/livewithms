@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Link } from "react-router-dom";
 import { useEntriesInRange } from "@/hooks/useEntries";
-import { useProfile } from "@/hooks/useProfile";
+import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
 import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
 import { useDbAppointments } from "@/hooks/useAppointments";
 import { generateReportFromData } from "@/lib/report-generator-db";
@@ -61,6 +61,7 @@ const ReportsPage = () => {
 
   const { data: entries = [] } = useEntriesInRange(startStr, endStr);
   const { data: profile } = useProfile();
+  const updateProfile = useUpdateProfile();
   const { data: medications = [] } = useDbMedications();
   const { data: medLogs = [] } = useDbMedicationLogs(startStr, endStr);
   const { data: appointments = [] } = useDbAppointments();
@@ -146,6 +147,8 @@ const ReportsPage = () => {
         toast.info(`Email draft opened for ${profile!.neurologist_email} — please attach the downloaded PDF.`);
       } else {
         toast.success(`Report emailed to ${profile!.neurologist_email} — your neurologist will receive a download link ✓`);
+        // Record the send timestamp
+        await updateProfile.mutateAsync({ last_report_sent_at: new Date().toISOString() } as any);
       }
     } catch (err: any) {
       toast.error("Failed to send: " + err.message);
@@ -314,6 +317,16 @@ const ReportsPage = () => {
           {!neuroEmail && (
             <p className="text-center text-xs text-muted-foreground">
               💡 <Link to="/profile" className="underline underline-offset-2 hover:text-foreground">Add your neurologist's email</Link> to enable direct sending.
+            </p>
+          )}
+
+          {/* Last sent timestamp */}
+          {neuroEmail && profile?.last_report_sent_at && (
+            <p className="text-center text-xs text-muted-foreground animate-fade-in">
+              📨 Last sent to {neuroName || "your neurologist"} on{" "}
+              <span className="font-medium text-foreground">
+                {format(new Date(profile.last_report_sent_at), "MMM d, yyyy")}
+              </span>
             </p>
           )}
 

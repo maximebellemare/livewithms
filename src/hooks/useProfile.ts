@@ -15,6 +15,7 @@ export interface Profile {
   neurologist_name: string | null;
   weekly_digest_enabled: boolean;
   weekly_log_goal: number;
+  last_report_sent_at: string | null;
 }
 
 export const useProfile = () => {
