@@ -72,13 +72,15 @@ export default function SymptomSparkline({
     return (
       <Tag
         onClick={onClick}
-        className={`rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full${onClick ? " cursor-pointer hover:bg-secondary/70 active:scale-95 transition-all duration-150" : ""}`}
+        className={`rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full border border-dashed border-border/60${onClick ? " cursor-pointer hover:bg-secondary/70 hover:border-primary/40 active:scale-95 transition-all duration-150" : ""}`}
       >
         <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
           {emoji} {label}
         </p>
         <div className="flex flex-1 items-center justify-center py-3">
-          <span className="text-[10px] text-muted-foreground/50">No data yet</span>
+          <span className="text-[10px] text-muted-foreground/40 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]">
+            No data yet
+          </span>
         </div>
       </Tag>
     );
