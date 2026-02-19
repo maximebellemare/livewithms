@@ -7,6 +7,7 @@ import { markCommunityVisited } from "@/hooks/useUnreadCommunity";
 import { ChannelList } from "@/components/community/ChannelList";
 import { PostFeed } from "@/components/community/PostFeed";
 import { PostDetail } from "@/components/community/PostDetail";
+import { TrendingPosts } from "@/components/community/TrendingPosts";
 
 const CommunityPage = () => {
   const { data: channels = [], isLoading } = useChannels();
@@ -41,11 +42,18 @@ const CommunityPage = () => {
             roles={roles}
           />
         ) : (
-          <ChannelList
-            channels={channels}
-            onSelect={setSelectedChannel}
-            roles={roles}
-          />
+          <>
+            <TrendingPosts
+              channels={channels}
+              onSelectPost={setSelectedPost}
+              onSelectChannel={setSelectedChannel}
+            />
+            <ChannelList
+              channels={channels}
+              onSelect={setSelectedChannel}
+              roles={roles}
+            />
+          </>
         )}
       </div>
     </>

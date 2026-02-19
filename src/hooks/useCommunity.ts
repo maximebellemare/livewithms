@@ -55,6 +55,24 @@ export const useChannels = () => {
   });
 };
 
+/* ─── Trending Posts (top reacted across all channels) ──── */
+export const useTrendingPosts = (limit = 5) => {
+  return useQuery({
+    queryKey: ["community-trending-posts", limit],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("community_posts")
+        .select("*")
+        .eq("is_hidden", false)
+        .order("likes_count", { ascending: false })
+        .order("comments_count", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data as Post[];
+    },
+  });
+};
+
 /* ─── Posts ──────────────────────────────────────────────── */
 export const usePosts = (channelId: string | null) => {
   const queryClient = useQueryClient();
