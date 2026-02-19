@@ -325,7 +325,7 @@ const ReportsPage = () => {
             <p className="text-center text-xs text-muted-foreground animate-fade-in">
               📨 Last sent to {neuroName || "your neurologist"} on{" "}
               <span className="font-medium text-foreground">
-                {format(new Date(profile.last_report_sent_at), "MMM d, yyyy")}
+                {new Date(profile.last_report_sent_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
               </span>
             </p>
           )}
