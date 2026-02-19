@@ -51,11 +51,13 @@ export default function InlineQuickLog({
   saveAsync,
   isSaving,
 }: InlineQuickLogProps) {
-  const handleSave = async () => {
+  const handleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     try {
       await saveAsync(entryPayload);
-      onSaved?.();
-      onClose();
+      onSaved?.();        // fires blockGrid() synchronously before panel unmounts
+      onClose();          // unmounts the panel
       toast.success(`${label} logged: ${value}/10 ${emoji}`);
     } catch (err: any) {
       toast.error("Failed to save: " + err.message);

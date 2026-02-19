@@ -58,11 +58,30 @@ const TodayPage = () => {
   const [milestoneDismissed, setMilestoneDismissed] = useState(false);
   const [celebratedStreak, setCelebratedStreak] = useState<number | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const [showFab, setShowFab] = useState(true);
   const [formInitialized, setFormInitialized] = useState(false);
   const notesRef = useRef<HTMLTextAreaElement>(null);
 
+  // Imperatively block all clicks on the sparkline grid for a short window
+  // after a panel closes, so the save button's click can't bleed through.
+  const blockGrid = () => {
+    const el = gridRef.current;
+    if (!el) return;
+    const handler = (e: Event) => { e.stopPropagation(); e.preventDefault(); };
+    el.addEventListener("click", handler, { capture: true });
+    setTimeout(() => el.removeEventListener("click", handler, { capture: true }), 150);
+  };
+
+  const closePanel = () => {
+    blockGrid();
+    setOpenPanel(null);
+  };
+
   const flashSaved = (metric: QuickLogMetric) => {
+    // Block the grid immediately so the save button's click event can't bleed
+    // through to sparkline cards after the panel unmounts.
+    blockGrid();
     setSavedMetric(metric);
     setTimeout(() => setSavedMetric(null), 1800);
   };
@@ -255,8 +274,9 @@ const TodayPage = () => {
         <StreakBadge />
         <WeekStreakBadge />
 
-        {/* 7-day sparklines */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* 7-day sparklines — gridRef is used by blockGrid() to imperatively swallow
+            stray click events after a panel save, preventing navigation side-effects */}
+        <div ref={gridRef} className={`grid grid-cols-2 gap-2${openPanel ? " pointer-events-none" : ""}`}>
           <SymptomSparkline entries={weekEntries} metric="mood" label="Mood" emoji="😊" higherIsBetter
             saved={savedMetric === "mood"}
             onClick={() => setOpenPanel((p) => p === "mood" ? null : "mood")} />
@@ -282,7 +302,7 @@ const TodayPage = () => {
           <InlineQuickLog
             metric="mood" label="Mood" emoji="😊" higherIsBetter
             value={mood} onChange={setMood}
-            onClose={() => setOpenPanel(null)}
+            onClose={closePanel}
             onSaved={() => flashSaved("mood")}
             entryPayload={entryPayload}
             saveAsync={saveEntry.mutateAsync}
@@ -293,7 +313,7 @@ const TodayPage = () => {
           <InlineQuickLog
             metric="fatigue" label="Fatigue" emoji="🔋"
             value={fatigue} onChange={setFatigue}
-            onClose={() => setOpenPanel(null)}
+            onClose={closePanel}
             onSaved={() => flashSaved("fatigue")}
             entryPayload={entryPayload}
             saveAsync={saveEntry.mutateAsync}
@@ -304,7 +324,7 @@ const TodayPage = () => {
           <InlineQuickLog
             metric="pain" label="Pain" emoji="⚡"
             value={pain} onChange={setPain}
-            onClose={() => setOpenPanel(null)}
+            onClose={closePanel}
             onSaved={() => flashSaved("pain")}
             entryPayload={entryPayload}
             saveAsync={saveEntry.mutateAsync}
@@ -315,7 +335,7 @@ const TodayPage = () => {
           <InlineQuickLog
             metric="brain_fog" label="Brain fog" emoji="🌫️"
             value={brainFog} onChange={setBrainFog}
-            onClose={() => setOpenPanel(null)}
+            onClose={closePanel}
             onSaved={() => flashSaved("brain_fog")}
             entryPayload={entryPayload}
             saveAsync={saveEntry.mutateAsync}
@@ -349,11 +369,14 @@ const TodayPage = () => {
               />
               <span className="text-sm text-muted-foreground">hrs</span>
               <button
-                onClick={async () => {
-                  if (!sleepHours) { setOpenPanel(null); return; }
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (!sleepHours) { closePanel(); return; }
                   try {
                     await saveEntry.mutateAsync({ ...entryPayload, sleep_hours: Number(sleepHours) });
-                    setOpenPanel(null);
+                    flashSaved("sleep"); // blockGrid fires here
+                    closePanel();
                     toast.success("Sleep logged! 🌙");
                   } catch (err: any) {
                     toast.error("Failed to save: " + err.message);
