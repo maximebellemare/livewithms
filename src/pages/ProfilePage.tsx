@@ -52,6 +52,7 @@ const ProfilePage = () => {
   const [neuroEmailInit, setNeuroEmailInit] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
   const [togglingDigest, setTogglingDigest] = useState(false);
+  const [sendingTestDigest, setSendingTestDigest] = useState(false);
 
   // Initialise local state from loaded profile (once)
   if (profile && !neuroEmailInit) {
@@ -91,6 +92,32 @@ const ProfilePage = () => {
       toast.error("Failed to save.");
     } finally {
       setSavingEmail(false);
+    }
+  };
+
+  const handleSendTestDigest = async () => {
+    if (!user?.email) return;
+    setSendingTestDigest(true);
+    try {
+      const res = await fetch(
+        `https://fpjfoadvytpvrhligdye.supabase.co/functions/v1/send-weekly-digest`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ test_email: user.email }),
+        }
+      );
+      const json = await res.json();
+      const result = json?.results?.[0];
+      if (result?.status === "sent") {
+        toast.success("Test digest sent! Check your inbox.");
+      } else {
+        toast.error(result?.error ?? "Failed to send test digest.");
+      }
+    } catch {
+      toast.error("Failed to send test digest.");
+    } finally {
+      setSendingTestDigest(false);
     }
   };
 
@@ -268,6 +295,24 @@ const ProfilePage = () => {
                     </p>
                     <p className="text-[11px] text-primary shrink-0">Next: {getNextMonday()}</p>
                   </div>
+
+                  {/* Send test digest */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSendTestDigest();
+                    }}
+                    disabled={sendingTestDigest}
+                    className="mt-1 flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-all hover:border-primary/50 hover:text-primary disabled:opacity-50"
+                  >
+                    {sendingTestDigest ? (
+                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <Mails className="h-3 w-3" />
+                    )}
+                    {sendingTestDigest ? "Sending…" : "Send test digest now"}
+                  </button>
                 </div>
               )}
             </div>
