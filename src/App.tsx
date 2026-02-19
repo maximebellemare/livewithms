@@ -22,6 +22,8 @@ import AppointmentsPage from "./pages/AppointmentsPage";
 import ReportsPage from "./pages/ReportsPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import PrivacyPage from "./pages/PrivacyPage";
+import ComingSoonPage from "./pages/ComingSoonPage";
+import FeaturesRoadmapPage from "./pages/FeaturesRoadmapPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +60,8 @@ const AppRoutes = () => {
         <Route path="/appointments" element={<ProtectedRoute><AppointmentsPage /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
         <Route path="/privacy" element={<ProtectedRoute><PrivacyPage /></ProtectedRoute>} />
+        <Route path="/roadmap" element={<ProtectedRoute><FeaturesRoadmapPage /></ProtectedRoute>} />
+        <Route path="/coming-soon/:feature" element={<ProtectedRoute><ComingSoonPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppShell>
