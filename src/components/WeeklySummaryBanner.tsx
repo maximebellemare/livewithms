@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { format, subDays, startOfWeek, endOfWeek } from "date-fns";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, ChevronDown } from "lucide-react";
 import { useEntries, DailyEntry } from "@/hooks/useEntries";
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -68,10 +68,10 @@ const TrendPill = ({ dir, higherIsBetter, delta }: TrendPillProps) => {
 /* ─── Main component ──────────────────────────────────────── */
 const WeeklySummaryBanner = () => {
   const { data: allEntries = [], isLoading } = useEntries();
+  const [isOpen, setIsOpen] = useState(false);
 
   const { thisWeek, lastWeek } = useMemo(() => {
     const today = new Date();
-    // "This week" = last 7 days; "Last week" = 8–14 days ago
     const thisStart  = format(subDays(today, 6),  "yyyy-MM-dd");
     const thisEnd    = format(today,               "yyyy-MM-dd");
     const lastStart  = format(subDays(today, 13), "yyyy-MM-dd");
@@ -83,7 +83,6 @@ const WeeklySummaryBanner = () => {
     };
   }, [allEntries]);
 
-  // Need at least 1 entry in each window to show comparison
   if (isLoading || thisWeek.length === 0 || lastWeek.length === 0) return null;
 
   const stats = METRICS.map(({ label, emoji, key, higherIsBetter, unit }) => {
@@ -94,7 +93,6 @@ const WeeklySummaryBanner = () => {
     return { label, emoji, cur, prev, dir, delta, higherIsBetter, unit: unit ?? "/10" };
   });
 
-  // Count improvements
   const improvements = stats.filter(
     (s) => s.dir !== "flat" && (s.dir === "up") === s.higherIsBetter
   ).length;
@@ -107,31 +105,38 @@ const WeeklySummaryBanner = () => {
     regressions > improvements ? "Tougher than last week 💙" :
     "About the same as last week";
 
+  const previewCount = 3;
+  const visibleStats = isOpen ? stats : stats.slice(0, previewCount);
+
   return (
     <div className="rounded-2xl border border-border bg-card shadow-soft p-4 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      {/* Header – tappable to toggle */}
+      <button
+        onClick={() => setIsOpen((o) => !o)}
+        className="flex items-center justify-between w-full mb-3 text-left"
+      >
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Weekly summary
         </p>
-        <span className="text-[11px] font-medium text-foreground">{headline}</span>
-      </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-medium text-foreground">{headline}</span>
+          <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+        </div>
+      </button>
 
       {/* Metric rows */}
       <div className="space-y-2">
-        {stats.map(({ label, emoji, cur, prev, dir, delta, higherIsBetter, unit }) => (
+        {visibleStats.map(({ label, emoji, cur, prev, dir, delta, higherIsBetter, unit }) => (
           <div key={label} className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-base">{emoji}</span>
               <span className="text-xs font-medium text-foreground">{label}</span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {/* This week avg */}
               <span className="text-xs text-muted-foreground tabular-nums">
                 {cur !== null ? cur.toFixed(1) : "—"}
                 <span className="text-[10px]"> {unit}</span>
               </span>
-              {/* vs last week */}
               <span className="text-[10px] text-muted-foreground hidden sm:inline">
                 vs {prev !== null ? prev.toFixed(1) : "—"}
               </span>
@@ -140,6 +145,16 @@ const WeeklySummaryBanner = () => {
           </div>
         ))}
       </div>
+
+      {/* Show more / less hint */}
+      {!isOpen && stats.length > previewCount && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="mt-2 text-[11px] font-medium text-primary w-full text-center"
+        >
+          +{stats.length - previewCount} more metrics
+        </button>
+      )}
 
       <p className="mt-3 text-[10px] text-muted-foreground">
         This week vs last 7 days · {thisWeek.length} entries logged
