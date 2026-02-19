@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { format, subDays, parseISO } from "date-fns";
 import { CheckCircle2 } from "lucide-react";
 
@@ -27,8 +27,41 @@ interface SymptomSparklineProps {
   /** Unit shown after the average — defaults to "/10" */
   unit?: string;
   onClick?: () => void;
+  /** Long-press (≥500 ms) handler — e.g. navigate to Insights */
+  onLongPress?: () => void;
   /** Flash a green saved confirmation overlay */
   saved?: boolean;
+}
+
+/** Returns pointer-event handlers that distinguish tap vs long-press. */
+function useLongPress(onClick?: () => void, onLongPress?: () => void, delay = 500) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fired = useRef(false);
+
+  const start = () => {
+    fired.current = false;
+    timer.current = setTimeout(() => {
+      fired.current = true;
+      onLongPress?.();
+    }, delay);
+  };
+
+  const cancel = () => {
+    if (timer.current) clearTimeout(timer.current);
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (fired.current) { e.preventDefault(); e.stopPropagation(); return; }
+    onClick?.();
+  };
+
+  return {
+    onPointerDown: start,
+    onPointerUp: cancel,
+    onPointerLeave: cancel,
+    onPointerCancel: cancel,
+    onClick: handleClick,
+  };
 }
 
 function metricColor(value: number, higherIsBetter: boolean): string {
@@ -49,6 +82,7 @@ export default function SymptomSparkline({
   maxValue = 10,
   unit = "/10",
   onClick,
+  onLongPress,
   saved = false,
 }: SymptomSparklineProps) {
   const days = useMemo(() => {
@@ -70,13 +104,14 @@ export default function SymptomSparkline({
 
   const hasAnyData = points.some((p) => p.value !== null);
 
-  const Tag = onClick ? "button" : "div";
+  const Tag = (onClick || onLongPress) ? "button" : "div";
+  const pressHandlers = useLongPress(onClick, onLongPress);
 
   if (!hasAnyData) {
     return (
       <Tag
-        onClick={onClick}
-        className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full border border-dashed border-border/60 overflow-hidden transition-all duration-300${onClick ? " cursor-pointer hover:bg-secondary/70 hover:border-primary/40 active:scale-95 transition-all duration-150" : ""}${saved ? " ring-2 ring-[hsl(145_45%_45%)] shadow-[0_0_12px_2px_hsl(145_45%_45%/0.35)]" : ""}`}
+        {...((onClick || onLongPress) ? pressHandlers : {})}
+        className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full border border-dashed border-border/60 overflow-hidden transition-all duration-300${(onClick || onLongPress) ? " cursor-pointer hover:bg-secondary/70 hover:border-primary/40 active:scale-95 transition-all duration-150" : ""}${saved ? " ring-2 ring-[hsl(145_45%_45%)] shadow-[0_0_12px_2px_hsl(145_45%_45%/0.35)]" : ""}`}
       >
         <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
           {emoji} {label}
@@ -133,8 +168,8 @@ export default function SymptomSparkline({
 
   return (
     <Tag
-      onClick={onClick}
-      className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full overflow-hidden transition-all duration-300${onClick ? " cursor-pointer hover:bg-secondary/70 active:scale-95 transition-all duration-150" : ""}${saved ? " ring-2 ring-[hsl(145_50%_48%)] shadow-[0_0_16px_4px_hsl(145_50%_48%/0.4)]" : ""}`}
+      {...((onClick || onLongPress) ? pressHandlers : {})}
+      className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full overflow-hidden transition-all duration-300${(onClick || onLongPress) ? " cursor-pointer hover:bg-secondary/70 active:scale-95 transition-all duration-150" : ""}${saved ? " ring-2 ring-[hsl(145_50%_48%)] shadow-[0_0_16px_4px_hsl(145_50%_48%/0.4)]" : ""}`}
     >
       {/* Header row */}
       <div className="flex items-center justify-between">

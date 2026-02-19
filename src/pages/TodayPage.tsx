@@ -279,23 +279,29 @@ const TodayPage = () => {
         <div ref={gridRef} className={`grid grid-cols-2 gap-2${openPanel ? " pointer-events-none" : ""}`}>
           <SymptomSparkline entries={weekEntries} metric="mood" label="Mood" emoji="😊" higherIsBetter
             saved={savedMetric === "mood"}
-            onClick={() => setOpenPanel((p) => p === "mood" ? null : "mood")} />
+            onClick={() => setOpenPanel((p) => p === "mood" ? null : "mood")}
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "mood" } })} />
           <SymptomSparkline entries={weekEntries} metric="fatigue" label="Fatigue" emoji="🔋"
             saved={savedMetric === "fatigue"}
-            onClick={() => setOpenPanel((p) => p === "fatigue" ? null : "fatigue")} />
+            onClick={() => setOpenPanel((p) => p === "fatigue" ? null : "fatigue")}
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "fatigue" } })} />
           <SymptomSparkline entries={weekEntries} metric="pain" label="Pain" emoji="⚡"
             saved={savedMetric === "pain"}
-            onClick={() => setOpenPanel((p) => p === "pain" ? null : "pain")} />
+            onClick={() => setOpenPanel((p) => p === "pain" ? null : "pain")}
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "pain" } })} />
           <SymptomSparkline entries={weekEntries} metric="sleep_hours" label="Sleep" emoji="🌙"
             saved={savedMetric === "sleep"}
             higherIsBetter maxValue={12} unit=" hrs"
-            onClick={() => setOpenPanel((p) => p === "sleep" ? null : "sleep")} />
+            onClick={() => setOpenPanel((p) => p === "sleep" ? null : "sleep")}
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "sleep_hours" } })} />
           <SymptomSparkline entries={weekEntries} metric="brain_fog" label="Brain Fog" emoji="🌫️"
             saved={savedMetric === "brain_fog"}
-            onClick={() => setOpenPanel((p) => p === "brain_fog" ? null : "brain_fog")} />
+            onClick={() => setOpenPanel((p) => p === "brain_fog" ? null : "brain_fog")}
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "brain_fog" } })} />
           <SymptomSparkline entries={weekEntries} metric="mobility" label="Mobility" emoji="🚶" higherIsBetter
             saved={savedMetric === "mobility"}
-            onClick={() => setOpenPanel((p) => p === "mobility" ? null : "mobility")} />
+            onClick={() => setOpenPanel((p) => p === "mobility" ? null : "mobility")}
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "mobility" } })} />
         </div>
 
         {/* Inline quick-log panels */}
@@ -407,7 +413,7 @@ const TodayPage = () => {
         )}
 
         <p className="text-[10px] text-muted-foreground text-center -mt-1">
-          Tap a card to log quickly · hold to see insights
+          Tap to log · hold to see insights
         </p>
 
         {/* Quick symptom logging */}
