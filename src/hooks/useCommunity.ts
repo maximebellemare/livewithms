@@ -494,3 +494,74 @@ export const useDisplayName = () => {
     enabled: !!user,
   });
 };
+
+/* ─── Bookmarks ─────────────────────────────────────────── */
+export const useIsBookmarked = (postId: string) => {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["community-bookmark", postId, user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("community_bookmarks")
+        .select("id")
+        .eq("post_id", postId)
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return !!data;
+    },
+    enabled: !!user,
+  });
+};
+
+export const useToggleBookmark = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async ({ postId, isBookmarked }: { postId: string; isBookmarked: boolean }) => {
+      if (isBookmarked) {
+        const { error } = await supabase
+          .from("community_bookmarks")
+          .delete()
+          .eq("post_id", postId)
+          .eq("user_id", user!.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("community_bookmarks")
+          .insert({ post_id: postId, user_id: user!.id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["community-bookmark", vars.postId] });
+      queryClient.invalidateQueries({ queryKey: ["community-bookmarks-list"] });
+    },
+  });
+};
+
+export const useBookmarkedPosts = () => {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["community-bookmarks-list", user?.id],
+    queryFn: async () => {
+      const { data: bookmarks, error: bErr } = await supabase
+        .from("community_bookmarks")
+        .select("post_id")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false });
+      if (bErr) throw bErr;
+      if (!bookmarks || bookmarks.length === 0) return [] as Post[];
+      const postIds = bookmarks.map((b) => b.post_id);
+      const { data: posts, error: pErr } = await supabase
+        .from("community_posts")
+        .select("*")
+        .in("id", postIds);
+      if (pErr) throw pErr;
+      // Preserve bookmark order
+      const postMap = Object.fromEntries((posts ?? []).map((p) => [p.id, p]));
+      return postIds.map((id) => postMap[id]).filter(Boolean) as Post[];
+    },
+    enabled: !!user,
+  });
+};

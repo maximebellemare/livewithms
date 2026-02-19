@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { MessageCircle, Flag, Pin, EyeOff, Eye, Pencil, Trash2 } from "lucide-react";
+import { MessageCircle, Flag, Pin, EyeOff, Eye, Pencil, Trash2, Bookmark } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { CommunityAvatar } from "./CommunityAvatar";
 import { ReactionBar } from "./ReactionBar";
 import {
   Post, useCreateReport,
-  useEditPost, useDeletePost,
+  useEditPost, useDeletePost, useIsBookmarked, useToggleBookmark,
 } from "@/hooks/useCommunity";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,8 @@ export const PostCard = ({
   const createReport = useCreateReport();
   const editPost = useEditPost();
   const deletePost = useDeletePost();
+  const { data: isBookmarked = false } = useIsBookmarked(post.id);
+  const toggleBookmark = useToggleBookmark();
   const [showReport, setShowReport] = useState(false);
   const [reason, setReason] = useState("");
   const [showEdit, setShowEdit] = useState(false);
@@ -75,8 +77,14 @@ export const PostCard = ({
             </>
           )}
           <button
+            onClick={() => toggleBookmark.mutate({ postId: post.id, isBookmarked })}
+            className={`tap-highlight-none ml-auto flex items-center gap-1 hover:text-primary ${isBookmarked ? "text-primary" : ""}`}
+          >
+            <Bookmark className={`h-3.5 w-3.5 ${isBookmarked ? "fill-primary" : ""}`} />
+          </button>
+          <button
             onClick={() => setShowReport(true)}
-            className="tap-highlight-none ml-auto flex items-center gap-1 hover:text-destructive"
+            className="tap-highlight-none flex items-center gap-1 hover:text-destructive"
           >
             <Flag className="h-3.5 w-3.5" />
           </button>
