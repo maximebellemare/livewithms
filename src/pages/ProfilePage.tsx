@@ -2,7 +2,7 @@ import { useState } from "react";
 import DigestPreviewCard from "@/components/DigestPreviewCard";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails } from "lucide-react";
+import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
@@ -348,6 +348,7 @@ const ProfilePage = () => {
           {[
             { icon: Shield, label: "Privacy & Data", desc: "Manage your data preferences", to: "/privacy" },
             { icon: Download, label: "Export Data", desc: "Download your health data", to: "/privacy" },
+            { icon: Sparkles, label: "Feature Roadmap", desc: "See what's coming next", to: "/roadmap" },
           ].map(({ icon: Icon, label, desc, to }) => (
             <Link key={label} to={to} className="tap-highlight-none flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary text-foreground">
               <Icon className="h-4 w-4 flex-shrink-0" />
