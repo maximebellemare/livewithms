@@ -12,7 +12,7 @@ import MondayRecapCard from "@/components/MondayRecapCard";
 import StreakMilestoneBanner from "@/components/StreakMilestoneBanner";
 import SymptomSparkline from "@/components/SymptomSparkline";
 import { Link } from "react-router-dom";
-import { Settings, CheckCircle2 } from "lucide-react";
+import { Settings, CheckCircle2, PenLine } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
 import UpcomingAppointments from "@/components/UpcomingAppointments";
 import DailyPromptCard from "@/components/DailyPromptCard";
@@ -53,6 +53,20 @@ const TodayPage = () => {
   const [logged, setLogged] = useState(false);
   const [milestoneDismissed, setMilestoneDismissed] = useState(false);
   const [celebratedStreak, setCelebratedStreak] = useState<number | null>(null);
+  const logRef = useRef<HTMLDivElement>(null);
+  const [showFab, setShowFab] = useState(true);
+
+  // Hide FAB once the Quick Log section is visible in the viewport
+  useEffect(() => {
+    const el = logRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowFab(!entry.isIntersecting),
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const [formInitialized, setFormInitialized] = useState(false);
   const notesRef = useRef<HTMLTextAreaElement>(null);
 
@@ -257,7 +271,7 @@ const TodayPage = () => {
         </p>
 
         {/* Quick symptom logging */}
-        <div className="space-y-3 animate-fade-in">
+        <div ref={logRef} className="space-y-3 animate-fade-in">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Quick Log
           </p>
@@ -352,6 +366,18 @@ const TodayPage = () => {
           </p>
         </div>
       </div>
+
+      {/* Floating action button — scroll to Quick Log */}
+      {showFab && (
+        <button
+          onClick={() => logRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          className="fixed bottom-24 right-4 z-50 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:opacity-90 active:scale-95 animate-fade-in"
+          aria-label="Log today"
+        >
+          <PenLine className="h-4 w-4" />
+          Log today
+        </button>
+      )}
     </>
   );
 };
