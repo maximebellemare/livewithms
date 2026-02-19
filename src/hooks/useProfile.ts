@@ -43,7 +43,7 @@ export const useUpdateProfile = () => {
     mutationFn: async (profile: Partial<Omit<Profile, "id" | "user_id">>) => {
       const { data, error } = await supabase
         .from("profiles")
-        .update(profile)
+        .update(profile as any)
         .eq("user_id", user!.id)
         .select()
         .single();
