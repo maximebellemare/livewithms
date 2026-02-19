@@ -24,18 +24,32 @@ function avg(vals: (number | null)[]): number | null {
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
 }
 
-function levelWord(v: number | null): string {
-  if (v === null) return "—";
-  if (v <= 3) return "Low";
-  if (v <= 6) return "Moderate";
-  return "High";
+// For most symptoms: low = good (green), high = bad (red)
+// For mood: high = good (green), low = bad (red)  → pass inverted=true
+function levelColor(v: number | null, inverted = false): string {
+  if (v === null) return "text-muted-foreground";
+  if (!inverted) {
+    if (v <= 3) return "text-emerald-600 dark:text-emerald-400";
+    if (v <= 6) return "text-amber-600 dark:text-amber-400";
+    return "text-red-600 dark:text-red-400";
+  } else {
+    if (v >= 7) return "text-emerald-600 dark:text-emerald-400";
+    if (v >= 4) return "text-amber-600 dark:text-amber-400";
+    return "text-red-600 dark:text-red-400";
+  }
 }
 
-function levelColor(v: number | null): string {
-  if (v === null) return "text-muted-foreground";
-  if (v <= 3) return "text-emerald-600 dark:text-emerald-400";
-  if (v <= 6) return "text-amber-600 dark:text-amber-400";
-  return "text-red-600 dark:text-red-400";
+function levelWord(v: number | null, inverted = false): string {
+  if (v === null) return "—";
+  if (!inverted) {
+    if (v <= 3) return "Low";
+    if (v <= 6) return "Moderate";
+    return "High";
+  } else {
+    if (v >= 7) return "Good";
+    if (v >= 4) return "Fair";
+    return "Low";
+  }
 }
 
 function fmt(v: number | null, unit = "/10"): string {
@@ -48,13 +62,13 @@ function formatDateRange(start: string, end: string): string {
   return `${format(s, "MMM d")} – ${format(e, "MMM d, yyyy")}`;
 }
 
-const METRICS = [
+const METRICS: { key: keyof Entry; label: string; inverted?: boolean }[] = [
   { key: "fatigue", label: "Fatigue" },
   { key: "pain", label: "Pain" },
   { key: "brain_fog", label: "Brain Fog" },
-  { key: "mood", label: "Mood" },
+  { key: "mood", label: "Mood", inverted: true },
   { key: "mobility", label: "Mobility" },
-] as const;
+];
 
 export default function DigestPreviewCard({
   entries,
@@ -68,20 +82,14 @@ export default function DigestPreviewCard({
   const daysLogged = entries.length;
   const goalAchieved = daysLogged >= weeklyLogGoal;
 
-  const avgFatigue = avg(entries.map((e) => e.fatigue));
-  const avgPain = avg(entries.map((e) => e.pain));
-  const avgBrainFog = avg(entries.map((e) => e.brain_fog));
-  const avgMood = avg(entries.map((e) => e.mood));
-  const avgMobility = avg(entries.map((e) => e.mobility));
-  const avgSleep = avg(entries.map((e) => e.sleep_hours));
-
-  const metricValues: Record<string, number | null> = {
-    fatigue: avgFatigue,
-    pain: avgPain,
-    brain_fog: avgBrainFog,
-    mood: avgMood,
-    mobility: avgMobility,
+  const avgValues: Record<string, number | null> = {
+    fatigue: avg(entries.map((e) => e.fatigue)),
+    pain: avg(entries.map((e) => e.pain)),
+    brain_fog: avg(entries.map((e) => e.brain_fog)),
+    mood: avg(entries.map((e) => e.mood)),
+    mobility: avg(entries.map((e) => e.mobility)),
   };
+  const avgSleep = avg(entries.map((e) => e.sleep_hours));
 
   const streakLabel =
     weekStreak === 0
@@ -147,8 +155,8 @@ export default function DigestPreviewCard({
               Symptom Averages
             </p>
             <div className="grid grid-cols-2 gap-1.5">
-              {METRICS.map(({ key, label }) => {
-                const val = metricValues[key];
+              {METRICS.map(({ key, label, inverted }) => {
+                const val = avgValues[key as string];
                 return (
                   <div
                     key={key}
@@ -156,11 +164,11 @@ export default function DigestPreviewCard({
                   >
                     <span className="text-[10px] text-muted-foreground">{label}</span>
                     <div className="text-right">
-                      <span className={`text-[11px] font-semibold ${levelColor(val)}`}>
+                      <span className={`text-[11px] font-semibold ${levelColor(val, inverted)}`}>
                         {fmt(val)}
                       </span>
-                      <span className={`ml-1 text-[9px] ${levelColor(val)}`}>
-                        {levelWord(val)}
+                      <span className={`ml-1 text-[9px] ${levelColor(val, inverted)}`}>
+                        {levelWord(val, inverted)}
                       </span>
                     </div>
                   </div>
