@@ -1,6 +1,5 @@
 import { toast } from "sonner";
 import { UseMutateAsyncFunction } from "@tanstack/react-query";
-import HoldButton from "@/components/HoldButton";
 
 type EntryPayload = {
   date: string;
@@ -52,7 +51,9 @@ export default function InlineQuickLog({
   saveAsync,
   isSaving,
 }: InlineQuickLogProps) {
-  const handleSave = async () => {
+  const handleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     try {
       await saveAsync(entryPayload);
       onSaved?.();
@@ -101,15 +102,15 @@ export default function InlineQuickLog({
         })}
       </div>
 
-      <HoldButton
-        onHold={handleSave}
+      <button
+        onClick={handleSave}
         disabled={isSaving}
-        className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90"
+        className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.98]"
       >
         {isSaving ? "Saving…" : `Save ${label.toLowerCase()}`}
-      </HoldButton>
+      </button>
       <p className="mt-1.5 text-[10px] text-muted-foreground text-center">
-        Tap a number then hold <strong>Save {label.toLowerCase()}</strong>, or adjust below with the full form.
+        Tap a number then <strong>Save {label.toLowerCase()}</strong>, or adjust below with the full form.
       </p>
     </div>
   );
