@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useEntriesInRange } from "@/hooks/useEntries";
 import { useWeekStreak } from "@/hooks/useWeekStreak";
 import { format, startOfWeek } from "date-fns";
+import { AvatarUpload } from "@/components/community/AvatarUpload";
 
 function getNextMonday(): string {
   const today = new Date();
@@ -157,9 +158,7 @@ const ProfilePage = () => {
         {/* User info */}
         <div className="rounded-xl bg-card p-4 shadow-soft">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-xl">
-              🧡
-            </div>
+            <AvatarUpload currentUrl={(profile as any)?.avatar_url ?? null} />
             <div>
               <p className="font-display text-base font-semibold text-foreground">
                 {profile?.ms_type ? `${profile.ms_type} Profile` : "My MS Profile"}

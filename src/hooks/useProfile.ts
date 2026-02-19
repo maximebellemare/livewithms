@@ -18,6 +18,8 @@ export interface Profile {
   last_report_sent_at: string | null;
   last_digest_sent_at: string | null;
   hydration_goal: number;
+  avatar_url: string | null;
+  display_name: string | null;
 }
 
 export const useProfile = () => {
