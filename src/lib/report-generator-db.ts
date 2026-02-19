@@ -108,8 +108,8 @@ export function generateReportFromData(data: ReportData): Blob {
     y = checkPageBreak(doc, y, 60);
     y = addSectionTitle(doc, "Symptom Summary", y);
 
-    const symptoms = ["fatigue", "pain", "brain_fog", "mood", "mobility"] as const;
-    const labels = ["Fatigue", "Pain", "Brain Fog", "Mood", "Mobility"];
+    const symptoms = ["fatigue", "pain", "brain_fog", "mood", "mobility", "spasticity", "stress"] as const;
+    const labels = ["Fatigue", "Pain", "Brain Fog", "Mood", "Mobility", "Spasticity", "Stress"];
     const summaryBody = labels.map((label, i) => {
       const vals = entries.map((e) => e[symptoms[i]]).filter((v): v is number => v !== null && v !== undefined);
       const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : "—";
@@ -137,11 +137,12 @@ export function generateReportFromData(data: ReportData): Blob {
         format(parseISO(e.date), "MMM d"),
         String(e.fatigue ?? "—"), String(e.pain ?? "—"), String(e.brain_fog ?? "—"),
         String(e.mood ?? "—"), String(e.mobility ?? "—"),
+        String(e.spasticity ?? "—"), String(e.stress ?? "—"),
         e.sleep_hours != null ? `${e.sleep_hours}h` : "—",
       ]);
 
       autoTable(doc, {
-        startY: y, head: [["Date", "Fatigue", "Pain", "Fog", "Mood", "Mobility", "Sleep"]], body: dailyBody, theme: "striped",
+        startY: y, head: [["Date", "Fatigue", "Pain", "Fog", "Mood", "Mobil.", "Spast.", "Stress", "Sleep"]], body: dailyBody, theme: "striped",
         headStyles: { fillColor: ORANGE, textColor: WHITE, fontSize: 8, fontStyle: "bold" },
         styles: { fontSize: 8, cellPadding: 2, textColor: DARK, halign: "center" },
         columnStyles: { 0: { halign: "left" } },

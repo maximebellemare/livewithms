@@ -136,8 +136,8 @@ export function generateReport(options: ReportOptions): void {
     y = addSectionTitle(doc, "Symptom Summary", y);
 
     // Compute averages
-    const symptoms = ["fatigue", "pain", "brainFog", "mood", "mobility"];
-    const labels = ["Fatigue", "Pain", "Brain Fog", "Mood", "Mobility"];
+    const symptoms = ["fatigue", "pain", "brainFog", "mood", "mobility", "spasticity", "stress"];
+    const labels = ["Fatigue", "Pain", "Brain Fog", "Mood", "Mobility", "Spasticity", "Stress"];
     const avgs = symptoms.map((s) => {
       const vals = entries.map((e: any) => e[s]).filter((v: any) => v !== undefined && v !== null);
       if (vals.length === 0) return null;
@@ -170,7 +170,7 @@ export function generateReport(options: ReportOptions): void {
       y = checkPageBreak(doc, y, 20);
       const entryScores = entries.map((e: any) => ({
         date: e.date,
-        score: (e.fatigue || 0) + (e.pain || 0) + (e.brainFog || 0) + (10 - (e.mood || 0)),
+        score: (e.fatigue || 0) + (e.pain || 0) + (e.brainFog || 0) + (10 - (e.mood || 0)) + (e.spasticity || 0) + (e.stress || 0),
       }));
       entryScores.sort((a: any, b: any) => a.score - b.score);
       const best = entryScores[0];
@@ -199,12 +199,14 @@ export function generateReport(options: ReportOptions): void {
           String(e.brainFog ?? "—"),
           String(e.mood ?? "—"),
           String(e.mobility ?? "—"),
+          String(e.spasticity ?? "—"),
+          String(e.stress ?? "—"),
           e.sleepHours != null ? `${e.sleepHours}h` : "—",
         ]);
 
       autoTable(doc, {
         startY: y,
-        head: [["Date", "Fatigue", "Pain", "Fog", "Mood", "Mobility", "Sleep"]],
+        head: [["Date", "Fatigue", "Pain", "Fog", "Mood", "Mobil.", "Spast.", "Stress", "Sleep"]],
         body: dailyBody,
         theme: "striped",
         headStyles: { fillColor: ORANGE, textColor: WHITE, fontSize: 8, fontStyle: "bold" },
