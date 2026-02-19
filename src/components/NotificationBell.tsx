@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Bell, MessageCircle, Heart, Bookmark, Check, Trash2, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -27,6 +27,123 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+interface SwipeableNotificationProps {
+  notification: {
+    id: string;
+    type: string;
+    title: string;
+    body: string | null;
+    post_id: string | null;
+    is_read: boolean;
+    created_at: string;
+  };
+  onClick: () => void;
+  onDelete: () => void;
+}
+
+const SWIPE_THRESHOLD = 80;
+
+const SwipeableNotification = ({ notification: n, onClick, onDelete }: SwipeableNotificationProps) => {
+  const startX = useRef(0);
+  const currentX = useRef(0);
+  const swiping = useRef(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState(0);
+  const [dismissed, setDismissed] = useState(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    currentX.current = startX.current;
+    swiping.current = true;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!swiping.current) return;
+    currentX.current = e.touches[0].clientX;
+    const diff = currentX.current - startX.current;
+    // Only allow swiping left
+    if (diff < 0) {
+      setOffset(diff);
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    swiping.current = false;
+    if (offset < -SWIPE_THRESHOLD) {
+      // Animate out and delete
+      setDismissed(true);
+      setTimeout(() => onDelete(), 250);
+    } else {
+      setOffset(0);
+    }
+  }, [offset, onDelete]);
+
+  if (dismissed) {
+    return (
+      <div className="overflow-hidden transition-all duration-250 ease-out" style={{ maxHeight: 0, opacity: 0 }} />
+    );
+  }
+
+  return (
+    <div className="relative overflow-hidden border-b border-border/50">
+      {/* Delete background revealed on swipe */}
+      <div className="absolute inset-y-0 right-0 flex items-center justify-end bg-destructive px-4">
+        <Trash2 className="h-4 w-4 text-destructive-foreground" />
+      </div>
+      <div
+        ref={rowRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onClick={onClick}
+        className={`relative z-10 w-full text-left px-3 py-2.5 transition-colors cursor-pointer ${
+          !n.is_read ? "bg-primary/5" : "bg-popover"
+        }`}
+        style={{
+          transform: `translateX(${offset}px)`,
+          transition: swiping.current ? "none" : "transform 0.2s ease-out",
+        }}
+      >
+        <div className="flex items-start gap-2">
+          {n.type === "like" ? (
+            <Heart className={`h-4 w-4 mt-0.5 shrink-0 ${!n.is_read ? "text-red-500" : "text-muted-foreground"}`} />
+          ) : n.type === "bookmark" ? (
+            <Bookmark className={`h-4 w-4 mt-0.5 shrink-0 ${!n.is_read ? "text-primary" : "text-muted-foreground"}`} />
+          ) : (
+            <MessageCircle className={`h-4 w-4 mt-0.5 shrink-0 ${!n.is_read ? "text-primary" : "text-muted-foreground"}`} />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className={`text-xs leading-snug ${!n.is_read ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+              {n.title}
+            </p>
+            {n.body && (
+              <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{n.body}</p>
+            )}
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+              {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {!n.is_read && (
+              <span className="mt-0.5 h-2 w-2 rounded-full bg-primary" />
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+              aria-label="Delete notification"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const NotificationBell = () => {
   const { data: notifications = [] } = useNotifications();
@@ -106,49 +223,12 @@ const NotificationBell = () => {
             </div>
           ) : (
             notifications.map((n) => (
-              <button
+              <SwipeableNotification
                 key={n.id}
+                notification={n}
                 onClick={() => handleClick(n)}
-                className={`w-full text-left px-3 py-2.5 border-b border-border/50 hover:bg-muted/50 transition-colors ${
-                  !n.is_read ? "bg-primary/5" : ""
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  {n.type === 'like' ? (
-                    <Heart className={`h-4 w-4 mt-0.5 shrink-0 ${!n.is_read ? "text-red-500" : "text-muted-foreground"}`} />
-                  ) : n.type === 'bookmark' ? (
-                    <Bookmark className={`h-4 w-4 mt-0.5 shrink-0 ${!n.is_read ? "text-primary" : "text-muted-foreground"}`} />
-                  ) : (
-                    <MessageCircle className={`h-4 w-4 mt-0.5 shrink-0 ${!n.is_read ? "text-primary" : "text-muted-foreground"}`} />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-xs leading-snug ${!n.is_read ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                      {n.title}
-                    </p>
-                    {n.body && (
-                      <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{n.body}</p>
-                    )}
-                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {!n.is_read && (
-                      <span className="mt-0.5 h-2 w-2 rounded-full bg-primary" />
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteOne.mutate(n.id);
-                      }}
-                      className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                      aria-label="Delete notification"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </button>
+                onDelete={() => deleteOne.mutate(n.id)}
+              />
             ))
           )}
         </div>
