@@ -51,16 +51,17 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !userData?.user) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userId = userData.user.id as string;
-    const userEmail = userData.user.email as string;
+    const userId = claimsData.claims.sub as string;
+    const userEmail = claimsData.claims.email as string;
 
     // ── Secrets ──────────────────────────────────────────────
     const KLAVIYO_API_KEY = Deno.env.get("KLAVIYO_API_KEY");
