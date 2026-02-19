@@ -108,6 +108,38 @@ export const useCreatePost = () => {
   });
 };
 
+export const useEditPost = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ postId, title, body }: { postId: string; title: string; body: string }) => {
+      const { error } = await supabase
+        .from("community_posts")
+        .update({ title, body })
+        .eq("id", postId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["community-posts"] });
+    },
+  });
+};
+
+export const useDeletePost = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (postId: string) => {
+      const { error } = await supabase
+        .from("community_posts")
+        .delete()
+        .eq("id", postId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["community-posts"] });
+    },
+  });
+};
+
 /* ─── Comments ──────────────────────────────────────────── */
 export const useComments = (postId: string | null) => {
   const queryClient = useQueryClient();
@@ -140,6 +172,39 @@ export const useComments = (postId: string | null) => {
       return data as Comment[];
     },
     enabled: !!postId,
+  });
+};
+
+export const useEditComment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ commentId, body }: { commentId: string; body: string }) => {
+      const { error } = await supabase
+        .from("community_comments")
+        .update({ body })
+        .eq("id", commentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["community-comments"] });
+    },
+  });
+};
+
+export const useDeleteComment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (commentId: string) => {
+      const { error } = await supabase
+        .from("community_comments")
+        .delete()
+        .eq("id", commentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["community-comments"] });
+      queryClient.invalidateQueries({ queryKey: ["community-posts"] });
+    },
   });
 };
 
