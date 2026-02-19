@@ -1,4 +1,5 @@
 import { useState } from "react";
+import DigestPreviewCard from "@/components/DigestPreviewCard";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
 import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails } from "lucide-react";
@@ -327,6 +328,15 @@ const ProfilePage = () => {
                       </p>
                     )}
                   </div>
+
+                  {/* Digest preview card */}
+                  <DigestPreviewCard
+                    entries={weekEntries ?? []}
+                    weekStart={weekStart}
+                    weekEnd={weekEnd}
+                    weeklyLogGoal={profile.weekly_log_goal ?? 7}
+                    weekStreak={weekStreak}
+                  />
                 </div>
               )}
             </div>
