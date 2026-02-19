@@ -54,12 +54,18 @@ const TodayPage = () => {
   const [sleepHours, setSleepHours] = useState("");
   const [logged, setLogged] = useState(false);
   const [openPanel, setOpenPanel] = useState<QuickLogMetric>(null);
+  const [savedMetric, setSavedMetric] = useState<QuickLogMetric>(null);
   const [milestoneDismissed, setMilestoneDismissed] = useState(false);
   const [celebratedStreak, setCelebratedStreak] = useState<number | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const [showFab, setShowFab] = useState(true);
   const [formInitialized, setFormInitialized] = useState(false);
   const notesRef = useRef<HTMLTextAreaElement>(null);
+
+  const flashSaved = (metric: QuickLogMetric) => {
+    setSavedMetric(metric);
+    setTimeout(() => setSavedMetric(null), 1800);
+  };
 
   // Hide FAB once the Quick Log section is visible
   useEffect(() => {
@@ -252,15 +258,20 @@ const TodayPage = () => {
         {/* 7-day sparklines */}
         <div className="grid grid-cols-2 gap-2">
           <SymptomSparkline entries={weekEntries} metric="mood" label="Mood" emoji="😊" higherIsBetter
+            saved={savedMetric === "mood"}
             onClick={() => setOpenPanel((p) => p === "mood" ? null : "mood")} />
           <SymptomSparkline entries={weekEntries} metric="fatigue" label="Fatigue" emoji="🔋"
+            saved={savedMetric === "fatigue"}
             onClick={() => setOpenPanel((p) => p === "fatigue" ? null : "fatigue")} />
           <SymptomSparkline entries={weekEntries} metric="pain" label="Pain" emoji="⚡"
+            saved={savedMetric === "pain"}
             onClick={() => setOpenPanel((p) => p === "pain" ? null : "pain")} />
           <SymptomSparkline entries={weekEntries} metric="sleep_hours" label="Sleep" emoji="🌙"
+            saved={savedMetric === "sleep"}
             higherIsBetter maxValue={12} unit=" hrs"
             onClick={() => setOpenPanel((p) => p === "sleep" ? null : "sleep")} />
           <SymptomSparkline entries={weekEntries} metric="brain_fog" label="Brain Fog" emoji="🌫️"
+            saved={savedMetric === "brain_fog"}
             onClick={() => setOpenPanel((p) => p === "brain_fog" ? null : "brain_fog")} />
           <SymptomSparkline entries={weekEntries} metric="mobility" label="Mobility" emoji="🚶" higherIsBetter
             onClick={() => navigate("/insights", { state: { heatmapMetric: "mobility" } })} />
@@ -272,6 +283,7 @@ const TodayPage = () => {
             metric="mood" label="Mood" emoji="😊" higherIsBetter
             value={mood} onChange={setMood}
             onClose={() => setOpenPanel(null)}
+            onSaved={() => flashSaved("mood")}
             entryPayload={entryPayload}
             saveAsync={saveEntry.mutateAsync}
             isSaving={saveEntry.isPending}
@@ -282,6 +294,7 @@ const TodayPage = () => {
             metric="fatigue" label="Fatigue" emoji="🔋"
             value={fatigue} onChange={setFatigue}
             onClose={() => setOpenPanel(null)}
+            onSaved={() => flashSaved("fatigue")}
             entryPayload={entryPayload}
             saveAsync={saveEntry.mutateAsync}
             isSaving={saveEntry.isPending}
@@ -292,6 +305,7 @@ const TodayPage = () => {
             metric="pain" label="Pain" emoji="⚡"
             value={pain} onChange={setPain}
             onClose={() => setOpenPanel(null)}
+            onSaved={() => flashSaved("pain")}
             entryPayload={entryPayload}
             saveAsync={saveEntry.mutateAsync}
             isSaving={saveEntry.isPending}
@@ -302,6 +316,7 @@ const TodayPage = () => {
             metric="brain_fog" label="Brain fog" emoji="🌫️"
             value={brainFog} onChange={setBrainFog}
             onClose={() => setOpenPanel(null)}
+            onSaved={() => flashSaved("brain_fog")}
             entryPayload={entryPayload}
             saveAsync={saveEntry.mutateAsync}
             isSaving={saveEntry.isPending}

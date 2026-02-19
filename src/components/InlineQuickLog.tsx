@@ -24,6 +24,8 @@ interface InlineQuickLogProps {
   value: number;
   onChange: (v: number) => void;
   onClose: () => void;
+  /** Called after a successful save so the parent can flash the card */
+  onSaved?: () => void;
   /** Full entry payload to persist — all fields must be up-to-date before saving */
   entryPayload: EntryPayload;
   saveAsync: UseMutateAsyncFunction<unknown, Error, EntryPayload>;
@@ -44,6 +46,7 @@ export default function InlineQuickLog({
   value,
   onChange,
   onClose,
+  onSaved,
   entryPayload,
   saveAsync,
   isSaving,
@@ -51,6 +54,7 @@ export default function InlineQuickLog({
   const handleSave = async () => {
     try {
       await saveAsync(entryPayload);
+      onSaved?.();
       onClose();
       toast.success(`${label} logged: ${value}/10 ${emoji}`);
     } catch (err: any) {

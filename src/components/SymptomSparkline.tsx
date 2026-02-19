@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { format, subDays, parseISO } from "date-fns";
+import { CheckCircle2 } from "lucide-react";
 
 interface Entry {
   date: string;
@@ -26,6 +27,8 @@ interface SymptomSparklineProps {
   /** Unit shown after the average — defaults to "/10" */
   unit?: string;
   onClick?: () => void;
+  /** Flash a green saved confirmation overlay */
+  saved?: boolean;
 }
 
 function metricColor(value: number, higherIsBetter: boolean): string {
@@ -46,6 +49,7 @@ export default function SymptomSparkline({
   maxValue = 10,
   unit = "/10",
   onClick,
+  saved = false,
 }: SymptomSparklineProps) {
   const days = useMemo(() => {
     const today = new Date();
@@ -72,7 +76,7 @@ export default function SymptomSparkline({
     return (
       <Tag
         onClick={onClick}
-        className={`rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full border border-dashed border-border/60${onClick ? " cursor-pointer hover:bg-secondary/70 hover:border-primary/40 active:scale-95 transition-all duration-150" : ""}`}
+        className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full border border-dashed border-border/60 overflow-hidden transition-all duration-300${onClick ? " cursor-pointer hover:bg-secondary/70 hover:border-primary/40 active:scale-95 transition-all duration-150" : ""}${saved ? " ring-2 ring-[hsl(145_45%_45%)] shadow-[0_0_12px_2px_hsl(145_45%_45%/0.35)]" : ""}`}
       >
         <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
           {emoji} {label}
@@ -82,6 +86,11 @@ export default function SymptomSparkline({
             No data yet
           </span>
         </div>
+        {saved && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[hsl(145_45%_45%/0.12)] animate-fade-in pointer-events-none">
+            <CheckCircle2 className="h-7 w-7 text-[hsl(145_45%_40%)] drop-shadow" />
+          </div>
+        )}
       </Tag>
     );
   }
@@ -125,7 +134,7 @@ export default function SymptomSparkline({
   return (
     <Tag
       onClick={onClick}
-      className={`rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full${onClick ? " cursor-pointer hover:bg-secondary/70 active:scale-95 transition-all duration-150" : ""}`}
+      className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full overflow-hidden transition-all duration-300${onClick ? " cursor-pointer hover:bg-secondary/70 active:scale-95 transition-all duration-150" : ""}${saved ? " ring-2 ring-[hsl(145_45%_45%)] shadow-[0_0_12px_2px_hsl(145_45%_45%/0.35)]" : ""}`}
     >
       {/* Header row */}
       <div className="flex items-center justify-between">
@@ -214,6 +223,13 @@ export default function SymptomSparkline({
           );
         })}
       </div>
+
+      {/* Green saved confirmation overlay */}
+      {saved && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[hsl(145_45%_45%/0.12)] animate-fade-in pointer-events-none rounded-xl">
+          <CheckCircle2 className="h-7 w-7 text-[hsl(145_45%_38%)] drop-shadow" />
+        </div>
+      )}
     </Tag>
   );
 }
