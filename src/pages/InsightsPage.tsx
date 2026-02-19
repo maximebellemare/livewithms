@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import SymptomHeatmap from "@/components/SymptomHeatmap";
 import { format, parseISO, subDays, eachDayOfInterval } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import AIWeeklyInsight from "@/components/AIWeeklyInsight";
@@ -92,6 +93,14 @@ const InsightsPage = () => {
   const [range, setRange] = useState<7 | 30>(30);
   const [activeSymptom, setActiveSymptom] = useState<SymptomKey | "all">("all");
   const [showPeaks, setShowPeaks] = useState(false);
+
+  /* All 30 days as yyyy-MM-dd strings for the heatmap (always 30-day) */
+  const heatmapDays = useMemo(() => {
+    const today = new Date();
+    return eachDayOfInterval({ start: subDays(today, 29), end: today }).map((d) =>
+      format(d, "yyyy-MM-dd"),
+    );
+  }, []);
 
   /* Build a complete day-by-day series (fills gaps with null) */
   const chartData = useMemo(() => {
@@ -254,6 +263,9 @@ const InsightsPage = () => {
             <p className="text-[10px] text-muted-foreground text-center -mt-1">
               Tap a card to focus that symptom
             </p>
+
+            {/* ── 30-Day Heatmap ── */}
+            <SymptomHeatmap entries={allEntries} days={heatmapDays} />
 
             {/* ── Weekly Progress Summary ── */}
             {(() => {
