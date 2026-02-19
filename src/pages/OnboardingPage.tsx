@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronLeft, Shield, CheckCircle2 } from "lucide-react";
+import { ChevronRight, ChevronLeft, Shield, CheckCircle2, Globe } from "lucide-react";
 import { useUpdateProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
 
 const msTypes = ["RRMS", "PPMS", "SPMS", "CIS", "Unknown"];
 const commonSymptoms = ["Fatigue", "Pain", "Brain Fog", "Numbness", "Vision Issues", "Spasticity", "Balance", "Bladder"];
 const goals = ["Better Sleep", "More Energy", "Less Pain", "Improved Mood", "Better Mobility", "Sharper Thinking"];
+const countries = [
+  "United States", "United Kingdom", "Canada", "Australia", "Germany", "France",
+  "Netherlands", "Spain", "Italy", "Sweden", "Norway", "Denmark", "Finland",
+  "Belgium", "Switzerland", "Austria", "Ireland", "New Zealand", "Brazil",
+  "Mexico", "India", "Japan", "South Korea", "South Africa", "Other",
+];
 
 const consentItems = [
   { id: "health_data", label: "I understand my health data is stored securely and encrypted", required: true },
@@ -22,6 +28,7 @@ const OnboardingPage = () => {
   const [yearDiagnosed, setYearDiagnosed] = useState("");
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const [country, setCountry] = useState("");
   const [consents, setConsents] = useState<Record<string, boolean>>({});
 
   const allConsentsAccepted = consentItems.filter((c) => c.required).every((c) => consents[c.id]);
@@ -41,6 +48,7 @@ const OnboardingPage = () => {
         year_diagnosed: yearDiagnosed || null,
         symptoms,
         goals: selectedGoals,
+        country: country || null,
       });
       navigate("/today");
     } catch (err: any) {
@@ -138,7 +146,23 @@ const OnboardingPage = () => {
       </div>
     </div>,
 
-    // 5: Ready
+    // 5: Country
+    <div key="country" className="px-6 animate-fade-in">
+      <div className="flex items-center gap-2 mb-1">
+        <Globe className="h-5 w-5 text-primary" />
+        <h2 className="font-display text-2xl font-semibold text-foreground">Where are you based?</h2>
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">This helps us connect you with local resources and community members.</p>
+      <div className="mt-6 space-y-2 max-h-[340px] overflow-y-auto pr-1">
+        {countries.map((c) => (
+          <button key={c} onClick={() => setCountry(c)} className={`tap-highlight-none w-full rounded-xl px-4 py-3.5 text-left text-sm font-medium transition-all active:scale-[0.98] ${country === c ? "bg-primary text-primary-foreground shadow-sm" : "bg-card text-foreground shadow-soft"}`}>
+            {c}
+          </button>
+        ))}
+      </div>
+    </div>,
+
+    // 6: Ready
     <div key="ready" className="flex flex-col items-center justify-center px-6 text-center animate-fade-in">
       <span className="text-5xl">🌿</span>
       <h2 className="mt-6 font-display text-2xl font-semibold text-foreground">You're all set!</h2>

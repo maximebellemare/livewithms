@@ -20,6 +20,7 @@ export interface Profile {
   hydration_goal: number;
   avatar_url: string | null;
   display_name: string | null;
+  country: string | null;
 }
 
 export const useProfile = () => {
