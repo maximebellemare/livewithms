@@ -127,13 +127,20 @@ export default function SymptomSparkline({
           </span>
         </div>
         {onLongPress && isPressing && (
-          <div className="absolute inset-0 pointer-events-none rounded-xl overflow-hidden animate-fade-in">
-            <div className="absolute inset-0 bg-primary/10" />
-            <div className="absolute bottom-1.5 inset-x-0 flex justify-center">
-              <span className="text-[8px] font-semibold tracking-wide text-primary/80 bg-primary/15 px-2 py-0.5 rounded-full">
-                insights →
-              </span>
-            </div>
+          <div className="absolute inset-0 pointer-events-none rounded-xl overflow-hidden animate-fade-in flex items-center justify-center">
+            <div className="absolute inset-0 bg-primary/8" />
+            <svg width="44" height="44" viewBox="0 0 44 44" style={{ transform: "rotate(-90deg)" }}>
+              <circle cx="22" cy="22" r="18" fill="none" stroke="hsl(var(--primary) / 0.15)" strokeWidth="3" />
+              <circle
+                cx="22" cy="22" r="18" fill="none"
+                stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round"
+                strokeDasharray="113.1"
+                style={{ animation: "ring-fill 0.5s linear forwards" }}
+              />
+            </svg>
+            <span className="absolute bottom-1.5 text-[8px] font-semibold tracking-wide text-primary/80 bg-primary/15 px-2 py-0.5 rounded-full">
+              insights →
+            </span>
           </div>
         )}
         {saved && (
@@ -274,15 +281,21 @@ export default function SymptomSparkline({
         })}
       </div>
 
-      {/* Long-press insights hint */}
       {onLongPress && isPressing && (
-        <div className="absolute inset-0 pointer-events-none rounded-xl overflow-hidden animate-fade-in">
-          <div className="absolute inset-0 bg-primary/10" />
-          <div className="absolute bottom-1.5 inset-x-0 flex justify-center">
-            <span className="text-[8px] font-semibold tracking-wide text-primary/80 bg-primary/15 px-2 py-0.5 rounded-full">
-              insights →
-            </span>
-          </div>
+        <div className="absolute inset-0 pointer-events-none rounded-xl overflow-hidden animate-fade-in flex items-center justify-center">
+          <div className="absolute inset-0 bg-primary/8" />
+          <svg width="44" height="44" viewBox="0 0 44 44" style={{ transform: "rotate(-90deg)" }}>
+            <circle cx="22" cy="22" r="18" fill="none" stroke="hsl(var(--primary) / 0.15)" strokeWidth="3" />
+            <circle
+              cx="22" cy="22" r="18" fill="none"
+              stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round"
+              strokeDasharray="113.1"
+              style={{ animation: "ring-fill 0.5s linear forwards" }}
+            />
+          </svg>
+          <span className="absolute bottom-1.5 text-[8px] font-semibold tracking-wide text-primary/80 bg-primary/15 px-2 py-0.5 rounded-full">
+            insights →
+          </span>
         </div>
       )}
 
