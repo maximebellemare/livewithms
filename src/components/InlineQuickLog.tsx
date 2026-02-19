@@ -8,6 +8,8 @@ type EntryPayload = {
   brain_fog: number;
   mood: number;
   mobility: number;
+  spasticity?: number;
+  stress?: number;
   mood_tags: string[];
   notes: string | null;
   sleep_hours: number | null;
@@ -15,7 +17,7 @@ type EntryPayload = {
 
 interface InlineQuickLogProps {
   /** The metric this panel controls */
-  metric: "mood" | "fatigue" | "pain" | "brain_fog" | "mobility";
+  metric: "mood" | "fatigue" | "pain" | "brain_fog" | "mobility" | "spasticity" | "stress";
   label: string;
   emoji: string;
   /** Whether higher values are better (affects colour direction) */

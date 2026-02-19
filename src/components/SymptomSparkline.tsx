@@ -9,12 +9,14 @@ interface Entry {
   brain_fog: number | null;
   mood: number | null;
   mobility: number | null;
+  spasticity?: number | null;
+  stress?: number | null;
   sleep_hours?: number | null;
   notes?: string | null;
   mood_tags?: string[];
 }
 
-type MetricKey = "fatigue" | "pain" | "brain_fog" | "mood" | "mobility" | "sleep_hours";
+type MetricKey = "fatigue" | "pain" | "brain_fog" | "mood" | "mobility" | "spasticity" | "stress" | "sleep_hours";
 
 interface SymptomSparklineProps {
   entries: Entry[];

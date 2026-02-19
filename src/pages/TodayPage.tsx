@@ -42,7 +42,7 @@ const greetings = () => {
 };
 
 // Which quick-log panel is open (null = none)
-type QuickLogMetric = "mood" | "fatigue" | "pain" | "brain_fog" | "sleep" | "mobility" | null;
+type QuickLogMetric = "mood" | "fatigue" | "pain" | "brain_fog" | "sleep" | "mobility" | "spasticity" | "stress" | null;
 
 const TodayPage = () => {
   const navigate = useNavigate();
@@ -51,6 +51,8 @@ const TodayPage = () => {
   const [brainFog, setBrainFog] = useState(0);
   const [mood, setMood] = useState(0);
   const [mobility, setMobility] = useState(0);
+  const [spasticity, setSpasticity] = useState(0);
+  const [stress, setStress] = useState(0);
   const [moodTags, setMoodTags] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [sleepHours, setSleepHours] = useState("");
@@ -119,6 +121,8 @@ const TodayPage = () => {
       setBrainFog(todayEntry.brain_fog ?? 0);
       setMood(todayEntry.mood ?? 0);
       setMobility(todayEntry.mobility ?? 0);
+      setSpasticity(todayEntry.spasticity ?? 0);
+      setStress(todayEntry.stress ?? 0);
       setMoodTags(todayEntry.mood_tags ?? []);
       setNotes(todayEntry.notes ?? "");
       setSleepHours(todayEntry.sleep_hours != null ? String(todayEntry.sleep_hours) : "");
@@ -136,7 +140,7 @@ const TodayPage = () => {
   const { data: thisWeekEntries = [] } = useEntriesInRange(thisWeekMonday, format(today, "yyyy-MM-dd"));
 
   const weekAvgs = useMemo(() => {
-    const avg = (key: "fatigue" | "pain" | "brain_fog" | "mood" | "mobility") => {
+    const avg = (key: "fatigue" | "pain" | "brain_fog" | "mood" | "mobility" | "spasticity" | "stress") => {
       const vals = weekEntries.map((e) => e[key]).filter((v): v is number => v != null);
       return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
     };
@@ -146,6 +150,8 @@ const TodayPage = () => {
       brain_fog: avg("brain_fog"),
       mood: avg("mood"),
       mobility: avg("mobility"),
+      spasticity: avg("spasticity"),
+      stress: avg("stress"),
     };
   }, [weekEntries]);
 
@@ -159,10 +165,12 @@ const TodayPage = () => {
     brain_fog: brainFog,
     mood,
     mobility,
+    spasticity,
+    stress,
     mood_tags: moodTags,
     notes: notes || null,
     sleep_hours: sleepHours ? Number(sleepHours) : null,
-  }), [fatigue, pain, brainFog, mood, mobility, moodTags, notes, sleepHours]);
+  }), [fatigue, pain, brainFog, mood, mobility, spasticity, stress, moodTags, notes, sleepHours]);
 
   const toggleMoodTag = (tag: string) => {
     setMoodTags((prev) =>
@@ -304,6 +312,14 @@ const TodayPage = () => {
             saved={savedMetric === "mobility"}
             onClick={() => setOpenPanel((p) => p === "mobility" ? null : "mobility")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "mobility" } })} />
+          <SymptomSparkline entries={weekEntries} metric="spasticity" label="Spasticity" emoji="🦵"
+            saved={savedMetric === "spasticity"}
+            onClick={() => setOpenPanel((p) => p === "spasticity" ? null : "spasticity")}
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "spasticity" } })} />
+          <SymptomSparkline entries={weekEntries} metric="stress" label="Stress" emoji="😰"
+            saved={savedMetric === "stress"}
+            onClick={() => setOpenPanel((p) => p === "stress" ? null : "stress")}
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "stress" } })} />
         </div>
 
         {/* Inline quick-log panels */}
@@ -357,6 +373,28 @@ const TodayPage = () => {
             value={mobility} onChange={setMobility}
             onClose={closePanel}
             onSaved={() => flashSaved("mobility")}
+            entryPayload={entryPayload}
+            saveAsync={saveEntry.mutateAsync}
+            isSaving={saveEntry.isPending}
+          />
+        )}
+        {openPanel === "spasticity" && (
+          <InlineQuickLog
+            metric="spasticity" label="Spasticity" emoji="🦵"
+            value={spasticity} onChange={setSpasticity}
+            onClose={closePanel}
+            onSaved={() => flashSaved("spasticity")}
+            entryPayload={entryPayload}
+            saveAsync={saveEntry.mutateAsync}
+            isSaving={saveEntry.isPending}
+          />
+        )}
+        {openPanel === "stress" && (
+          <InlineQuickLog
+            metric="stress" label="Stress" emoji="😰"
+            value={stress} onChange={setStress}
+            onClose={closePanel}
+            onSaved={() => flashSaved("stress")}
             entryPayload={entryPayload}
             saveAsync={saveEntry.mutateAsync}
             isSaving={saveEntry.isPending}
@@ -426,6 +464,8 @@ const TodayPage = () => {
           <SymptomSlider label="Brain Fog" emoji="🌫️" value={brainFog} onChange={setBrainFog} weekAvg={weekAvgs.brain_fog} />
           <SymptomSlider label="Mood" emoji="😊" value={mood} onChange={setMood} weekAvg={weekAvgs.mood} higherIsBetter />
           <SymptomSlider label="Mobility" emoji="🚶" value={mobility} onChange={setMobility} weekAvg={weekAvgs.mobility} />
+          <SymptomSlider label="Spasticity" emoji="🦵" value={spasticity} onChange={setSpasticity} weekAvg={weekAvgs.spasticity} />
+          <SymptomSlider label="Stress" emoji="😰" value={stress} onChange={setStress} weekAvg={weekAvgs.stress} />
         </div>
 
         {/* Mood tags */}

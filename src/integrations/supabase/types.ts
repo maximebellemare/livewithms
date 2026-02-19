@@ -66,6 +66,8 @@ export type Database = {
           notes: string | null
           pain: number | null
           sleep_hours: number | null
+          spasticity: number | null
+          stress: number | null
           updated_at: string
           user_id: string
           water_glasses: number | null
@@ -82,6 +84,8 @@ export type Database = {
           notes?: string | null
           pain?: number | null
           sleep_hours?: number | null
+          spasticity?: number | null
+          stress?: number | null
           updated_at?: string
           user_id: string
           water_glasses?: number | null
@@ -98,6 +102,8 @@ export type Database = {
           notes?: string | null
           pain?: number | null
           sleep_hours?: number | null
+          spasticity?: number | null
+          stress?: number | null
           updated_at?: string
           user_id?: string
           water_glasses?: number | null
