@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
-import { Bookmark, BookmarkCheck, CheckCircle2, ChevronDown, ChevronUp, Search, X, Clock, EyeOff } from "lucide-react";
+import { Bookmark, BookmarkCheck, CheckCircle2, ChevronDown, ChevronUp, Search, X, Clock, EyeOff, CircleCheckBig } from "lucide-react";
 import { useLearnArticles, useLearnBookmarkIds, useToggleLearnBookmark, useLearnReads, useMarkArticleRead } from "@/hooks/useLearnArticles";
 import { Skeleton } from "@/components/ui/skeleton";
 import ArticleBody from "@/components/learn/ArticleBody";
@@ -12,6 +12,7 @@ const LearnPage = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showBookmarked, setShowBookmarked] = useState(false);
   const [showUnread, setShowUnread] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [search, setSearch] = useState("");
 
   const { data: articles = [], isLoading } = useLearnArticles();
@@ -30,8 +31,9 @@ const LearnPage = () => {
       .filter((a) => filter === "All" || a.category === filter)
       .filter((a) => !showBookmarked || bookmarkIds.has(a.id))
       .filter((a) => !showUnread || !readArticleIds.has(a.id))
+      .filter((a) => !showCompleted || (progressMap[a.id] ?? 0) >= 1)
       .filter((a) => !q || a.title.toLowerCase().includes(q) || a.summary.toLowerCase().includes(q) || a.category.toLowerCase().includes(q));
-  }, [articles, filter, showBookmarked, showUnread, bookmarkIds, readArticleIds, search]);
+  }, [articles, filter, showBookmarked, showUnread, showCompleted, bookmarkIds, readArticleIds, progressMap, search]);
 
   return (
     <>
@@ -94,6 +96,17 @@ const LearnPage = () => {
           >
             <EyeOff className="h-3.5 w-3.5" />
             Unread
+          </button>
+          <button
+            onClick={() => setShowCompleted((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+              showCompleted
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground"
+            }`}
+          >
+            <CircleCheckBig className="h-3.5 w-3.5" />
+            Completed
           </button>
         </div>
 
