@@ -5,6 +5,16 @@ import { FileText, Download, Calendar as CalendarIcon, ArrowLeft, Share2, Send }
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Link } from "react-router-dom";
 import { useEntriesInRange } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
@@ -13,6 +23,7 @@ import { useDbAppointments } from "@/hooks/useAppointments";
 import { generateReportFromData } from "@/lib/report-generator-db";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
 
 const PRESETS = [
   { label: "Last 7 days", days: 7 },
@@ -42,6 +53,7 @@ const ReportsPage = () => {
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
   const [reportBlob, setReportBlob] = useState<Blob | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const reportFileName = `LiveWithMS-Report-${format(new Date(), "yyyy-MM-dd")}.pdf`;
 
   const startStr = format(startDate, "yyyy-MM-dd");
@@ -90,12 +102,16 @@ const ReportsPage = () => {
     }
   };
 
-  const handleSendToNeurologist = async () => {
+  const handleSendToNeurologist = () => {
     if (!profile?.neurologist_email) {
       toast.error("No neurologist email saved — add one in your Profile settings.");
       return;
     }
+    setShowConfirmDialog(true);
+  };
 
+  const confirmSend = async () => {
+    setShowConfirmDialog(false);
     setSending(true);
     try {
       // Reuse existing blob or generate a fresh one
@@ -107,7 +123,7 @@ const ReportsPage = () => {
 
       const { data, error } = await supabase.functions.invoke("send-report", {
         body: {
-          recipientEmail: profile.neurologist_email,
+          recipientEmail: profile!.neurologist_email,
           pdfBase64,
           fileName: reportFileName,
           reportPeriod: period,
@@ -121,15 +137,15 @@ const ReportsPage = () => {
         const a = document.createElement("a");
         a.href = url; a.download = reportFileName; a.click();
         URL.revokeObjectURL(url);
-        const to = encodeURIComponent(profile.neurologist_email);
+        const to = encodeURIComponent(profile!.neurologist_email!);
         const subject = encodeURIComponent(`MS Health Report – ${period}`);
         const body = encodeURIComponent(
           `Hi,\n\nPlease find my LiveWithMS health report for ${period} attached.\n\nThe PDF was saved to my device — I'll attach it to this email.\n\nThank you.`
         );
         window.open(`mailto:${to}?subject=${subject}&body=${body}`);
-        toast.info(`Email draft opened for ${profile.neurologist_email} — please attach the downloaded PDF.`);
+        toast.info(`Email draft opened for ${profile!.neurologist_email} — please attach the downloaded PDF.`);
       } else {
-        toast.success(`Report emailed to ${profile.neurologist_email} — your neurologist will receive a download link ✓`);
+        toast.success(`Report emailed to ${profile!.neurologist_email} — your neurologist will receive a download link ✓`);
       }
     } catch (err: any) {
       toast.error("Failed to send: " + err.message);
@@ -145,8 +161,42 @@ const ReportsPage = () => {
 
   const neuroEmail = profile?.neurologist_email;
 
+  const period = `${format(startDate, "MMM d")}–${format(endDate, "MMM d, yyyy")}`;
+
   return (
     <>
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send report to neurologist?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-1">
+                <div className="rounded-lg bg-muted px-4 py-3 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Recipient</span>
+                    <span className="font-medium text-foreground">{neuroEmail}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Report period</span>
+                    <span className="font-medium text-foreground">{period}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Your neurologist will receive an email with a secure link to download the PDF report.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSend} className="bg-primary text-primary-foreground hover:opacity-90">
+              <Send className="mr-2 h-4 w-4" />
+              Send Report
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <PageHeader title="Reports" subtitle="Doctor-ready summaries" action={
         <Link to="/profile" className="rounded-full p-2 text-muted-foreground hover:bg-secondary"><ArrowLeft className="h-5 w-5" /></Link>
       } />
