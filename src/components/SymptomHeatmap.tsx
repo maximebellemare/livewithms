@@ -8,6 +8,7 @@ interface DayEntry {
   brain_fog: number | null;
   mood: number | null;
   mobility: number | null;
+  sleep_hours?: number | null;
 }
 
 interface SymptomHeatmapProps {
@@ -20,32 +21,30 @@ interface SymptomHeatmapProps {
 }
 
 const METRICS = [
-  { key: "fatigue",   label: "Fatigue",    emoji: "🔋", higherIsBetter: false },
-  { key: "pain",      label: "Pain",       emoji: "⚡", higherIsBetter: false },
-  { key: "brain_fog", label: "Brain Fog",  emoji: "🌫️", higherIsBetter: false },
-  { key: "mood",      label: "Mood",       emoji: "😊", higherIsBetter: true  },
-  { key: "mobility",  label: "Mobility",   emoji: "🚶", higherIsBetter: true  },
+  { key: "fatigue",     label: "Fatigue",   emoji: "🔋", higherIsBetter: false, maxValue: 10 },
+  { key: "pain",        label: "Pain",      emoji: "⚡", higherIsBetter: false, maxValue: 10 },
+  { key: "brain_fog",   label: "Brain Fog", emoji: "🌫️", higherIsBetter: false, maxValue: 10 },
+  { key: "mood",        label: "Mood",      emoji: "😊", higherIsBetter: true,  maxValue: 10 },
+  { key: "mobility",    label: "Mobility",  emoji: "🚶", higherIsBetter: true,  maxValue: 10 },
+  { key: "sleep_hours", label: "Sleep",     emoji: "🌙", higherIsBetter: true,  maxValue: 12 },
 ] as const;
 
 export type MetricKey = typeof METRICS[number]["key"];
 
-/** Returns a CSS background colour string for a given value 0–10 */
-function cellColor(value: number | null, higherIsBetter: boolean): string {
+/** Returns a CSS background colour string for a given value 0–maxValue */
+function cellColor(value: number | null, higherIsBetter: boolean, maxValue = 10): string {
   if (value === null) return "hsl(var(--muted) / 0.4)";
-
-  // Normalise so 0 = bad, 1 = good
-  const norm = higherIsBetter ? value / 10 : 1 - value / 10;
-
-  if (norm >= 0.75) return "hsl(145 50% 42%)";  // emerald — great
-  if (norm >= 0.5)  return "hsl(145 40% 58%)";  // light green — good
-  if (norm >= 0.35) return "hsl(45 90% 52%)";   // amber — moderate
-  if (norm >= 0.2)  return "hsl(25 85% 50%)";   // orange — concerning
-  return               "hsl(0 72% 51%)";          // red — severe
+  const norm = higherIsBetter ? value / maxValue : 1 - value / maxValue;
+  if (norm >= 0.75) return "hsl(145 50% 42%)";
+  if (norm >= 0.5)  return "hsl(145 40% 58%)";
+  if (norm >= 0.35) return "hsl(45 90% 52%)";
+  if (norm >= 0.2)  return "hsl(25 85% 50%)";
+  return               "hsl(0 72% 51%)";
 }
 
-function labelColor(value: number | null, higherIsBetter: boolean): string {
+function labelColor(value: number | null, higherIsBetter: boolean, maxValue = 10): string {
   if (value === null) return "hsl(var(--muted-foreground))";
-  const norm = higherIsBetter ? value / 10 : 1 - value / 10;
+  const norm = higherIsBetter ? value / maxValue : 1 - value / maxValue;
   if (norm >= 0.5)  return "hsl(145 45% 30%)";
   if (norm >= 0.35) return "hsl(30 80% 28%)";
   return               "hsl(0 65% 40%)";
@@ -153,11 +152,11 @@ export default function SymptomHeatmap({ entries, days, activeMetric: controlled
                     <button
                       key={date}
                       onClick={() => setTooltip(isActive ? null : { date, value })}
-                      title={`${format(parseISO(date), "MMM d")}: ${value !== null ? value + "/10" : "No data"}`}
+                      title={`${format(parseISO(date), "MMM d")}: ${value !== null ? value + (metric.maxValue === 12 ? " hrs" : "/10") : "No data"}`}
                       className={`aspect-square rounded-md transition-all duration-150 ${
                         isActive ? "ring-2 ring-primary ring-offset-1 ring-offset-card scale-105" : ""
                       } ${isToday ? "ring-2 ring-primary/50 ring-offset-1 ring-offset-card" : ""}`}
-                      style={{ backgroundColor: cellColor(value, metric.higherIsBetter) }}
+                      style={{ backgroundColor: cellColor(value, metric.higherIsBetter, metric.maxValue) }}
                     />
                   );
                 })}
@@ -177,17 +176,17 @@ export default function SymptomHeatmap({ entries, days, activeMetric: controlled
             </p>
             <p
               className="text-[11px] font-medium"
-              style={{ color: tooltip.value !== null ? labelColor(tooltip.value, metric.higherIsBetter) : "hsl(var(--muted-foreground))" }}
+              style={{ color: tooltip.value !== null ? labelColor(tooltip.value, metric.higherIsBetter, metric.maxValue) : "hsl(var(--muted-foreground))" }}
             >
               {tooltip.value !== null
-                ? `${metric.label}: ${tooltip.value}/10`
+                ? `${metric.label}: ${tooltip.value}${metric.maxValue === 12 ? " hrs" : "/10"}`
                 : "No entry logged"}
             </p>
           </div>
           {tooltip.value !== null && (
             <span
               className="text-sm font-bold"
-              style={{ color: labelColor(tooltip.value, metric.higherIsBetter) }}
+              style={{ color: labelColor(tooltip.value, metric.higherIsBetter, metric.maxValue) }}
             >
               {tooltip.value}
             </span>

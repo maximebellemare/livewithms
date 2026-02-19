@@ -9,6 +9,7 @@ interface DayEntry {
   brain_fog: number | null;
   mood: number | null;
   mobility: number | null;
+  sleep_hours?: number | null;
 }
 
 interface Props {
@@ -18,11 +19,12 @@ interface Props {
 }
 
 const METRICS = [
-  { key: "fatigue"   as MetricKey, label: "Fatigue",   higherIsBetter: false },
-  { key: "pain"      as MetricKey, label: "Pain",       higherIsBetter: false },
-  { key: "brain_fog" as MetricKey, label: "Brain Fog",  higherIsBetter: false },
-  { key: "mood"      as MetricKey, label: "Mood",       higherIsBetter: true  },
-  { key: "mobility"  as MetricKey, label: "Mobility",   higherIsBetter: true  },
+  { key: "fatigue"     as MetricKey, label: "Fatigue",   higherIsBetter: false, maxValue: 10 },
+  { key: "pain"        as MetricKey, label: "Pain",       higherIsBetter: false, maxValue: 10 },
+  { key: "brain_fog"   as MetricKey, label: "Brain Fog",  higherIsBetter: false, maxValue: 10 },
+  { key: "mood"        as MetricKey, label: "Mood",       higherIsBetter: true,  maxValue: 10 },
+  { key: "mobility"    as MetricKey, label: "Mobility",   higherIsBetter: true,  maxValue: 10 },
+  { key: "sleep_hours" as MetricKey, label: "Sleep",      higherIsBetter: true,  maxValue: 12 },
 ];
 
 function avg(vals: (number | null)[]): number | null {
@@ -103,16 +105,16 @@ export default function HeatmapWithSummary({ entries, days, initialMetric }: Pro
       {result && (
         <div className="rounded-lg bg-secondary/50 border border-border px-3 py-2.5 space-y-1">
           <p className="text-[11px] text-foreground leading-snug">
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">🌟 Best {metric.label} week</span>
+            <span className="font-semibold" style={{ color: "hsl(145 45% 35%)" }}>🌟 Best {metric.label} week</span>
             {" "}was{" "}
             <span className="font-semibold text-foreground">{formatWeekRange(result.best.weekStart)}</span>
-            {" "}(avg {result.best.avg.toFixed(1)}/10).
+            {" "}(avg {result.best.avg.toFixed(1)}{metric.maxValue === 12 ? " hrs" : "/10"}).
           </p>
           <p className="text-[11px] text-foreground leading-snug">
             <span className="text-destructive font-semibold">💙 Toughest {metric.label} week</span>
             {" "}was{" "}
             <span className="font-semibold text-foreground">{formatWeekRange(result.worst.weekStart)}</span>
-            {" "}(avg {result.worst.avg.toFixed(1)}/10).
+            {" "}(avg {result.worst.avg.toFixed(1)}{metric.maxValue === 12 ? " hrs" : "/10"}).
           </p>
         </div>
       )}
