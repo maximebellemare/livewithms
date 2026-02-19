@@ -164,7 +164,16 @@ const LearnPage = () => {
             const isBookmarked = bookmarkIds.has(article.id);
 
             return (
-              <div key={article.id} className="rounded-xl bg-card shadow-soft overflow-hidden">
+              <div key={article.id} className="rounded-xl bg-card shadow-soft overflow-hidden relative">
+                {/* Progress bar at bottom of card (when collapsed and has progress) */}
+                {!isExpanded && (progressMap[article.id] ?? 0) > 0 && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-secondary">
+                    <div
+                      className="h-full bg-primary/60 transition-all rounded-br-xl"
+                      style={{ width: `${Math.min((progressMap[article.id] ?? 0) * 100, 100)}%` }}
+                    />
+                  </div>
+                )}
                 {/* Header */}
                 <button
                   onClick={() => {
@@ -183,6 +192,11 @@ const LearnPage = () => {
                       <p className="mt-1 text-xs text-muted-foreground">{article.summary}</p>
                       <div className="mt-2 flex items-center gap-2">
                         <span className="text-[10px] text-muted-foreground">{article.read_time} read</span>
+                        {(progressMap[article.id] ?? 0) > 0 && !isExpanded && (
+                          <span className="text-[10px] font-medium text-primary">
+                            {Math.round((progressMap[article.id] ?? 0) * 100)}%
+                          </span>
+                        )}
                         {isExpanded ? (
                           <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
                         ) : (
