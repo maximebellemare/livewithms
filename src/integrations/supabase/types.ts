@@ -268,6 +268,42 @@ export type Database = {
         }
         Relationships: []
       }
+      report_history: {
+        Row: {
+          created_at: string
+          end_date: string
+          file_name: string | null
+          id: string
+          recipient_email: string
+          recipient_name: string | null
+          sent_at: string
+          start_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          file_name?: string | null
+          id?: string
+          recipient_email: string
+          recipient_name?: string | null
+          sent_at?: string
+          start_date: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          file_name?: string | null
+          id?: string
+          recipient_email?: string
+          recipient_name?: string | null
+          sent_at?: string
+          start_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

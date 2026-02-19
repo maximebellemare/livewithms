@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format, subDays } from "date-fns";
 import PageHeader from "@/components/PageHeader";
-import { FileText, Download, Calendar as CalendarIcon, ArrowLeft, Share2, Send } from "lucide-react";
+import { FileText, Download, Calendar as CalendarIcon, ArrowLeft, Share2, Send, History, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -23,6 +23,7 @@ import { useDbAppointments } from "@/hooks/useAppointments";
 import { generateReportFromData } from "@/lib/report-generator-db";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useReportHistory, useAddReportHistory } from "@/hooks/useReportHistory";
 
 
 const PRESETS = [
@@ -54,7 +55,9 @@ const ReportsPage = () => {
   const [sending, setSending] = useState(false);
   const [reportBlob, setReportBlob] = useState<Blob | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const reportFileName = `LiveWithMS-Report-${format(new Date(), "yyyy-MM-dd")}.pdf`;
+
 
   const startStr = format(startDate, "yyyy-MM-dd");
   const endStr = format(endDate, "yyyy-MM-dd");
@@ -65,6 +68,9 @@ const ReportsPage = () => {
   const { data: medications = [] } = useDbMedications();
   const { data: medLogs = [] } = useDbMedicationLogs(startStr, endStr);
   const { data: appointments = [] } = useDbAppointments();
+  const { data: reportHistory = [] } = useReportHistory();
+  const addReportHistory = useAddReportHistory();
+
 
   /** Build the report blob (shared by generate + send flows) */
   const buildBlob = async (): Promise<Blob> => {
@@ -147,8 +153,17 @@ const ReportsPage = () => {
         toast.info(`Email draft opened for ${profile!.neurologist_email} — please attach the downloaded PDF.`);
       } else {
         toast.success(`Report emailed to ${profile!.neurologist_email} — your neurologist will receive a download link ✓`);
-        // Record the send timestamp
-        await updateProfile.mutateAsync({ last_report_sent_at: new Date().toISOString() } as any);
+        // Record the send timestamp and history
+        await Promise.all([
+          updateProfile.mutateAsync({ last_report_sent_at: new Date().toISOString() } as any),
+          addReportHistory.mutateAsync({
+            start_date: startStr,
+            end_date: endStr,
+            recipient_email: profile!.neurologist_email!,
+            recipient_name: profile!.neurologist_name ?? null,
+            file_name: reportFileName,
+          }),
+        ]);
       }
     } catch (err: any) {
       toast.error("Failed to send: " + err.message);
@@ -376,7 +391,52 @@ const ReportsPage = () => {
 
           <p className="text-center text-[10px] text-muted-foreground">⚕️ This report is for informational purposes only. Always consult your neurologist for medical decisions.</p>
         </div>
+
+        {/* Report History Section */}
+        {reportHistory.length > 0 && (
+          <div className="rounded-xl bg-card shadow-soft overflow-hidden">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="flex w-full items-center justify-between px-4 py-3.5 text-left transition-colors hover:bg-secondary/50"
+            >
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">Sent Report History</span>
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">{reportHistory.length}</span>
+              </div>
+              {showHistory ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </button>
+
+            {showHistory && (
+              <div className="divide-y divide-border/50">
+                {reportHistory.map((entry) => (
+                  <div key={entry.id} className="px-4 py-3 space-y-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate">
+                          📧 {entry.recipient_name || entry.recipient_email}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">{entry.recipient_email}</p>
+                      </div>
+                      <p className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">
+                        {new Date(entry.sent_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Period: <span className="text-foreground font-medium">
+                        {new Date(entry.start_date + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
+                        {" – "}
+                        {new Date(entry.end_date + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
+                      </span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
     </>
   );
 };
