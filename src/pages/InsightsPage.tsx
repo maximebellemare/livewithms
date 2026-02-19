@@ -645,10 +645,17 @@ const InsightsPage = () => {
               By symptom
             </p>
             <div className="grid grid-cols-1 gap-3">
-              {SYMPTOMS.filter((s) => s.key !== "sleep_hours").map(({ key, label, emoji }) => {
+              {SYMPTOMS.map(({ key, label, emoji }) => {
+                const isSleep = key === "sleep_hours";
                 const vals = windowEntries.map((e) => e[key as keyof typeof e] as number | null);
                 const curAvg = avg(vals);
-                const maxVal = Math.max(...vals.filter((v): v is number => v !== null));
+                const validVals = vals.filter((v): v is number => v !== null);
+                const minVal = validVals.length ? Math.min(...validVals) : null;
+                const maxVal = validVals.length ? Math.max(...validVals) : null;
+                const domainMax = isSleep ? 12 : 10;
+                const unit = isSleep ? "hrs avg" : "/ 10 avg";
+                const dataKey = isSleep ? "sleep_hours_raw" : key;
+                const tooltipName = isSleep ? "Sleep (hrs)" : label;
                 return (
                   <div key={key} className="rounded-xl bg-card p-4 shadow-soft">
                     <div className="flex items-center justify-between mb-2">
@@ -660,7 +667,7 @@ const InsightsPage = () => {
                         <span className="text-xl font-bold text-foreground">
                           {curAvg !== null ? curAvg.toFixed(1) : "—"}
                         </span>
-                        <span className="ml-1 text-xs text-muted-foreground">/ 10 avg</span>
+                        <span className="ml-1 text-xs text-muted-foreground">{unit}</span>
                       </div>
                     </div>
                     <div className="h-20">
@@ -673,7 +680,7 @@ const InsightsPage = () => {
                             </linearGradient>
                           </defs>
                           <XAxis dataKey="date" hide />
-                          <YAxis domain={[0, 10]} hide />
+                          <YAxis domain={[0, domainMax]} hide />
                           <Tooltip content={<CustomTooltip />} />
                           {curAvg !== null && (
                             <ReferenceLine
@@ -686,8 +693,8 @@ const InsightsPage = () => {
                           )}
                           <Area
                             type="monotone"
-                            dataKey={key}
-                            name={label}
+                            dataKey={dataKey}
+                            name={tooltipName}
                             stroke={COLORS[key].stroke}
                             strokeWidth={2}
                             fill={`url(#grad-${key})`}
@@ -700,56 +707,14 @@ const InsightsPage = () => {
                     </div>
                     {/* Mini stats */}
                     <div className="mt-2 flex gap-4 text-[10px] text-muted-foreground">
-                      <span>Min: <strong className="text-foreground">{Math.min(...vals.filter((v): v is number => v !== null)) || "—"}</strong></span>
-                      <span>Max: <strong className="text-foreground">{maxVal || "—"}</strong></span>
-                      <span>Days logged: <strong className="text-foreground">{vals.filter(v => v !== null).length}</strong></span>
+                      <span>Min: <strong className="text-foreground">{minVal !== null ? minVal.toFixed(1) : "—"}</strong></span>
+                      <span>Max: <strong className="text-foreground">{maxVal !== null ? maxVal.toFixed(1) : "—"}</strong></span>
+                      <span>Days logged: <strong className="text-foreground">{validVals.length}</strong></span>
                     </div>
                   </div>
                 );
               })}
             </div>
-
-            {/* ── Sleep card ── */}
-            {avgSleep !== null && (
-              <div className="rounded-xl bg-card p-4 shadow-soft">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">💤</span>
-                    <span className="text-sm font-semibold text-foreground">Sleep</span>
-                  </div>
-                  <span className="text-xl font-bold text-foreground">
-                    {avgSleep.toFixed(1)}<span className="text-xs font-normal text-muted-foreground ml-1">hrs avg</span>
-                  </span>
-                </div>
-                <div className="h-20">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="grad-sleep" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%"  stopColor="hsl(210 60% 50%)" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(210 60% 50%)" stopOpacity={0}   />
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="date" hide />
-                      <YAxis domain={[0, 12]} hide />
-                      <Tooltip content={<CustomTooltip />} />
-                      <ReferenceLine y={avgSleep} stroke="hsl(210 60% 50%)" strokeDasharray="4 3" strokeOpacity={0.5} strokeWidth={1} />
-                      <Area
-                        type="monotone"
-                        dataKey="sleep"
-                        name="Sleep (hrs)"
-                        stroke="hsl(210 60% 50%)"
-                        strokeWidth={2}
-                        fill="url(#grad-sleep)"
-                        dot={false}
-                        connectNulls={false}
-                        activeDot={{ r: 3, strokeWidth: 0 }}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
 
             {/* ── Sleep vs Fatigue Correlation ── */}
             {sleepFatiguePairs.length >= 3 && (
