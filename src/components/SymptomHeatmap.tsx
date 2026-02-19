@@ -14,6 +14,9 @@ interface SymptomHeatmapProps {
   entries: DayEntry[];
   /** All days in the 30-day window, oldest → newest */
   days: string[];
+  /** Controlled active metric (optional — component is self-controlled if omitted) */
+  activeMetric?: MetricKey;
+  onMetricChange?: (metric: MetricKey) => void;
 }
 
 const METRICS = [
@@ -24,7 +27,7 @@ const METRICS = [
   { key: "mobility",  label: "Mobility",   emoji: "🚶", higherIsBetter: true  },
 ] as const;
 
-type MetricKey = typeof METRICS[number]["key"];
+export type MetricKey = typeof METRICS[number]["key"];
 
 /** Returns a CSS background colour string for a given value 0–10 */
 function cellColor(value: number | null, higherIsBetter: boolean): string {
@@ -48,8 +51,10 @@ function labelColor(value: number | null, higherIsBetter: boolean): string {
   return               "hsl(0 65% 40%)";
 }
 
-export default function SymptomHeatmap({ entries, days }: SymptomHeatmapProps) {
-  const [activeMetric, setActiveMetric] = useState<MetricKey>("fatigue");
+export default function SymptomHeatmap({ entries, days, activeMetric: controlledMetric, onMetricChange }: SymptomHeatmapProps) {
+  const [internalMetric, setInternalMetric] = useState<MetricKey>("fatigue");
+  const activeMetric = controlledMetric ?? internalMetric;
+  const setActiveMetric = (m: MetricKey) => { setInternalMetric(m); onMetricChange?.(m); };
 
   const metric = METRICS.find((m) => m.key === activeMetric)!;
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import SymptomHeatmap from "@/components/SymptomHeatmap";
+import HeatmapWithSummary from "@/components/HeatmapWithSummary";
 import { format, parseISO, subDays, eachDayOfInterval } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import AIWeeklyInsight from "@/components/AIWeeklyInsight";
@@ -274,7 +275,7 @@ const InsightsPage = () => {
             </p>
 
             {/* ── 30-Day Heatmap ── */}
-            <SymptomHeatmap entries={dedupedEntries} days={heatmapDays} />
+            <HeatmapWithSummary entries={dedupedEntries} days={heatmapDays} />
 
             {/* ── Weekly Progress Summary ── */}
             {(() => {
