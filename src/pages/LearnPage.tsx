@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import confetti from "canvas-confetti";
 import PageHeader from "@/components/PageHeader";
-import { Bookmark, BookmarkCheck, CheckCircle2, ChevronDown, ChevronUp, Search, X, Clock, EyeOff, CircleCheckBig } from "lucide-react";
+import { Bookmark, BookmarkCheck, CheckCircle2, ChevronDown, ChevronUp, Search, X, Clock, EyeOff, CircleCheckBig, Trophy } from "lucide-react";
 import { useLearnArticles, useLearnBookmarkIds, useToggleLearnBookmark, useLearnReads, useMarkArticleRead } from "@/hooks/useLearnArticles";
 import { Skeleton } from "@/components/ui/skeleton";
 import ArticleBody from "@/components/learn/ArticleBody";
@@ -38,6 +39,15 @@ const LearnPage = () => {
   const completedCount = useMemo(() => articles.filter((a) => (progressMap[a.id] ?? 0) >= 1).length, [articles, progressMap]);
   const totalCount = articles.length;
   const completionPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const allCompleted = totalCount > 0 && completedCount === totalCount;
+  const hasCelebrated = useRef(false);
+
+  useEffect(() => {
+    if (allCompleted && !hasCelebrated.current) {
+      hasCelebrated.current = true;
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+    }
+  }, [allCompleted]);
 
   return (
     <>
@@ -45,17 +55,29 @@ const LearnPage = () => {
       <div className="mx-auto max-w-lg px-4 py-4">
         {/* Learning progress summary */}
         {!isLoading && totalCount > 0 && (
-          <div className="mb-4 rounded-xl bg-card p-4 shadow-soft">
+          <div className={`mb-4 rounded-xl p-4 shadow-soft transition-all ${allCompleted ? "bg-primary/10 ring-1 ring-primary/30" : "bg-card"}`}>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your Progress</span>
+              {allCompleted ? (
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-wider">
+                  <Trophy className="h-4 w-4" />
+                  All Complete!
+                </span>
+              ) : (
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your Progress</span>
+              )}
               <span className="text-xs font-semibold text-primary">{completedCount}/{totalCount} completed</span>
             </div>
             <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
               <div
-                className="h-full bg-primary transition-all duration-500 rounded-full"
+                className={`h-full transition-all duration-500 rounded-full ${allCompleted ? "bg-primary" : "bg-primary"}`}
                 style={{ width: `${completionPercent}%` }}
               />
             </div>
+            {allCompleted && (
+              <p className="mt-2 text-xs text-primary/80 animate-fade-in">
+                🎉 Amazing! You've completed every article. Keep learning and growing!
+              </p>
+            )}
           </div>
         )}
 
