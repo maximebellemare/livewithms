@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import DigestPreviewCard from "@/components/DigestPreviewCard";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell } from "lucide-react";
+import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
@@ -58,6 +59,81 @@ const ProfilePage = () => {
   const [displayNameInit, setDisplayNameInit] = useState(false);
   const [savingDisplayName, setSavingDisplayName] = useState(false);
   const [sendingTestDigest, setSendingTestDigest] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  const handleExportData = useCallback(async (format: "json" | "csv") => {
+    setExporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("account-management", {
+        body: { action: "export" },
+      });
+      if (error || !data?.success) throw new Error(error?.message || "Export failed");
+
+      let blob: Blob;
+      let filename: string;
+
+      if (format === "json") {
+        blob = new Blob([JSON.stringify(data.data, null, 2)], { type: "application/json" });
+        filename = `livewithms-export-${new Date().toISOString().slice(0, 10)}.json`;
+      } else {
+        // Convert to CSV - one sheet per table
+        const lines: string[] = [];
+        for (const [table, rows] of Object.entries(data.data as Record<string, Record<string, unknown>[]>)) {
+          if (!rows.length) continue;
+          lines.push(`--- ${table} ---`);
+          const headers = Object.keys(rows[0]);
+          lines.push(headers.join(","));
+          for (const row of rows) {
+            lines.push(headers.map((h) => {
+              const v = row[h];
+              const s = v === null || v === undefined ? "" : String(v);
+              return s.includes(",") || s.includes('"') || s.includes("\n")
+                ? `"${s.replace(/"/g, '""')}"`
+                : s;
+            }).join(","));
+          }
+          lines.push("");
+        }
+        blob = new Blob([lines.join("\n")], { type: "text/csv" });
+        filename = `livewithms-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`Data exported as ${format.toUpperCase()}`);
+    } catch {
+      toast.error("Failed to export data");
+    } finally {
+      setExporting(false);
+    }
+  }, []);
+
+  const handleDeleteAccount = useCallback(async () => {
+    if (deleteConfirmText !== "DELETE") return;
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("account-management", {
+        body: { action: "delete" },
+      });
+      if (error || !data?.success) throw new Error("Delete failed");
+      toast.success("Account deleted. Goodbye 🧡");
+      await signOut();
+      navigate("/");
+    } catch {
+      toast.error("Failed to delete account. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteConfirmText, signOut, navigate]);
 
   // Initialise local state from loaded profile (once)
   if (profile && !neuroEmailInit) {
@@ -417,7 +493,6 @@ const ProfilePage = () => {
 
           {[
             { icon: Shield, label: "Privacy & Data", desc: "Manage your data preferences", to: "/privacy" },
-            { icon: Download, label: "Export Data", desc: "Download your health data", to: "/privacy" },
             { icon: Sparkles, label: "Feature Roadmap", desc: "See what's coming next", to: "/roadmap" },
           ].map(({ icon: Icon, label, desc, to }) => (
             <Link key={label} to={to} className="tap-highlight-none flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary text-foreground">
@@ -430,6 +505,41 @@ const ProfilePage = () => {
             </Link>
           ))}
 
+          {/* Export Data */}
+          <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+            <div className="flex items-center gap-2">
+              <Download className="h-4 w-4 text-primary" />
+              <p className="text-sm font-medium text-foreground">Export Your Data</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Download all your health data, entries, and profile information.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleExportData("json")}
+                disabled={exporting}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-all hover:border-primary/50 hover:text-primary disabled:opacity-50"
+              >
+                {exporting ? (
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+                JSON
+              </button>
+              <button
+                onClick={() => handleExportData("csv")}
+                disabled={exporting}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-all hover:border-primary/50 hover:text-primary disabled:opacity-50"
+              >
+                {exporting ? (
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+                CSV
+              </button>
+            </div>
+          </div>
+
           <button
             onClick={handleSignOut}
             className="tap-highlight-none flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary text-foreground"
@@ -440,6 +550,59 @@ const ProfilePage = () => {
               <p className="text-xs text-muted-foreground">Log out of your account</p>
             </div>
           </button>
+        </div>
+
+        {/* Delete Account */}
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <p className="text-sm font-medium text-destructive">Danger Zone</p>
+          </div>
+          {!showDeleteConfirm ? (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete My Account
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                This will <strong className="text-destructive">permanently delete</strong> all your data including entries, medications, appointments, and community posts. This cannot be undone.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Type <strong className="text-foreground">DELETE</strong> to confirm:
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Type DELETE"
+                className="w-full rounded-lg border border-destructive/30 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-destructive/40"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(""); }}
+                  className="flex-1 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmText !== "DELETE" || deleting}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-destructive px-3 py-2 text-xs font-semibold text-destructive-foreground transition-all hover:opacity-90 disabled:opacity-40"
+                >
+                  {deleting ? (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-destructive-foreground border-t-transparent" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  {deleting ? "Deleting…" : "Delete Forever"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Crisis resources */}
