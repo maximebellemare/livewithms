@@ -1,4 +1,5 @@
 import { useState } from "react";
+import confetti from "canvas-confetti";
 import { format, subDays } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import { FileText, Download, Calendar as CalendarIcon, ArrowLeft, Share2, Send, History, ChevronDown, ChevronUp } from "lucide-react";
@@ -153,6 +154,10 @@ const ReportsPage = () => {
         toast.info(`Email draft opened for ${profile!.neurologist_email} — please attach the downloaded PDF.`);
       } else {
         toast.success(`Report emailed to ${profile!.neurologist_email} — your neurologist will receive a download link ✓`);
+        // Confetti celebration 🎉
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#E8751A", "#F5A623", "#FFFFFF", "#FFF3E0"] });
+        setTimeout(() => confetti({ particleCount: 40, spread: 50, origin: { y: 0.5, x: 0.3 }, colors: ["#E8751A", "#F5A623"] }), 200);
+        setTimeout(() => confetti({ particleCount: 40, spread: 50, origin: { y: 0.5, x: 0.7 }, colors: ["#E8751A", "#FFFFFF"] }), 350);
         // Record the send timestamp and history
         await Promise.all([
           updateProfile.mutateAsync({ last_report_sent_at: new Date().toISOString() } as any),
