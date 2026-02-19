@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
@@ -56,6 +57,23 @@ export const useChannels = () => {
 
 /* ─── Posts ──────────────────────────────────────────────── */
 export const usePosts = (channelId: string | null) => {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!channelId) return;
+    const channel = supabase
+      .channel(`posts-${channelId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "community_posts", filter: `channel_id=eq.${channelId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["community-posts", channelId] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [channelId, queryClient]);
+
   return useQuery({
     queryKey: ["community-posts", channelId],
     queryFn: async () => {
@@ -92,6 +110,24 @@ export const useCreatePost = () => {
 
 /* ─── Comments ──────────────────────────────────────────── */
 export const useComments = (postId: string | null) => {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!postId) return;
+    const channel = supabase
+      .channel(`comments-${postId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "community_comments", filter: `post_id=eq.${postId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["community-comments", postId] });
+          queryClient.invalidateQueries({ queryKey: ["community-posts"] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [postId, queryClient]);
+
   return useQuery({
     queryKey: ["community-comments", postId],
     queryFn: async () => {
