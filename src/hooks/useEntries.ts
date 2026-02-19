@@ -14,6 +14,7 @@ export interface DailyEntry {
   sleep_hours: number | null;
   notes: string | null;
   mood_tags: string[];
+  water_glasses: number | null;
 }
 
 export const useEntries = () => {
@@ -76,7 +77,7 @@ export const useSaveEntry = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (entry: Omit<DailyEntry, "id">) => {
+    mutationFn: async (entry: Omit<DailyEntry, "id" | "water_glasses"> & { water_glasses?: number | null }) => {
       const { data, error } = await supabase
         .from("daily_entries")
         .upsert(

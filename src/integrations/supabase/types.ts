@@ -68,6 +68,7 @@ export type Database = {
           sleep_hours: number | null
           updated_at: string
           user_id: string
+          water_glasses: number | null
         }
         Insert: {
           brain_fog?: number | null
@@ -83,6 +84,7 @@ export type Database = {
           sleep_hours?: number | null
           updated_at?: string
           user_id: string
+          water_glasses?: number | null
         }
         Update: {
           brain_fog?: number | null
@@ -98,6 +100,7 @@ export type Database = {
           sleep_hours?: number | null
           updated_at?: string
           user_id?: string
+          water_glasses?: number | null
         }
         Relationships: []
       }
@@ -186,6 +189,7 @@ export type Database = {
           age_range: string | null
           created_at: string
           goals: string[] | null
+          hydration_goal: number
           id: string
           last_digest_sent_at: string | null
           last_report_sent_at: string | null
@@ -204,6 +208,7 @@ export type Database = {
           age_range?: string | null
           created_at?: string
           goals?: string[] | null
+          hydration_goal?: number
           id?: string
           last_digest_sent_at?: string | null
           last_report_sent_at?: string | null
@@ -222,6 +227,7 @@ export type Database = {
           age_range?: string | null
           created_at?: string
           goals?: string[] | null
+          hydration_goal?: number
           id?: string
           last_digest_sent_at?: string | null
           last_report_sent_at?: string | null

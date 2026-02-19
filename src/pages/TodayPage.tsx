@@ -18,6 +18,7 @@ import { Settings, CheckCircle2, PenLine } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
 import UpcomingAppointments from "@/components/UpcomingAppointments";
 import DailyPromptCard from "@/components/DailyPromptCard";
+import HydrationCard from "@/components/HydrationCard";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
@@ -486,14 +487,18 @@ const TodayPage = () => {
           <UpcomingAppointments />
         </div>
 
+        {/* Hydration tracker */}
+        <div className="animate-slide-up" style={{ animationDelay: "0.3s" }}>
+          <HydrationCard />
+        </div>
+
         {/* Reminders */}
-        <div className="space-y-2 animate-slide-up" style={{ animationDelay: "0.3s" }}>
+        <div className="space-y-2 animate-slide-up" style={{ animationDelay: "0.35s" }}>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Reminders
           </p>
           <QuickCard emoji="💊" title="Medications" subtitle="Manage your medications" onClick={() => navigate("/medications")} />
           <QuickCard emoji="📅" title="Appointments" subtitle="View & manage appointments" onClick={() => navigate("/appointments")} />
-          <QuickCard emoji="💧" title="Hydration" subtitle="Stay hydrated — drink water!" accent />
         </div>
 
         {/* Log button */}
