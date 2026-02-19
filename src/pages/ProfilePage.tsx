@@ -2,7 +2,7 @@ import { useState } from "react";
 import DigestPreviewCard from "@/components/DigestPreviewCard";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles } from "lucide-react";
+import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
@@ -53,6 +53,9 @@ const ProfilePage = () => {
   const [neuroEmailInit, setNeuroEmailInit] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
   const [togglingDigest, setTogglingDigest] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [displayNameInit, setDisplayNameInit] = useState(false);
+  const [savingDisplayName, setSavingDisplayName] = useState(false);
   const [sendingTestDigest, setSendingTestDigest] = useState(false);
 
   // Initialise local state from loaded profile (once)
@@ -61,6 +64,25 @@ const ProfilePage = () => {
     setNeuroName(profile.neurologist_name ?? "");
     setNeuroEmailInit(true);
   }
+
+  if (profile && !displayNameInit) {
+    setDisplayName((profile as any).display_name ?? "");
+    setDisplayNameInit(true);
+  }
+
+  const handleSaveDisplayName = async () => {
+    const trimmed = displayName.trim();
+    if (trimmed.length > 30) { toast.error("Display name must be under 30 characters"); return; }
+    setSavingDisplayName(true);
+    try {
+      await updateProfile.mutateAsync({ display_name: trimmed || null } as any);
+      toast.success("Community display name saved!");
+    } catch {
+      toast.error("Failed to save display name");
+    } finally {
+      setSavingDisplayName(false);
+    }
+  };
 
   const handleToggleDigest = async () => {
     if (!profile) return;
@@ -152,6 +174,38 @@ const ProfilePage = () => {
             <span>Edit MS Profile</span>
             <ChevronRight className="h-4 w-4" />
           </Link>
+        </div>
+
+        {/* Community Display Name */}
+        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-primary" />
+            <p className="text-sm font-medium text-foreground">Community Display Name</p>
+          </div>
+          <p className="text-xs text-muted-foreground">This name is shown on your posts and comments in the Community forum.</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSaveDisplayName()}
+              placeholder="e.g. MSWarrior_22"
+              maxLength={30}
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <button
+              onClick={handleSaveDisplayName}
+              disabled={savingDisplayName}
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+            >
+              {savingDisplayName ? (
+                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              Save
+            </button>
+          </div>
         </div>
 
         {/* Neurologist details */}
