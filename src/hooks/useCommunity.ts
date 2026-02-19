@@ -73,6 +73,27 @@ export const useTrendingPosts = (limit = 5) => {
   });
 };
 
+/* ─── Weekly Highlights (top posts from last 7 days) ───── */
+export const useWeeklyHighlights = (limit = 5) => {
+  return useQuery({
+    queryKey: ["community-weekly-highlights", limit],
+    queryFn: async () => {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const { data, error } = await supabase
+        .from("community_posts")
+        .select("*")
+        .eq("is_hidden", false)
+        .gte("created_at", weekAgo.toISOString())
+        .order("likes_count", { ascending: false })
+        .order("comments_count", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data as Post[];
+    },
+  });
+};
+
 /* ─── Posts (infinite scroll) ────────────────────────────── */
 const POSTS_PAGE_SIZE = 10;
 

@@ -8,6 +8,7 @@ import { ChannelList } from "@/components/community/ChannelList";
 import { PostFeed } from "@/components/community/PostFeed";
 import { PostDetail } from "@/components/community/PostDetail";
 import { TrendingPosts } from "@/components/community/TrendingPosts";
+import { WeeklyHighlights } from "@/components/community/WeeklyHighlights";
 
 const CommunityPage = () => {
   const { data: channels = [], isLoading } = useChannels();
@@ -44,6 +45,11 @@ const CommunityPage = () => {
         ) : (
           <>
             <TrendingPosts
+              channels={channels}
+              onSelectPost={setSelectedPost}
+              onSelectChannel={setSelectedChannel}
+            />
+            <WeeklyHighlights
               channels={channels}
               onSelectPost={setSelectedPost}
               onSelectChannel={setSelectedChannel}
