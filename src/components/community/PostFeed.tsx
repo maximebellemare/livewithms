@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, ArrowLeft, AlertTriangle, Search } from "lucide-react";
+import { Plus, ArrowLeft, AlertTriangle, Search, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Channel, Post, usePosts, useCreatePost, useHidePost, useDisplayName,
@@ -22,6 +22,7 @@ export const PostFeed = ({
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"newest" | "reactions" | "comments">("newest");
 
   const isMod = roles.includes("admin") || roles.includes("moderator");
 
@@ -49,12 +50,22 @@ export const PostFeed = ({
   const isCrisis = channel.is_locked;
 
   const filteredPosts = useMemo(() => {
-    if (!search.trim()) return posts;
-    const q = search.toLowerCase();
-    return posts.filter(
-      (p) => p.title.toLowerCase().includes(q) || p.body.toLowerCase().includes(q) || p.display_name.toLowerCase().includes(q)
-    );
-  }, [posts, search]);
+    let result = posts;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (p) => p.title.toLowerCase().includes(q) || p.body.toLowerCase().includes(q) || p.display_name.toLowerCase().includes(q)
+      );
+    }
+    if (sortBy === "newest") {
+      result = [...result].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } else if (sortBy === "reactions") {
+      result = [...result].sort((a, b) => (b.likes_count ?? 0) - (a.likes_count ?? 0));
+    } else if (sortBy === "comments") {
+      result = [...result].sort((a, b) => (b.comments_count ?? 0) - (a.comments_count ?? 0));
+    }
+    return result;
+  }, [posts, search, sortBy]);
 
   return (
     <div className="animate-fade-in">
@@ -97,6 +108,23 @@ export const PostFeed = ({
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 h-9 text-sm"
             />
+          </div>
+
+          <div className="flex items-center gap-1.5 mb-3">
+            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            {(["newest", "reactions", "comments"] as const).map((option) => (
+              <button
+                key={option}
+                onClick={() => setSortBy(option)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                  sortBy === option
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {option === "newest" ? "Newest" : option === "reactions" ? "Most reactions" : "Most comments"}
+              </button>
+            ))}
           </div>
 
           {!showCreate ? (
