@@ -45,6 +45,7 @@ function useLongPress(onClick?: () => void, onLongPress?: () => void, delay = 50
     timer.current = setTimeout(() => {
       fired.current = true;
       setIsPressing(false);
+      navigator.vibrate?.(50);
       onLongPress?.();
     }, delay);
   };
