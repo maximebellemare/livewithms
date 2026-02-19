@@ -1,16 +1,19 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, BarChart3, TrendingUp, BookOpen, NotebookPen, Phone } from "lucide-react";
+import { Home, BarChart3, TrendingUp, BookOpen, NotebookPen, Phone, Users } from "lucide-react";
+import { useUnreadCommunityPosts } from "@/hooks/useUnreadCommunity";
 
-const tabs = [
-  { to: "/today",   icon: Home,         label: "Today" },
-  { to: "/track",   icon: BarChart3,    label: "Track" },
-  { to: "/insights",icon: TrendingUp,   label: "Insights" },
-  { to: "/journal", icon: NotebookPen,  label: "Journal" },
-  { to: "/learn",   icon: BookOpen,     label: "Learn" },
+const baseTabs = [
+  { to: "/today",     icon: Home,        label: "Today" },
+  { to: "/track",     icon: BarChart3,   label: "Track" },
+  { to: "/insights",  icon: TrendingUp,  label: "Insights" },
+  { to: "/journal",   icon: NotebookPen, label: "Journal" },
+  { to: "/community", icon: Users,       label: "Community" },
+  { to: "/learn",     icon: BookOpen,    label: "Learn" },
 ];
 
 const BottomNav = () => {
   const location = useLocation();
+  const { data: unreadCount = 0 } = useUnreadCommunityPosts();
 
   // Hide on onboarding
   if (location.pathname.startsWith("/onboarding") || location.pathname === "/" || location.pathname === "/auth") {
@@ -38,12 +41,12 @@ const BottomNav = () => {
       {/* Nav tabs */}
       <nav className="border-t border-border bg-card/95 backdrop-blur-lg safe-bottom">
         <div className="mx-auto flex max-w-lg items-center justify-around px-2 py-1">
-          {tabs.map(({ to, icon: Icon, label }) => (
+          {baseTabs.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) =>
-                `tap-highlight-none flex flex-col items-center gap-0.5 rounded-xl px-3 py-2 text-xs font-medium transition-all ${
+                `tap-highlight-none relative flex flex-col items-center gap-0.5 rounded-xl px-2 py-2 text-xs font-medium transition-all ${
                   isActive
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
@@ -52,10 +55,17 @@ const BottomNav = () => {
             >
               {({ isActive }) => (
                 <>
-                  <Icon
-                    className={`h-5 w-5 transition-all ${isActive ? "stroke-[2.5]" : "stroke-[1.5]"}`}
-                  />
-                  <span className={isActive ? "font-semibold" : ""}>{label}</span>
+                  <div className="relative">
+                    <Icon
+                      className={`h-5 w-5 transition-all ${isActive ? "stroke-[2.5]" : "stroke-[1.5]"}`}
+                    />
+                    {to === "/community" && unreadCount > 0 && !isActive && (
+                      <span className="absolute -top-1 -right-1.5 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-primary-foreground">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className={`text-[10px] ${isActive ? "font-semibold" : ""}`}>{label}</span>
                   {isActive && (
                     <div className="absolute -top-px left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-primary" />
                   )}

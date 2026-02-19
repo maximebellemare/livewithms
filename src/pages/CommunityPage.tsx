@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
-import { useAuth } from "@/hooks/useAuth";
 import {
   useChannels, useUserRoles, Channel, Post,
 } from "@/hooks/useCommunity";
+import { markCommunityVisited } from "@/hooks/useUnreadCommunity";
 import { ChannelList } from "@/components/community/ChannelList";
 import { PostFeed } from "@/components/community/PostFeed";
 import { PostDetail } from "@/components/community/PostDetail";
@@ -13,6 +13,11 @@ const CommunityPage = () => {
   const { data: roles = [] } = useUserRoles();
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+
+  // Mark community as visited when page mounts
+  useEffect(() => {
+    markCommunityVisited();
+  }, []);
 
   return (
     <>
