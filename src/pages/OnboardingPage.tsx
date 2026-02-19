@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronLeft, Shield, CheckCircle2, Globe } from "lucide-react";
+import { ChevronRight, ChevronLeft, Shield, CheckCircle2, Globe, Calendar } from "lucide-react";
 import { useUpdateProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
 
@@ -13,6 +13,7 @@ const countries = [
   "Belgium", "Switzerland", "Austria", "Ireland", "New Zealand", "Brazil",
   "Mexico", "India", "Japan", "South Korea", "South Africa", "Other",
 ];
+const ageRanges = ["18–24", "25–34", "35–44", "45–54", "55–64", "65+"];
 
 const consentItems = [
   { id: "health_data", label: "I understand my health data is stored securely and encrypted", required: true },
@@ -29,6 +30,7 @@ const OnboardingPage = () => {
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const [country, setCountry] = useState("");
+  const [ageRange, setAgeRange] = useState("");
   const [consents, setConsents] = useState<Record<string, boolean>>({});
 
   const allConsentsAccepted = consentItems.filter((c) => c.required).every((c) => consents[c.id]);
@@ -49,6 +51,7 @@ const OnboardingPage = () => {
         symptoms,
         goals: selectedGoals,
         country: country || null,
+        age_range: ageRange || null,
       });
       navigate("/today");
     } catch (err: any) {
@@ -162,7 +165,23 @@ const OnboardingPage = () => {
       </div>
     </div>,
 
-    // 6: Ready
+    // 6: Age Range
+    <div key="age-range" className="px-6 animate-fade-in">
+      <div className="flex items-center gap-2 mb-1">
+        <Calendar className="h-5 w-5 text-primary" />
+        <h2 className="font-display text-2xl font-semibold text-foreground">Your Age Range</h2>
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">Helps us personalize insights for your age group.</p>
+      <div className="mt-6 space-y-2">
+        {ageRanges.map((r) => (
+          <button key={r} onClick={() => setAgeRange(r)} className={`tap-highlight-none w-full rounded-xl px-4 py-3.5 text-left text-sm font-medium transition-all active:scale-[0.98] ${ageRange === r ? "bg-primary text-primary-foreground shadow-sm" : "bg-card text-foreground shadow-soft"}`}>
+            {r}
+          </button>
+        ))}
+      </div>
+    </div>,
+
+    // 7: Ready
     <div key="ready" className="flex flex-col items-center justify-center px-6 text-center animate-fade-in">
       <span className="text-5xl">🌿</span>
       <h2 className="mt-6 font-display text-2xl font-semibold text-foreground">You're all set!</h2>
