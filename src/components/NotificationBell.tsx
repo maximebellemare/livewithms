@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Bell, MessageCircle, Heart, Bookmark, Check, Trash2 } from "lucide-react";
+import { Bell, MessageCircle, Heart, Bookmark, Check, Trash2, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
   useNotifications,
   useUnreadNotificationCount,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
+  useDeleteNotification,
   useClearAllNotifications,
 } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
@@ -33,6 +34,7 @@ const NotificationBell = () => {
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
   const clearAll = useClearAllNotifications();
+  const deleteOne = useDeleteNotification();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -130,9 +132,21 @@ const NotificationBell = () => {
                       {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                     </p>
                   </div>
-                  {!n.is_read && (
-                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {!n.is_read && (
+                      <span className="mt-0.5 h-2 w-2 rounded-full bg-primary" />
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteOne.mutate(n.id);
+                      }}
+                      className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                      aria-label="Delete notification"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               </button>
             ))

@@ -79,6 +79,19 @@ export const useMarkAllNotificationsRead = () => {
   });
 };
 
+export const useDeleteNotification = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("notifications").delete().eq("id", id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      qc.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+    },
+  });
+};
+
 export const useClearAllNotifications = () => {
   const qc = useQueryClient();
   const { user } = useAuth();
