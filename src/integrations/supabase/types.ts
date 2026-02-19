@@ -509,6 +509,7 @@ export type Database = {
           neurologist_email: string | null
           neurologist_name: string | null
           notify_post_comments: boolean
+          notify_post_likes: boolean
           notify_push_enabled: boolean
           notify_thread_replies: boolean
           symptoms: string[] | null
@@ -533,6 +534,7 @@ export type Database = {
           neurologist_email?: string | null
           neurologist_name?: string | null
           notify_post_comments?: boolean
+          notify_post_likes?: boolean
           notify_push_enabled?: boolean
           notify_thread_replies?: boolean
           symptoms?: string[] | null
@@ -557,6 +559,7 @@ export type Database = {
           neurologist_email?: string | null
           neurologist_name?: string | null
           notify_post_comments?: boolean
+          notify_post_likes?: boolean
           notify_push_enabled?: boolean
           notify_thread_replies?: boolean
           symptoms?: string[] | null

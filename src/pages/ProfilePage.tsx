@@ -295,6 +295,7 @@ const ProfilePage = () => {
               </div>
               {[
                 { key: "notify_post_comments" as const, label: "Comments on my posts", desc: "Get notified when someone comments on your post" },
+                { key: "notify_post_likes" as const, label: "Likes on my posts", desc: "Get notified when someone reacts to your post" },
                 { key: "notify_thread_replies" as const, label: "Thread replies", desc: "Get notified when someone comments on a thread you joined" },
                 { key: "notify_push_enabled" as const, label: "Browser push notifications", desc: "Receive push notifications even when the app is closed" },
               ].map(({ key, label, desc }) => (
