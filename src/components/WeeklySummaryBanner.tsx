@@ -106,7 +106,8 @@ const WeeklySummaryBanner = () => {
     "About the same as last week";
 
   const previewCount = 3;
-  const visibleStats = isOpen ? stats : stats.slice(0, previewCount);
+  const previewStats = stats.slice(0, previewCount);
+  const extraStats = stats.slice(previewCount);
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-soft p-4 animate-fade-in">
@@ -124,9 +125,9 @@ const WeeklySummaryBanner = () => {
         </div>
       </button>
 
-      {/* Metric rows */}
+      {/* Always-visible metrics */}
       <div className="space-y-2">
-        {visibleStats.map(({ label, emoji, cur, prev, dir, delta, higherIsBetter, unit }) => (
+        {previewStats.map(({ label, emoji, cur, prev, dir, delta, higherIsBetter, unit }) => (
           <div key={label} className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-base">{emoji}</span>
@@ -146,13 +147,44 @@ const WeeklySummaryBanner = () => {
         ))}
       </div>
 
-      {/* Show more / less hint */}
-      {!isOpen && stats.length > previewCount && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="mt-2 text-[11px] font-medium text-primary w-full text-center"
+      {/* Collapsible extra metrics with smooth height transition */}
+      {extraStats.length > 0 && (
+        <div
+          className="grid transition-[grid-template-rows] duration-300 ease-in-out"
+          style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
         >
-          +{stats.length - previewCount} more metrics
+          <div className="overflow-hidden">
+            <div className="space-y-2 pt-2">
+              {extraStats.map(({ label, emoji, cur, prev, dir, delta, higherIsBetter, unit }) => (
+                <div key={label} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-base">{emoji}</span>
+                    <span className="text-xs font-medium text-foreground">{label}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {cur !== null ? cur.toFixed(1) : "—"}
+                      <span className="text-[10px]"> {unit}</span>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                      vs {prev !== null ? prev.toFixed(1) : "—"}
+                    </span>
+                    <TrendPill dir={dir} higherIsBetter={higherIsBetter} delta={delta} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Show more / less button */}
+      {extraStats.length > 0 && (
+        <button
+          onClick={() => setIsOpen((o) => !o)}
+          className="mt-2 text-[11px] font-medium text-primary w-full text-center transition-opacity duration-200"
+        >
+          {isOpen ? "Show less" : `+${extraStats.length} more metrics`}
         </button>
       )}
 
