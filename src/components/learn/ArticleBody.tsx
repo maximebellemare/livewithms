@@ -13,7 +13,8 @@ const ArticleBody = ({ body }: ArticleBodyProps) => {
     if (!el) return;
     const { scrollTop, scrollHeight, clientHeight } = el;
     const max = scrollHeight - clientHeight;
-    setProgress(max > 0 ? Math.min(1, scrollTop / max) : 1);
+    const current = max > 0 ? Math.min(1, scrollTop / max) : 1;
+    setProgress((prev) => Math.max(prev, current));
   }, []);
 
   useEffect(() => {
