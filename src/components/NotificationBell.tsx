@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, MessageCircle, Heart, Check } from "lucide-react";
+import { Bell, MessageCircle, Heart, Bookmark, Check } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
   useNotifications,
@@ -73,6 +73,8 @@ const NotificationBell = () => {
                 <div className="flex items-start gap-2">
                   {n.type === 'like' ? (
                     <Heart className={`h-4 w-4 mt-0.5 shrink-0 ${!n.is_read ? "text-red-500" : "text-muted-foreground"}`} />
+                  ) : n.type === 'bookmark' ? (
+                    <Bookmark className={`h-4 w-4 mt-0.5 shrink-0 ${!n.is_read ? "text-primary" : "text-muted-foreground"}`} />
                   ) : (
                     <MessageCircle className={`h-4 w-4 mt-0.5 shrink-0 ${!n.is_read ? "text-primary" : "text-muted-foreground"}`} />
                   )}
