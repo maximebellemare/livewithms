@@ -65,7 +65,24 @@ export default function SymptomSparkline({
   });
 
   const hasAnyData = points.some((p) => p.value !== null);
-  if (!hasAnyData) return null;
+
+  const Tag = onClick ? "button" : "div";
+
+  if (!hasAnyData) {
+    return (
+      <Tag
+        onClick={onClick}
+        className={`rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full${onClick ? " cursor-pointer hover:bg-secondary/70 active:scale-95 transition-all duration-150" : ""}`}
+      >
+        <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {emoji} {label}
+        </p>
+        <div className="flex flex-1 items-center justify-center py-3">
+          <span className="text-[10px] text-muted-foreground/50">No data yet</span>
+        </div>
+      </Tag>
+    );
+  }
 
   const W = 200, H = 36, PAD = 4;
 
@@ -102,7 +119,6 @@ export default function SymptomSparkline({
 
   const lineColor = avg !== null ? metricColor((avg / maxValue) * 10, higherIsBetter) : "hsl(145 45% 45%)";
 
-  const Tag = onClick ? "button" : "div";
 
   return (
     <Tag
