@@ -108,6 +108,23 @@ export const useAdminUsers = () =>
     },
   });
 
+/* ─── Role management ───────────────────────────────────── */
+export const useToggleRole = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, role, action }: { userId: string; role: "moderator"; action: "add" | "remove" }) => {
+      if (action === "add") {
+        const { error } = await supabase.from("user_roles").insert({ user_id: userId, role });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-users"] }),
+  });
+};
+
 /* ─── All reports (admin view) ──────────────────────────── */
 export const useAdminReports = () =>
   useQuery({
