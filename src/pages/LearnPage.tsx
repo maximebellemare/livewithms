@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
-import { Bookmark, BookmarkCheck, ChevronDown, ChevronUp, Search, X, Clock, EyeOff } from "lucide-react";
+import { Bookmark, BookmarkCheck, CheckCircle2, ChevronDown, ChevronUp, Search, X, Clock, EyeOff } from "lucide-react";
 import { useLearnArticles, useLearnBookmarkIds, useToggleLearnBookmark, useLearnReads, useMarkArticleRead } from "@/hooks/useLearnArticles";
 import { Skeleton } from "@/components/ui/skeleton";
 import ArticleBody from "@/components/learn/ArticleBody";
@@ -185,9 +185,17 @@ const LearnPage = () => {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <span className="text-[10px] font-medium uppercase tracking-wider text-primary">
-                        {article.category}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-medium uppercase tracking-wider text-primary">
+                          {article.category}
+                        </span>
+                        {(progressMap[article.id] ?? 0) >= 1 && (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Done
+                          </span>
+                        )}
+                      </div>
                       <h3 className="mt-0.5 text-sm font-semibold text-foreground">{article.title}</h3>
                       <p className="mt-1 text-xs text-muted-foreground">{article.summary}</p>
                       <div className="mt-2 flex items-center gap-2">
