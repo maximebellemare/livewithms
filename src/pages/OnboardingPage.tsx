@@ -194,6 +194,8 @@ const OnboardingPage = () => {
   const isLast = step === steps.length - 1;
   const isFirst = step === 0;
   const isConsentStep = step === 1;
+  const skippableSteps = [2, 3, 4, 5, 6]; // MS Type, Symptoms, Goals, Country, Age Range
+  const isSkippable = skippableSteps.includes(step);
   const nextDisabled = isConsentStep && !allConsentsAccepted;
 
   return (
@@ -212,6 +214,11 @@ const OnboardingPage = () => {
         {!isFirst && (
           <button onClick={() => setStep((s) => s - 1)} className="flex items-center gap-1 rounded-full bg-secondary px-5 py-3 text-sm font-medium text-secondary-foreground transition-all active:scale-[0.98]">
             <ChevronLeft className="h-4 w-4" /> Back
+          </button>
+        )}
+        {isSkippable && (
+          <button onClick={() => setStep((s) => s + 1)} className="flex items-center justify-center rounded-full px-5 py-3 text-sm font-medium text-muted-foreground transition-all hover:text-foreground active:scale-[0.98]">
+            Skip
           </button>
         )}
         <button
