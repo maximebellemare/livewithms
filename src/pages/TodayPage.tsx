@@ -11,6 +11,7 @@ import WeekStreakBadge from "@/components/WeekStreakBadge";
 import MondayRecapCard from "@/components/MondayRecapCard";
 import StreakMilestoneBanner from "@/components/StreakMilestoneBanner";
 import SymptomSparkline from "@/components/SymptomSparkline";
+import InlineQuickLog from "@/components/InlineQuickLog";
 import { Link } from "react-router-dom";
 import { Settings, CheckCircle2, PenLine } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
@@ -22,11 +23,9 @@ import { toast } from "sonner";
 
 const MILESTONE_DAYS = [7, 14, 30];
 
-/** Returns true if this streak number is a milestone we haven't celebrated yet */
 function shouldCelebrate(streak: number): boolean {
   if (!MILESTONE_DAYS.includes(streak)) return false;
-  const key = `milestone_celebrated_${streak}`;
-  return !localStorage.getItem(key);
+  return !localStorage.getItem(`milestone_celebrated_${streak}`);
 }
 
 function markCelebrated(streak: number) {
@@ -40,6 +39,9 @@ const greetings = () => {
   return "Good evening";
 };
 
+// Which quick-log panel is open (null = none)
+type QuickLogMetric = "mood" | "fatigue" | "pain" | "brain_fog" | "sleep" | null;
+
 const TodayPage = () => {
   const navigate = useNavigate();
   const [fatigue, setFatigue] = useState(0);
@@ -51,17 +53,15 @@ const TodayPage = () => {
   const [notes, setNotes] = useState("");
   const [sleepHours, setSleepHours] = useState("");
   const [logged, setLogged] = useState(false);
-  const [sleepInputOpen, setSleepInputOpen] = useState(false);
-  const [moodInputOpen, setMoodInputOpen] = useState(false);
-  const [fatigueInputOpen, setFatigueInputOpen] = useState(false);
-  const [painInputOpen, setPainInputOpen] = useState(false);
-  const [brainFogInputOpen, setBrainFogInputOpen] = useState(false);
+  const [openPanel, setOpenPanel] = useState<QuickLogMetric>(null);
   const [milestoneDismissed, setMilestoneDismissed] = useState(false);
   const [celebratedStreak, setCelebratedStreak] = useState<number | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const [showFab, setShowFab] = useState(true);
+  const [formInitialized, setFormInitialized] = useState(false);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
 
-  // Hide FAB once the Quick Log section is visible in the viewport
+  // Hide FAB once the Quick Log section is visible
   useEffect(() => {
     const el = logRef.current;
     if (!el) return;
@@ -72,24 +72,19 @@ const TodayPage = () => {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  const [formInitialized, setFormInitialized] = useState(false);
-  const notesRef = useRef<HTMLTextAreaElement>(null);
 
-  // Read streak — used both before and after save
   const { streak } = useStreak();
 
-  // After logging, if the new streak hits a milestone we haven't celebrated → show banner
   const isMilestone = celebratedStreak !== null
     ? MILESTONE_DAYS.includes(celebratedStreak) && !milestoneDismissed
     : MILESTONE_DAYS.includes(streak) && shouldCelebrate(streak) && !milestoneDismissed;
 
   const activeMilestoneStreak = celebratedStreak ?? streak;
 
-  // Check if user already logged today
   const { data: todayEntry, isLoading: todayLoading } = useTodayEntry();
   const alreadyLogged = !!todayEntry && !logged;
 
-  // Pre-populate form with today's existing entry (once loaded)
+  // Pre-populate form with today's existing entry
   useEffect(() => {
     if (todayEntry && !formInitialized) {
       setFatigue(todayEntry.fatigue ?? 0);
@@ -109,7 +104,6 @@ const TodayPage = () => {
   const weekEnd = format(subDays(today, 1), "yyyy-MM-dd");
   const { data: weekEntries = [] } = useEntriesInRange(weekStart, weekEnd);
 
-  // Current calendar week (Mon → today) — used for goal completion detection
   const { data: profile } = useProfile();
   const thisWeekMonday = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
   const { data: thisWeekEntries = [] } = useEntriesInRange(thisWeekMonday, format(today, "yyyy-MM-dd"));
@@ -130,6 +124,19 @@ const TodayPage = () => {
 
   const saveEntry = useSaveEntry();
 
+  // Shared entry payload — always reflects the latest field values
+  const entryPayload = useMemo(() => ({
+    date: new Date().toISOString().split("T")[0],
+    fatigue,
+    pain,
+    brain_fog: brainFog,
+    mood,
+    mobility,
+    mood_tags: moodTags,
+    notes: notes || null,
+    sleep_hours: sleepHours ? Number(sleepHours) : null,
+  }), [fatigue, pain, brainFog, mood, mobility, moodTags, notes, sleepHours]);
+
   const toggleMoodTag = (tag: string) => {
     setMoodTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
@@ -138,27 +145,14 @@ const TodayPage = () => {
 
   const handleLog = async () => {
     try {
-      // Snapshot goal state BEFORE saving so we can detect the crossing moment
       const goal = profile?.weekly_log_goal ?? 7;
       const countBefore = thisWeekEntries.length;
-      // If already logged today, saving doesn't add a new entry to the count
       const countAfter = alreadyLogged ? countBefore : countBefore + 1;
       const goalJustReached = countAfter >= goal && countBefore < goal;
       const goalToastKey = `goal_toast_${thisWeekMonday}_${goal}`;
 
-      await saveEntry.mutateAsync({
-        date: new Date().toISOString().split("T")[0],
-        fatigue,
-        pain,
-        brain_fog: brainFog,
-        mood,
-        mobility,
-        mood_tags: moodTags,
-        notes: notes || null,
-        sleep_hours: sleepHours ? Number(sleepHours) : null,
-      });
+      await saveEntry.mutateAsync(entryPayload);
 
-      // Show weekly goal toast exactly once per week
       if (goalJustReached && !localStorage.getItem(goalToastKey)) {
         localStorage.setItem(goalToastKey, "1");
         toast.success(`You hit your ${goal}-day goal this week! 🎉`, {
@@ -167,7 +161,6 @@ const TodayPage = () => {
         });
       }
 
-      // After saving, streak will increment by 1 (today wasn't logged yet)
       const newStreak = alreadyLogged ? streak : streak + 1;
       if (MILESTONE_DAYS.includes(newStreak) && shouldCelebrate(newStreak)) {
         setCelebratedStreak(newStreak);
@@ -191,7 +184,6 @@ const TodayPage = () => {
           }
         />
         <div className="mx-auto max-w-lg px-4 py-12 text-center animate-fade-in">
-          {/* Milestone banner — shown immediately after logging the milestone day */}
           {isMilestone && (
             <div className="mb-6 text-left">
               <StreakMilestoneBanner
@@ -200,7 +192,6 @@ const TodayPage = () => {
               />
             </div>
           )}
-
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent">
             <span className="text-3xl">🧡</span>
           </div>
@@ -235,7 +226,7 @@ const TodayPage = () => {
         }
       />
       <div className="mx-auto max-w-lg space-y-4 px-4 py-4">
-        {/* Milestone celebration — shown at top when streak is at a milestone */}
+
         {isMilestone && (
           <StreakMilestoneBanner
             streak={activeMilestoneStreak}
@@ -243,7 +234,6 @@ const TodayPage = () => {
           />
         )}
 
-      {/* Already logged today indicator */}
         {!todayLoading && alreadyLogged && (
           <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/8 px-4 py-3 animate-fade-in">
             <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-primary" />
@@ -254,168 +244,77 @@ const TodayPage = () => {
           </div>
         )}
 
-        {/* Monday weekly recap card */}
         <MondayRecapCard />
-
-        {/* Weekly summary banner */}
         <WeeklySummaryBanner />
-
-        {/* Streak trackers */}
         <StreakBadge />
         <WeekStreakBadge />
 
-        {/* 7-day sparklines — all six tracked metrics at a glance */}
+        {/* 7-day sparklines */}
         <div className="grid grid-cols-2 gap-2">
-          <SymptomSparkline entries={weekEntries} metric="mood" label="Mood" emoji="😊" higherIsBetter onClick={() => { setSleepInputOpen(false); setFatigueInputOpen(false); setPainInputOpen(false); setBrainFogInputOpen(false); setMoodInputOpen((o) => !o); }} />
-          <SymptomSparkline entries={weekEntries} metric="fatigue" label="Fatigue" emoji="🔋" onClick={() => { setSleepInputOpen(false); setMoodInputOpen(false); setPainInputOpen(false); setBrainFogInputOpen(false); setFatigueInputOpen((o) => !o); }} />
-          <SymptomSparkline entries={weekEntries} metric="pain" label="Pain" emoji="⚡" onClick={() => { setSleepInputOpen(false); setMoodInputOpen(false); setFatigueInputOpen(false); setBrainFogInputOpen(false); setPainInputOpen((o) => !o); }} />
-          <SymptomSparkline
-            entries={weekEntries}
-            metric="sleep_hours"
-            label="Sleep"
-            emoji="🌙"
-            higherIsBetter
-            maxValue={12}
-            unit=" hrs"
-            onClick={() => { setMoodInputOpen(false); setFatigueInputOpen(false); setPainInputOpen(false); setBrainFogInputOpen(false); setSleepInputOpen((o) => !o); }}
-          />
-          <SymptomSparkline entries={weekEntries} metric="brain_fog" label="Brain Fog" emoji="🌫️" onClick={() => { setSleepInputOpen(false); setMoodInputOpen(false); setFatigueInputOpen(false); setPainInputOpen(false); setBrainFogInputOpen((o) => !o); }} />
-          <SymptomSparkline entries={weekEntries} metric="mobility" label="Mobility" emoji="🚶" higherIsBetter onClick={() => navigate("/insights", { state: { heatmapMetric: "mobility" } })} />
+          <SymptomSparkline entries={weekEntries} metric="mood" label="Mood" emoji="😊" higherIsBetter
+            onClick={() => setOpenPanel((p) => p === "mood" ? null : "mood")} />
+          <SymptomSparkline entries={weekEntries} metric="fatigue" label="Fatigue" emoji="🔋"
+            onClick={() => setOpenPanel((p) => p === "fatigue" ? null : "fatigue")} />
+          <SymptomSparkline entries={weekEntries} metric="pain" label="Pain" emoji="⚡"
+            onClick={() => setOpenPanel((p) => p === "pain" ? null : "pain")} />
+          <SymptomSparkline entries={weekEntries} metric="sleep_hours" label="Sleep" emoji="🌙"
+            higherIsBetter maxValue={12} unit=" hrs"
+            onClick={() => setOpenPanel((p) => p === "sleep" ? null : "sleep")} />
+          <SymptomSparkline entries={weekEntries} metric="brain_fog" label="Brain Fog" emoji="🌫️"
+            onClick={() => setOpenPanel((p) => p === "brain_fog" ? null : "brain_fog")} />
+          <SymptomSparkline entries={weekEntries} metric="mobility" label="Mobility" emoji="🚶" higherIsBetter
+            onClick={() => navigate("/insights", { state: { heatmapMetric: "mobility" } })} />
         </div>
 
-        {/* Inline mood input — expands when Mood card is tapped */}
-        {moodInputOpen && (
-          <div onClick={(e) => e.stopPropagation()} className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-semibold text-foreground">😊 How's your mood? (0–10)</label>
-              <button
-                onClick={() => setMoodInputOpen(false)}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-0.5 rounded-md hover:bg-secondary"
-              >
-                Done
-              </button>
-            </div>
-            <div className="flex gap-1.5 flex-wrap">
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => {
-                const isSelected = mood === val;
-                const color = val >= 7 ? "hsl(145 45% 45%)" : val >= 4 ? "hsl(45 90% 52%)" : "hsl(0 72% 51%)";
-                return (
-                  <button
-                    key={val}
-                    onClick={() => setMood(val)}
-                    className="flex-1 min-w-[2rem] rounded-lg py-2 text-sm font-bold transition-all active:scale-95"
-                    style={{
-                      background: isSelected ? color : "hsl(var(--secondary))",
-                      color: isSelected ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
-                      border: isSelected ? `1.5px solid ${color}` : "1.5px solid transparent",
-                    }}
-                  >
-                    {val}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  await saveEntry.mutateAsync({
-                    date: new Date().toISOString().split("T")[0],
-                    fatigue,
-                    pain,
-                    brain_fog: brainFog,
-                    mood,
-                    mobility,
-                    mood_tags: moodTags,
-                    notes: notes || null,
-                    sleep_hours: sleepHours ? Number(sleepHours) : null,
-                  });
-                  setMoodInputOpen(false);
-                  toast.success(`Mood logged: ${mood}/10 😊`);
-                } catch (err: any) {
-                  toast.error("Failed to save: " + err.message);
-                }
-              }}
-              disabled={saveEntry.isPending}
-              className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.98]"
-            >
-              Save mood
-            </button>
-            <p className="mt-1.5 text-[10px] text-muted-foreground text-center">
-              Tap a number then <strong>Save mood</strong>, or adjust below with the full form.
-            </p>
-          </div>
+        {/* Inline quick-log panels */}
+        {openPanel === "mood" && (
+          <InlineQuickLog
+            metric="mood" label="Mood" emoji="😊" higherIsBetter
+            value={mood} onChange={setMood}
+            onClose={() => setOpenPanel(null)}
+            entryPayload={entryPayload}
+            saveAsync={saveEntry.mutateAsync}
+            isSaving={saveEntry.isPending}
+          />
+        )}
+        {openPanel === "fatigue" && (
+          <InlineQuickLog
+            metric="fatigue" label="Fatigue" emoji="🔋"
+            value={fatigue} onChange={setFatigue}
+            onClose={() => setOpenPanel(null)}
+            entryPayload={entryPayload}
+            saveAsync={saveEntry.mutateAsync}
+            isSaving={saveEntry.isPending}
+          />
+        )}
+        {openPanel === "pain" && (
+          <InlineQuickLog
+            metric="pain" label="Pain" emoji="⚡"
+            value={pain} onChange={setPain}
+            onClose={() => setOpenPanel(null)}
+            entryPayload={entryPayload}
+            saveAsync={saveEntry.mutateAsync}
+            isSaving={saveEntry.isPending}
+          />
+        )}
+        {openPanel === "brain_fog" && (
+          <InlineQuickLog
+            metric="brain_fog" label="Brain fog" emoji="🌫️"
+            value={brainFog} onChange={setBrainFog}
+            onClose={() => setOpenPanel(null)}
+            entryPayload={entryPayload}
+            saveAsync={saveEntry.mutateAsync}
+            isSaving={saveEntry.isPending}
+          />
         )}
 
-        {/* Inline fatigue input — expands when Fatigue card is tapped */}
-        {fatigueInputOpen && (
-          <div onClick={(e) => e.stopPropagation()} className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-semibold text-foreground">🔋 Fatigue level today (0–10)</label>
-              <button
-                onClick={() => setFatigueInputOpen(false)}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-0.5 rounded-md hover:bg-secondary"
-              >
-                Done
-              </button>
-            </div>
-            <div className="flex gap-1.5 flex-wrap">
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => {
-                const isSelected = fatigue === val;
-                const color = val <= 3 ? "hsl(145 45% 45%)" : val <= 6 ? "hsl(45 90% 52%)" : "hsl(0 72% 51%)";
-                return (
-                  <button
-                    key={val}
-                    onClick={() => setFatigue(val)}
-                    className="flex-1 min-w-[2rem] rounded-lg py-2 text-sm font-bold transition-all active:scale-95"
-                    style={{
-                      background: isSelected ? color : "hsl(var(--secondary))",
-                      color: isSelected ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
-                      border: isSelected ? `1.5px solid ${color}` : "1.5px solid transparent",
-                    }}
-                  >
-                    {val}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  await saveEntry.mutateAsync({
-                    date: new Date().toISOString().split("T")[0],
-                    fatigue,
-                    pain,
-                    brain_fog: brainFog,
-                    mood,
-                    mobility,
-                    mood_tags: moodTags,
-                    notes: notes || null,
-                    sleep_hours: sleepHours ? Number(sleepHours) : null,
-                  });
-                  setFatigueInputOpen(false);
-                  toast.success(`Fatigue logged: ${fatigue}/10 🔋`);
-                } catch (err: any) {
-                  toast.error("Failed to save: " + err.message);
-                }
-              }}
-              disabled={saveEntry.isPending}
-              className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.98]"
-            >
-              Save fatigue
-            </button>
-            <p className="mt-1.5 text-[10px] text-muted-foreground text-center">
-              Tap a number then <strong>Save fatigue</strong>, or adjust below with the full form.
-            </p>
-          </div>
-        )}
-
-        {/* Inline sleep input — expands when Sleep card is tapped */}
-        {sleepInputOpen && (
+        {/* Sleep inline panel — unique number-input UI */}
+        {openPanel === "sleep" && (
           <div onClick={(e) => e.stopPropagation()} className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-semibold text-foreground">🌙 Hours of sleep last night</label>
               <button
-                onClick={() => setSleepInputOpen(false)}
+                onClick={() => setOpenPanel(null)}
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-0.5 rounded-md hover:bg-secondary"
               >
                 Done
@@ -436,20 +335,10 @@ const TodayPage = () => {
               <span className="text-sm text-muted-foreground">hrs</span>
               <button
                 onClick={async () => {
-                  if (!sleepHours) { setSleepInputOpen(false); return; }
+                  if (!sleepHours) { setOpenPanel(null); return; }
                   try {
-                    await saveEntry.mutateAsync({
-                      date: new Date().toISOString().split("T")[0],
-                      fatigue,
-                      pain,
-                      brain_fog: brainFog,
-                      mood,
-                      mobility,
-                      mood_tags: moodTags,
-                      notes: notes || null,
-                      sleep_hours: Number(sleepHours),
-                    });
-                    setSleepInputOpen(false);
+                    await saveEntry.mutateAsync({ ...entryPayload, sleep_hours: Number(sleepHours) });
+                    setOpenPanel(null);
                     toast.success("Sleep logged! 🌙");
                   } catch (err: any) {
                     toast.error("Failed to save: " + err.message);
@@ -463,132 +352,6 @@ const TodayPage = () => {
             </div>
             <p className="mt-1.5 text-[10px] text-muted-foreground">
               Tap <strong>Save</strong> to log instantly, or update below with the full form.
-            </p>
-          </div>
-        )}
-
-        {/* Inline pain input — expands when Pain card is tapped */}
-        {painInputOpen && (
-          <div onClick={(e) => e.stopPropagation()} className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-semibold text-foreground">⚡ Pain level today (0–10)</label>
-              <button
-                onClick={() => setPainInputOpen(false)}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-0.5 rounded-md hover:bg-secondary"
-              >
-                Done
-              </button>
-            </div>
-            <div className="flex gap-1.5 flex-wrap">
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => {
-                const isSelected = pain === val;
-                const color = val <= 3 ? "hsl(145 45% 45%)" : val <= 6 ? "hsl(45 90% 52%)" : "hsl(0 72% 51%)";
-                return (
-                  <button
-                    key={val}
-                    onClick={() => setPain(val)}
-                    className="flex-1 min-w-[2rem] rounded-lg py-2 text-sm font-bold transition-all active:scale-95"
-                    style={{
-                      background: isSelected ? color : "hsl(var(--secondary))",
-                      color: isSelected ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
-                      border: isSelected ? `1.5px solid ${color}` : "1.5px solid transparent",
-                    }}
-                  >
-                    {val}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  await saveEntry.mutateAsync({
-                    date: new Date().toISOString().split("T")[0],
-                    fatigue,
-                    pain,
-                    brain_fog: brainFog,
-                    mood,
-                    mobility,
-                    mood_tags: moodTags,
-                    notes: notes || null,
-                    sleep_hours: sleepHours ? Number(sleepHours) : null,
-                  });
-                  setPainInputOpen(false);
-                  toast.success(`Pain logged: ${pain}/10 ⚡`);
-                } catch (err: any) {
-                  toast.error("Failed to save: " + err.message);
-                }
-              }}
-              disabled={saveEntry.isPending}
-              className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.98]"
-            >
-              Save pain
-            </button>
-            <p className="mt-1.5 text-[10px] text-muted-foreground text-center">
-              Tap a number then <strong>Save pain</strong>, or adjust below with the full form.
-            </p>
-          </div>
-        )}
-
-        {/* Inline brain fog input — expands when Brain Fog card is tapped */}
-        {brainFogInputOpen && (
-          <div onClick={(e) => e.stopPropagation()} className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-semibold text-foreground">🌫️ Brain fog level today (0–10)</label>
-              <button
-                onClick={() => setBrainFogInputOpen(false)}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-0.5 rounded-md hover:bg-secondary"
-              >
-                Done
-              </button>
-            </div>
-            <div className="flex gap-1.5 flex-wrap">
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => {
-                const isSelected = brainFog === val;
-                const color = val <= 3 ? "hsl(145 45% 45%)" : val <= 6 ? "hsl(45 90% 52%)" : "hsl(0 72% 51%)";
-                return (
-                  <button
-                    key={val}
-                    onClick={() => setBrainFog(val)}
-                    className="flex-1 min-w-[2rem] rounded-lg py-2 text-sm font-bold transition-all active:scale-95"
-                    style={{
-                      background: isSelected ? color : "hsl(var(--secondary))",
-                      color: isSelected ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
-                      border: isSelected ? `1.5px solid ${color}` : "1.5px solid transparent",
-                    }}
-                  >
-                    {val}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  await saveEntry.mutateAsync({
-                    date: new Date().toISOString().split("T")[0],
-                    fatigue,
-                    pain,
-                    brain_fog: brainFog,
-                    mood,
-                    mobility,
-                    mood_tags: moodTags,
-                    notes: notes || null,
-                    sleep_hours: sleepHours ? Number(sleepHours) : null,
-                  });
-                  setBrainFogInputOpen(false);
-                  toast.success(`Brain fog logged: ${brainFog}/10 🌫️`);
-                } catch (err: any) {
-                  toast.error("Failed to save: " + err.message);
-                }
-              }}
-              disabled={saveEntry.isPending}
-              className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 active:scale-[0.98]"
-            >
-              Save brain fog
-            </button>
-            <p className="mt-1.5 text-[10px] text-muted-foreground text-center">
-              Tap a number then <strong>Save brain fog</strong>, or adjust below with the full form.
             </p>
           </div>
         )}
@@ -632,7 +395,6 @@ const TodayPage = () => {
             />
           </div>
 
-          {/* Daily reflection prompt */}
           <DailyPromptCard
             onUsePrompt={(prompt) => {
               const prefix = notes.trim() ? notes + "\n\n" : "";
@@ -694,7 +456,7 @@ const TodayPage = () => {
         </div>
       </div>
 
-      {/* Floating action button — scroll to Quick Log */}
+      {/* Floating action button */}
       {showFab && (
         <button
           onClick={() => logRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
