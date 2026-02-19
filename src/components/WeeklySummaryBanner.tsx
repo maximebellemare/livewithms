@@ -36,7 +36,8 @@ const METRICS: Metric[] = [
   { label: "Mobility",   emoji: "🚶", key: "mobility",     higherIsBetter: true  },
   { label: "Spasticity", emoji: "🦵", key: "spasticity",   higherIsBetter: false },
   { label: "Stress",     emoji: "😰", key: "stress",       higherIsBetter: false },
-  { label: "Sleep",      emoji: "🌙", key: "sleep_hours",  higherIsBetter: true, unit: "hrs" },
+  { label: "Sleep",      emoji: "🌙", key: "sleep_hours",    higherIsBetter: true, unit: "hrs" },
+  { label: "Hydration", emoji: "💧", key: "water_glasses",  higherIsBetter: true, unit: "glasses" },
 ];
 
 /* ─── Trend pill ──────────────────────────────────────────── */
