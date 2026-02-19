@@ -9,6 +9,8 @@ interface DayEntry {
   brain_fog: number | null;
   mood: number | null;
   mobility: number | null;
+  spasticity?: number | null;
+  stress?: number | null;
   sleep_hours?: number | null;
 }
 
@@ -19,12 +21,14 @@ interface Props {
 }
 
 const METRICS = [
-  { key: "fatigue"     as MetricKey, label: "Fatigue",   higherIsBetter: false, maxValue: 10 },
-  { key: "pain"        as MetricKey, label: "Pain",       higherIsBetter: false, maxValue: 10 },
-  { key: "brain_fog"   as MetricKey, label: "Brain Fog",  higherIsBetter: false, maxValue: 10 },
-  { key: "mood"        as MetricKey, label: "Mood",       higherIsBetter: true,  maxValue: 10 },
-  { key: "mobility"    as MetricKey, label: "Mobility",   higherIsBetter: true,  maxValue: 10 },
-  { key: "sleep_hours" as MetricKey, label: "Sleep",      higherIsBetter: true,  maxValue: 12 },
+  { key: "fatigue"     as MetricKey, label: "Fatigue",     higherIsBetter: false, maxValue: 10 },
+  { key: "pain"        as MetricKey, label: "Pain",        higherIsBetter: false, maxValue: 10 },
+  { key: "brain_fog"   as MetricKey, label: "Brain Fog",   higherIsBetter: false, maxValue: 10 },
+  { key: "mood"        as MetricKey, label: "Mood",        higherIsBetter: true,  maxValue: 10 },
+  { key: "mobility"    as MetricKey, label: "Mobility",    higherIsBetter: true,  maxValue: 10 },
+  { key: "spasticity"  as MetricKey, label: "Spasticity",  higherIsBetter: false, maxValue: 10 },
+  { key: "stress"      as MetricKey, label: "Stress",      higherIsBetter: false, maxValue: 10 },
+  { key: "sleep_hours" as MetricKey, label: "Sleep",       higherIsBetter: true,  maxValue: 12 },
 ];
 
 function avg(vals: (number | null)[]): number | null {

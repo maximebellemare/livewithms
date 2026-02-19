@@ -8,6 +8,8 @@ interface DayEntry {
   brain_fog: number | null;
   mood: number | null;
   mobility: number | null;
+  spasticity?: number | null;
+  stress?: number | null;
   sleep_hours?: number | null;
 }
 
@@ -21,12 +23,14 @@ interface SymptomHeatmapProps {
 }
 
 const METRICS = [
-  { key: "fatigue",     label: "Fatigue",   emoji: "🔋", higherIsBetter: false, maxValue: 10 },
-  { key: "pain",        label: "Pain",      emoji: "⚡", higherIsBetter: false, maxValue: 10 },
-  { key: "brain_fog",   label: "Brain Fog", emoji: "🌫️", higherIsBetter: false, maxValue: 10 },
-  { key: "mood",        label: "Mood",      emoji: "😊", higherIsBetter: true,  maxValue: 10 },
-  { key: "mobility",    label: "Mobility",  emoji: "🚶", higherIsBetter: true,  maxValue: 10 },
-  { key: "sleep_hours", label: "Sleep",     emoji: "🌙", higherIsBetter: true,  maxValue: 12 },
+  { key: "fatigue",     label: "Fatigue",     emoji: "🔋", higherIsBetter: false, maxValue: 10 },
+  { key: "pain",        label: "Pain",        emoji: "⚡", higherIsBetter: false, maxValue: 10 },
+  { key: "brain_fog",   label: "Brain Fog",   emoji: "🌫️", higherIsBetter: false, maxValue: 10 },
+  { key: "mood",        label: "Mood",        emoji: "😊", higherIsBetter: true,  maxValue: 10 },
+  { key: "mobility",    label: "Mobility",    emoji: "🚶", higherIsBetter: true,  maxValue: 10 },
+  { key: "spasticity",  label: "Spasticity",  emoji: "🦵", higherIsBetter: false, maxValue: 10 },
+  { key: "stress",      label: "Stress",      emoji: "😰", higherIsBetter: false, maxValue: 10 },
+  { key: "sleep_hours", label: "Sleep",       emoji: "🌙", higherIsBetter: true,  maxValue: 12 },
 ] as const;
 
 export type MetricKey = typeof METRICS[number]["key"];

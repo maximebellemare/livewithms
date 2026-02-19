@@ -33,16 +33,20 @@ const COLORS = {
   brain_fog:   { stroke: "hsl(210 60% 50%)", fill: "hsl(210 60% 50% / 0.10)" },
   mood:        { stroke: "hsl(145 45% 45%)", fill: "hsl(145 45% 45% / 0.10)" },
   mobility:    { stroke: "hsl(270 50% 55%)", fill: "hsl(270 50% 55% / 0.10)" },
+  spasticity:  { stroke: "hsl(35 80% 50%)",  fill: "hsl(35 80% 50% / 0.10)"  },
+  stress:      { stroke: "hsl(350 65% 55%)", fill: "hsl(350 65% 55% / 0.10)" },
   sleep_hours: { stroke: "hsl(220 70% 60%)", fill: "hsl(220 70% 60% / 0.10)" },
 };
 
 const SYMPTOMS = [
-  { key: "fatigue",     label: "Fatigue",    emoji: "🔋" },
-  { key: "pain",        label: "Pain",       emoji: "⚡" },
-  { key: "brain_fog",   label: "Brain Fog",  emoji: "🌫️" },
-  { key: "mood",        label: "Mood",       emoji: "😊" },
-  { key: "mobility",    label: "Mobility",   emoji: "🚶" },
-  { key: "sleep_hours", label: "Sleep",      emoji: "🌙" },
+  { key: "fatigue",     label: "Fatigue",     emoji: "🔋" },
+  { key: "pain",        label: "Pain",        emoji: "⚡" },
+  { key: "brain_fog",   label: "Brain Fog",   emoji: "🌫️" },
+  { key: "mood",        label: "Mood",        emoji: "😊" },
+  { key: "mobility",    label: "Mobility",    emoji: "🚶" },
+  { key: "spasticity",  label: "Spasticity",  emoji: "🦵" },
+  { key: "stress",      label: "Stress",      emoji: "😰" },
+  { key: "sleep_hours", label: "Sleep",       emoji: "🌙" },
 ] as const;
 
 type SymptomKey = typeof SYMPTOMS[number]["key"];
@@ -143,6 +147,8 @@ const InsightsPage = () => {
         brain_fog:   entry?.brain_fog ?? null,
         mood:        entry?.mood      ?? null,
         mobility:    entry?.mobility  ?? null,
+        spasticity:  entry?.spasticity ?? null,
+        stress:      entry?.stress    ?? null,
         sleep_hours: rawSleep !== null ? parseFloat(((rawSleep / 12) * 10).toFixed(2)) : null,
         sleep_hours_raw: rawSleep,
       };

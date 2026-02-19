@@ -9,7 +9,7 @@ import { Calendar, List, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEntries, DailyEntry } from "@/hooks/useEntries";
 
 /* ─── helpers ────────────────────────────────────────────── */
-const SYMPTOM_KEYS: (keyof DailyEntry)[] = ["fatigue", "pain", "brain_fog", "mood", "mobility"];
+const SYMPTOM_KEYS: (keyof DailyEntry)[] = ["fatigue", "pain", "brain_fog", "mood", "mobility", "spasticity", "stress"];
 
 function overallScore(entry: DailyEntry): number {
   const vals = SYMPTOM_KEYS.map((k) => entry[k] as number | null).filter((v): v is number => v !== null);
@@ -30,11 +30,13 @@ function heatColor(score: number): { bg: string; text: string; label: string } {
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const SYMPTOM_DISPLAY = [
-  { key: "fatigue",   label: "Fatigue",   emoji: "🔋" },
-  { key: "pain",      label: "Pain",      emoji: "⚡" },
-  { key: "brain_fog", label: "Brain Fog", emoji: "🌫️" },
-  { key: "mood",      label: "Mood",      emoji: "😊" },
-  { key: "mobility",  label: "Mobility",  emoji: "🚶" },
+  { key: "fatigue",    label: "Fatigue",    emoji: "🔋" },
+  { key: "pain",       label: "Pain",       emoji: "⚡" },
+  { key: "brain_fog",  label: "Brain Fog",  emoji: "🌫️" },
+  { key: "mood",       label: "Mood",       emoji: "😊" },
+  { key: "mobility",   label: "Mobility",   emoji: "🚶" },
+  { key: "spasticity", label: "Spasticity", emoji: "🦵" },
+  { key: "stress",     label: "Stress",     emoji: "😰" },
 ] as const;
 
 /* ─── Detail popover ─────────────────────────────────────── */
@@ -62,7 +64,7 @@ const DayDetail = ({ date, entry, onClose }: DayDetailProps) => (
       <p className="text-sm text-muted-foreground text-center py-2">No entry logged for this day.</p>
     ) : (
       <>
-        <div className="grid grid-cols-5 gap-2 text-center mb-3">
+        <div className="grid grid-cols-7 gap-2 text-center mb-3">
           {SYMPTOM_DISPLAY.map(({ key, label, emoji }) => {
             const val = entry[key as keyof DailyEntry] as number | null;
             return (
@@ -342,7 +344,7 @@ const TrackPage = () => {
                     );
                   })()}
                 </div>
-                <div className="grid grid-cols-5 gap-2 text-center">
+                <div className="grid grid-cols-7 gap-2 text-center">
                   {SYMPTOM_DISPLAY.map(({ key, label, emoji }) => (
                     <div key={key}>
                       <span className="text-base">{emoji}</span>
