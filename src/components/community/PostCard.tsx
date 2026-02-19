@@ -2,6 +2,7 @@ import { useState } from "react";
 import { MessageCircle, Flag, Pin, EyeOff, Eye, Pencil, Trash2, Bookmark } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { CommunityAvatar } from "./CommunityAvatar";
+import { RoleBadge } from "./RoleBadge";
 import { ReactionBar } from "./ReactionBar";
 import {
   Post, useCreateReport,
@@ -23,8 +24,8 @@ import { formatDistanceToNow } from "date-fns";
 const timeAgo = (d: string) => formatDistanceToNow(new Date(d), { addSuffix: true });
 
 export const PostCard = ({
-  post, onClick, isMod, onHide,
-}: { post: Post; onClick: () => void; isMod: boolean; onHide: any }) => {
+  post, onClick, isMod, onHide, userRoles,
+}: { post: Post; onClick: () => void; isMod: boolean; onHide: any; userRoles?: string[] }) => {
   const { user } = useAuth();
   const createReport = useCreateReport();
   const editPost = useEditPost();
@@ -47,6 +48,7 @@ export const PostCard = ({
           {post.is_pinned && <Pin className="h-3 w-3 text-primary" />}
           <CommunityAvatar userId={post.user_id} displayName={post.display_name} />
           <p className="text-xs font-medium text-primary">{post.display_name}</p>
+          {userRoles && <RoleBadge roles={userRoles} />}
         </div>
         <p className="text-[10px] text-muted-foreground">{timeAgo(post.created_at)}</p>
       </div>

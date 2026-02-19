@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Channel, Post, usePosts, useCreatePost, useHidePost, useDisplayName,
 } from "@/hooks/useCommunity";
+import { useCommunityRoles } from "@/hooks/useCommunityRoles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +26,7 @@ export const PostFeed = ({
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "reactions" | "comments">("newest");
 
+  const { data: communityRoles = {} } = useCommunityRoles();
   const isMod = roles.includes("admin") || roles.includes("moderator");
 
   /* ─── Infinite scroll sentinel ─────────────────────────── */
@@ -186,7 +188,7 @@ export const PostFeed = ({
       ) : (
         <div className="space-y-3">
           {filteredPosts.map((post) => (
-            <PostCard key={post.id} post={post} onClick={() => onSelectPost(post)} isMod={isMod} onHide={hidePost} />
+            <PostCard key={post.id} post={post} onClick={() => onSelectPost(post)} isMod={isMod} onHide={hidePost} userRoles={communityRoles[post.user_id]} />
           ))}
 
           {/* Infinite scroll sentinel */}

@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import {
   useChannels, useUserRoles, Channel, Post,
 } from "@/hooks/useCommunity";
+import { useCommunityRoles } from "@/hooks/useCommunityRoles";
 import { markCommunityVisited } from "@/hooks/useUnreadCommunity";
 import { ChannelList } from "@/components/community/ChannelList";
 import { PostFeed } from "@/components/community/PostFeed";
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/button";
 const CommunityPage = () => {
   const { data: channels = [], isLoading } = useChannels();
   const { data: roles = [] } = useUserRoles();
+  const { data: communityRoles = {} } = useCommunityRoles();
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showSaved, setShowSaved] = useState(false);
@@ -50,6 +52,7 @@ const CommunityPage = () => {
             post={selectedPost}
             onBack={() => setSelectedPost(null)}
             roles={roles}
+            communityRoles={communityRoles}
           />
         ) : showSaved ? (
           <SavedPosts
