@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles } from "lucide-react";
 
 // Bump this key whenever you want to show the banner to all users again
-const WHATS_NEW_KEY = "whats_new_v2";
+const WHATS_NEW_KEY = "whats_new_v3";
 
 interface Feature {
   emoji: string;
@@ -14,19 +14,19 @@ interface Feature {
 
 const FEATURES: Feature[] = [
   {
-    emoji: "🗺️",
-    title: "Guided App Tour",
-    description: "A step-by-step walkthrough now appears on every page — Today, Track, Insights, Journal, and Community.",
+    emoji: "💊",
+    title: "Medications Tour",
+    description: "A guided walkthrough on the Medications page shows you how to add treatments, manage schedules, and log doses.",
   },
   {
-    emoji: "📡",
-    title: "Offline Indicator",
-    description: "A subtle banner appears at the top when your internet connection drops, so you're always in the know.",
+    emoji: "🏥",
+    title: "Appointments Tour",
+    description: "The Appointments page now has a step-by-step guide — learn how to schedule neurology visits, switch views, and manage your upcoming appointments.",
   },
   {
     emoji: "🔄",
-    title: "Reset Tour Anytime",
-    description: "Head to Profile to replay the guided tour for any page whenever you need a refresher.",
+    title: "Reset Any Tour",
+    description: "Head to Profile → Reset App Tour to replay the guided walkthrough for any page whenever you need a refresher.",
   },
 ];
 
