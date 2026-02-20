@@ -35,12 +35,21 @@ export default function RelapseFrequencyTrend() {
       counts[key] = (counts[key] ?? 0) + 1;
     });
 
-    return months.map((m) => {
+    const raw = months.map((m) => {
       const key = format(m, "yyyy-MM");
       return {
         month: format(m, "MMM yy"),
         count: counts[key] ?? 0,
       };
+    });
+
+    // 3-month moving average
+    const WINDOW = 3;
+    return raw.map((d, i) => {
+      if (i < WINDOW - 1) return { ...d, avg: null };
+      let sum = 0;
+      for (let j = i - WINDOW + 1; j <= i; j++) sum += raw[j].count;
+      return { ...d, avg: parseFloat((sum / WINDOW).toFixed(2)) };
     });
   }, [relapses]);
 
@@ -51,7 +60,7 @@ export default function RelapseFrequencyTrend() {
       <div className="flex items-center gap-2 mb-3">
         <TrendingUp className="h-4 w-4 text-primary" />
         <span className="text-sm font-semibold text-foreground">Relapse Frequency</span>
-        <span className="ml-auto text-[10px] text-muted-foreground">monthly</span>
+        <span className="ml-auto text-[10px] text-muted-foreground">monthly · 3-mo avg</span>
       </div>
 
       <div className="h-40">
@@ -85,7 +94,10 @@ export default function RelapseFrequencyTrend() {
                 fontSize: 12,
                 color: "hsl(var(--popover-foreground))",
               }}
-              formatter={(value: number) => [`${value} relapse${value !== 1 ? "s" : ""}`, "Count"]}
+              formatter={(value: number, name: string) => {
+                if (name === "avg") return [`${value}`, "3-mo avg"];
+                return [`${value} relapse${value !== 1 ? "s" : ""}`, "Count"];
+              }}
             />
             <Area
               type="monotone"
@@ -95,6 +107,15 @@ export default function RelapseFrequencyTrend() {
               fill="url(#freqGrad)"
               dot={{ r: 3, fill: "hsl(var(--primary))", strokeWidth: 0 }}
               activeDot={{ r: 5, strokeWidth: 0 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="avg"
+              stroke="hsl(var(--muted-foreground))"
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
+              dot={false}
+              connectNulls={false}
             />
           </AreaChart>
         </ResponsiveContainer>
