@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import { motion } from "framer-motion";
 
 interface QuickCardProps {
   emoji: string;
@@ -10,10 +11,12 @@ interface QuickCardProps {
 
 const QuickCard = forwardRef<HTMLButtonElement, QuickCardProps>(
   ({ emoji, title, subtitle, onClick, accent }, ref) => (
-    <button
-      ref={ref}
+    <motion.button
+      ref={ref as any}
       onClick={onClick}
-      className={`tap-highlight-none flex w-full items-center gap-3 rounded-xl p-4 text-left shadow-soft transition-all active:scale-[0.98] ${
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.97 }}
+      className={`tap-highlight-none flex w-full items-center gap-3 rounded-xl p-4 text-left shadow-soft transition-colors ${
         accent ? "bg-accent" : "bg-card"
       }`}
     >
@@ -24,7 +27,7 @@ const QuickCard = forwardRef<HTMLButtonElement, QuickCardProps>(
         <p className="text-sm font-medium text-foreground">{title}</p>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
-    </button>
+    </motion.button>
   )
 );
 

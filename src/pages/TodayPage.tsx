@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { subDays, format, startOfWeek } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import SymptomSlider from "@/components/SymptomSlider";
@@ -584,16 +585,22 @@ const TodayPage = () => {
       </div>
 
       {/* Floating action button */}
-      {showFab && (
-        <button
-          onClick={() => logRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          className="fixed bottom-24 right-4 z-50 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:opacity-90 active:scale-95 animate-fade-in"
-          aria-label="Log today"
-        >
-          <PenLine className="h-4 w-4" />
-          Log today
-        </button>
-      )}
+      <AnimatePresence>
+        {showFab && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            onClick={() => logRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="fixed bottom-24 right-4 z-50 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg hover:opacity-90"
+            aria-label="Log today"
+          >
+            <PenLine className="h-4 w-4" />
+            Log today
+          </motion.button>
+        )}
+      </AnimatePresence>
     </>
   );
 };

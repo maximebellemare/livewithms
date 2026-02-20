@@ -4,10 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import ThemeWrapper from "@/components/ThemeWrapper";
 import AppShell from "./components/AppShell";
+import AnimatedPage from "./components/AnimatedPage";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import OnboardingPage from "./pages/OnboardingPage";
@@ -50,6 +52,41 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const AnimatedRoutes = () => {
+  const location = useLocation();
+  const { user } = useAuth();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={user ? <Navigate to="/today" replace /> : <AnimatedPage><Index /></AnimatedPage>} />
+        <Route path="/auth" element={user ? <Navigate to="/today" replace /> : <AnimatedPage><AuthPage /></AnimatedPage>} />
+        <Route path="/reset-password" element={<AnimatedPage><ResetPasswordPage /></AnimatedPage>} />
+        <Route path="/onboarding" element={<ProtectedRoute><AnimatedPage><OnboardingPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/today" element={<ProtectedRoute><AnimatedPage><TodayPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/track" element={<ProtectedRoute><AnimatedPage><TrackPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/insights" element={<ProtectedRoute><AnimatedPage><InsightsPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/learn" element={<ProtectedRoute><AnimatedPage><LearnPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/community" element={<ProtectedRoute><AnimatedPage><CommunityPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/journal" element={<ProtectedRoute><AnimatedPage><JournalPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><AnimatedPage><ProfilePage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/medications" element={<ProtectedRoute><AnimatedPage><MedicationsPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/appointments" element={<ProtectedRoute><AnimatedPage><AppointmentsPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><AnimatedPage><ReportsPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/privacy" element={<ProtectedRoute><AnimatedPage><PrivacyPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/notifications/settings" element={<ProtectedRoute><AnimatedPage><NotificationSettingsPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/my-ms-history" element={<ProtectedRoute><AnimatedPage><MyMSHistoryPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/relapses" element={<ProtectedRoute><AnimatedPage><RelapsesPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/community/guidelines" element={<ProtectedRoute><AnimatedPage><CommunityGuidelinesPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/roadmap" element={<ProtectedRoute><AnimatedPage><FeaturesRoadmapPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/coming-soon/:feature" element={<ProtectedRoute><AnimatedPage><ComingSoonPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><AnimatedPage><AdminPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path="*" element={<AnimatedPage><NotFound /></AnimatedPage>} />
+      </Routes>
+    </AnimatePresence>
+  );
+};
+
 const AppRoutes = () => {
   const { user, loading } = useAuth();
 
@@ -59,31 +96,7 @@ const AppRoutes = () => {
 
   return (
     <AppShell>
-      <Routes>
-        <Route path="/" element={user ? <Navigate to="/today" replace /> : <Index />} />
-        <Route path="/auth" element={user ? <Navigate to="/today" replace /> : <AuthPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-        <Route path="/today" element={<ProtectedRoute><TodayPage /></ProtectedRoute>} />
-        <Route path="/track" element={<ProtectedRoute><TrackPage /></ProtectedRoute>} />
-        <Route path="/insights" element={<ProtectedRoute><InsightsPage /></ProtectedRoute>} />
-        <Route path="/learn" element={<ProtectedRoute><LearnPage /></ProtectedRoute>} />
-        <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
-        <Route path="/journal" element={<ProtectedRoute><JournalPage /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-        <Route path="/medications" element={<ProtectedRoute><MedicationsPage /></ProtectedRoute>} />
-        <Route path="/appointments" element={<ProtectedRoute><AppointmentsPage /></ProtectedRoute>} />
-        <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
-        <Route path="/privacy" element={<ProtectedRoute><PrivacyPage /></ProtectedRoute>} />
-        <Route path="/notifications/settings" element={<ProtectedRoute><NotificationSettingsPage /></ProtectedRoute>} />
-        <Route path="/my-ms-history" element={<ProtectedRoute><MyMSHistoryPage /></ProtectedRoute>} />
-        <Route path="/relapses" element={<ProtectedRoute><RelapsesPage /></ProtectedRoute>} />
-        <Route path="/community/guidelines" element={<ProtectedRoute><CommunityGuidelinesPage /></ProtectedRoute>} />
-        <Route path="/roadmap" element={<ProtectedRoute><FeaturesRoadmapPage /></ProtectedRoute>} />
-        <Route path="/coming-soon/:feature" element={<ProtectedRoute><ComingSoonPage /></ProtectedRoute>} />
-        <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <AnimatedRoutes />
     </AppShell>
   );
 };

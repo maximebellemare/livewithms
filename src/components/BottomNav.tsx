@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { Home, BarChart3, TrendingUp, BookOpen, NotebookPen, Phone, Users } from "lucide-react";
+import { motion, LayoutGroup } from "framer-motion";
 import { useUnreadCommunityPosts } from "@/hooks/useUnreadCommunity";
 
 const baseTabs = [
@@ -40,6 +41,7 @@ const BottomNav = () => {
       </div>
       {/* Nav tabs */}
       <nav className="border-t border-border bg-card/95 backdrop-blur-lg safe-bottom">
+        <LayoutGroup>
         <div className="mx-auto flex max-w-lg items-center justify-around px-2 py-1">
           {baseTabs.map(({ to, icon: Icon, label }) => (
             <NavLink
@@ -55,25 +57,38 @@ const BottomNav = () => {
             >
               {({ isActive }) => (
                 <>
-                  <div className="relative">
+                  <motion.div
+                    className="relative"
+                    animate={isActive ? { scale: 1.1 } : { scale: 1 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  >
                     <Icon
                       className={`h-5 w-5 transition-all ${isActive ? "stroke-[2.5]" : "stroke-[1.5]"}`}
                     />
                     {to === "/community" && unreadCount > 0 && !isActive && (
-                      <span className="absolute -top-1 -right-1.5 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-primary-foreground">
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1 -right-1.5 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-primary-foreground"
+                      >
                         {unreadCount > 99 ? "99+" : unreadCount}
-                      </span>
+                      </motion.span>
                     )}
-                  </div>
+                  </motion.div>
                   <span className={`text-[10px] ${isActive ? "font-semibold" : ""}`}>{label}</span>
                   {isActive && (
-                    <div className="absolute -top-px left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-primary" />
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute -top-px left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-primary"
+                      transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                    />
                   )}
                 </>
               )}
             </NavLink>
           ))}
         </div>
+        </LayoutGroup>
       </nav>
     </div>
   );
