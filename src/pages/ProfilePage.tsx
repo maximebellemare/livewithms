@@ -1,8 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import DigestPreviewCard from "@/components/DigestPreviewCard";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope } from "lucide-react";
+import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope, Monitor } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
@@ -40,8 +40,10 @@ const ProfilePage = () => {
   const updateProfile = useUpdateProfile();
   const { data: isAdmin } = useIsAdmin();
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
-  const isDark = theme === "dark";
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isDark = resolvedTheme === "dark";
 
   // This week's entries (Monday → today)
   const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
@@ -700,20 +702,37 @@ const ProfilePage = () => {
         <div className="space-y-1">
           <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Settings</p>
 
-          {/* Dark mode */}
-          <button
-            onClick={() => setTheme(isDark ? "light" : "dark")}
-            className="tap-highlight-none flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary text-foreground"
-          >
-            {isDark ? <Sun className="h-4 w-4 flex-shrink-0" /> : <Moon className="h-4 w-4 flex-shrink-0" />}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">{isDark ? "Light Mode" : "Dark Mode"}</p>
-              <p className="text-xs text-muted-foreground">{isDark ? "Switch to light theme" : "Switch to dark theme"}</p>
+          {/* Theme selector */}
+          <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+            <div className="flex items-center gap-2">
+              {isDark ? <Moon className="h-4 w-4 text-primary" /> : <Sun className="h-4 w-4 text-primary" />}
+              <p className="text-sm font-medium text-foreground">Appearance</p>
             </div>
-            <div className={`relative h-5 w-9 rounded-full transition-colors flex-shrink-0 ${isDark ? "bg-primary" : "bg-muted"}`}>
-              <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${isDark ? "translate-x-4" : "translate-x-0.5"}`} />
-            </div>
-          </button>
+            <p className="text-xs text-muted-foreground">Choose how LiveWithMS looks to you.</p>
+            {mounted && (
+              <div className="flex gap-2">
+                {([
+                  { value: "light", label: "Light", icon: Sun },
+                  { value: "dark", label: "Dark", icon: Moon },
+                  { value: "system", label: "System", icon: Monitor },
+                ] as const).map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => setTheme(value)}
+                    aria-pressed={theme === value}
+                    className={`flex flex-1 flex-col items-center gap-1.5 rounded-lg border px-3 py-3 text-xs font-medium transition-all duration-300 ${
+                      theme === value
+                        ? "border-primary bg-accent text-accent-foreground shadow-sm"
+                        : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:bg-secondary"
+                    }`}
+                  >
+                    <Icon className={`h-5 w-5 transition-transform duration-300 ${theme === value ? "scale-110" : "scale-100"}`} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <NotificationToggle />
 
