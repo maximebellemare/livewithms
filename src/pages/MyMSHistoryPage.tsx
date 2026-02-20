@@ -286,6 +286,9 @@ const MyMSHistoryPage = () => {
                       onSelect={setDiagnosisDate}
                       disabled={(date) => date > new Date() || date < new Date("1960-01-01")}
                       initialFocus
+                      captionLayout="dropdown-buttons"
+                      fromYear={1960}
+                      toYear={new Date().getFullYear()}
                       className={cn("p-3 pointer-events-auto")}
                     />
                   </PopoverContent>
