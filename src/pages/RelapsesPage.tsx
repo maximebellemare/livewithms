@@ -20,6 +20,17 @@ import {
   Heart,
   Clock,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 const SEVERITY_OPTIONS = [
@@ -371,12 +382,29 @@ const RelapseCard = ({
             >
               <Pencil className="h-3 w-3" /> Edit
             </button>
-            <button
-              onClick={onDelete}
-              className="flex items-center gap-1 rounded-lg border border-destructive/30 px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10 transition-colors"
-            >
-              <Trash2 className="h-3 w-3" /> Delete
-            </button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  className="flex items-center gap-1 rounded-lg border border-destructive/30 px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <Trash2 className="h-3 w-3" /> Delete
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this relapse?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove this relapse entry. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       )}
