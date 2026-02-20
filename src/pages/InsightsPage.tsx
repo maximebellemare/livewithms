@@ -228,7 +228,7 @@ const InsightsPage = () => {
       <div className="mx-auto max-w-lg px-4 py-4 pb-8">
 
         {/* Range toggle */}
-        <div className="mb-4 flex gap-2">
+        <div data-tour="insights-range" className="mb-4 flex gap-2">
           {([7, 30] as const).map((r) => (
             <button
               key={r}
@@ -262,7 +262,7 @@ const InsightsPage = () => {
           <AnimatedList className="space-y-4">
 
             {/* ── Stat cards ── */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div data-tour="insights-stats" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {SYMPTOMS.slice(0, 6).map(({ key, label, emoji }) => {
                 const higherIsBetter = key === "mood" || key === "mobility" || key === "sleep_hours";
                 const isSleep = key === "sleep_hours";
@@ -316,7 +316,9 @@ const InsightsPage = () => {
             </p>
 
             {/* ── 30-Day Heatmap ── */}
-            <HeatmapWithSummary entries={dedupedEntries} days={heatmapDays} initialMetric={initialHeatmapMetric} />
+            <div data-tour="insights-heatmap">
+              <HeatmapWithSummary entries={dedupedEntries} days={heatmapDays} initialMetric={initialHeatmapMetric} />
+            </div>
 
             {/* ── Weekly Progress Summary ── */}
             {(() => {

@@ -396,8 +396,8 @@ const ProfilePage = () => {
           </Link>
           <button
             onClick={() => {
-              localStorage.removeItem("onboarding_tour_v1");
-              toast.success("Tour reset! Visit Today to see it again 🗺️");
+              ["onboarding_tour_v1", "onboarding_tour_track_v1", "onboarding_tour_insights_v1", "onboarding_tour_community_v1"].forEach((k) => localStorage.removeItem(k));
+              toast.success("All tours reset! Visit each page to see the guides again 🗺️");
             }}
             className="mt-2 flex w-full items-center justify-between rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground transition-colors hover:bg-muted"
           >

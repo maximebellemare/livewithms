@@ -249,7 +249,7 @@ const TrackPage = () => {
           /* ── Calendar view ── */
           <div className="animate-fade-in space-y-3">
             {/* Month navigator */}
-            <div className="flex items-center justify-between px-1">
+            <div data-tour="track-month-nav" className="flex items-center justify-between px-1">
               <button
                 onClick={() => { setMonth((m) => subMonths(m, 1)); setSelectedDate(null); }}
                 className="rounded-full p-2 text-muted-foreground hover:bg-secondary transition-colors"
@@ -267,12 +267,14 @@ const TrackPage = () => {
               </button>
             </div>
 
-            <CalendarHeatmap
-              month={month}
-              entriesByDate={entriesByDate}
-              selectedDate={selectedDate}
-              onSelectDate={handleSelectDate}
-            />
+            <div data-tour="track-heatmap">
+              <CalendarHeatmap
+                month={month}
+                entriesByDate={entriesByDate}
+                selectedDate={selectedDate}
+                onSelectDate={handleSelectDate}
+              />
+            </div>
 
             {/* Day detail popover */}
             {selectedDate && (
@@ -294,7 +296,7 @@ const TrackPage = () => {
               const worstDay = monthEntries.reduce((a, b) => overallScore(a) > overallScore(b) ? a : b);
               const bestDay  = monthEntries.reduce((a, b) => overallScore(a) < overallScore(b) ? a : b);
               return (
-                <div className="rounded-2xl bg-card border border-border shadow-soft p-4 space-y-3">
+                <div data-tour="track-summary" className="rounded-2xl bg-card border border-border shadow-soft p-4 space-y-3">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {format(month, "MMMM")} summary
                   </p>

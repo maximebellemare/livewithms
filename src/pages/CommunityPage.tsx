@@ -75,21 +75,25 @@ const CommunityPage = () => {
           />
         ) : (
           <>
-            <TrendingPosts
-              channels={channels}
-              onSelectPost={setSelectedPost}
-              onSelectChannel={setSelectedChannel}
-            />
+            <div data-tour="community-trending">
+              <TrendingPosts
+                channels={channels}
+                onSelectPost={setSelectedPost}
+                onSelectChannel={setSelectedChannel}
+              />
+            </div>
             <WeeklyHighlights
               channels={channels}
               onSelectPost={setSelectedPost}
               onSelectChannel={setSelectedChannel}
             />
-            <ChannelList
-              channels={channels}
-              onSelect={setSelectedChannel}
-              roles={roles}
-            />
+            <div data-tour="community-channels">
+              <ChannelList
+                channels={channels}
+                onSelect={setSelectedChannel}
+                roles={roles}
+              />
+            </div>
             <Link
               to="/community/guidelines"
               className="flex items-center gap-2 rounded-xl bg-secondary px-4 py-3 text-sm text-secondary-foreground transition-colors hover:bg-muted"

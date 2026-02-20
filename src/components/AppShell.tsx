@@ -38,6 +38,38 @@ const AppShell = ({ children }: AppShellProps) => {
           ]}
         />
       )}
+
+      {showNav && location.pathname === "/track" && (
+        <OnboardingTooltips
+          storageKey="onboarding_tour_track_v1"
+          steps={[
+            { target: "track-month-nav", title: "Browse by month", description: "Tap the arrows to move between months and review your full symptom history over time.", position: "bottom" },
+            { target: "track-heatmap", title: "Your symptom calendar", description: "Each cell is colour-coded by severity. Tap any day to see a detailed breakdown of all your logged symptoms.", position: "bottom" },
+            { target: "track-summary", title: "Monthly summary", description: "A quick overview of how many days you logged, your average severity, and your best and hardest days of the month.", position: "top" },
+          ]}
+        />
+      )}
+
+      {showNav && location.pathname === "/insights" && (
+        <OnboardingTooltips
+          storageKey="onboarding_tour_insights_v1"
+          steps={[
+            { target: "insights-range", title: "Choose your time window", description: "Switch between the last 7 or 30 days to zoom in on recent trends or get a broader picture of your health.", position: "bottom" },
+            { target: "insights-stats", title: "Symptom snapshot", description: "Each card shows your average for that symptom and whether it's trending up, down, or staying stable. Tap a card to focus the chart on that symptom.", position: "bottom" },
+            { target: "insights-heatmap", title: "30-day heatmap", description: "Spot patterns at a glance — brighter cells mean higher severity. Tap any day to drill into the details.", position: "top" },
+          ]}
+        />
+      )}
+
+      {showNav && location.pathname === "/community" && (
+        <OnboardingTooltips
+          storageKey="onboarding_tour_community_v1"
+          steps={[
+            { target: "community-trending", title: "What's trending", description: "The most-reacted posts from across the community — a great place to discover conversations that matter.", position: "bottom" },
+            { target: "community-channels", title: "Browse channels", description: "31 topic channels organised by category. Tap any channel to read posts, share your experience, or offer support.", position: "top" },
+          ]}
+        />
+      )}
     </div>
   );
 };
