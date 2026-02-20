@@ -96,11 +96,11 @@ const AppShell = ({ children }: AppShellProps) => {
 
       {showNav && location.pathname === "/relapses" && (
         <OnboardingTooltips
-          storageKey="onboarding_tour_relapses_v1"
+          storageKey="onboarding_tour_relapses_v2"
           steps={[
-            { target: "relapses-summary", title: "Your relapse history", description: "See your total relapses logged, any ongoing flare-ups, and when your most recent relapse started — all at a glance.", position: "bottom" },
-            { target: "relapses-log-btn", title: "Log a relapse", description: "Tap here to record a new flare-up. You can capture start/end dates, severity, symptoms, triggers, treatment, and personal notes.", position: "bottom" },
-            { target: "relapses-list", title: "Your relapse timeline", description: "Each card shows duration, severity, and symptoms. Tap the chevron to expand full details, edit an entry, or delete it.", position: "top" },
+            { target: "relapses-summary", title: "Your relapse history", description: "See your total relapses logged, any active flare-ups, and the date of your most recent relapse — all at a glance.", position: "bottom" },
+            { target: "relapses-log-btn", title: "Log a new flare-up", description: "Tap here to record a relapse. Set start and end dates, pick a severity level (mild → critical), select your symptoms, note any triggers like stress or heat, and add treatment details.", position: "bottom" },
+            { target: "relapses-list", title: "Track your recovery", description: "Each card shows duration, severity badge, and symptoms. Tap the chevron to expand and see triggers, treatment, and notes — or edit and update the entry as you recover.", position: "top" },
           ]}
         />
       )}
