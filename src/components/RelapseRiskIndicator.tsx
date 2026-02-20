@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useEntriesInRange, DailyEntry } from "@/hooks/useEntries";
 import { format, subDays } from "date-fns";
+import { toast } from "sonner";
 import { AlertTriangle, Shield, ShieldAlert, TrendingUp } from "lucide-react";
 
 type RiskLevel = "low" | "moderate" | "elevated" | "high";
@@ -153,6 +154,29 @@ export default function RelapseRiskIndicator() {
     if (recent.length < 2 || older.length < 2) return null;
     return computeRisk(recent, older);
   }, [entries]);
+
+  // Alert once per day when risk is high or elevated
+  const alertedRef = useRef(false);
+  useEffect(() => {
+    if (!risk || alertedRef.current) return;
+    if (risk.level === "high" || risk.level === "elevated") {
+      const key = `relapse_risk_alert_${format(new Date(), "yyyy-MM-dd")}`;
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key, "1");
+        alertedRef.current = true;
+        const isHigh = risk.level === "high";
+        toast.warning(
+          isHigh ? "🔴 High relapse risk detected" : "🔶 Elevated relapse risk",
+          {
+            description: isHigh
+              ? "Multiple symptoms are worsening. Consider contacting your neurologist."
+              : "Some symptoms are trending upward. Keep monitoring closely.",
+            duration: 8000,
+          }
+        );
+      }
+    }
+  }, [risk]);
 
   if (isLoading || !risk) return null;
 
