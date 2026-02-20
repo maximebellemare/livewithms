@@ -36,6 +36,8 @@ const BottomNav = () => {
             <a href="https://www.nationalmssociety.org" target="_blank" rel="noopener noreferrer" className="text-primary/70 hover:text-primary">
               MS Society
             </a>
+            {" · "}
+            <span className="text-muted-foreground/50">⚕️ Not medical advice</span>
           </span>
         </div>
       </div>
