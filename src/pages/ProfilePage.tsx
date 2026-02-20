@@ -396,7 +396,7 @@ const ProfilePage = () => {
           </Link>
           <button
             onClick={() => {
-              ["onboarding_tour_v1", "onboarding_tour_track_v1", "onboarding_tour_insights_v2", "onboarding_tour_community_v1", "onboarding_tour_journal_v3", "onboarding_tour_learn_v2", "onboarding_tour_relapses_v2", "onboarding_tour_medications_v1", "onboarding_tour_appointments_v1", "onboarding_tour_reports_v1"].forEach((k) => localStorage.removeItem(k));
+              ["onboarding_tour_v1", "onboarding_tour_track_v1", "onboarding_tour_insights_v2", "onboarding_tour_community_v1", "onboarding_tour_journal_v3", "onboarding_tour_learn_v2", "onboarding_tour_relapses_v2", "onboarding_tour_medications_v1", "onboarding_tour_appointments_v1", "onboarding_tour_reports_v1", "onboarding_tour_profile_v1"].forEach((k) => localStorage.removeItem(k));
               toast.success("All tours reset! Visit each page to see the guides again 🗺️");
             }}
             className="mt-2 flex w-full items-center justify-between rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground transition-colors hover:bg-muted"
@@ -418,8 +418,8 @@ const ProfilePage = () => {
           )}
         </div>
 
-        {/* Community Display Name */}
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        {/* MS Details */}
+        <div data-tour="profile-ms-details" className="rounded-xl bg-card p-4 shadow-soft space-y-3">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium text-foreground">Community Display Name</p>
@@ -654,7 +654,7 @@ const ProfilePage = () => {
         </div>
 
         {/* Neurologist details */}
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div data-tour="profile-neurologist" className="rounded-xl bg-card p-4 shadow-soft space-y-3">
           <div className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium text-foreground">Neurologist Details</p>
@@ -712,7 +712,7 @@ const ProfilePage = () => {
         </Link>
 
         {/* Settings */}
-        <div className="space-y-1">
+        <div data-tour="profile-notifications" className="space-y-1">
           <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Settings</p>
 
           {/* Theme selector */}

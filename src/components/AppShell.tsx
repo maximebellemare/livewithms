@@ -128,6 +128,17 @@ const AppShell = ({ children }: AppShellProps) => {
         />
       )}
 
+      {showNav && location.pathname === "/profile" && (
+        <OnboardingTooltips
+          storageKey="onboarding_tour_profile_v1"
+          steps={[
+            { target: "profile-ms-details", title: "Your MS details", description: "Keep your MS type, symptoms, goals, country, and age range up to date — these personalise your insights, risk indicator, and AI suggestions across the app.", position: "bottom" },
+            { target: "profile-neurologist", title: "Neurologist contact", description: "Save your neurologist's name and email here once, and it will automatically appear as a 'Send to Neurologist' button on the Reports page whenever you generate a PDF.", position: "bottom" },
+            { target: "profile-notifications", title: "Notifications & email digest", description: "Control push notification permissions, manage per-channel community alerts, and toggle the weekly email digest that summarises your symptom trends every Monday.", position: "top" },
+          ]}
+        />
+      )}
+
       {showNav && location.pathname === "/journal" && (
         <OnboardingTooltips
           storageKey="onboarding_tour_journal_v3"
