@@ -138,14 +138,33 @@ const CONFIG: Record<RiskLevel, { icon: typeof Shield; color: string; bg: string
   },
 };
 
+function computeWeeklyScores(entries: DailyEntry[], today: Date): number[] {
+  const scores: number[] = [];
+  // 4 windows: week 0 (current) through week 3 (oldest)
+  for (let w = 0; w < 4; w++) {
+    const recentEnd = format(subDays(today, w * 7), "yyyy-MM-dd");
+    const recentStart = format(subDays(today, w * 7 + 6), "yyyy-MM-dd");
+    const olderEnd = recentStart;
+    const olderStart = format(subDays(today, w * 7 + 13), "yyyy-MM-dd");
+
+    const recent = entries.filter((e) => e.date <= recentEnd && e.date > recentStart);
+    const older = entries.filter((e) => e.date <= olderEnd && e.date > olderStart);
+
+    if (recent.length >= 2 && older.length >= 2) {
+      scores.unshift(computeRisk(recent, older).score);
+    }
+  }
+  return scores;
+}
+
 export default function RelapseRiskIndicator() {
   const today = new Date();
-  const start = format(subDays(today, 20), "yyyy-MM-dd");
+  const start = format(subDays(today, 34), "yyyy-MM-dd");
   const end = format(today, "yyyy-MM-dd");
   const { data: entries = [], isLoading } = useEntriesInRange(start, end);
 
-  const { risk, prevRisk } = useMemo(() => {
-    if (entries.length < 4) return { risk: null, prevRisk: null };
+  const { risk, prevRisk, weeklyScores } = useMemo(() => {
+    if (entries.length < 4) return { risk: null, prevRisk: null, weeklyScores: [] };
 
     const midpoint = format(subDays(today, 6), "yyyy-MM-dd");
     const recent = entries.filter((e) => e.date > midpoint);
@@ -153,12 +172,13 @@ export default function RelapseRiskIndicator() {
 
     const currentRisk = (recent.length >= 2 && older.length >= 2) ? computeRisk(recent, older) : null;
 
-    // Previous week: days 7-13 vs days 14-20
     const prevRecent = older;
-    const prevOlder = entries.filter((e) => e.date <= format(subDays(today, 13), "yyyy-MM-dd"));
+    const prevOlder = entries.filter((e) => e.date <= format(subDays(today, 13), "yyyy-MM-dd") && e.date > format(subDays(today, 20), "yyyy-MM-dd"));
     const previousRisk = (prevRecent.length >= 2 && prevOlder.length >= 2) ? computeRisk(prevRecent, prevOlder) : null;
 
-    return { risk: currentRisk, prevRisk: previousRisk };
+    const scores = computeWeeklyScores(entries, today);
+
+    return { risk: currentRisk, prevRisk: previousRisk, weeklyScores: scores };
   }, [entries]);
 
   // Alert once per day when risk is high or elevated
@@ -212,6 +232,56 @@ export default function RelapseRiskIndicator() {
           style={{ width: `${Math.max(5, risk.score)}%` }}
         />
       </div>
+
+      {/* Mini sparkline */}
+      {weeklyScores.length >= 2 && (
+        <div className="mb-2">
+          <div className="flex items-center gap-2">
+            <svg viewBox="0 0 100 32" className="h-6 w-full max-w-[120px]" preserveAspectRatio="none">
+              {(() => {
+                const max = Math.max(...weeklyScores, 20);
+                const points = weeklyScores.map((s, i) => {
+                  const x = (i / (weeklyScores.length - 1)) * 96 + 2;
+                  const y = 28 - (s / max) * 24;
+                  return `${x},${y}`;
+                });
+                const lastScore = weeklyScores[weeklyScores.length - 1];
+                const strokeColor =
+                  lastScore >= 60 ? "hsl(0, 72%, 51%)" :
+                  lastScore >= 35 ? "hsl(25, 85%, 50%)" :
+                  lastScore >= 15 ? "hsl(35, 80%, 50%)" : "hsl(145, 45%, 45%)";
+                return (
+                  <>
+                    <polyline
+                      points={points.join(" ")}
+                      fill="none"
+                      stroke={strokeColor}
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    {weeklyScores.map((s, i) => {
+                      const x = (i / (weeklyScores.length - 1)) * 96 + 2;
+                      const y = 28 - (s / max) * 24;
+                      return (
+                        <circle
+                          key={i}
+                          cx={x}
+                          cy={y}
+                          r={i === weeklyScores.length - 1 ? 3 : 2}
+                          fill={i === weeklyScores.length - 1 ? strokeColor : "hsl(var(--muted-foreground))"}
+                          opacity={i === weeklyScores.length - 1 ? 1 : 0.5}
+                        />
+                      );
+                    })}
+                  </>
+                );
+              })()}
+            </svg>
+            <span className="text-[9px] text-muted-foreground whitespace-nowrap">4-week trend</span>
+          </div>
+        </div>
+      )}
 
       {/* Week-over-week comparison */}
       {prevRisk && (
