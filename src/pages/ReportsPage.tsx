@@ -259,7 +259,7 @@ const ReportsPage = () => {
       <PageHeader title="Reports" subtitle="Doctor-ready summaries" action={
         <Link to="/profile" className="rounded-full p-2 text-muted-foreground hover:bg-secondary"><ArrowLeft className="h-5 w-5" /></Link>
       } />
-      <div className="mx-auto max-w-lg space-y-4 px-4 py-4 pb-24 animate-fade-in">
+      <div className="mx-auto max-w-lg space-y-4 px-4 py-4 pb-24 animate-fade-in" data-tour="reports-hero">
         <div className="rounded-xl bg-gradient-to-br from-primary/10 to-accent p-5 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/15">
             <FileText className="h-7 w-7 text-primary" />
@@ -316,7 +316,7 @@ const ReportsPage = () => {
           </div>
         </div>
 
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div data-tour="reports-sections" className="rounded-xl bg-card p-4 shadow-soft space-y-3">
           <p className="text-sm font-medium text-foreground">Include in report</p>
           {[
             { label: "MS Profile Overview", checked: includeProfile, toggle: setIncludeProfile, emoji: "🧡" },
@@ -336,7 +336,7 @@ const ReportsPage = () => {
           ))}
         </div>
 
-        <div className="space-y-3">
+        <div data-tour="reports-actions" className="space-y-3">
           {/* Primary generate button */}
           <button
             onClick={handleGenerate}

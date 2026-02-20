@@ -85,6 +85,17 @@ const AppShell = ({ children }: AppShellProps) => {
         />
       )}
 
+      {showNav && location.pathname === "/reports" && (
+        <OnboardingTooltips
+          storageKey="onboarding_tour_reports_v1"
+          steps={[
+            { target: "reports-hero", title: "Doctor-Ready Reports", description: "Generate a professional PDF summary of your MS health data — symptoms, medications, appointments, journal notes, and an AI-generated insight — all formatted for your neurologist.", position: "bottom" },
+            { target: "reports-sections", title: "Customise your report", description: "Toggle each section on or off to control exactly what's included. Pick a quick preset (7, 30, or 90 days) or set a custom date range for the reporting period.", position: "bottom" },
+            { target: "reports-actions", title: "Generate & send", description: "Tap 'Generate PDF Report' to download instantly. If you've saved your neurologist's email in your Profile, a 'Send to Neurologist' button will appear to email the report directly.", position: "top" },
+          ]}
+        />
+      )}
+
       {showNav && location.pathname === "/appointments" && (
         <OnboardingTooltips
           storageKey="onboarding_tour_appointments_v1"
