@@ -18,6 +18,7 @@ import RelapseNotesTimeline from "@/components/RelapseNotesTimeline";
 import RelapseYearComparison from "@/components/RelapseYearComparison";
 import RelapseFrequencyTrend from "@/components/RelapseFrequencyTrend";
 import RelapseRiskIndicator from "@/components/RelapseRiskIndicator";
+import ContactNeurologistCard from "@/components/ContactNeurologistCard";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   ResponsiveContainer, Tooltip, Area, AreaChart, ReferenceLine,
@@ -823,6 +824,7 @@ const InsightsPage = () => {
 
             {/* ── Relapse Risk Indicator ── */}
             <RelapseRiskIndicator />
+            <ContactNeurologistCard />
 
             {/* ── Relapse Timeline ── */}
             <RelapseTimeline />
