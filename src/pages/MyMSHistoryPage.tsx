@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { format, parseISO } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
 import { useDbMedications } from "@/hooks/useMedications";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import {
   Pencil,
   Pill,
@@ -14,6 +18,7 @@ import {
   X,
   Calendar,
   User,
+  CalendarHeart,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -127,11 +132,13 @@ const MyMSHistoryPage = () => {
   const [ageRange, setAgeRange] = useState("");
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [goals, setGoals] = useState<string[]>([]);
+  const [diagnosisDate, setDiagnosisDate] = useState<Date | undefined>(undefined);
 
   const initDiagnosis = () => {
     setMsType(profile?.ms_type ?? "");
     setYearDiagnosed(profile?.year_diagnosed ?? "");
     setAgeRange(profile?.age_range ?? "");
+    setDiagnosisDate(profile?.diagnosis_date ? parseISO(profile.diagnosis_date) : undefined);
     setEditingDiagnosis(true);
   };
 
@@ -151,6 +158,7 @@ const MyMSHistoryPage = () => {
         ms_type: msType || null,
         year_diagnosed: yearDiagnosed || null,
         age_range: ageRange || null,
+        diagnosis_date: diagnosisDate ? format(diagnosisDate, "yyyy-MM-dd") : null,
       } as any);
       toast.success("Diagnosis info updated");
       setEditingDiagnosis(false);
@@ -254,6 +262,44 @@ const MyMSHistoryPage = () => {
                   </select>
                 </div>
               </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Exact Diagnosis Date (optional)</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-left transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40",
+                        !diagnosisDate && "text-muted-foreground"
+                      )}
+                    >
+                      <span className="flex items-center gap-2">
+                        <CalendarHeart className="h-3.5 w-3.5" />
+                        {diagnosisDate ? format(diagnosisDate, "MMMM d, yyyy") : "Pick a date"}
+                      </span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={diagnosisDate}
+                      onSelect={setDiagnosisDate}
+                      disabled={(date) => date > new Date() || date < new Date("1960-01-01")}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {diagnosisDate && (
+                  <button
+                    type="button"
+                    onClick={() => setDiagnosisDate(undefined)}
+                    className="mt-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Clear date
+                  </button>
+                )}
+              </div>
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => setEditingDiagnosis(false)}
@@ -297,6 +343,31 @@ const MyMSHistoryPage = () => {
                 <div className="flex items-center gap-1.5 text-sm">
                   <User className="h-3.5 w-3.5 text-muted-foreground" />
                   <span className="text-foreground">Age {profile.age_range}</span>
+                </div>
+              )}
+              {profile?.diagnosis_date && (
+                <div className="flex items-center gap-1.5 text-sm">
+                  <CalendarHeart className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-foreground">
+                    Diagnosed {format(parseISO(profile.diagnosis_date), "MMMM d, yyyy")}
+                  </span>
+                  {(() => {
+                    const dx = parseISO(profile.diagnosis_date);
+                    const today = new Date();
+                    const thisYearAnniversary = new Date(today.getFullYear(), dx.getMonth(), dx.getDate());
+                    const diffDays = Math.ceil((thisYearAnniversary.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                    if (diffDays === 0) return (
+                      <span className="rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[11px] font-medium text-primary">
+                        🎗️ Today is your anniversary
+                      </span>
+                    );
+                    if (diffDays > 0 && diffDays <= 30) return (
+                      <span className="rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[11px] font-medium text-primary">
+                        🎗️ {diffDays} day{diffDays !== 1 ? "s" : ""} away
+                      </span>
+                    );
+                    return null;
+                  })()}
                 </div>
               )}
             </div>

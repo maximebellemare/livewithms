@@ -7,6 +7,7 @@ export interface Profile {
   user_id: string;
   ms_type: string | null;
   year_diagnosed: string | null;
+  diagnosis_date: string | null;
   age_range: string | null;
   symptoms: string[];
   goals: string[];

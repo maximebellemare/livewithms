@@ -628,6 +628,7 @@ export type Database = {
           avatar_url: string | null
           country: string | null
           created_at: string
+          diagnosis_date: string | null
           display_name: string | null
           goals: string[] | null
           hydration_goal: number
@@ -656,6 +657,7 @@ export type Database = {
           avatar_url?: string | null
           country?: string | null
           created_at?: string
+          diagnosis_date?: string | null
           display_name?: string | null
           goals?: string[] | null
           hydration_goal?: number
@@ -684,6 +686,7 @@ export type Database = {
           avatar_url?: string | null
           country?: string | null
           created_at?: string
+          diagnosis_date?: string | null
           display_name?: string | null
           goals?: string[] | null
           hydration_goal?: number
