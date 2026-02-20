@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 import { useEntriesInRange, DailyEntry } from "@/hooks/useEntries";
 import { format, subDays } from "date-fns";
 import { toast } from "sonner";
@@ -204,6 +204,8 @@ export default function RelapseRiskIndicator() {
     }
   }, [risk]);
 
+  const [activeDot, setActiveDot] = useState<number | null>(null);
+
   if (isLoading || !risk) return null;
 
   const cfg = CONFIG[risk.level];
@@ -233,55 +235,88 @@ export default function RelapseRiskIndicator() {
         />
       </div>
 
-      {/* Mini sparkline */}
-      {weeklyScores.length >= 2 && (
-        <div className="mb-2">
-          <div className="flex items-center gap-2">
-            <svg viewBox="0 0 100 32" className="h-6 w-full max-w-[120px]" preserveAspectRatio="none">
-              {(() => {
-                const max = Math.max(...weeklyScores, 20);
-                const points = weeklyScores.map((s, i) => {
-                  const x = (i / (weeklyScores.length - 1)) * 96 + 2;
-                  const y = 28 - (s / max) * 24;
-                  return `${x},${y}`;
-                });
-                const lastScore = weeklyScores[weeklyScores.length - 1];
-                const strokeColor =
-                  lastScore >= 60 ? "hsl(0, 72%, 51%)" :
-                  lastScore >= 35 ? "hsl(25, 85%, 50%)" :
-                  lastScore >= 15 ? "hsl(35, 80%, 50%)" : "hsl(145, 45%, 45%)";
-                return (
-                  <>
-                    <polyline
-                      points={points.join(" ")}
-                      fill="none"
-                      stroke={strokeColor}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    {weeklyScores.map((s, i) => {
+      {/* Mini sparkline with tap tooltips */}
+      {weeklyScores.length >= 2 && (() => {
+        const max = Math.max(...weeklyScores, 20);
+        const lastScore = weeklyScores[weeklyScores.length - 1];
+        const strokeColor =
+          lastScore >= 60 ? "hsl(0, 72%, 51%)" :
+          lastScore >= 35 ? "hsl(25, 85%, 50%)" :
+          lastScore >= 15 ? "hsl(35, 80%, 50%)" : "hsl(145, 45%, 45%)";
+        const weekLabels = weeklyScores.map((_, i) => {
+          const weeksAgo = weeklyScores.length - 1 - i;
+          return weeksAgo === 0 ? "This week" : weeksAgo === 1 ? "Last week" : `${weeksAgo}w ago`;
+        });
+
+        return (
+          <div className="mb-2">
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <svg
+                  viewBox="0 0 100 32"
+                  className="h-6 w-full max-w-[120px] cursor-pointer"
+                  preserveAspectRatio="none"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const clickX = (e.clientX - rect.left) / rect.width;
+                    // Find closest dot
+                    let closest = 0;
+                    let minDist = Infinity;
+                    weeklyScores.forEach((_, i) => {
+                      const dotX = i / (weeklyScores.length - 1);
+                      const dist = Math.abs(clickX - dotX);
+                      if (dist < minDist) { minDist = dist; closest = i; }
+                    });
+                    setActiveDot(activeDot === closest ? null : closest);
+                  }}
+                >
+                  <polyline
+                    points={weeklyScores.map((s, i) => {
                       const x = (i / (weeklyScores.length - 1)) * 96 + 2;
                       const y = 28 - (s / max) * 24;
-                      return (
-                        <circle
-                          key={i}
-                          cx={x}
-                          cy={y}
-                          r={i === weeklyScores.length - 1 ? 3 : 2}
-                          fill={i === weeklyScores.length - 1 ? strokeColor : "hsl(var(--muted-foreground))"}
-                          opacity={i === weeklyScores.length - 1 ? 1 : 0.5}
-                        />
-                      );
-                    })}
-                  </>
-                );
-              })()}
-            </svg>
-            <span className="text-[9px] text-muted-foreground whitespace-nowrap">4-week trend</span>
+                      return `${x},${y}`;
+                    }).join(" ")}
+                    fill="none"
+                    stroke={strokeColor}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {weeklyScores.map((s, i) => {
+                    const x = (i / (weeklyScores.length - 1)) * 96 + 2;
+                    const y = 28 - (s / max) * 24;
+                    const isActive = activeDot === i;
+                    const isCurrent = i === weeklyScores.length - 1;
+                    return (
+                      <circle
+                        key={i}
+                        cx={x}
+                        cy={y}
+                        r={isActive ? 4 : isCurrent ? 3 : 2}
+                        fill={isActive || isCurrent ? strokeColor : "hsl(var(--muted-foreground))"}
+                        opacity={isActive || isCurrent ? 1 : 0.5}
+                        className="transition-all duration-200"
+                      />
+                    );
+                  })}
+                </svg>
+                {activeDot !== null && activeDot < weeklyScores.length && (
+                  <div
+                    className="absolute -top-7 rounded bg-card border border-border px-1.5 py-0.5 shadow-md text-[9px] text-foreground font-medium whitespace-nowrap pointer-events-none"
+                    style={{
+                      left: `${(activeDot / (weeklyScores.length - 1)) * 100}%`,
+                      transform: "translateX(-50%)",
+                    }}
+                  >
+                    {weekLabels[activeDot]} · {weeklyScores[activeDot]}
+                  </div>
+                )}
+              </div>
+              <span className="text-[9px] text-muted-foreground whitespace-nowrap">4-week trend</span>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Week-over-week comparison */}
       {prevRisk && (
