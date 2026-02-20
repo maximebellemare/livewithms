@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { useRelapses } from "@/hooks/useRelapses";
-import { format, parseISO, subMonths, eachMonthOfInterval, startOfMonth } from "date-fns";
+import { useRelapses, Relapse } from "@/hooks/useRelapses";
+import { format, parseISO, subMonths, eachMonthOfInterval, startOfMonth, differenceInDays } from "date-fns";
 import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell,
 } from "recharts";
@@ -14,11 +14,24 @@ const SEVERITY_COLOR: Record<string, string> = {
   critical: "hsl(0 72% 51%)",
 };
 
+const formatDuration = (r: Relapse) => {
+  const start = parseISO(r.start_date);
+  const end = r.end_date ? parseISO(r.end_date) : new Date();
+  const days = differenceInDays(end, start) + 1;
+  if (days < 7) return `${days}d`;
+  const weeks = Math.round(days / 7);
+  return `${weeks}w`;
+};
+
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
+  if (d.count === 0) return null;
+
+  const allSymptoms = [...new Set((d.relapses as Relapse[]).flatMap((r) => r.symptoms))];
+
   return (
-    <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-card text-xs">
+    <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-card text-xs max-w-[220px]">
       <p className="font-semibold text-foreground mb-1">{label}</p>
       <p className="text-muted-foreground">
         {d.count} relapse{d.count !== 1 ? "s" : ""}
@@ -32,6 +45,25 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           <span className="capitalize">{sev}: {cnt as number}</span>
         </p>
       ))}
+      {/* Duration per relapse */}
+      <div className="mt-1.5 pt-1.5 border-t border-border/50">
+        <p className="text-muted-foreground font-medium mb-0.5">Duration</p>
+        {(d.relapses as Relapse[]).map((r, i) => (
+          <p key={r.id} className="text-muted-foreground">
+            {d.count > 1 ? `#${i + 1}: ` : ""}{formatDuration(r)}{!r.is_recovered ? " (ongoing)" : ""}
+          </p>
+        ))}
+      </div>
+      {/* Symptoms */}
+      {allSymptoms.length > 0 && (
+        <div className="mt-1.5 pt-1.5 border-t border-border/50">
+          <p className="text-muted-foreground font-medium mb-0.5">Symptoms</p>
+          <p className="text-muted-foreground leading-snug">
+            {allSymptoms.slice(0, 5).join(", ")}
+            {allSymptoms.length > 5 ? ` +${allSymptoms.length - 5} more` : ""}
+          </p>
+        </div>
+      )}
     </div>
   );
 };
@@ -60,6 +92,7 @@ export default function RelapseTimeline() {
         count: matching.length,
         worst,
         severities,
+        relapses: matching,
       };
     });
   }, [relapses]);
