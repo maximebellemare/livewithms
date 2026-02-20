@@ -150,7 +150,7 @@ const MedicationsPage = () => {
         title="Medications"
         subtitle="Manage your medication schedule"
         action={
-          <button onClick={openNew} className="rounded-full bg-primary p-2 text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]">
+          <button data-tour="meds-add-btn" onClick={openNew} className="rounded-full bg-primary p-2 text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]">
             <Plus className="h-5 w-5" />
           </button>
         }
@@ -177,8 +177,9 @@ const MedicationsPage = () => {
             </button>
           </div>
         ) : (
-          meds.map((med) => (
-            <div key={med.id} className="flex items-center gap-3 rounded-xl bg-card p-4 shadow-soft animate-fade-in">
+          <div data-tour="meds-list">
+          {meds.map((med) => (
+            <div key={med.id} className="flex items-center gap-3 rounded-xl bg-card p-4 shadow-soft animate-fade-in mb-3">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent">
                 <Pill className="h-5 w-5 text-accent-foreground" />
               </div>
@@ -200,7 +201,8 @@ const MedicationsPage = () => {
                 </button>
               </div>
             </div>
-          ))
+          ))}
+          </div>
         )}
       </div>
     </>

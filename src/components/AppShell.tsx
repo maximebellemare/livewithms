@@ -73,6 +73,16 @@ const AppShell = ({ children }: AppShellProps) => {
         />
       )}
 
+      {showNav && location.pathname === "/medications" && (
+        <OnboardingTooltips
+          storageKey="onboarding_tour_medications_v1"
+          steps={[
+            { target: "meds-add-btn", title: "Add a medication", description: "Tap + to add any MS treatment — daily pills, custom schedules, or infusion therapies like Ocrevus every 6 months.", position: "bottom" },
+            { target: "meds-list", title: "Your medication list", description: "Each card shows your medication name, dosage, and schedule. Tap the pencil to edit or the bin to remove. Dose logging happens on the Today page.", position: "bottom" },
+          ]}
+        />
+      )}
+
       {showNav && location.pathname === "/relapses" && (
         <OnboardingTooltips
           storageKey="onboarding_tour_relapses_v1"
