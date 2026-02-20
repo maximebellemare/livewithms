@@ -7,6 +7,7 @@ import HeatmapWithSummary from "@/components/HeatmapWithSummary";
 import { format, parseISO, subDays, eachDayOfInterval } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import AIWeeklyInsight from "@/components/AIWeeklyInsight";
+import AISymptomCorrelations from "@/components/AISymptomCorrelations";
 import RelapseTimeline from "@/components/RelapseTimeline";
 import RelapseTrendCard from "@/components/RelapseTrendCard";
 import RelapseFreeStreak from "@/components/RelapseFreeStreak";
@@ -587,6 +588,9 @@ const InsightsPage = () => {
 
             {/* ── AI Weekly Insight ── */}
             <AIWeeklyInsight entries={windowEntries} range={range} />
+
+            {/* ── AI Symptom Correlations ── */}
+            <AISymptomCorrelations entries={windowEntries} range={range} />
 
             {/* ── Main trend chart ── */}
             <div className="rounded-xl bg-card p-4 shadow-soft">
