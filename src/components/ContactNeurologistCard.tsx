@@ -34,8 +34,8 @@ export default function ContactNeurologistCard() {
     : "Symptom update from my MS tracker";
 
   const mailtoBody = isElevated
-    ? `Hi${neuroName ? ` Dr. ${neuroName}` : ""},\n\nMy symptom tracker is showing ${risk.level} relapse risk (score: ${risk.score}/100).\n\nKey factors:\n${risk.factors.map((f) => `• ${f}`).join("\n")}\n\nI'd like to discuss next steps.\n\nThank you`
-    : `Hi${neuroName ? ` Dr. ${neuroName}` : ""},\n\nI'd like to share an update from my MS symptom tracker.\n\nThank you`;
+    ? `Hi${neuroName ? ` ${neuroName.match(/^dr\.?\s/i) ? neuroName : `Dr. ${neuroName}`}` : ""},\n\nMy symptom tracker is showing ${risk.level} relapse risk (score: ${risk.score}/100).\n\nKey factors:\n${risk.factors.map((f) => `• ${f}`).join("\n")}\n\nI'd like to discuss next steps.\n\nThank you`
+    : `Hi${neuroName ? ` ${neuroName.match(/^dr\.?\s/i) ? neuroName : `Dr. ${neuroName}`}` : ""},\n\nI'd like to share an update from my MS symptom tracker.\n\nThank you`;
 
   const mailtoHref = hasNeuro
     ? `mailto:${profile.neurologist_email}?subject=${encodeURIComponent(mailtoSubject)}&body=${encodeURIComponent(mailtoBody)}`
@@ -65,7 +65,7 @@ export default function ContactNeurologistCard() {
         <div className="mb-3 rounded-lg bg-card/60 border border-border px-3 py-2">
           <p className="text-xs text-muted-foreground">Neurologist on file</p>
           <p className="text-sm font-medium text-foreground">
-            {neuroName ? `Dr. ${neuroName}` : profile.neurologist_email}
+            {neuroName ? (neuroName.match(/^dr\.?\s/i) ? neuroName : `Dr. ${neuroName}`) : profile.neurologist_email}
           </p>
           {neuroName && (
             <p className="text-[11px] text-muted-foreground">{profile.neurologist_email}</p>
