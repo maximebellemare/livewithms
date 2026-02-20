@@ -2,7 +2,7 @@ import { useMemo, useEffect, useRef } from "react";
 import { useEntriesInRange, DailyEntry } from "@/hooks/useEntries";
 import { format, subDays } from "date-fns";
 import { toast } from "sonner";
-import { AlertTriangle, Shield, ShieldAlert, TrendingUp } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowRight, ArrowUp, Shield, ShieldAlert, TrendingUp } from "lucide-react";
 
 type RiskLevel = "low" | "moderate" | "elevated" | "high";
 
@@ -140,19 +140,25 @@ const CONFIG: Record<RiskLevel, { icon: typeof Shield; color: string; bg: string
 
 export default function RelapseRiskIndicator() {
   const today = new Date();
-  const start = format(subDays(today, 13), "yyyy-MM-dd");
+  const start = format(subDays(today, 20), "yyyy-MM-dd");
   const end = format(today, "yyyy-MM-dd");
   const { data: entries = [], isLoading } = useEntriesInRange(start, end);
 
-  const risk = useMemo(() => {
-    if (entries.length < 4) return null;
+  const { risk, prevRisk } = useMemo(() => {
+    if (entries.length < 4) return { risk: null, prevRisk: null };
 
     const midpoint = format(subDays(today, 6), "yyyy-MM-dd");
     const recent = entries.filter((e) => e.date > midpoint);
-    const older = entries.filter((e) => e.date <= midpoint);
+    const older = entries.filter((e) => e.date <= midpoint && e.date > format(subDays(today, 13), "yyyy-MM-dd"));
 
-    if (recent.length < 2 || older.length < 2) return null;
-    return computeRisk(recent, older);
+    const currentRisk = (recent.length >= 2 && older.length >= 2) ? computeRisk(recent, older) : null;
+
+    // Previous week: days 7-13 vs days 14-20
+    const prevRecent = older;
+    const prevOlder = entries.filter((e) => e.date <= format(subDays(today, 13), "yyyy-MM-dd"));
+    const previousRisk = (prevRecent.length >= 2 && prevOlder.length >= 2) ? computeRisk(prevRecent, prevOlder) : null;
+
+    return { risk: currentRisk, prevRisk: previousRisk };
   }, [entries]);
 
   // Alert once per day when risk is high or elevated
@@ -206,6 +212,34 @@ export default function RelapseRiskIndicator() {
           style={{ width: `${Math.max(5, risk.score)}%` }}
         />
       </div>
+
+      {/* Week-over-week comparison */}
+      {prevRisk && (
+        <div className="flex items-center gap-1.5 mb-2 text-[11px]">
+          {risk.score > prevRisk.score ? (
+            <>
+              <ArrowUp className="h-3 w-3 text-red-500 dark:text-red-400" />
+              <span className="text-red-600 dark:text-red-400 font-medium">
+                +{risk.score - prevRisk.score} pts vs last week
+              </span>
+            </>
+          ) : risk.score < prevRisk.score ? (
+            <>
+              <ArrowDown className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                {risk.score - prevRisk.score} pts vs last week
+              </span>
+            </>
+          ) : (
+            <>
+              <ArrowRight className="h-3 w-3 text-muted-foreground" />
+              <span className="text-muted-foreground font-medium">
+                No change vs last week
+              </span>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Factors */}
       {risk.factors.length > 0 && (
