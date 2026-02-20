@@ -12,6 +12,7 @@ import RelapseSymptomBreakdown from "@/components/RelapseSymptomBreakdown";
 import RelapseTriggerBreakdown from "@/components/RelapseTriggerBreakdown";
 import RelapseSeverityChart from "@/components/RelapseSeverityChart";
 import RelapseRecoveryTime from "@/components/RelapseRecoveryTime";
+import ActiveRelapseDuration from "@/components/ActiveRelapseDuration";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   ResponsiveContainer, Tooltip, Area, AreaChart, ReferenceLine,
@@ -823,6 +824,7 @@ const InsightsPage = () => {
             <RelapseTriggerBreakdown />
             <RelapseSeverityChart />
             <RelapseRecoveryTime />
+            <ActiveRelapseDuration />
 
             {/* ── Mood Tags Breakdown ── */}
             {(() => {
