@@ -302,7 +302,7 @@ export default function RelapseRiskIndicator() {
                 </svg>
                 {activeDot !== null && activeDot < weeklyScores.length && (
                   <div
-                    className="absolute -top-7 rounded bg-card border border-border px-1.5 py-0.5 shadow-md text-[9px] text-foreground font-medium whitespace-nowrap pointer-events-none"
+                    className="absolute -bottom-6 rounded bg-card border border-border px-1.5 py-0.5 shadow-md text-[9px] text-foreground font-medium whitespace-nowrap pointer-events-none z-10"
                     style={{
                       left: `${(activeDot / (weeklyScores.length - 1)) * 100}%`,
                       transform: "translateX(-50%)",
