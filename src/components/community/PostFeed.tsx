@@ -195,9 +195,24 @@ export const PostFeed = ({
           ))}
         </div>
       ) : filteredPosts.length === 0 ? (
-        <div className="py-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            {isCrisis ? "Resources are pinned above." : search.trim() ? "No posts match your search." : "No posts yet. Be the first!"}
+        <div className="rounded-2xl bg-card border border-border shadow-soft px-6 py-10 text-center space-y-3 animate-fade-in">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-accent/50">
+            <svg viewBox="0 0 48 48" className="h-10 w-10 text-primary" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 36V12a4 4 0 014-4h28a4 4 0 014 4v16a4 4 0 01-4 4H14l-8 8z" />
+              <circle cx="18" cy="20" r="2" fill="currentColor" opacity="0.4" />
+              <circle cx="24" cy="20" r="2" fill="currentColor" opacity="0.4" />
+              <circle cx="30" cy="20" r="2" fill="currentColor" opacity="0.4" />
+            </svg>
+          </div>
+          <h3 className="font-display text-base font-semibold text-foreground">
+            {isCrisis ? "Resources above" : search.trim() ? "No matching posts" : "Start the conversation"}
+          </h3>
+          <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
+            {isCrisis
+              ? "Crisis resources are pinned at the top of this channel."
+              : search.trim()
+                ? "Try a different search term or browse all posts."
+                : "Be the first to share — your experience could help someone else."}
           </p>
         </div>
       ) : (

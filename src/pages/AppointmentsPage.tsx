@@ -189,9 +189,27 @@ const AppointmentsPage = () => {
           {isLoading ? (
             <CardListSkeleton count={2} />
           ) : filteredAppointments.length === 0 ? (
-            <div className="py-8 text-center animate-fade-in">
-              <p className="text-sm text-muted-foreground">{viewMode === "calendar" ? "No appointments on this day" : "No appointments found"}</p>
-              <button onClick={openNew} className="mt-3 rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]">Add one</button>
+            <div className="rounded-2xl bg-card border border-border shadow-soft px-6 py-10 text-center space-y-3 animate-fade-in">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-accent/50">
+                <svg viewBox="0 0 48 48" className="h-10 w-10 text-primary" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="6" y="10" width="36" height="32" rx="4" />
+                  <line x1="6" y1="20" x2="42" y2="20" />
+                  <line x1="16" y1="6" x2="16" y2="14" />
+                  <line x1="32" y1="6" x2="32" y2="14" />
+                  <circle cx="24" cy="30" r="4" opacity="0.4" fill="currentColor" />
+                </svg>
+              </div>
+              <h3 className="font-display text-base font-semibold text-foreground">
+                {viewMode === "calendar" ? "Nothing scheduled today" : "No appointments found"}
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
+                {viewMode === "calendar"
+                  ? "This day is free. Tap below to schedule a visit."
+                  : "Add your upcoming appointments to stay on top of your care."}
+              </p>
+              <button onClick={openNew} className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]">
+                <Plus className="h-4 w-4" /> Add appointment
+              </button>
             </div>
           ) : (
             filteredAppointments.map((appt) => {

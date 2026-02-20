@@ -301,10 +301,19 @@ const JournalPage = () => {
         )}
 
         {!isLoading && pastEntries.length === 0 && (
-          <div className="rounded-xl bg-secondary/40 border border-border px-4 py-8 text-center">
-            <span className="text-3xl">📖</span>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Your past journal entries will appear here.
+          <div className="rounded-2xl bg-card border border-border shadow-soft px-6 py-10 text-center space-y-3 animate-fade-in">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-accent/50">
+              <svg viewBox="0 0 48 48" className="h-10 w-10 text-primary" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="8" y="4" width="32" height="40" rx="4" />
+                <line x1="14" y1="14" x2="34" y2="14" />
+                <line x1="14" y1="22" x2="30" y2="22" />
+                <line x1="14" y1="30" x2="26" y2="30" />
+                <path d="M32 36l4-4-4-4" opacity="0.5" />
+              </svg>
+            </div>
+            <h3 className="font-display text-base font-semibold text-foreground">No past entries yet</h3>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
+              Start writing today and your reflections will build up here — a personal timeline of how you're feeling.
             </p>
           </div>
         )}
