@@ -16,8 +16,9 @@ const countries = [
 const ageRanges = ["18–24", "25–34", "35–44", "45–54", "55–64", "65+"];
 
 const consentItems = [
+  { id: "medical_disclaimer", label: "I understand this app is NOT a substitute for professional medical advice, diagnosis, or treatment. I will always consult my neurologist or healthcare provider for medical decisions.", required: true },
   { id: "health_data", label: "I understand my health data is stored securely and encrypted", required: true },
-  { id: "not_medical", label: "I understand this app does not provide medical advice", required: true },
+  { id: "not_medical", label: "I acknowledge that symptom tracking and insights are for informational purposes only", required: true },
   { id: "data_control", label: "I can export or delete my data at any time from Privacy settings", required: true },
 ];
 
@@ -68,9 +69,12 @@ const OnboardingPage = () => {
       <p className="mt-3 text-base text-muted-foreground leading-relaxed">
         Your personal companion for living well with Multiple Sclerosis. Let's set things up — it only takes a minute.
       </p>
-      <p className="mt-6 text-xs text-muted-foreground">
-        ⚕️ This app does not provide medical advice. Always consult your healthcare provider.
-      </p>
+      <div className="mt-6 mx-auto max-w-sm rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+        <p className="text-xs font-semibold text-destructive mb-1">⚕️ Medical Disclaimer</p>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          This app does <strong>not</strong> provide medical advice, diagnosis, or treatment. Always consult your neurologist or qualified healthcare provider before making any medical decisions.
+        </p>
+      </div>
     </div>,
 
     // 1: Privacy & Consent
