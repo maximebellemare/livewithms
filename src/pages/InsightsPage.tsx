@@ -5,6 +5,7 @@ import HeatmapWithSummary from "@/components/HeatmapWithSummary";
 import { format, parseISO, subDays, eachDayOfInterval } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import AIWeeklyInsight from "@/components/AIWeeklyInsight";
+import RelapseTimeline from "@/components/RelapseTimeline";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   ResponsiveContainer, Tooltip, Area, AreaChart, ReferenceLine,
@@ -807,6 +808,9 @@ const InsightsPage = () => {
                 )}
               </div>
             )}
+
+            {/* ── Relapse Timeline ── */}
+            <RelapseTimeline />
 
             {/* ── Mood Tags Breakdown ── */}
             {(() => {
