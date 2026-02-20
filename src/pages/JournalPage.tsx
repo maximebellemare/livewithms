@@ -267,7 +267,7 @@ const JournalPage = () => {
 
       <div className="mx-auto max-w-lg px-4 py-4 space-y-6 animate-fade-in pb-10">
         {/* Today's editor */}
-        <section className="space-y-2">
+        <section data-tour="journal-editor" className="space-y-2">
           <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Write today's entry
           </p>
@@ -284,7 +284,9 @@ const JournalPage = () => {
         </section>
 
         {/* This week in reflection */}
-        <ThisWeekInReflection entries={entries} />
+        <div data-tour="journal-week">
+          <ThisWeekInReflection entries={entries} />
+        </div>
 
         {/* Past entries */}
         {pastEntries.length > 0 && (

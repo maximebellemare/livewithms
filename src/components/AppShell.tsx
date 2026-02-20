@@ -70,6 +70,16 @@ const AppShell = ({ children }: AppShellProps) => {
           ]}
         />
       )}
+
+      {showNav && location.pathname === "/journal" && (
+        <OnboardingTooltips
+          storageKey="onboarding_tour_journal_v1"
+          steps={[
+            { target: "journal-editor", title: "Write today's entry", description: "Use the daily rotating prompt for inspiration, or write freely. Your notes are saved privately and linked to your symptom data.", position: "bottom" },
+            { target: "journal-week", title: "This week in reflection", description: "See all your reflections from this week at a glance. Logging every day builds a streak and helps you spot emotional patterns over time.", position: "top" },
+          ]}
+        />
+      )}
     </div>
   );
 };
