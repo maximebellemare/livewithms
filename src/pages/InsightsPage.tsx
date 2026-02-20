@@ -828,7 +828,9 @@ const InsightsPage = () => {
             )}
 
             {/* ── Relapse Risk Indicator ── */}
-            <RelapseRiskIndicator />
+            <div data-tour="insights-risk">
+              <RelapseRiskIndicator />
+            </div>
             <ContactNeurologistCard />
 
             {/* ── Relapse Timeline ── */}

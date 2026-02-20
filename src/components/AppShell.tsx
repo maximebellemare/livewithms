@@ -54,11 +54,12 @@ const AppShell = ({ children }: AppShellProps) => {
 
       {showNav && location.pathname === "/insights" && (
         <OnboardingTooltips
-          storageKey="onboarding_tour_insights_v1"
+          storageKey="onboarding_tour_insights_v2"
           steps={[
-            { target: "insights-range", title: "Choose your time window", description: "Switch between the last 7 or 30 days to zoom in on recent trends or get a broader picture of your health.", position: "bottom" },
-            { target: "insights-stats", title: "Symptom snapshot", description: "Each card shows your average for that symptom and whether it's trending up, down, or staying stable. Tap a card to focus the chart on that symptom.", position: "bottom" },
-            { target: "insights-heatmap", title: "30-day heatmap", description: "Spot patterns at a glance — brighter cells mean higher severity. Tap any day to drill into the details.", position: "top" },
+            { target: "insights-range", title: "Choose your time window", description: "Switch between the last 7 days for a close-up view of recent changes, or 30 days for a broader picture of your health trends.", position: "bottom" },
+            { target: "insights-stats", title: "Symptom snapshot", description: "Each card shows your average score and whether that symptom is trending higher, lower, or staying stable vs the previous period. Tap a card to isolate that symptom on the chart below.", position: "bottom" },
+            { target: "insights-heatmap", title: "30-day heatmap", description: "A colour-coded grid of every day's logged severity. Brighter cells mean higher intensity. Tap any cell to drill into that day's full entry. Best and toughest weeks are highlighted automatically.", position: "top" },
+            { target: "insights-risk", title: "Relapse risk indicator", description: "Compares your last 7 days against the 7 days before to generate a risk score (Low → High). A 4-week sparkline shows how your risk has trended — contributing factors are listed below the score.", position: "top" },
           ]}
         />
       )}
