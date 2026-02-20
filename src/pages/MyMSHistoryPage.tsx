@@ -286,6 +286,11 @@ const MyMSHistoryPage = () => {
                       ? `Diagnosed ${profile.year_diagnosed}`
                       : "Year not set"}
                   </span>
+                  {profile?.year_diagnosed && (
+                    <span className="rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[11px] font-medium text-primary">
+                      {new Date().getFullYear() - Number(profile.year_diagnosed)} yr{new Date().getFullYear() - Number(profile.year_diagnosed) !== 1 ? "s" : ""} ago
+                    </span>
+                  )}
                 </div>
               </div>
               {profile?.age_range && (
