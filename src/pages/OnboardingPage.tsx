@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, ChevronLeft, Shield, CheckCircle2, Globe, Calendar } from "lucide-react";
+import MedicalDisclaimerDialog from "@/components/MedicalDisclaimerDialog";
 import { useUpdateProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
 
@@ -235,6 +236,9 @@ const OnboardingPage = () => {
           {!isLast && <ChevronRight className="h-4 w-4" />}
         </button>
       </div>
+      <p className="mt-4 text-center text-[10px] text-muted-foreground">
+        <MedicalDisclaimerDialog triggerClassName="hover:text-primary/70 transition-colors cursor-pointer" />
+      </p>
     </div>
   );
 };
