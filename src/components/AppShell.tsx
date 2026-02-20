@@ -74,6 +74,17 @@ const AppShell = ({ children }: AppShellProps) => {
         />
       )}
 
+      {showNav && location.pathname === "/learn" && (
+        <OnboardingTooltips
+          storageKey="onboarding_tour_learn_v2"
+          steps={[
+            { target: "learn-progress", title: "Track your progress", description: "The progress bar shows how many articles you've completed out of the full curriculum. Finishing all articles triggers a confetti celebration! 🎉", position: "bottom" },
+            { target: "learn-filters", title: "Filter & search", description: "Browse by category (MS Basics, Treatments, Lifestyle…), or use the Saved, Unread, and Completed filters to jump to exactly what you need.", position: "bottom" },
+            { target: "learn-articles", title: "Read & bookmark", description: "Tap any article to expand it and start reading. A progress bar tracks how far you've scrolled. Tap the bookmark icon to save articles for later.", position: "top" },
+          ]}
+        />
+      )}
+
       {showNav && location.pathname === "/appointments" && (
         <OnboardingTooltips
           storageKey="onboarding_tour_appointments_v1"

@@ -57,7 +57,7 @@ const LearnPage = () => {
       <div className="mx-auto max-w-lg px-4 py-4">
         {/* Learning progress summary */}
         {!isLoading && totalCount > 0 && (
-          <div className={`mb-4 rounded-xl p-4 shadow-soft transition-all ${allCompleted ? "bg-primary/10 ring-1 ring-primary/30" : "bg-card"}`}>
+          <div data-tour="learn-progress" className={`mb-4 rounded-xl p-4 shadow-soft transition-all ${allCompleted ? "bg-primary/10 ring-1 ring-primary/30" : "bg-card"}`}>
             <div className="flex items-center justify-between mb-2">
               {allCompleted ? (
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-wider">
@@ -101,7 +101,7 @@ const LearnPage = () => {
         </div>
 
         {/* Category filters */}
-        <div className="mb-3 flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+        <div data-tour="learn-filters" className="mb-3 flex gap-2 overflow-x-auto pb-2 scrollbar-none">
           {categories.map((cat) => (
             <button
               key={cat}
@@ -215,6 +215,7 @@ const LearnPage = () => {
         )}
 
         {/* Articles */}
+        <div data-tour="learn-articles">
         <AnimatedList className="space-y-3">
           {filtered.map((article) => {
             const isExpanded = expandedId === article.id;
@@ -292,6 +293,7 @@ const LearnPage = () => {
             );
           })}
         </AnimatedList>
+        </div>
       </div>
     </>
   );
