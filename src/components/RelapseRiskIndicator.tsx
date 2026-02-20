@@ -269,6 +269,26 @@ export default function RelapseRiskIndicator() {
                     setActiveDot(activeDot === closest ? null : closest);
                   }}
                 >
+                  <defs>
+                    <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={strokeColor} stopOpacity="0.25" />
+                      <stop offset="100%" stopColor={strokeColor} stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  {/* Area fill */}
+                  <polygon
+                    points={[
+                      ...weeklyScores.map((s, i) => {
+                        const x = (i / (weeklyScores.length - 1)) * 112 + 4;
+                        const y = 34 - (s / max) * 28;
+                        return `${x},${y}`;
+                      }),
+                      `${(weeklyScores.length - 1) / (weeklyScores.length - 1) * 112 + 4},38`,
+                      `4,38`,
+                    ].join(" ")}
+                    fill="url(#sparkFill)"
+                  />
+                  {/* Line */}
                   <polyline
                     points={weeklyScores.map((s, i) => {
                       const x = (i / (weeklyScores.length - 1)) * 112 + 4;
