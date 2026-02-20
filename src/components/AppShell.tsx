@@ -119,9 +119,10 @@ const AppShell = ({ children }: AppShellProps) => {
 
       {showNav && location.pathname === "/journal" && (
         <OnboardingTooltips
-          storageKey="onboarding_tour_journal_v2"
+          storageKey="onboarding_tour_journal_v3"
           steps={[
-            { target: "journal-editor", title: "Write today's entry", description: "Each day a fresh prompt rotates in for inspiration — tap 'Use this prompt' to drop it into your entry. Or just write freely. Entries are saved privately and paired with your logged symptoms.", position: "bottom" },
+            { target: "journal-editor", title: "Write today's entry", description: "Each day starts fresh — write freely about how you're feeling. Entries are saved privately and paired with your logged symptoms for a complete picture of your health.", position: "bottom" },
+            { target: "journal-prompt", title: "Daily prompt & AI suggestions", description: "A new reflection question rotates in every day for inspiration — tap 'Use this prompt' to drop it straight into your entry. AI-powered suggestions based on your recent logs also appear below.", position: "bottom" },
             { target: "journal-week", title: "Build your streak", description: "Every reflection earns a 💭 badge. Log consistently to level up to ⚡ (1-2 weeks) and 🔥 (3+ weeks). Saving your first reflection of the week triggers a confetti celebration!", position: "top" },
           ]}
         />

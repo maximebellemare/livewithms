@@ -71,13 +71,15 @@ const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: Edit
       </div>
 
       {/* Daily rotating prompt */}
-      <DailyPromptCard
-        onUsePrompt={(prompt) => {
-          const prefix = text.trim() ? text + "\n\n" : "";
-          setText(prefix + prompt + " ");
-          setSaved(false);
-        }}
-      />
+      <div data-tour="journal-prompt">
+        <DailyPromptCard
+          onUsePrompt={(prompt) => {
+            const prefix = text.trim() ? text + "\n\n" : "";
+            setText(prefix + prompt + " ");
+            setSaved(false);
+          }}
+        />
+      </div>
 
       {/* AI prompt suggestions */}
       <JournalPromptSuggestions
