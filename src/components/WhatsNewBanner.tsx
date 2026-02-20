@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles } from "lucide-react";
 
 // Bump this key whenever you want to show the banner to all users again
-const WHATS_NEW_KEY = "whats_new_v9";
+const WHATS_NEW_KEY = "whats_new_v10";
 
 interface Feature {
   emoji: string;
@@ -14,14 +14,14 @@ interface Feature {
 
 const FEATURES: Feature[] = [
   {
-    emoji: "👤",
-    title: "Profile Page Tour",
-    description: "A new 3-step tour on the Profile page walks you through updating your MS details, saving your neurologist's contact info, and managing notification and digest settings.",
+    emoji: "📊",
+    title: "Track List View Tour",
+    description: "Switch to list view on the Track page and a new 3-step tour explains severity badges, mood tags, and how to read your symptom history at a glance.",
   },
   {
-    emoji: "📋",
-    title: "Reports Page Tour",
-    description: "A guided tour on the Reports page shows how to generate a professional PDF, customise sections, and send it directly to your neurologist.",
+    emoji: "👤",
+    title: "Profile Page Tour",
+    description: "A 3-step tour on the Profile page walks you through updating your MS details, saving your neurologist's contact info, and managing notification settings.",
   },
   {
     emoji: "🔄",
