@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles } from "lucide-react";
 
 // Bump this key whenever you want to show the banner to all users again
-const WHATS_NEW_KEY = "whats_new_v5";
+const WHATS_NEW_KEY = "whats_new_v6";
 
 interface Feature {
   emoji: string;
@@ -14,14 +14,14 @@ interface Feature {
 
 const FEATURES: Feature[] = [
   {
-    emoji: "📈",
-    title: "Insights Tour",
-    description: "A new 4-step guide on the Insights page walks you through symptom trends, the 30-day heatmap, and the relapse risk indicator.",
+    emoji: "📚",
+    title: "Learn Page Tour",
+    description: "A new 3-step guide on the Learn page walks you through tracking your reading progress, filtering by category, and bookmarking articles.",
   },
   {
-    emoji: "🧠",
-    title: "Relapse Risk Explained",
-    description: "The tour now covers the Relapse Risk Indicator — how it scores Low → High risk, the 4-week sparkline, and which factors are contributing.",
+    emoji: "📊",
+    title: "Reading Progress Bar",
+    description: "Each article now tracks how far you've scrolled. A progress bar on the card shows your completion percentage — finish all articles for a confetti celebration! 🎉",
   },
   {
     emoji: "🔄",
