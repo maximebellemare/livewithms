@@ -16,6 +16,7 @@ import ActiveRelapseDuration from "@/components/ActiveRelapseDuration";
 import RelapseTreatmentSummary from "@/components/RelapseTreatmentSummary";
 import RelapseNotesTimeline from "@/components/RelapseNotesTimeline";
 import RelapseYearComparison from "@/components/RelapseYearComparison";
+import RelapseFrequencyTrend from "@/components/RelapseFrequencyTrend";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   ResponsiveContainer, Tooltip, Area, AreaChart, ReferenceLine,
@@ -831,6 +832,7 @@ const InsightsPage = () => {
             <RelapseTreatmentSummary />
             <RelapseNotesTimeline />
             <RelapseYearComparison />
+            <RelapseFrequencyTrend />
 
             {/* ── Mood Tags Breakdown ── */}
             {(() => {
