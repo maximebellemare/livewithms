@@ -150,7 +150,7 @@ export default function RelapseTimeline() {
                   tickLine={false}
                   width={16}
                 />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} trigger="click" />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                   {chartData.map((entry, i) => (
                     <Cell
