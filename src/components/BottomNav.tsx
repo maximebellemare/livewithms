@@ -113,6 +113,9 @@ const BottomNav = () => {
               <p className="text-muted-foreground text-xs">
                 If you are experiencing a medical emergency, call your local emergency number immediately.
               </p>
+              <p className="pt-1">
+                <a href="/privacy" onClick={() => setDisclaimerOpen(false)} className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors text-xs font-medium">Learn more →</a>
+              </p>
             </DialogDescription>
           </DialogHeader>
         </DialogContent>
