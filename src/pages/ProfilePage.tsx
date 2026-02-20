@@ -69,6 +69,9 @@ const ProfilePage = () => {
   const [msType, setMsType] = useState("");
   const [msTypeInit, setMsTypeInit] = useState(false);
   const [savingMsType, setSavingMsType] = useState(false);
+  const [yearDiagnosed, setYearDiagnosed] = useState("");
+  const [yearDiagnosedInit, setYearDiagnosedInit] = useState(false);
+  const [savingYearDiagnosed, setSavingYearDiagnosed] = useState(false);
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [symptomsInit, setSymptomsInit] = useState(false);
   const [savingSymptoms, setSavingSymptoms] = useState(false);
@@ -179,6 +182,11 @@ const ProfilePage = () => {
     setMsTypeInit(true);
   }
 
+  if (profile && !yearDiagnosedInit) {
+    setYearDiagnosed(profile.year_diagnosed ?? "");
+    setYearDiagnosedInit(true);
+  }
+
   if (profile && !symptomsInit) {
     setSymptoms(profile.symptoms ?? []);
     setSymptomsInit(true);
@@ -229,6 +237,21 @@ const ProfilePage = () => {
   const msTypes = ["RRMS", "PPMS", "SPMS", "CIS", "Unknown"];
   const commonSymptoms = ["Fatigue", "Pain", "Brain Fog", "Numbness", "Vision Issues", "Spasticity", "Balance", "Bladder"];
   const goalOptions = ["Better Sleep", "More Energy", "Less Pain", "Improved Mood", "Better Mobility", "Sharper Thinking"];
+
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: currentYear - 1959 }, (_, i) => String(currentYear - i));
+
+  const handleSaveYearDiagnosed = async () => {
+    setSavingYearDiagnosed(true);
+    try {
+      await updateProfile.mutateAsync({ year_diagnosed: yearDiagnosed || null } as any);
+      toast.success("Year diagnosed saved!");
+    } catch {
+      toast.error("Failed to save year diagnosed");
+    } finally {
+      setSavingYearDiagnosed(false);
+    }
+  };
 
   const handleSaveMsType = async () => {
     setSavingMsType(true);
@@ -505,6 +528,39 @@ const ProfilePage = () => {
               className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
             >
               {savingMsType ? (
+                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              Save
+            </button>
+          </div>
+        </div>
+
+        {/* Year Diagnosed */}
+        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-primary" />
+            <p className="text-sm font-medium text-foreground">Year Diagnosed</p>
+          </div>
+          <p className="text-xs text-muted-foreground">When were you first diagnosed with MS?</p>
+          <div className="flex gap-2">
+            <select
+              value={yearDiagnosed}
+              onChange={(e) => setYearDiagnosed(e.target.value)}
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <option value="">Select year</option>
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleSaveYearDiagnosed}
+              disabled={savingYearDiagnosed}
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+            >
+              {savingYearDiagnosed ? (
                 <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
               ) : (
                 <Check className="h-3.5 w-3.5" />
