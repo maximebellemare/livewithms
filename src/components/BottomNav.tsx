@@ -1,9 +1,8 @@
-import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Home, BarChart3, TrendingUp, BookOpen, NotebookPen, Phone, Users } from "lucide-react";
 import { motion, LayoutGroup } from "framer-motion";
 import { useUnreadCommunityPosts } from "@/hooks/useUnreadCommunity";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import MedicalDisclaimerDialog from "@/components/MedicalDisclaimerDialog";
 
 const baseTabs = [
   { to: "/today",     icon: Home,        label: "Today" },
@@ -17,7 +16,7 @@ const baseTabs = [
 const BottomNav = () => {
   const location = useLocation();
   const { data: unreadCount = 0 } = useUnreadCommunityPosts();
-  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+  
 
   // Hide on onboarding
   if (location.pathname.startsWith("/onboarding") || location.pathname === "/" || location.pathname === "/auth") {
@@ -40,7 +39,7 @@ const BottomNav = () => {
               MS Society
             </a>
             {" · "}
-            <button onClick={() => setDisclaimerOpen(true)} className="text-muted-foreground/50 hover:text-primary/70 transition-colors cursor-pointer">⚕️ Not medical advice</button>
+            <MedicalDisclaimerDialog />
           </span>
         </div>
       </div>
@@ -96,30 +95,6 @@ const BottomNav = () => {
         </LayoutGroup>
       </nav>
 
-      <Dialog open={disclaimerOpen} onOpenChange={setDisclaimerOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">⚕️ Medical Disclaimer</DialogTitle>
-            <DialogDescription className="text-left space-y-3 pt-2 text-sm leading-relaxed">
-              <p>
-                <strong>LiveWithMS</strong> is designed as a personal wellness companion and is <strong>not</strong> a substitute for professional medical advice, diagnosis, or treatment.
-              </p>
-              <p>
-                Always seek the advice of your neurologist or other qualified healthcare provider with any questions you may have regarding your condition. Never disregard professional medical advice or delay seeking it because of something you have read or tracked in this app.
-              </p>
-              <p>
-                Symptom tracking, insights, and educational content provided by this app are for <strong>informational purposes only</strong> and should not be used to make medical decisions.
-              </p>
-              <p className="text-muted-foreground text-xs">
-                If you are experiencing a medical emergency, call your local emergency number immediately.
-              </p>
-              <p className="pt-1">
-                <a href="/privacy" onClick={() => setDisclaimerOpen(false)} className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors text-xs font-medium">Learn more →</a>
-              </p>
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
