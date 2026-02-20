@@ -29,6 +29,7 @@ import { toast } from "sonner";
 
 const MILESTONE_DAYS = [7, 14, 30];
 
+
 function shouldCelebrate(streak: number): boolean {
   if (!MILESTONE_DAYS.includes(streak)) return false;
   return !localStorage.getItem(`milestone_celebrated_${streak}`);
