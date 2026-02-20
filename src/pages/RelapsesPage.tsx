@@ -2,6 +2,7 @@ import { useState } from "react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import { useRelapses, useCreateRelapse, useUpdateRelapse, useDeleteRelapse, Relapse } from "@/hooks/useRelapses";
+import { RelapsesSkeleton } from "@/components/PageSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -460,8 +461,8 @@ const RelapsesPage = () => {
     return (
       <>
         <PageHeader title="Relapses" subtitle="Track your MS flare-ups" />
-        <div className="flex items-center justify-center py-20">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <div className="mx-auto max-w-lg px-4 py-4">
+          <RelapsesSkeleton />
         </div>
       </>
     );

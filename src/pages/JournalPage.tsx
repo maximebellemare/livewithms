@@ -3,6 +3,7 @@ import { format, isToday, isYesterday, startOfWeek, addDays, isFuture } from "da
 import confetti from "canvas-confetti";
 import PageHeader from "@/components/PageHeader";
 import { useEntries, useSaveEntry, DailyEntry } from "@/hooks/useEntries";
+import { JournalEditorSkeleton } from "@/components/PageSkeleton";
 import { PenLine, ChevronDown, ChevronUp, CheckCircle2, X } from "lucide-react";
 import { toast } from "sonner";
 import JournalPromptSuggestions from "@/components/JournalPromptSuggestions";
@@ -271,9 +272,7 @@ const JournalPage = () => {
             Write today's entry
           </p>
           {isLoading ? (
-            <div className="rounded-2xl bg-card border border-border p-8 text-center">
-              <span className="text-2xl animate-pulse">🧡</span>
-            </div>
+            <JournalEditorSkeleton />
           ) : (
             <EditorCard
               date={today}

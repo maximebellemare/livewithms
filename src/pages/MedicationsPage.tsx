@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import PageHeader from "@/components/PageHeader";
 import { Plus, Pill, Trash2, Edit2, ArrowLeft } from "lucide-react";
 import { useDbMedications, useSaveMedication, useDeleteMedication } from "@/hooks/useMedications";
+import { CardListSkeleton } from "@/components/PageSkeleton";
 
 const MedicationsPage = () => {
   const { data: meds = [], isLoading } = useDbMedications();
@@ -156,7 +157,7 @@ const MedicationsPage = () => {
       />
       <div className="mx-auto max-w-lg space-y-3 px-4 py-4">
         {isLoading ? (
-          <div className="py-12 text-center"><span className="text-2xl">🧡</span></div>
+          <CardListSkeleton count={3} />
         ) : meds.length === 0 ? (
           <div className="py-12 text-center animate-fade-in">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent">

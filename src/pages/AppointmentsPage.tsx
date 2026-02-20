@@ -5,6 +5,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Plus, ArrowLeft, Trash2, Edit2, MapPin, Clock, CalendarIcon } from "lucide-react";
 import { APPOINTMENT_TYPES, getAppointmentTypeInfo, AppointmentType } from "@/lib/appointments";
 import { useDbAppointments, useSaveAppointment, useDeleteAppointment } from "@/hooks/useAppointments";
+import { CardListSkeleton } from "@/components/PageSkeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -186,7 +187,7 @@ const AppointmentsPage = () => {
 
         <div className="space-y-2">
           {isLoading ? (
-            <div className="py-8 text-center"><span className="text-2xl">🧡</span></div>
+            <CardListSkeleton count={2} />
           ) : filteredAppointments.length === 0 ? (
             <div className="py-8 text-center animate-fade-in">
               <p className="text-sm text-muted-foreground">{viewMode === "calendar" ? "No appointments on this day" : "No appointments found"}</p>

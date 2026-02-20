@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
+import AppLoadingSkeleton from "@/components/PageSkeleton";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -42,7 +43,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { data: profile, isLoading: profileLoading } = useProfile();
   const location = useLocation();
 
-  if (loading || profileLoading) return <div className="flex min-h-screen items-center justify-center bg-background"><span className="text-2xl">🧡</span></div>;
+  if (loading || profileLoading) return <AppLoadingSkeleton />;
   if (!user) return <Navigate to="/auth" replace />;
 
   // Redirect to onboarding if not completed (but don't redirect if already on /onboarding)
@@ -93,7 +94,7 @@ const AppRoutes = () => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-background"><span className="text-2xl">🧡</span></div>;
+    return <AppLoadingSkeleton />;
   }
 
   return (

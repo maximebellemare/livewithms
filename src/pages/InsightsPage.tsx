@@ -27,6 +27,7 @@ import {
   ScatterChart, Scatter, ZAxis,
 } from "recharts";
 import { useEntries } from "@/hooks/useEntries";
+import { InsightsSkeleton } from "@/components/PageSkeleton";
 import { useNavigate, useLocation } from "react-router-dom";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
@@ -244,7 +245,7 @@ const InsightsPage = () => {
         </div>
 
         {isLoading ? (
-          <div className="py-16 text-center"><span className="text-2xl animate-pulse">🧡</span></div>
+          <InsightsSkeleton />
         ) : !hasData ? (
           <div className="py-16 text-center animate-fade-in">
             <span className="text-4xl">📈</span>
