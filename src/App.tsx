@@ -2,9 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 import ThemeWrapper from "@/components/ThemeWrapper";
 import AppShell from "./components/AppShell";
 import Index from "./pages/Index";
@@ -34,8 +35,17 @@ const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><span className="text-2xl">🧡</span></div>;
+  const { data: profile, isLoading: profileLoading } = useProfile();
+  const location = useLocation();
+
+  if (loading || profileLoading) return <div className="flex min-h-screen items-center justify-center bg-background"><span className="text-2xl">🧡</span></div>;
   if (!user) return <Navigate to="/auth" replace />;
+
+  // Redirect to onboarding if not completed (but don't redirect if already on /onboarding)
+  if (profile && !profile.onboarding_completed && location.pathname !== "/onboarding") {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   return <>{children}</>;
 };
 

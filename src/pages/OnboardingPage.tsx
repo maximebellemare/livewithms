@@ -52,6 +52,7 @@ const OnboardingPage = () => {
         goals: selectedGoals,
         country: country || null,
         age_range: ageRange || null,
+        onboarding_completed: true,
       });
       navigate("/today");
     } catch (err: any) {

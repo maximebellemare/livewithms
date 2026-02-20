@@ -21,6 +21,7 @@ export interface Profile {
   avatar_url: string | null;
   display_name: string | null;
   country: string | null;
+  onboarding_completed: boolean;
 }
 
 export const useProfile = () => {
