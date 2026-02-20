@@ -473,7 +473,7 @@ const RelapsesPage = () => {
       <PageHeader title="Relapses" subtitle="Track your MS flare-ups" />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in pb-28">
         {/* Summary strip */}
-        <div className="flex gap-3">
+        <div className="flex gap-3" data-tour="relapses-summary">
           <div className="flex-1 rounded-xl bg-card p-3 shadow-soft text-center">
             <p className="text-2xl font-bold text-foreground">{totalRelapses}</p>
             <p className="text-[11px] text-muted-foreground">Total Relapses</p>
@@ -495,6 +495,7 @@ const RelapsesPage = () => {
         {/* Add button */}
         {!showForm && !editingId && (
           <button
+            data-tour="relapses-log-btn"
             onClick={() => setShowForm(true)}
             className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 py-3 text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
           >
@@ -524,7 +525,7 @@ const RelapsesPage = () => {
 
         {/* Relapse list */}
         {relapses && relapses.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-3" data-tour="relapses-list">
             {relapses.map((relapse) =>
               editingId === relapse.id ? null : (
                 <RelapseCard
