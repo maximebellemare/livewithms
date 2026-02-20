@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles } from "lucide-react";
 
 // Bump this key whenever you want to show the banner to all users again
-const WHATS_NEW_KEY = "whats_new_v8";
+const WHATS_NEW_KEY = "whats_new_v9";
 
 interface Feature {
   emoji: string;
@@ -14,14 +14,14 @@ interface Feature {
 
 const FEATURES: Feature[] = [
   {
-    emoji: "📋",
-    title: "Reports Page Tour",
-    description: "A new 3-step guided tour on the Reports page walks you through generating a professional PDF, customising which sections to include, and sending it directly to your neurologist.",
+    emoji: "👤",
+    title: "Profile Page Tour",
+    description: "A new 3-step tour on the Profile page walks you through updating your MS details, saving your neurologist's contact info, and managing notification and digest settings.",
   },
   {
-    emoji: "📓",
-    title: "Journal Page Tour",
-    description: "A 3-step guide on the Journal page explains how to write entries, use the daily rotating prompt, and build your weekly reflection streak.",
+    emoji: "📋",
+    title: "Reports Page Tour",
+    description: "A guided tour on the Reports page shows how to generate a professional PDF, customise sections, and send it directly to your neurologist.",
   },
   {
     emoji: "🔄",
