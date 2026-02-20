@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronRight, ChevronLeft } from "lucide-react";
@@ -21,6 +21,8 @@ const OnboardingTooltips = ({ steps, storageKey }: OnboardingTooltipsProps) => {
   const [pos, setPos] = useState<{ top: number; left: number; width: number; placement: "top" | "bottom" }>({
     top: 0, left: 0, width: 300, placement: "bottom",
   });
+  // Guard to prevent backdrop click from dismissing during scroll-into-view
+  const scrollingRef = useRef(false);
 
   useEffect(() => {
     const dismissed = localStorage.getItem(storageKey);
@@ -65,13 +67,22 @@ const OnboardingTooltips = ({ steps, storageKey }: OnboardingTooltipsProps) => {
     });
   }, [visible, currentStep, steps]);
 
+  // Scroll target into view before computing position so off-screen elements are reachable
   useEffect(() => {
-    if (!visible) return;
-    // Small delay so scroll settles before positioning
-    const t = setTimeout(computePosition, 100);
+    if (!visible || currentStep >= steps.length) return;
+    const step = steps[currentStep];
+    const el = document.querySelector(`[data-tour="${step.target}"]`);
+    if (el) {
+      scrollingRef.current = true;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Release guard after scroll settles
+      setTimeout(() => { scrollingRef.current = false; }, 600);
+    }
+    // Re-compute position after scroll settles
+    const t = setTimeout(computePosition, 400);
     window.addEventListener("resize", computePosition);
     return () => { clearTimeout(t); window.removeEventListener("resize", computePosition); };
-  }, [computePosition, visible]);
+  }, [computePosition, visible, currentStep, steps]);
 
   const dismiss = () => {
     setVisible(false);
@@ -101,7 +112,7 @@ const OnboardingTooltips = ({ steps, storageKey }: OnboardingTooltipsProps) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[9998] bg-black/40"
-            onClick={dismiss}
+            onClick={() => { if (!scrollingRef.current) dismiss(); }}
           />
 
           <motion.div
