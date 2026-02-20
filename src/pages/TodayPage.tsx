@@ -20,6 +20,7 @@ import MedicationChecklist from "@/components/MedicationChecklist";
 import UpcomingAppointments from "@/components/UpcomingAppointments";
 import DailyPromptCard from "@/components/DailyPromptCard";
 import HydrationCard from "@/components/HydrationCard";
+import RelapseFreeStreakCompact from "@/components/RelapseFreeStreakCompact";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
@@ -543,6 +544,11 @@ const TodayPage = () => {
         {/* Hydration tracker */}
         <div className="animate-slide-up" style={{ animationDelay: "0.3s" }}>
           <HydrationCard />
+        </div>
+
+        {/* Relapse-free streak */}
+        <div className="animate-slide-up" style={{ animationDelay: "0.33s" }}>
+          <RelapseFreeStreakCompact />
         </div>
 
         {/* Reminders */}
