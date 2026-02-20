@@ -46,12 +46,22 @@ const OnboardingTooltips = ({ steps, storageKey }: OnboardingTooltipsProps) => {
     const rect = el.getBoundingClientRect();
     const placement = step.position ?? (rect.top > 300 ? "top" : "bottom");
     const tooltipWidth = Math.min(320, window.innerWidth - 32);
+    // Account for bottom nav (~80px) so the tooltip never hides behind it
+    const bottomNavHeight = 80;
+    const maxBottom = window.innerHeight - bottomNavHeight;
+
+    let top = placement === "bottom" ? rect.bottom + 12 : rect.top - 12;
+    // If placing below and tooltip would overflow bottom nav, flip to top
+    const estimatedTooltipHeight = 140;
+    if (placement === "bottom" && top + estimatedTooltipHeight > maxBottom) {
+      top = rect.top - 12;
+    }
 
     setPos({
-      top: placement === "bottom" ? rect.bottom + 12 : rect.top - 12,
+      top,
       left: Math.max(16, Math.min(rect.left + rect.width / 2 - tooltipWidth / 2, window.innerWidth - tooltipWidth - 16)),
       width: tooltipWidth,
-      placement,
+      placement: placement === "bottom" && top < rect.bottom ? "top" : placement,
     });
   }, [visible, currentStep, steps]);
 
