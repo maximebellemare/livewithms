@@ -712,8 +712,8 @@ const ProfilePage = () => {
         </Link>
 
         {/* Settings */}
-        <div data-tour="profile-notifications" className="space-y-1">
-          <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Settings</p>
+        <div className="space-y-1">
+          <p data-tour="profile-notifications" className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Settings</p>
 
           {/* Theme selector */}
           <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">

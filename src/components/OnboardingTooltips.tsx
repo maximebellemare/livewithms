@@ -76,10 +76,10 @@ const OnboardingTooltips = ({ steps, storageKey }: OnboardingTooltipsProps) => {
       scrollingRef.current = true;
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       // Release guard after scroll settles
-      setTimeout(() => { scrollingRef.current = false; }, 600);
+      setTimeout(() => { scrollingRef.current = false; }, 900);
     }
     // Re-compute position after scroll settles
-    const t = setTimeout(computePosition, 400);
+    const t = setTimeout(computePosition, 650);
     window.addEventListener("resize", computePosition);
     return () => { clearTimeout(t); window.removeEventListener("resize", computePosition); };
   }, [computePosition, visible, currentStep, steps]);
