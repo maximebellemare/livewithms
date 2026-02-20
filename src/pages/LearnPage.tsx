@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import AnimatedList, { listItemVariants } from "@/components/AnimatedList";
+import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import PageHeader from "@/components/PageHeader";
 import { Bookmark, BookmarkCheck, CheckCircle2, ChevronDown, ChevronUp, Search, X, Clock, EyeOff, CircleCheckBig, Trophy } from "lucide-react";
@@ -213,13 +215,13 @@ const LearnPage = () => {
         )}
 
         {/* Articles */}
-        <div className="space-y-3 animate-fade-in">
+        <AnimatedList className="space-y-3">
           {filtered.map((article) => {
             const isExpanded = expandedId === article.id;
             const isBookmarked = bookmarkIds.has(article.id);
 
             return (
-              <div key={article.id} className="rounded-xl bg-card shadow-soft overflow-hidden relative">
+              <motion.div key={article.id} variants={listItemVariants} whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.98 }} className="rounded-xl bg-card shadow-soft overflow-hidden relative">
                 {/* Progress bar at bottom of card (when collapsed and has progress) */}
                 {!isExpanded && (progressMap[article.id] ?? 0) > 0 && (
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-secondary">
@@ -286,10 +288,10 @@ const LearnPage = () => {
 
                 {/* Expanded body */}
                 {isExpanded && <ArticleBody body={article.body} articleId={article.id} initialProgress={progressMap[article.id] ?? 0} />}
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </AnimatedList>
       </div>
     </>
   );
