@@ -21,6 +21,7 @@ import UpcomingAppointments from "@/components/UpcomingAppointments";
 import DailyPromptCard from "@/components/DailyPromptCard";
 import HydrationCard from "@/components/HydrationCard";
 import RelapseFreeStreakCompact from "@/components/RelapseFreeStreakCompact";
+import RelapseRiskIndicator from "@/components/RelapseRiskIndicator";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
@@ -546,8 +547,13 @@ const TodayPage = () => {
           <HydrationCard />
         </div>
 
+        {/* Relapse risk indicator */}
+        <div className="animate-slide-up" style={{ animationDelay: "0.32s" }}>
+          <RelapseRiskIndicator />
+        </div>
+
         {/* Relapse-free streak */}
-        <div className="animate-slide-up" style={{ animationDelay: "0.33s" }}>
+        <div className="animate-slide-up" style={{ animationDelay: "0.34s" }}>
           <RelapseFreeStreakCompact />
         </div>
 
