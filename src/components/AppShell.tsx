@@ -73,6 +73,17 @@ const AppShell = ({ children }: AppShellProps) => {
         />
       )}
 
+      {showNav && location.pathname === "/appointments" && (
+        <OnboardingTooltips
+          storageKey="onboarding_tour_appointments_v1"
+          steps={[
+            { target: "appts-add-btn", title: "Schedule an appointment", description: "Tap + to log any upcoming visit — neurology, MRI, infusion, physiotherapy, and more. Add a time, location, and prep notes.", position: "bottom" },
+            { target: "appts-view-toggle", title: "Calendar or list view", description: "Switch between a calendar to tap specific days and a full list of all your upcoming appointments.", position: "bottom" },
+            { target: "appts-list", title: "Your appointments", description: "Each card shows the type, date, time, and location. Tap the pencil to edit or the bin to remove an entry.", position: "top" },
+          ]}
+        />
+      )}
+
       {showNav && location.pathname === "/medications" && (
         <OnboardingTooltips
           storageKey="onboarding_tour_medications_v1"

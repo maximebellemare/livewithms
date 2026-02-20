@@ -153,13 +153,13 @@ const AppointmentsPage = () => {
         title="Appointments"
         subtitle="Your upcoming visits"
         action={
-          <button onClick={openNew} className="rounded-full bg-primary p-2 text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]">
+          <button data-tour="appts-add-btn" onClick={openNew} className="rounded-full bg-primary p-2 text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]">
             <Plus className="h-5 w-5" />
           </button>
         }
       />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4">
-        <div className="flex gap-2">
+        <div className="flex gap-2" data-tour="appts-view-toggle">
           {(["calendar", "list"] as const).map((mode) => (
             <button key={mode} onClick={() => setViewMode(mode)} className={`flex-1 rounded-lg py-2 text-xs font-medium capitalize transition-all ${viewMode === mode ? "bg-primary text-primary-foreground shadow-soft" : "bg-secondary text-muted-foreground"}`}>
               {mode}
@@ -185,7 +185,7 @@ const AppointmentsPage = () => {
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-2" data-tour="appts-list">
           {isLoading ? (
             <CardListSkeleton count={2} />
           ) : filteredAppointments.length === 0 ? (
