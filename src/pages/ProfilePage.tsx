@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import DigestPreviewCard from "@/components/DigestPreviewCard";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar } from "lucide-react";
+import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
@@ -66,6 +66,15 @@ const ProfilePage = () => {
   const [ageRange, setAgeRange] = useState("");
   const [ageRangeInit, setAgeRangeInit] = useState(false);
   const [savingAgeRange, setSavingAgeRange] = useState(false);
+  const [msType, setMsType] = useState("");
+  const [msTypeInit, setMsTypeInit] = useState(false);
+  const [savingMsType, setSavingMsType] = useState(false);
+  const [symptoms, setSymptoms] = useState<string[]>([]);
+  const [symptomsInit, setSymptomsInit] = useState(false);
+  const [savingSymptoms, setSavingSymptoms] = useState(false);
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const [goalsInit, setGoalsInit] = useState(false);
+  const [savingGoals, setSavingGoals] = useState(false);
   const [sendingTestDigest, setSendingTestDigest] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -165,6 +174,21 @@ const ProfilePage = () => {
     setAgeRangeInit(true);
   }
 
+  if (profile && !msTypeInit) {
+    setMsType(profile.ms_type ?? "");
+    setMsTypeInit(true);
+  }
+
+  if (profile && !symptomsInit) {
+    setSymptoms(profile.symptoms ?? []);
+    setSymptomsInit(true);
+  }
+
+  if (profile && !goalsInit) {
+    setSelectedGoals(profile.goals ?? []);
+    setGoalsInit(true);
+  }
+
   const handleSaveDisplayName = async () => {
     const trimmed = displayName.trim();
     if (trimmed.length > 30) { toast.error("Display name must be under 30 characters"); return; }
@@ -200,6 +224,53 @@ const ProfilePage = () => {
       toast.error("Failed to save age range");
     } finally {
       setSavingAgeRange(false);
+    }
+  };
+  const msTypes = ["RRMS", "PPMS", "SPMS", "CIS", "Unknown"];
+  const commonSymptoms = ["Fatigue", "Pain", "Brain Fog", "Numbness", "Vision Issues", "Spasticity", "Balance", "Bladder"];
+  const goalOptions = ["Better Sleep", "More Energy", "Less Pain", "Improved Mood", "Better Mobility", "Sharper Thinking"];
+
+  const handleSaveMsType = async () => {
+    setSavingMsType(true);
+    try {
+      await updateProfile.mutateAsync({ ms_type: msType || null } as any);
+      toast.success("MS type saved!");
+    } catch {
+      toast.error("Failed to save MS type");
+    } finally {
+      setSavingMsType(false);
+    }
+  };
+
+  const toggleSymptom = (s: string) => {
+    setSymptoms((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
+  };
+
+  const handleSaveSymptoms = async () => {
+    setSavingSymptoms(true);
+    try {
+      await updateProfile.mutateAsync({ symptoms } as any);
+      toast.success("Symptoms saved!");
+    } catch {
+      toast.error("Failed to save symptoms");
+    } finally {
+      setSavingSymptoms(false);
+    }
+  };
+
+  const toggleGoal = (g: string) => {
+    setSelectedGoals((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]);
+  };
+
+  const handleSaveGoals = async () => {
+    setSavingGoals(true);
+    try {
+      await updateProfile.mutateAsync({ goals: selectedGoals } as any);
+      toast.success("Goals saved!");
+    } catch {
+      toast.error("Failed to save goals");
+    } finally {
+      setSavingGoals(false);
     }
   };
 
@@ -408,6 +479,107 @@ const ProfilePage = () => {
               Save
             </button>
           </div>
+        </div>
+
+        {/* MS Type */}
+        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+          <div className="flex items-center gap-2">
+            <Stethoscope className="h-4 w-4 text-primary" />
+            <p className="text-sm font-medium text-foreground">MS Type</p>
+          </div>
+          <p className="text-xs text-muted-foreground">Your MS diagnosis type helps personalize your experience.</p>
+          <div className="flex gap-2">
+            <select
+              value={msType}
+              onChange={(e) => setMsType(e.target.value)}
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <option value="">Select MS type</option>
+              {msTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleSaveMsType}
+              disabled={savingMsType}
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+            >
+              {savingMsType ? (
+                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              Save
+            </button>
+          </div>
+        </div>
+
+        {/* Symptoms */}
+        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" />
+            <p className="text-sm font-medium text-foreground">Key Symptoms</p>
+          </div>
+          <p className="text-xs text-muted-foreground">Select the symptoms that affect you most.</p>
+          <div className="flex flex-wrap gap-2">
+            {commonSymptoms.map((s) => (
+              <button
+                key={s}
+                onClick={() => toggleSymptom(s)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all active:scale-95 ${
+                  symptoms.includes(s) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleSaveSymptoms}
+            disabled={savingSymptoms}
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+          >
+            {savingSymptoms ? (
+              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+            ) : (
+              <Check className="h-3.5 w-3.5" />
+            )}
+            Save Symptoms
+          </button>
+        </div>
+
+        {/* Goals */}
+        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-primary" />
+            <p className="text-sm font-medium text-foreground">Your Goals</p>
+          </div>
+          <p className="text-xs text-muted-foreground">What would you like to improve?</p>
+          <div className="flex flex-wrap gap-2">
+            {goalOptions.map((g) => (
+              <button
+                key={g}
+                onClick={() => toggleGoal(g)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all active:scale-95 ${
+                  selectedGoals.includes(g) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
+                }`}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleSaveGoals}
+            disabled={savingGoals}
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+          >
+            {savingGoals ? (
+              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+            ) : (
+              <Check className="h-3.5 w-3.5" />
+            )}
+            Save Goals
+          </button>
         </div>
 
         {/* Neurologist details */}
