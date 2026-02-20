@@ -69,6 +69,11 @@ const SymptomSlider = ({ label, emoji, value, onChange, color = "bg-primary", we
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          aria-label={`${label} level, ${value} out of 10`}
+          aria-valuemin={0}
+          aria-valuemax={10}
+          aria-valuenow={value}
+          aria-valuetext={`${value} out of 10`}
         />
       </div>
       <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">

@@ -83,7 +83,7 @@ export default function InlineQuickLog({
         </button>
       </div>
 
-      <div className="flex gap-1.5 flex-wrap">
+      <div className="flex gap-1.5 flex-wrap" role="radiogroup" aria-label={`${label} score from 0 to 10`}>
         {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => {
           const isSelected = value === val;
           const color = getColor(val, higherIsBetter);
@@ -91,7 +91,10 @@ export default function InlineQuickLog({
             <button
               key={val}
               onClick={() => onChange(val)}
-              className="flex-1 min-w-[2rem] rounded-lg py-2 text-sm font-bold transition-all active:scale-95"
+              role="radio"
+              aria-checked={isSelected}
+              aria-label={`${val}`}
+              className="flex-1 min-w-[2rem] rounded-lg py-2 text-sm font-bold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               style={{
                 background: isSelected ? color : "hsl(var(--secondary))",
                 color: isSelected ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",

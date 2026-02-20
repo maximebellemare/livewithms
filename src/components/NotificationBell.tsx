@@ -167,8 +167,8 @@ const NotificationBell = () => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="relative gap-1.5">
-          <Bell className="h-4 w-4" />
+        <Button variant="ghost" size="sm" className="relative gap-1.5" aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"}>
+          <Bell className="h-4 w-4" aria-hidden="true" />
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
               {unreadCount > 99 ? "99+" : unreadCount}
