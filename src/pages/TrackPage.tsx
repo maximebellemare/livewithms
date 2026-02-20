@@ -5,6 +5,7 @@ import {
   parseISO,
 } from "date-fns";
 import PageHeader from "@/components/PageHeader";
+import OnboardingTooltips from "@/components/OnboardingTooltips";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar, List, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEntries, DailyEntry } from "@/hooks/useEntries";
@@ -338,49 +339,59 @@ const TrackPage = () => {
           </div>
         ) : (
           /* ── List view ── */
-          <div data-tour="track-list-entries" className="space-y-3 animate-fade-in">
-            {entries.map((entry, idx) => (
-              <div key={entry.id} className="rounded-xl bg-card p-4 shadow-soft" {...(idx === 0 ? { "data-tour": "track-list-badge" } : {})}>
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    {format(parseISO(entry.date), "EEEE, MMM d")}
-                  </p>
-                  {(() => {
-                    const score = overallScore(entry);
-                    const { bg, text, label } = heatColor(score);
-                    return (
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${bg} ${text}`}>
-                        {label} · {score.toFixed(1)}
-                      </span>
-                    );
-                  })()}
-                </div>
-                <div className="grid grid-cols-7 gap-2 text-center">
-                  {SYMPTOM_DISPLAY.map(({ key, label, emoji }) => (
-                    <div key={key}>
-                      <span className="text-base">{emoji}</span>
-                      <p className="text-lg font-bold text-foreground">
-                        {(entry[key as keyof DailyEntry] as number | null) ?? "—"}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">{label}</p>
-                    </div>
-                  ))}
-                </div>
-                {entry.mood_tags && entry.mood_tags.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {entry.mood_tags.map((tag) => (
-                      <span key={tag} className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground">
-                        {tag}
-                      </span>
+          <>
+            <OnboardingTooltips
+              storageKey="onboarding_tour_track_list_v1"
+              steps={[
+                { target: "track-view-toggle", title: "Switch views", description: "Toggle between the calendar heatmap and a chronological list. The list view shows every logged day with full symptom scores at a glance.", position: "bottom" },
+                { target: "track-list-badge", title: "Severity badges", description: "Each entry has a colour-coded badge — green for mild days, amber for moderate, orange for high, and red for severe. The number is your average across all symptoms.", position: "top" },
+                { target: "track-list-entries", title: "Mood tags & notes", description: "Mood tags appear as chips below your scores — they help spot emotional patterns over time. Any journal notes you added are shown in italics beneath.", position: "top" },
+              ]}
+            />
+            <div data-tour="track-list-entries" className="space-y-3 animate-fade-in">
+              {entries.map((entry, idx) => (
+                <div key={entry.id} className="rounded-xl bg-card p-4 shadow-soft" {...(idx === 0 ? { "data-tour": "track-list-badge" } : {})}>
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {format(parseISO(entry.date), "EEEE, MMM d")}
+                    </p>
+                    {(() => {
+                      const score = overallScore(entry);
+                      const { bg, text, label } = heatColor(score);
+                      return (
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${bg} ${text}`}>
+                          {label} · {score.toFixed(1)}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  <div className="grid grid-cols-7 gap-2 text-center">
+                    {SYMPTOM_DISPLAY.map(({ key, label, emoji }) => (
+                      <div key={key}>
+                        <span className="text-base">{emoji}</span>
+                        <p className="text-lg font-bold text-foreground">
+                          {(entry[key as keyof DailyEntry] as number | null) ?? "—"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">{label}</p>
+                      </div>
                     ))}
                   </div>
-                )}
-                {entry.notes && (
-                  <p className="mt-2 text-xs text-muted-foreground italic">"{entry.notes}"</p>
-                )}
-              </div>
-            ))}
-          </div>
+                  {entry.mood_tags && entry.mood_tags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {entry.mood_tags.map((tag) => (
+                        <span key={tag} className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {entry.notes && (
+                    <p className="mt-2 text-xs text-muted-foreground italic">"{entry.notes}"</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </>

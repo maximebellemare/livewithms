@@ -42,24 +42,14 @@ const AppShell = ({ children }: AppShellProps) => {
       )}
 
       {showNav && location.pathname === "/track" && (
-        <>
-          <OnboardingTooltips
-            storageKey="onboarding_tour_track_v1"
-            steps={[
-              { target: "track-month-nav", title: "Browse by month", description: "Tap the arrows to move between months and review your full symptom history over time.", position: "bottom" },
-              { target: "track-heatmap", title: "Your symptom calendar", description: "Each cell is colour-coded by severity. Tap any day to see a detailed breakdown of all your logged symptoms.", position: "bottom" },
-              { target: "track-summary", title: "Monthly summary", description: "A quick overview of how many days you logged, your average severity, and your best and hardest days of the month.", position: "top" },
-            ]}
-          />
-          <OnboardingTooltips
-            storageKey="onboarding_tour_track_list_v1"
-            steps={[
-              { target: "track-view-toggle", title: "Switch views", description: "Toggle between the calendar heatmap and a chronological list. The list view shows every logged day with full symptom scores at a glance.", position: "bottom" },
-              { target: "track-list-badge", title: "Severity badges", description: "Each entry has a colour-coded badge — green for mild days, amber for moderate, orange for high, and red for severe. The number is your average across all symptoms.", position: "top" },
-              { target: "track-list-entries", title: "Mood tags & notes", description: "Mood tags appear as chips below your scores — they help spot emotional patterns over time. Any journal notes you added are shown in italics beneath.", position: "top" },
-            ]}
-          />
-        </>
+        <OnboardingTooltips
+          storageKey="onboarding_tour_track_v1"
+          steps={[
+            { target: "track-month-nav", title: "Browse by month", description: "Tap the arrows to move between months and review your full symptom history over time.", position: "bottom" },
+            { target: "track-heatmap", title: "Your symptom calendar", description: "Each cell is colour-coded by severity. Tap any day to see a detailed breakdown of all your logged symptoms.", position: "bottom" },
+            { target: "track-summary", title: "Monthly summary", description: "A quick overview of how many days you logged, your average severity, and your best and hardest days of the month.", position: "top" },
+          ]}
+        />
       )}
 
       {showNav && location.pathname === "/insights" && (
