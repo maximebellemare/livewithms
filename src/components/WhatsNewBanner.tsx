@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles } from "lucide-react";
 
 // Bump this key whenever you want to show the banner to all users again
-const WHATS_NEW_KEY = "whats_new_v6";
+const WHATS_NEW_KEY = "whats_new_v7";
 
 interface Feature {
   emoji: string;
@@ -14,14 +14,14 @@ interface Feature {
 
 const FEATURES: Feature[] = [
   {
-    emoji: "📚",
-    title: "Learn Page Tour",
-    description: "A new 3-step guide on the Learn page walks you through tracking your reading progress, filtering by category, and bookmarking articles.",
+    emoji: "📓",
+    title: "Journal Page Tour",
+    description: "A new 3-step guide on the Journal page explains how to write entries, use the daily rotating prompt, and build your weekly reflection streak.",
   },
   {
-    emoji: "📊",
-    title: "Reading Progress Bar",
-    description: "Each article now tracks how far you've scrolled. A progress bar on the card shows your completion percentage — finish all articles for a confetti celebration! 🎉",
+    emoji: "✨",
+    title: "Daily Prompt & AI Suggestions",
+    description: "A fresh reflection question appears every day. Below it, AI-powered writing prompts tailored to your recent symptom logs help you get started quickly.",
   },
   {
     emoji: "🔄",
