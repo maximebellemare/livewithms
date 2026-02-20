@@ -1,7 +1,9 @@
 import { useMemo, useEffect, useRef } from "react";
 import { useEntriesInRange } from "@/hooks/useEntries";
+import { useProfile } from "@/hooks/useProfile";
 import { format, subDays } from "date-fns";
 import { toast } from "sonner";
+import { Mail } from "lucide-react";
 import { RISK_CONFIG } from "./relapse-risk/types";
 import { computeRisk, computeWeeklyScores } from "./relapse-risk/computeRisk";
 import RiskBar from "./relapse-risk/RiskBar";
@@ -14,6 +16,7 @@ export default function RelapseRiskIndicator() {
   const start = format(subDays(today, 34), "yyyy-MM-dd");
   const end = format(today, "yyyy-MM-dd");
   const { data: entries = [], isLoading } = useEntriesInRange(start, end);
+  const { data: profile } = useProfile();
 
   const { risk, prevRisk, weeklyScores } = useMemo(() => {
     if (entries.length < 4) return { risk: null, prevRisk: null, weeklyScores: [] };
@@ -75,6 +78,24 @@ export default function RelapseRiskIndicator() {
       <RiskSparkline weeklyScores={weeklyScores} />
       {prevRisk && <WeekOverWeekChange risk={risk} prevRisk={prevRisk} />}
       <RiskFactors factors={risk.factors} isLow={risk.level === "low"} />
+
+      {(risk.level === "high" || risk.level === "elevated") && (
+        <a
+          href={
+            profile?.neurologist_email
+              ? `mailto:${profile.neurologist_email}?subject=${encodeURIComponent("Symptom update – elevated relapse risk")}&body=${encodeURIComponent(`Hi${profile.neurologist_name ? ` Dr. ${profile.neurologist_name}` : ""},\n\nMy symptom tracker is showing ${risk.level} relapse risk (score: ${risk.score}/100).\n\nKey factors:\n${risk.factors.map((f) => `• ${f}`).join("\n")}\n\nI'd like to discuss next steps.\n\nThank you`)}`
+              : "/profile"
+          }
+          className={`mt-2 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+            risk.level === "high"
+              ? "bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
+              : "bg-orange-600 text-white hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-800"
+          }`}
+        >
+          <Mail className="h-3.5 w-3.5" />
+          {profile?.neurologist_email ? "Contact neurologist" : "Set up neurologist email"}
+        </a>
+      )}
 
       <p className="mt-2 text-[9px] text-muted-foreground">
         Based on 14-day trends · not medical advice
