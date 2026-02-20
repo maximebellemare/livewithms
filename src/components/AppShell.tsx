@@ -4,6 +4,7 @@ import BottomNav from "./BottomNav";
 import InstallPrompt from "./InstallPrompt";
 import OfflineBanner from "./OfflineBanner";
 import OnboardingTooltips from "./OnboardingTooltips";
+import WhatsNewBanner from "./WhatsNewBanner";
 
 interface AppShellProps {
   children: ReactNode;
@@ -27,6 +28,7 @@ const AppShell = ({ children }: AppShellProps) => {
       </main>
       <BottomNav />
       <InstallPrompt />
+      {showNav && <WhatsNewBanner />}
       {showNav && location.pathname === "/today" && (
         <OnboardingTooltips
           storageKey="onboarding_tour_v1"
