@@ -1,4 +1,5 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import confetti from "canvas-confetti";
 import { motion } from "framer-motion";
 import { Lock, Share2, Trophy } from "lucide-react";
 import { toast } from "sonner";
@@ -170,6 +171,39 @@ const BadgesPage = () => {
   const earnedCount = earnedSet.size;
   const totalCount = BADGE_DEFS.length;
   const earnedBadges = BADGE_DEFS.filter((b) => earnedSet.has(b.id));
+
+  // Celebrate newly earned badges (once per badge per session)
+  const celebratedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const storageKey = "badges-celebrated";
+    const prev = new Set<string>(JSON.parse(sessionStorage.getItem(storageKey) || "[]"));
+    const newBadges = earnedBadges.filter((b) => !prev.has(b.id) && !celebratedRef.current.has(b.id));
+
+    if (newBadges.length === 0) return;
+
+    newBadges.forEach((b) => {
+      celebratedRef.current.add(b.id);
+      prev.add(b.id);
+    });
+    sessionStorage.setItem(storageKey, JSON.stringify([...prev]));
+
+    // Fire confetti with a short delay for visual impact
+    setTimeout(() => {
+      confetti({
+        particleCount: 60 + newBadges.length * 20,
+        spread: 70,
+        origin: { y: 0.5 },
+        colors: ["#E8751A", "#FFB347", "#FFDAB9", "#4CAF50", "#42A5F5", "#AB47BC"],
+        disableForReducedMotion: true,
+      });
+
+      const names = newBadges.map((b) => `${b.emoji} ${b.name}`).join(", ");
+      toast.success(`New badge${newBadges.length > 1 ? "s" : ""} unlocked!`, {
+        description: names,
+        duration: 5000,
+      });
+    }, 400);
+  }, [earnedBadges]);
 
   const handleShare = useCallback(async () => {
     const badgeEmojis = earnedBadges.map((b) => b.emoji).join(" ");
