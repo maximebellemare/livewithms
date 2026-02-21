@@ -9,7 +9,8 @@ import PageHeader from "@/components/PageHeader";
 import { useStreak } from "@/components/StreakBadge";
 import { useWeekStreak } from "@/hooks/useWeekStreak";
 import { useRelapses } from "@/hooks/useRelapses";
-import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
+import { useMedStreak } from "@/hooks/useMedStreak";
+import { useRelapseFreeStreak } from "@/hooks/useRelapseFreeStreak";
 import { differenceInDays, parseISO, format, subDays, eachDayOfInterval } from "date-fns";
 
 /* ── Badge definition ───────────────────────────────────── */
@@ -53,54 +54,8 @@ const CATEGORY_LABELS: Record<string, { label: string; emoji: string }> = {
   relapse: { label: "Relapse-Free", emoji: "🛡️" },
 };
 
-/* ── Hook: compute medication streak ───────────────────── */
-function useMedStreak() {
-  const today = new Date();
-  const startDate = format(subDays(today, 89), "yyyy-MM-dd");
-  const endDate = format(today, "yyyy-MM-dd");
-  const { data: medications } = useDbMedications();
-  const { data: logs } = useDbMedicationLogs(startDate, endDate);
 
-  return useMemo(() => {
-    const activeMeds = (medications ?? []).filter((m) => m.active && m.schedule_type === "daily");
-    if (activeMeds.length === 0) return 0;
 
-    const logsByDate = new Map<string, Set<string>>();
-    for (const log of logs ?? []) {
-      if (log.status === "taken") {
-        if (!logsByDate.has(log.date)) logsByDate.set(log.date, new Set());
-        logsByDate.get(log.date)!.add(log.medication_id);
-      }
-    }
-
-    const days = eachDayOfInterval({ start: subDays(today, 89), end: today }).reverse();
-    let streak = 0;
-    for (const d of days) {
-      const dateStr = format(d, "yyyy-MM-dd");
-      const taken = logsByDate.get(dateStr)?.size ?? 0;
-      if (taken >= activeMeds.length) streak++;
-      else break;
-    }
-    return streak;
-  }, [medications, logs]);
-}
-
-/* ── Hook: relapse-free days ───────────────────────────── */
-function useRelapseFreeStreak() {
-  const { data: relapses = [] } = useRelapses();
-
-  return useMemo(() => {
-    if (relapses.length === 0) return 0;
-    const ongoing = relapses.some((r) => !r.is_recovered);
-    if (ongoing) return 0;
-    const resolved = relapses.filter((r) => r.is_recovered && r.end_date);
-    if (resolved.length === 0) return 0;
-    const lastEnd = resolved
-      .map((r) => parseISO(r.end_date!))
-      .sort((a, b) => b.getTime() - a.getTime())[0];
-    return differenceInDays(new Date(), lastEnd);
-  }, [relapses]);
-}
 
 /* ── Badge Card ────────────────────────────────────────── */
 const BadgeCard = ({ badge, earned, index, onClick }: { badge: BadgeDef; earned: boolean; index: number; onClick: () => void }) => (

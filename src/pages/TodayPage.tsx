@@ -10,6 +10,7 @@ import QuickCard from "@/components/QuickCard";
 import WeeklySummaryBanner from "@/components/WeeklySummaryBanner";
 import StreakBadge, { useStreak } from "@/components/StreakBadge";
 import WeekStreakBadge from "@/components/WeekStreakBadge";
+import { useWeekStreak } from "@/hooks/useWeekStreak";
 import MondayRecapCard from "@/components/MondayRecapCard";
 import StreakMilestoneBanner from "@/components/StreakMilestoneBanner";
 import SymptomSparkline from "@/components/SymptomSparkline";
@@ -24,6 +25,9 @@ import DailyPromptCard from "@/components/DailyPromptCard";
 import HydrationCard from "@/components/HydrationCard";
 import RelapseFreeStreakCompact from "@/components/RelapseFreeStreakCompact";
 import RelapseRiskIndicator from "@/components/RelapseRiskIndicator";
+import BadgeNudgeCard from "@/components/badges/BadgeNudgeCard";
+import { useMedStreak } from "@/hooks/useMedStreak";
+import { useRelapseFreeStreak } from "@/hooks/useRelapseFreeStreak";
 import GoalTrackingDashboard from "@/components/GoalTrackingDashboard";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
@@ -115,6 +119,9 @@ const TodayPage = () => {
   }, []);
 
   const { streak } = useStreak();
+  const medStreak = useMedStreak();
+  const relapseStreak = useRelapseFreeStreak();
+  const { weekStreak } = useWeekStreak();
 
   const isMilestone = celebratedStreak !== null
     ? MILESTONE_DAYS.includes(celebratedStreak) && !milestoneDismissed
@@ -344,6 +351,7 @@ const TodayPage = () => {
         <WeeklySummaryBanner />
         <StreakBadge />
         <WeekStreakBadge />
+        <BadgeNudgeCard streakData={{ logStreak: streak, weekStreak, medStreak, relapseStreak }} />
 
         {/* Goal tracking progress rings */}
         <GoalTrackingDashboard />
