@@ -29,7 +29,7 @@ const Rule = ({ emoji, text }: { emoji: string; text: string }) => (
 
 const CommunityGuidelinesPage = () => (
   <>
-    <PageHeader title="Community Guidelines" subtitle="A safe space for the MS community" />
+    <PageHeader title="Community Guidelines" subtitle="A safe space for the MS community" showBack />
     <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in pb-28">
 
       {/* Welcome */}

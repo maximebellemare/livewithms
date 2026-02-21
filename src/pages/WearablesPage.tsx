@@ -57,7 +57,7 @@ const WearablesPage = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <PageHeader title="Wearables" />
+      <PageHeader title="Wearables" showBack />
 
       <div className="mx-auto max-w-lg px-4 space-y-6">
         {/* Hero section */}

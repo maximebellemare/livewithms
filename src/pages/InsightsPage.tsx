@@ -232,7 +232,7 @@ const InsightsPage = () => {
   return (
     <>
       <SEOHead title="Insights" description="Visualize MS symptom trends, correlations and relapse patterns over time." />
-      <PageHeader title="Insights" subtitle="Your health at a glance" />
+      <PageHeader title="Insights" subtitle="Your health at a glance" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 pb-8">
 
         {/* Range toggle */}

@@ -54,7 +54,7 @@ const SmartMatchingPage = () => {
   if (profileLoading) {
     return (
       <>
-        <PageHeader title="Smart Matching" subtitle="Find your MS community" />
+        <PageHeader title="Smart Matching" subtitle="Find your MS community" showBack />
         <div className="mx-auto max-w-lg px-4 py-4 space-y-4">
           <Skeleton className="h-40 rounded-xl" />
           <Skeleton className="h-24 rounded-xl" />
@@ -66,7 +66,7 @@ const SmartMatchingPage = () => {
   return (
     <>
       <SEOHead title="Smart Matching" description="Connect with others who share your MS experience." />
-      <PageHeader title="Smart Matching" subtitle="Find your MS community 🤝" />
+      <PageHeader title="Smart Matching" subtitle="Find your MS community 🤝" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
 
         {/* Opt-in card */}

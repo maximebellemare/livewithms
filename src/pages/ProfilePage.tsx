@@ -447,7 +447,7 @@ const ProfilePage = () => {
   return (
     <>
       <SEOHead title="Profile" description="Manage your LiveWithMS account, preferences and notification settings." />
-      <PageHeader title="Profile" subtitle="Your MS companion settings" />
+      <PageHeader title="Profile" subtitle="Your MS companion settings" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
         {/* User info */}
         <div className="rounded-xl bg-card p-4 shadow-soft">

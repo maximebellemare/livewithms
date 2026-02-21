@@ -97,15 +97,9 @@ const NotificationSettingsPage = () => {
     toast.success(`Reminder time updated to ${utcHourToLabel(utcHour)} 🧡`);
   };
 
-  const backButton = (
-    <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-      <ArrowLeft className="h-4 w-4" /> Back
-    </button>
-  );
-
   return (
     <>
-      <PageHeader title="Notifications" subtitle="Manage all your notification preferences" action={backButton} />
+      <PageHeader title="Notifications" subtitle="Manage all your notification preferences" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
 
         {/* Community notifications */}

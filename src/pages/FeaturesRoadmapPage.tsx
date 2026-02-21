@@ -34,7 +34,7 @@ const FeaturesRoadmapPage = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <PageHeader title="Roadmap" />
+      <PageHeader title="Roadmap" showBack />
       <div className="mx-auto max-w-lg px-4 space-y-8">
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phase 2 — Complete ✅</h2>

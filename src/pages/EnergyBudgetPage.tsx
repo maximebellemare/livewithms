@@ -95,7 +95,7 @@ const EnergyBudgetPage = () => {
   if (isLoading) {
     return (
       <>
-        <PageHeader title="Energy Budget" subtitle="Spoon Theory Planner" />
+        <PageHeader title="Energy Budget" subtitle="Spoon Theory Planner" showBack />
         <div className="mx-auto max-w-lg px-4 py-4 space-y-4">
           <Skeleton className="h-40 rounded-xl" />
           <Skeleton className="h-24 rounded-xl" />
@@ -109,7 +109,7 @@ const EnergyBudgetPage = () => {
     return (
       <>
         <SEOHead title="Energy Budget" description="Plan your daily energy using the Spoon Theory." />
-        <PageHeader title="Energy Budget" subtitle="Spoon Theory Planner 🥄" />
+        <PageHeader title="Energy Budget" subtitle="Spoon Theory Planner 🥄" showBack />
         <div className="mx-auto max-w-lg px-4 py-8 space-y-6 animate-fade-in">
           <div className="rounded-xl bg-card p-6 shadow-soft text-center space-y-4">
             <div className="mx-auto h-16 w-16 rounded-full bg-accent flex items-center justify-center">
@@ -155,7 +155,7 @@ const EnergyBudgetPage = () => {
   return (
     <>
       <SEOHead title="Energy Budget" description="Track your daily energy using the Spoon Theory." />
-      <PageHeader title="Energy Budget" subtitle="Spoon Theory Planner 🥄" />
+      <PageHeader title="Energy Budget" subtitle="Spoon Theory Planner 🥄" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
 
         {/* Spoon meter */}

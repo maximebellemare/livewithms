@@ -88,14 +88,7 @@ const PrivacyPage = () => {
 
   return (
     <>
-      <PageHeader
-        title="Privacy & Data"
-        action={
-          <button onClick={() => navigate("/profile")} className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-secondary">
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-        }
-      />
+      <PageHeader title="Privacy & Data" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
 
         {/* Privacy info */}

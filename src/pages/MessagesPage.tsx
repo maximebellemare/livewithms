@@ -22,7 +22,7 @@ const MessagesPage = () => {
   return (
     <>
       <SEOHead title="Messages" description="Your direct messages with community members." />
-      {!selectedConvo && <PageHeader title="Messages" subtitle="Your conversations" />}
+      {!selectedConvo && <PageHeader title="Messages" subtitle="Your conversations" showBack />}
       <div className="mx-auto max-w-lg" style={{ height: selectedConvo ? "calc(100vh - 80px)" : "auto" }}>
         {selectedConvo ? (
           <MessageThread

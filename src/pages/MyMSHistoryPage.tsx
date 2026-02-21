@@ -194,7 +194,7 @@ const MyMSHistoryPage = () => {
   if (profileLoading || medsLoading) {
     return (
       <>
-        <PageHeader title="My MS History" subtitle="Your diagnosis at a glance" />
+        <PageHeader title="My MS History" subtitle="Your diagnosis at a glance" showBack />
         <div className="flex items-center justify-center py-20">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
@@ -204,7 +204,7 @@ const MyMSHistoryPage = () => {
 
   return (
     <>
-      <PageHeader title="My MS History" subtitle="Your diagnosis at a glance" />
+      <PageHeader title="My MS History" subtitle="Your diagnosis at a glance" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in pb-28">
         {/* Diagnosis Summary */}
         <Section

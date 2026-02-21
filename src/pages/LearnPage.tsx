@@ -55,7 +55,7 @@ const LearnPage = () => {
   return (
     <>
       <SEOHead title="Learn" description="Evidence-based articles and resources about living with multiple sclerosis." />
-      <PageHeader title="Learn" subtitle="Evidence-based MS education" />
+      <PageHeader title="Learn" subtitle="Evidence-based MS education" showBack />
       <div className="mx-auto max-w-lg px-4 py-4">
         {/* Learning progress summary */}
         {!isLoading && totalCount > 0 && (

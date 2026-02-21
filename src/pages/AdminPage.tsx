@@ -23,7 +23,7 @@ const AdminPage = () => {
 
   return (
     <>
-      <PageHeader title="Admin Dashboard" subtitle="Manage your platform" />
+      <PageHeader title="Admin Dashboard" subtitle="Manage your platform" showBack />
       <div className="mx-auto max-w-2xl px-4 py-4">
         <Tabs defaultValue="articles">
           <TabsList className="w-full grid grid-cols-4">

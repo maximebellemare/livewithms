@@ -152,6 +152,7 @@ const AppointmentsPage = () => {
       <PageHeader
         title="Appointments"
         subtitle="Your upcoming visits"
+        showBack
         action={
           <button data-tour="appts-add-btn" onClick={openNew} className="rounded-full bg-primary p-2 text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]">
             <Plus className="h-5 w-5" />

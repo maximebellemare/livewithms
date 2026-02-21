@@ -322,7 +322,7 @@ const BadgesPage = () => {
   return (
     <>
       <SEOHead title="Badges" description="View your earned streak milestones and achievements." />
-      <PageHeader title="Badges" subtitle="Your achievement collection" />
+      <PageHeader title="Badges" subtitle="Your achievement collection" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-6 animate-fade-in">
         {/* Summary */}
         <div className="rounded-2xl bg-card p-5 shadow-soft text-center space-y-2">

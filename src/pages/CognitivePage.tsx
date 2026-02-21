@@ -23,7 +23,7 @@ const CognitivePage = () => {
   return (
     <>
       <SEOHead title="Cognitive Games" description="Exercise your brain with fun mini-games and track cognitive trends." />
-      <PageHeader title="Cognitive Games" subtitle="Train your brain 🧠" />
+      <PageHeader title="Cognitive Games" subtitle="Train your brain 🧠" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
         <CognitiveStreakBadge />
         {/* Best scores summary */}

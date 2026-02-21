@@ -58,14 +58,7 @@ const TermsPage = () => {
 
   return (
     <>
-      <PageHeader
-        title="Terms of Service"
-        action={
-          <button onClick={() => navigate(-1)} className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-secondary">
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-        }
-      />
+      <PageHeader title="Terms of Service" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
         <div className="rounded-xl bg-card p-4 shadow-soft space-y-2">
           <div className="flex items-center gap-2">

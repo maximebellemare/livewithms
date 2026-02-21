@@ -197,6 +197,7 @@ const MedicationsPage = () => {
       <PageHeader
         title="Medications"
         subtitle="Manage your medication schedule"
+        showBack
         action={
           <button data-tour="meds-add-btn" onClick={openNew} className="rounded-full bg-primary p-2 text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]">
             <Plus className="h-5 w-5" />

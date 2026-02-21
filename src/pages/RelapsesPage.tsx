@@ -461,7 +461,7 @@ const RelapsesPage = () => {
   if (isLoading) {
     return (
       <>
-        <PageHeader title="Relapses" subtitle="Track your MS flare-ups" />
+        <PageHeader title="Relapses" subtitle="Track your MS flare-ups" showBack />
         <div className="mx-auto max-w-lg px-4 py-4">
           <RelapsesSkeleton />
         </div>
@@ -472,7 +472,7 @@ const RelapsesPage = () => {
   return (
     <>
       <SEOHead title="Relapses" description="Log and monitor your MS relapses, triggers and recovery timeline." />
-      <PageHeader title="Relapses" subtitle="Track your MS flare-ups" />
+      <PageHeader title="Relapses" subtitle="Track your MS flare-ups" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in pb-28">
         {/* Summary strip */}
         <div className="flex gap-3" data-tour="relapses-summary">

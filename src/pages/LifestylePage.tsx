@@ -27,7 +27,7 @@ const LifestylePage = () => {
   return (
     <>
       <SEOHead title="Lifestyle" description="Track exercise, supplements, diet goals, and weight." />
-      <PageHeader title="Lifestyle" subtitle="Track your daily wellness habits 🏋️" />
+      <PageHeader title="Lifestyle" subtitle="Track your daily wellness habits 🏋️" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 animate-fade-in">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4">

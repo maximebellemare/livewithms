@@ -269,9 +269,7 @@ const ReportsPage = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <PageHeader title="Reports" subtitle="Doctor-ready summaries" action={
-        <Link to="/profile" className="rounded-full p-2 text-muted-foreground hover:bg-secondary"><ArrowLeft className="h-5 w-5" /></Link>
-      } />
+      <PageHeader title="Reports" subtitle="Doctor-ready summaries" showBack />
       <div className="mx-auto max-w-lg space-y-4 px-4 py-4 pb-24 animate-fade-in" data-tour="reports-hero">
         <div className="rounded-xl bg-gradient-to-br from-primary/10 to-accent p-5 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/15">
