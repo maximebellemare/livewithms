@@ -164,7 +164,7 @@ const TodayPage = () => {
       const blob = generateReportFromData({
         startDate: report30Start, endDate: report30End,
         includeSymptoms: true, includeMedications: true, includeAppointments: true,
-        includeProfile: true, includeNotes: true, includeRelapses: true, includeHydration: true, includeRiskScore: true, includeTrendCharts: true,
+        includeProfile: true, includeNotes: true, includeRelapses: true, includeHydration: true, includeRiskScore: true, includeTrendCharts: true, includeMoodTags: true, includePeriodComparison: true, includeTriggerAnalysis: true,
         entries: report30Entries, profile: profile || null,
         medications: reportMeds, medLogs: reportMedLogs, appointments: filteredAppts,
         relapses: reportRelapses,

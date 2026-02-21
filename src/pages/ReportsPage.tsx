@@ -57,6 +57,9 @@ const ReportsPage = () => {
   const [includeHydration, setIncludeHydration] = useState(true);
   const [includeRiskScore, setIncludeRiskScore] = useState(true);
   const [includeTrendCharts, setIncludeTrendCharts] = useState(true);
+  const [includeMoodTags, setIncludeMoodTags] = useState(true);
+  const [includePeriodComparison, setIncludePeriodComparison] = useState(true);
+  const [includeTriggerAnalysis, setIncludeTriggerAnalysis] = useState(true);
   const [includeAiInsight, setIncludeAiInsight] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
@@ -97,7 +100,7 @@ const ReportsPage = () => {
     return generateReportFromData({
       startDate: startStr, endDate: endStr,
       includeSymptoms, includeMedications, includeAppointments,
-      includeProfile, includeNotes, includeRelapses, includeHydration, includeRiskScore, includeTrendCharts, aiInsight,
+      includeProfile, includeNotes, includeRelapses, includeHydration, includeRiskScore, includeTrendCharts, includeMoodTags, includePeriodComparison, includeTriggerAnalysis, aiInsight,
       entries, profile: profile || null,
       medications, medLogs, appointments: filteredAppts, relapses,
     });
@@ -336,6 +339,9 @@ const ReportsPage = () => {
             { label: "Hydration Tracking", checked: includeHydration, toggle: setIncludeHydration, emoji: "💧" },
             { label: "Relapse Risk Score", checked: includeRiskScore, toggle: setIncludeRiskScore, emoji: "⚠️" },
             { label: "Mood & Sleep Trends", checked: includeTrendCharts, toggle: setIncludeTrendCharts, emoji: "📈" },
+            { label: "Mood Tags Frequency", checked: includeMoodTags, toggle: setIncludeMoodTags, emoji: "🏷️" },
+            { label: "Period Comparison", checked: includePeriodComparison, toggle: setIncludePeriodComparison, emoji: "⚖️" },
+            { label: "Relapse Trigger Analysis", checked: includeTriggerAnalysis, toggle: setIncludeTriggerAnalysis, emoji: "🔍" },
             { label: "AI Weekly Insight", checked: includeAiInsight, toggle: setIncludeAiInsight, emoji: "✨" },
           ].map(({ label, checked, toggle, emoji }) => (
             <button key={label} onClick={() => toggle(!checked)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all hover:bg-secondary/50">

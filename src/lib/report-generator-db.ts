@@ -20,6 +20,9 @@ interface ReportData {
   includeHydration?: boolean;
   includeRiskScore?: boolean;
   includeTrendCharts?: boolean;
+  includeMoodTags?: boolean;
+  includePeriodComparison?: boolean;
+  includeTriggerAnalysis?: boolean;
   aiInsight?: string | null;
   entries: DailyEntry[];
   profile: Profile | null;
@@ -254,6 +257,34 @@ export function generateReportFromData(data: ReportData): Blob {
     });
     y = (doc as any).lastAutoTable.finalY + 6;
 
+    // Mood Tags Summary
+    if (data.includeMoodTags) {
+      const allTags = entries.flatMap((e) => e.mood_tags || []);
+      if (allTags.length > 0) {
+        const tagCounts: Record<string, number> = {};
+        allTags.forEach((t) => { tagCounts[t] = (tagCounts[t] || 0) + 1; });
+        const sorted = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
+
+        y = checkPageBreak(doc, y, 40);
+        y = addSectionTitle(doc, "Mood Tags Frequency", y);
+
+        const tagBody = sorted.map(([tag, count]) => {
+          const pct = Math.round((count / entries.length) * 100);
+          return [tag, String(count), `${pct}%`];
+        });
+
+        autoTable(doc, {
+          startY: y, head: [["Mood Tag", "Times Logged", "% of Days"]], body: tagBody, theme: "striped",
+          headStyles: { fillColor: ORANGE, textColor: WHITE, fontSize: 9, fontStyle: "bold" },
+          styles: { fontSize: 9, cellPadding: 2.5, textColor: DARK },
+          alternateRowStyles: { fillColor: LIGHT_BG }, margin: { left: 14, right: 14 },
+        });
+        y = (doc as any).lastAutoTable.finalY + 6;
+        y = addSubtext(doc, `${allTags.length} mood tags logged across ${entries.length} entries.`, y);
+        y += 6;
+      }
+    }
+
     // Mood & Sleep Trend Charts
     if (data.includeTrendCharts && entries.length >= 3) {
       y = checkPageBreak(doc, y, 110);
@@ -291,6 +322,58 @@ export function generateReportFromData(data: ReportData): Blob {
 
       y = addSubtext(doc, "Charts show daily values with dashed average line over the report period.", y);
       y += 6;
+    }
+
+    // Period-over-Period Comparison
+    if (data.includePeriodComparison && entries.length >= 2) {
+      const periodDays = differenceInDays(parseISO(data.endDate), parseISO(data.startDate)) + 1;
+      const priorStart = format(subDays(parseISO(data.startDate), periodDays), "yyyy-MM-dd");
+      const priorEnd = format(subDays(parseISO(data.startDate), 1), "yyyy-MM-dd");
+
+      // We only have entries in the report data, so compare first half vs second half
+      const sortedAll = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+      const midIdx = Math.floor(sortedAll.length / 2);
+      const firstHalf = sortedAll.slice(0, midIdx);
+      const secondHalf = sortedAll.slice(midIdx);
+
+      if (firstHalf.length > 0 && secondHalf.length > 0) {
+        y = checkPageBreak(doc, y, 50);
+        y = addSectionTitle(doc, "Period Comparison", y);
+
+        const metrics = [
+          { label: "Fatigue", key: "fatigue" as const },
+          { label: "Pain", key: "pain" as const },
+          { label: "Brain Fog", key: "brain_fog" as const },
+          { label: "Spasticity", key: "spasticity" as const },
+          { label: "Stress", key: "stress" as const },
+          { label: "Mobility", key: "mobility" as const },
+          { label: "Mood", key: "mood" as const },
+        ];
+
+        const compBody = metrics.map(({ label, key }) => {
+          const avg1 = firstHalf.map((e) => e[key]).filter((v): v is number => v != null);
+          const avg2 = secondHalf.map((e) => e[key]).filter((v): v is number => v != null);
+          const a1 = avg1.length ? (avg1.reduce((a, b) => a + b, 0) / avg1.length) : null;
+          const a2 = avg2.length ? (avg2.reduce((a, b) => a + b, 0) / avg2.length) : null;
+          const diff = a1 != null && a2 != null ? (a2 - a1).toFixed(1) : "—";
+          const arrow = a1 != null && a2 != null ? (a2 > a1 ? "↑" : a2 < a1 ? "↓" : "→") : "";
+          return [label, a1 != null ? a1.toFixed(1) : "—", a2 != null ? a2.toFixed(1) : "—", `${diff} ${arrow}`];
+        });
+
+        const firstRange = `${format(parseISO(firstHalf[0].date), "M/d")}–${format(parseISO(firstHalf[firstHalf.length - 1].date), "M/d")}`;
+        const secondRange = `${format(parseISO(secondHalf[0].date), "M/d")}–${format(parseISO(secondHalf[secondHalf.length - 1].date), "M/d")}`;
+
+        autoTable(doc, {
+          startY: y, head: [["Metric", `1st Half (${firstRange})`, `2nd Half (${secondRange})`, "Change"]], body: compBody, theme: "striped",
+          headStyles: { fillColor: ORANGE, textColor: WHITE, fontSize: 8, fontStyle: "bold" },
+          styles: { fontSize: 8, cellPadding: 2.5, textColor: DARK, halign: "center" },
+          columnStyles: { 0: { halign: "left" } },
+          alternateRowStyles: { fillColor: LIGHT_BG }, margin: { left: 14, right: 14 },
+        });
+        y = (doc as any).lastAutoTable.finalY + 4;
+        y = addSubtext(doc, "Compares first half vs. second half of the report period. ↑ = increase, ↓ = decrease.", y);
+        y += 6;
+      }
     }
 
     // Daily detail
@@ -441,6 +524,36 @@ export function generateReportFromData(data: ReportData): Blob {
     y = (doc as any).lastAutoTable.finalY + 8;
   }
 
+  // Medication Side Effects / Related Notes
+  if (data.includeMedications && entries.length > 0) {
+    const medNames = medications.map((m) => m.name.toLowerCase());
+    const medNotesEntries = entries.filter((e) => {
+      if (!e.notes?.trim()) return false;
+      const lower = e.notes.toLowerCase();
+      return medNames.some((name) => lower.includes(name)) ||
+        /side.?effect|reaction|nausea|dizz|headache|injection|infusion|dose/i.test(e.notes);
+    });
+    if (medNotesEntries.length > 0) {
+      y = checkPageBreak(doc, y, 30);
+      y = addSectionTitle(doc, "Medication-Related Notes", y);
+
+      const medNotesBody = medNotesEntries
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((e) => [format(parseISO(e.date), "MMM d"), e.notes!]);
+
+      autoTable(doc, {
+        startY: y, head: [["Date", "Note"]], body: medNotesBody, theme: "striped",
+        headStyles: { fillColor: ORANGE, textColor: WHITE, fontSize: 8, fontStyle: "bold" },
+        styles: { fontSize: 8, cellPadding: 2.5, textColor: DARK },
+        columnStyles: { 1: { cellWidth: "auto" } },
+        alternateRowStyles: { fillColor: LIGHT_BG }, margin: { left: 14, right: 14 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 4;
+      y = addSubtext(doc, "Notes mentioning medications or common side effects.", y);
+      y += 6;
+    }
+  }
+
   // Appointments
   if (data.includeAppointments && appointments.length > 0) {
     y = checkPageBreak(doc, y, 40);
@@ -545,6 +658,34 @@ export function generateReportFromData(data: ReportData): Blob {
           alternateRowStyles: { fillColor: LIGHT_BG }, margin: { left: 14, right: 14 },
         });
         y = (doc as any).lastAutoTable.finalY + 8;
+      }
+    }
+
+    // Trigger Analysis
+    if (data.includeTriggerAnalysis) {
+      const allTriggers = periodRelapses.flatMap((r) => r.triggers || []);
+      if (allTriggers.length > 0) {
+        const triggerCounts: Record<string, number> = {};
+        allTriggers.forEach((t) => { triggerCounts[t] = (triggerCounts[t] || 0) + 1; });
+        const sortedTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1]);
+
+        y = checkPageBreak(doc, y, 40);
+        y = addSectionTitle(doc, "Relapse Trigger Analysis", y);
+
+        const triggerBody = sortedTriggers.map(([trigger, count]) => {
+          const pct = Math.round((count / periodRelapses.length) * 100);
+          return [trigger, String(count), `${pct}%`];
+        });
+
+        autoTable(doc, {
+          startY: y, head: [["Trigger", "Occurrences", "% of Relapses"]], body: triggerBody, theme: "striped",
+          headStyles: { fillColor: ORANGE, textColor: WHITE, fontSize: 9, fontStyle: "bold" },
+          styles: { fontSize: 9, cellPadding: 2.5, textColor: DARK },
+          alternateRowStyles: { fillColor: LIGHT_BG }, margin: { left: 14, right: 14 },
+        });
+        y = (doc as any).lastAutoTable.finalY + 4;
+        y = addSubtext(doc, `${allTriggers.length} triggers identified across ${periodRelapses.length} relapses in this period.`, y);
+        y += 6;
       }
     }
   }
