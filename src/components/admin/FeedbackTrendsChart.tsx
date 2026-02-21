@@ -28,7 +28,7 @@ export const FeedbackTrendsChart = ({ data }: { data: FeedbackStat[] }) => {
     }));
   }, [data]);
 
-  if (chartData.length < 2) return null;
+  if (chartData.length === 0) return null;
 
   return (
     <Card className="mb-4">
