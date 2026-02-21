@@ -9,6 +9,7 @@ import { format, parseISO, subDays, eachDayOfInterval } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import AIWeeklyInsight from "@/components/AIWeeklyInsight";
 import AISymptomCorrelations from "@/components/AISymptomCorrelations";
+import WeeklyMoodTrendChart from "@/components/WeeklyMoodTrendChart";
 import SymptomCorrelationMatrix from "@/components/SymptomCorrelationMatrix";
 import RelapseTimeline from "@/components/RelapseTimeline";
 import RelapseTrendCard from "@/components/RelapseTrendCard";
@@ -594,6 +595,9 @@ const InsightsPage = () => {
 
             {/* ── AI Symptom Correlations ── */}
             <AISymptomCorrelations entries={windowEntries} range={range} />
+
+            {/* ── Weekly Mood Trend ── */}
+            <WeeklyMoodTrendChart entries={allEntries} />
 
             {/* ── Main trend chart ── */}
             <div className="rounded-xl bg-card p-4 shadow-soft">
