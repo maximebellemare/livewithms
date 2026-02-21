@@ -10,19 +10,19 @@ interface StreakData {
 }
 
 const BADGE_TARGETS = [
-  { emoji: "⚡", name: "3-Day Logger", target: 3, category: "logging" as const },
-  { emoji: "🔥", name: "Week Warrior", target: 7, category: "logging" as const },
-  { emoji: "⭐", name: "Fortnight Focus", target: 14, category: "logging" as const },
-  { emoji: "🏆", name: "Monthly Master", target: 30, category: "logging" as const },
-  { emoji: "📊", name: "2-Week Goal", target: 2, category: "weekly" as const },
-  { emoji: "🗓️", name: "Monthly Rhythm", target: 4, category: "weekly" as const },
-  { emoji: "💫", name: "2-Month Flow", target: 8, category: "weekly" as const },
-  { emoji: "💊", name: "Med Week", target: 7, category: "medication" as const },
-  { emoji: "💉", name: "Med Fortnight", target: 14, category: "medication" as const },
-  { emoji: "🏅", name: "Med Month", target: 30, category: "medication" as const },
-  { emoji: "🛡️", name: "30 Days Strong", target: 30, category: "relapse" as const },
-  { emoji: "💪", name: "60 Days Strong", target: 60, category: "relapse" as const },
-  { emoji: "🌟", name: "90 Days Strong", target: 90, category: "relapse" as const },
+  { id: "log-3", emoji: "⚡", name: "3-Day Logger", target: 3, category: "logging" as const },
+  { id: "log-7", emoji: "🔥", name: "Week Warrior", target: 7, category: "logging" as const },
+  { id: "log-14", emoji: "⭐", name: "Fortnight Focus", target: 14, category: "logging" as const },
+  { id: "log-30", emoji: "🏆", name: "Monthly Master", target: 30, category: "logging" as const },
+  { id: "week-2", emoji: "📊", name: "2-Week Goal", target: 2, category: "weekly" as const },
+  { id: "week-4", emoji: "🗓️", name: "Monthly Rhythm", target: 4, category: "weekly" as const },
+  { id: "week-8", emoji: "💫", name: "2-Month Flow", target: 8, category: "weekly" as const },
+  { id: "med-7", emoji: "💊", name: "Med Week", target: 7, category: "medication" as const },
+  { id: "med-14", emoji: "💉", name: "Med Fortnight", target: 14, category: "medication" as const },
+  { id: "med-30", emoji: "🏅", name: "Med Month", target: 30, category: "medication" as const },
+  { id: "relapse-30", emoji: "🛡️", name: "30 Days Strong", target: 30, category: "relapse" as const },
+  { id: "relapse-60", emoji: "💪", name: "60 Days Strong", target: 60, category: "relapse" as const },
+  { id: "relapse-90", emoji: "🌟", name: "90 Days Strong", target: 90, category: "relapse" as const },
 ];
 
 function streakFor(cat: string, data: StreakData): number {
@@ -51,9 +51,11 @@ function fireConfetti() {
  * Fires a toast once per session when the user is exactly 1 unit away
  * from unlocking a badge, and a confetti celebration when they earn one.
  */
-export function useBadgeProximityAlert(data: StreakData) {
+export function useBadgeProximityAlert(data: StreakData, onBadgesEarned?: (badgeNames: string[]) => void) {
   const alertedRef = useRef<Set<string>>(new Set());
   const celebratedRef = useRef<Set<string>>(new Set());
+  const onBadgesEarnedRef = useRef(onBadgesEarned);
+  onBadgesEarnedRef.current = onBadgesEarned;
 
   useEffect(() => {
     // ── Proximity alerts (1 away) ──
@@ -102,6 +104,10 @@ export function useBadgeProximityAlert(data: StreakData) {
     });
     sessionStorage.setItem(celebrationKey, JSON.stringify([...celebrated]));
 
+    // Persist to DB via callback
+    if (onBadgesEarnedRef.current) {
+      onBadgesEarnedRef.current(justEarned.map((b) => b.id));
+    }
     setTimeout(() => {
       fireConfetti();
       const names = justEarned.map((b) => `${b.emoji} ${b.name}`).join(", ");

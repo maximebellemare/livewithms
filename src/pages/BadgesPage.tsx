@@ -11,6 +11,7 @@ import { useWeekStreak } from "@/hooks/useWeekStreak";
 import { useRelapses } from "@/hooks/useRelapses";
 import { useMedStreak } from "@/hooks/useMedStreak";
 import { useRelapseFreeStreak } from "@/hooks/useRelapseFreeStreak";
+import { useBadgeEvents, useRecordBadgeEvent } from "@/hooks/useBadgeEvents";
 import { differenceInDays, parseISO, format, subDays, eachDayOfInterval } from "date-fns";
 
 /* ── Badge definition ───────────────────────────────────── */
@@ -58,7 +59,7 @@ const CATEGORY_LABELS: Record<string, { label: string; emoji: string }> = {
 
 
 /* ── Badge Card ────────────────────────────────────────── */
-const BadgeCard = ({ badge, earned, index, onClick }: { badge: BadgeDef; earned: boolean; index: number; onClick: () => void }) => (
+const BadgeCard = ({ badge, earned, earnedAt, index, onClick }: { badge: BadgeDef; earned: boolean; earnedAt?: string; index: number; onClick: () => void }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.8 }}
     animate={{ opacity: 1, scale: 1 }}
@@ -89,6 +90,11 @@ const BadgeCard = ({ badge, earned, index, onClick }: { badge: BadgeDef; earned:
       {badge.name}
     </p>
     <p className="text-[10px] leading-snug text-muted-foreground">{badge.description}</p>
+    {earned && earnedAt && (
+      <p className="text-[9px] text-primary/70 font-medium">
+        {format(new Date(earnedAt), "MMM d, yyyy")}
+      </p>
+    )}
   </motion.div>
 );
 
@@ -98,7 +104,18 @@ const BadgesPage = () => {
   const { weekStreak } = useWeekStreak();
   const medStreak = useMedStreak();
   const relapseStreak = useRelapseFreeStreak();
+  const { data: badgeEvents = [] } = useBadgeEvents();
+  const recordBadge = useRecordBadgeEvent();
   const [selectedBadge, setSelectedBadge] = useState<BadgeDef | null>(null);
+
+  // Map badge_id → earned_at for quick lookups
+  const earnedAtMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const ev of badgeEvents) {
+      map.set(ev.badge_id, ev.earned_at);
+    }
+    return map;
+  }, [badgeEvents]);
 
   const streakForCategory = useCallback(
     (cat: string) => {
@@ -146,9 +163,18 @@ const BadgesPage = () => {
   const totalCount = BADGE_DEFS.length;
   const earnedBadges = BADGE_DEFS.filter((b) => earnedSet.has(b.id));
 
-  // Celebrate newly earned badges (once per badge per session)
+  // Record newly earned badges to DB + celebrate (once per session)
   const celebratedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
+    // Persist any earned badges not yet in the DB
+    const unrecorded = earnedBadges
+      .filter((b) => !earnedAtMap.has(b.id))
+      .map((b) => b.id);
+    if (unrecorded.length > 0) {
+      recordBadge.mutate(unrecorded);
+    }
+
+    // Session celebration
     const storageKey = "badges-celebrated";
     const prev = new Set<string>(JSON.parse(sessionStorage.getItem(storageKey) || "[]"));
     const newBadges = earnedBadges.filter((b) => !prev.has(b.id) && !celebratedRef.current.has(b.id));
@@ -161,7 +187,6 @@ const BadgesPage = () => {
     });
     sessionStorage.setItem(storageKey, JSON.stringify([...prev]));
 
-    // Fire confetti with a short delay for visual impact
     setTimeout(() => {
       confetti({
         particleCount: 60 + newBadges.length * 20,
@@ -177,7 +202,7 @@ const BadgesPage = () => {
         duration: 5000,
       });
     }, 400);
-  }, [earnedBadges]);
+  }, [earnedBadges, earnedAtMap]);
 
   const handleShare = useCallback(async () => {
     const badgeEmojis = earnedBadges.map((b) => b.emoji).join(" ");
@@ -256,6 +281,7 @@ const BadgesPage = () => {
                     key={badge.id}
                     badge={badge}
                     earned={earnedSet.has(badge.id)}
+                    earnedAt={earnedAtMap.get(badge.id)}
                     index={i}
                     onClick={() => setSelectedBadge(badge)}
                   />
@@ -268,6 +294,7 @@ const BadgesPage = () => {
         <BadgeDetailDialog
           badge={selectedBadge}
           earned={selectedBadge ? earnedSet.has(selectedBadge.id) : false}
+          earnedAt={selectedBadge ? earnedAtMap.get(selectedBadge.id) : undefined}
           currentStreak={selectedBadge ? streakForCategory(selectedBadge.category) : 0}
           open={!!selectedBadge}
           onOpenChange={(open) => !open && setSelectedBadge(null)}

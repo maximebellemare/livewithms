@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
-import { Lock, CheckCircle2 } from "lucide-react";
+import { Lock, CheckCircle2, Calendar } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { format } from "date-fns";
 
 export interface BadgeDef {
   id: string;
@@ -29,12 +30,13 @@ const CATEGORY_UNITS: Record<string, string> = {
 interface Props {
   badge: BadgeDef | null;
   earned: boolean;
+  earnedAt?: string;
   currentStreak: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const BadgeDetailDialog = ({ badge, earned, currentStreak, open, onOpenChange }: Props) => {
+const BadgeDetailDialog = ({ badge, earned, earnedAt, currentStreak, open, onOpenChange }: Props) => {
   if (!badge) return null;
 
   const threshold = BADGE_THRESHOLDS[badge.id] ?? 0;
@@ -60,9 +62,17 @@ const BadgeDetailDialog = ({ badge, earned, currentStreak, open, onOpenChange }:
         <p className="text-sm text-muted-foreground">{badge.description}</p>
 
         {earned ? (
-          <div className="flex items-center justify-center gap-1.5 text-sm font-semibold text-primary">
-            <CheckCircle2 className="h-4 w-4" />
-            Earned!
+          <div className="space-y-2">
+            <div className="flex items-center justify-center gap-1.5 text-sm font-semibold text-primary">
+              <CheckCircle2 className="h-4 w-4" />
+              Earned!
+            </div>
+            {earnedAt && (
+              <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                <Calendar className="h-3 w-3" />
+                {format(new Date(earnedAt), "MMMM d, yyyy")}
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
