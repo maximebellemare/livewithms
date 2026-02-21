@@ -9,6 +9,7 @@ import { format, parseISO, subDays, eachDayOfInterval } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import AIWeeklyInsight from "@/components/AIWeeklyInsight";
 import AISymptomCorrelations from "@/components/AISymptomCorrelations";
+import SymptomCorrelationMatrix from "@/components/SymptomCorrelationMatrix";
 import RelapseTimeline from "@/components/RelapseTimeline";
 import RelapseTrendCard from "@/components/RelapseTrendCard";
 import RelapseFreeStreak from "@/components/RelapseFreeStreak";
@@ -832,6 +833,10 @@ const InsightsPage = () => {
                 )}
               </div>
             )}
+
+
+            {/* ── Symptom Correlation Matrix ── */}
+            <SymptomCorrelationMatrix entries={allEntries} />
 
             {/* ── Relapse Risk Indicator ── */}
             <div data-tour="insights-risk">
