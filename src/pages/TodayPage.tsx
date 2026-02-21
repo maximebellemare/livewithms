@@ -26,6 +26,7 @@ import HydrationCard from "@/components/HydrationCard";
 import RelapseFreeStreakCompact from "@/components/RelapseFreeStreakCompact";
 import RelapseRiskIndicator from "@/components/RelapseRiskIndicator";
 import BadgeNudgeCard from "@/components/badges/BadgeNudgeCard";
+import DiagnosisAnniversaryCard from "@/components/DiagnosisAnniversaryCard";
 import { useMedStreak } from "@/hooks/useMedStreak";
 import { useRelapseFreeStreak } from "@/hooks/useRelapseFreeStreak";
 import { useBadgeProximityAlert } from "@/hooks/useBadgeProximityAlert";
@@ -343,6 +344,8 @@ const TodayPage = () => {
             onDismiss={() => setMilestoneDismissed(true)}
           />
         )}
+
+        <DiagnosisAnniversaryCard />
 
         {!todayLoading && alreadyLogged && (
           <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/8 px-4 py-3 animate-fade-in">
