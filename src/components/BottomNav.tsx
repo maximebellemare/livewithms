@@ -205,25 +205,30 @@ const BottomNav = () => {
                       </div>
                       {/* Items */}
                       <div className="px-4 pb-6 space-y-1">
-                        {moreTabs.map(({ to, icon: Icon, label }) => {
+                        {moreTabs.map(({ to, icon: Icon, label }, index) => {
                           const active = location.pathname.startsWith(to);
                           const badge = to === "/messages" ? unreadMessages : 0;
+                          const isLast = index === moreTabs.length - 1;
                           return (
-                            <button
-                              key={to}
-                              onClick={() => { setMoreOpen(false); navigate(to); }}
-                              className={`flex w-full items-center gap-4 rounded-xl px-4 py-3.5 text-sm transition-colors hover:bg-accent ${
-                                active ? "text-primary font-semibold bg-accent/50" : "text-foreground"
-                              }`}
-                            >
-                              <Icon className="h-5 w-5" />
-                              <span className="flex-1 text-left text-base">{label}</span>
-                              {badge > 0 && (
-                                <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
-                                  {badge > 99 ? "99+" : badge}
-                                </span>
+                            <div key={to}>
+                              {isLast && (
+                                <div className="my-1 border-t border-border/50" />
                               )}
-                            </button>
+                              <button
+                                onClick={() => { setMoreOpen(false); navigate(to); }}
+                                className={`flex w-full items-center gap-4 rounded-xl px-4 py-3.5 text-sm transition-colors hover:bg-accent ${
+                                  active ? "text-primary font-semibold bg-accent/50" : "text-foreground"
+                                }`}
+                              >
+                                <Icon className="h-5 w-5" />
+                                <span className="flex-1 text-left text-base">{label}</span>
+                                {badge > 0 && (
+                                  <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+                                    {badge > 99 ? "99+" : badge}
+                                  </span>
+                                )}
+                              </button>
+                            </div>
                           );
                         })}
                       </div>
