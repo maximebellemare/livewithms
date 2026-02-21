@@ -61,7 +61,7 @@ const SYMPTOMS = [
 const MondayRecapCard = () => {
   const navigate = useNavigate();
   // Only render on Mondays
-  const isMonday = new Date().getDay() === 1;
+  const isMonday = true; // TEMP: was `new Date().getDay() === 1`
 
   // Dismissal — keyed to this Monday so it reappears next Monday
   const thisMonday = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
