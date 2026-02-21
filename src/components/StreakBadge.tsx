@@ -10,7 +10,7 @@ export const useStreak = () => {
   const { data: profile, isLoading: profileLoading } = useProfile();
 
   const result = useMemo(() => {
-    if (entries.length === 0) return { streak: 0, isAliveToday: false, frozeToday: false };
+    if (entries.length === 0) return { streak: 0, isAliveToday: false, frozeToday: false, freezesRemaining: 0 };
 
     const logged = new Set(entries.map((e) => e.date));
     const today = format(new Date(), "yyyy-MM-dd");
@@ -28,21 +28,17 @@ export const useStreak = () => {
         count++;
         cursor++;
       } else if (freezeEnabled) {
-        // Allow one missed day per calendar week
         const missedDate = subDays(new Date(), cursor);
         const weekKey = format(startOfWeek(missedDate, { weekStartsOn: 1 }), "yyyy-MM-dd");
         const currentWeekKey = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
 
-        // Reset freeze tracker when entering a new week
         if (weekKey !== currentWeekKey) freezeUsedThisWeek = false;
 
         if (!freezeUsedThisWeek) {
-          // Check if there's a logged day before this gap (don't freeze into nothing)
           const dayBefore = format(subDays(new Date(), cursor + 1), "yyyy-MM-dd");
           if (logged.has(dayBefore)) {
             freezeUsedThisWeek = true;
             if (cursor === 1 && !todayLogged) frozeToday = true;
-            // Skip this day — don't increment count but continue the streak
             cursor++;
             continue;
           }
@@ -53,7 +49,9 @@ export const useStreak = () => {
       }
     }
 
-    return { streak: count, isAliveToday: todayLogged, frozeToday };
+    const freezesRemaining = freezeEnabled ? (freezeUsedThisWeek ? 0 : 1) : 0;
+
+    return { streak: count, isAliveToday: todayLogged, frozeToday, freezesRemaining };
   }, [entries, profile]);
 
   return { ...result, isLoading: entriesLoading || profileLoading };
@@ -61,9 +59,10 @@ export const useStreak = () => {
 
 /* ── Badge component ─────────────────────────────────────── */
 const StreakBadge = () => {
-  const { streak, isAliveToday, frozeToday, isLoading } = useStreak();
+  const { streak, isAliveToday, frozeToday, freezesRemaining, isLoading } = useStreak();
 
   if (isLoading || streak === 0) return null;
+  const freezeEnabled = freezesRemaining > 0 || frozeToday;
 
   const isHot = streak >= 7;
   const isMid = streak >= 3;
@@ -116,6 +115,14 @@ const StreakBadge = () => {
                 : "Nice start — come back tomorrow!"
               : "Log today to keep your streak alive!"}
         </p>
+        {freezeEnabled && (
+          <div className="flex items-center gap-1 mt-1">
+            <Snowflake className={`h-3 w-3 ${freezesRemaining > 0 ? "text-sky-400" : "text-muted-foreground/50"}`} />
+            <span className="text-[10px] text-muted-foreground">
+              {freezesRemaining > 0 ? "1 freeze available this week" : "Freeze used this week"}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className={`flex-shrink-0 flex items-center justify-center rounded-full h-9 w-9 text-sm font-extrabold tabular-nums ${
