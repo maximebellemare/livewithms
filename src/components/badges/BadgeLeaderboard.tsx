@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
+import { toast } from "sonner";
 import { Trophy, Crown, Medal, Award, TrendingUp, TrendingDown, Minus, Sparkles } from "lucide-react";
 import { useBadgeLeaderboard } from "@/hooks/useBadgeLeaderboard";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,6 +40,11 @@ const BadgeLeaderboard = () => {
         origin: { y: 0.6 },
         colors: ["#E8751A", "#FFB347", "#FFDAB9", "#4CAF50", "#42A5F5"],
         disableForReducedMotion: true,
+      });
+
+      toast.success("You're on the leaderboard! 🎉", {
+        description: "Congrats on earning your first badge — keep going!",
+        duration: 5000,
       });
     }, 600);
   }, [isLoading, entries, user]);
