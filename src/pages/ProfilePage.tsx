@@ -11,6 +11,7 @@ import { useIsAdmin } from "@/hooks/useAdmin";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import NotificationToggle from "@/components/NotificationToggle";
+import ThemeToggle from "@/components/ThemeToggle";
 import { toast } from "sonner";
 import { useEntries, useEntriesInRange } from "@/hooks/useEntries";
 import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
@@ -777,27 +778,7 @@ const ProfilePage = () => {
             </div>
             <p className="text-xs text-muted-foreground">Choose how LiveWithMS looks to you.</p>
             {mounted && (
-              <div className="flex gap-2">
-                {([
-                  { value: "light", label: "Light", icon: Sun },
-                  { value: "dark", label: "Dark", icon: Moon },
-                  { value: "system", label: "System", icon: Monitor },
-                ] as const).map(({ value, label, icon: Icon }) => (
-                  <button
-                    key={value}
-                    onClick={() => setTheme(value)}
-                    aria-pressed={theme === value}
-                    className={`flex flex-1 flex-col items-center gap-1.5 rounded-lg border px-3 py-3 text-xs font-medium transition-all duration-300 ${
-                      theme === value
-                        ? "border-primary bg-accent text-accent-foreground shadow-sm"
-                        : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:bg-secondary"
-                    }`}
-                  >
-                    <Icon className={`h-5 w-5 transition-transform duration-300 ${theme === value ? "scale-110" : "scale-100"}`} />
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <ThemeToggle />
             )}
           </div>
 
