@@ -3,7 +3,7 @@ import SEOHead from "@/components/SEOHead";
 import DigestPreviewCard from "@/components/DigestPreviewCard";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope, Monitor, RotateCcw } from "lucide-react";
+import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope, Monitor, RotateCcw, Snowflake } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
@@ -951,6 +951,24 @@ const ProfilePage = () => {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Streak Freeze toggle */}
+          {profile && (
+            <button
+              type="button"
+              onClick={() => updateProfile.mutate({ streak_freeze_enabled: !profile.streak_freeze_enabled } as any)}
+              className="tap-highlight-none flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary text-foreground"
+            >
+              <Snowflake className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Streak Freeze</p>
+                <p className="text-xs text-muted-foreground">Preserve your streak if you miss 1 day per week</p>
+              </div>
+              <div className={`relative h-5 w-9 rounded-full transition-colors flex-shrink-0 ${profile.streak_freeze_enabled ? "bg-primary" : "bg-muted"}`}>
+                <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${profile.streak_freeze_enabled ? "translate-x-4" : "translate-x-0.5"}`} />
+              </div>
+            </button>
           )}
 
           {[
