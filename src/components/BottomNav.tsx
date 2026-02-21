@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, BarChart3, TrendingUp, NotebookPen, Phone, Users, MoreHorizontal, MessageCircle, BookOpen, AlertTriangle, FileText, CalendarDays, Pill } from "lucide-react";
+import { Home, BarChart3, TrendingUp, NotebookPen, Phone, Users, MoreHorizontal, MessageCircle, BookOpen, AlertTriangle, FileText, CalendarDays, Pill, UserCog } from "lucide-react";
 import { motion, LayoutGroup, AnimatePresence } from "framer-motion";
 import { useUnreadCommunityPosts } from "@/hooks/useUnreadCommunity";
 import { useUnreadMessagesCount } from "@/hooks/useMessages";
@@ -21,6 +21,7 @@ const moreTabs = [
   { to: "/appointments", icon: CalendarDays,  label: "Appointments" },
   { to: "/messages",     icon: MessageCircle, label: "Messages" },
   { to: "/learn",        icon: BookOpen,      label: "Learn" },
+  { to: "/profile",      icon: UserCog,       label: "Profile & Settings" },
 ];
 
 const vibrate = (pattern: number | number[] = 10) => {
