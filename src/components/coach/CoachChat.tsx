@@ -11,6 +11,15 @@ interface CoachChatProps {
   mode: CoachMode;
 }
 
+const PromptChip = ({ label, onTap }: { label: string; onTap: (v: string) => void }) => (
+  <button
+    onClick={() => onTap(label)}
+    className="rounded-full border border-border bg-secondary/50 px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95"
+  >
+    {label}
+  </button>
+);
+
 const CoachChat = ({ mode }: CoachChatProps) => {
   const { messages, isLoading, sendMessage, setMode, resetChat } = useCoach();
   const [input, setInput] = useState("");
@@ -112,54 +121,64 @@ const CoachChat = ({ mode }: CoachChatProps) => {
               <div className="space-y-2 max-w-xs">
                 <p className="text-sm font-medium text-foreground">Understand Your Data</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Ask me about your symptom trends, patterns, or what your tracked data means. Try things like:
+                  Ask me about your symptom trends, patterns, or what your tracked data means.
                 </p>
-                <ul className="text-xs text-muted-foreground/80 space-y-1 text-left list-disc list-inside">
-                  <li>"How has my fatigue been this month?"</li>
-                  <li>"Do my symptoms connect to sleep?"</li>
-                  <li>"Summarise my recent trends"</li>
-                </ul>
               </div>
             )}
             {mode === "emotional" && (
               <div className="space-y-2 max-w-xs">
                 <p className="text-sm font-medium text-foreground">Talk About How You're Feeling</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Share what's on your mind — I'll listen and offer gentle, supportive guidance. Try things like:
+                  Share what's on your mind — I'll listen and offer gentle, supportive guidance.
                 </p>
-                <ul className="text-xs text-muted-foreground/80 space-y-1 text-left list-disc list-inside">
-                  <li>"I'm feeling overwhelmed today"</li>
-                  <li>"Help me with a breathing exercise"</li>
-                  <li>"I need a journaling prompt"</li>
-                </ul>
               </div>
             )}
             {mode === "planning" && (
               <div className="space-y-2 max-w-xs">
                 <p className="text-sm font-medium text-foreground">Plan Your Day</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Tell me what you have planned and I'll help you pace your energy using Spoon Theory. Try things like:
+                  Tell me what you have planned and I'll help you pace your energy using Spoon Theory.
                 </p>
-                <ul className="text-xs text-muted-foreground/80 space-y-1 text-left list-disc list-inside">
-                  <li>"I have errands and a doctor visit today"</li>
-                  <li>"My fatigue is high — what should I skip?"</li>
-                  <li>"Help me prioritise my tasks"</li>
-                </ul>
               </div>
             )}
             {mode === "guidance" && (
               <div className="space-y-2 max-w-xs">
                 <p className="text-sm font-medium text-foreground">App Guide</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Ask me how to use any feature and I'll walk you through it step by step. Try things like:
+                  Ask me how to use any feature and I'll walk you through it step by step.
                 </p>
-                <ul className="text-xs text-muted-foreground/80 space-y-1 text-left list-disc list-inside">
-                  <li>"How do I track supplements?"</li>
-                  <li>"Where can I see my reports?"</li>
-                  <li>"What are cognitive games?"</li>
-                </ul>
               </div>
             )}
+            <div className="flex flex-wrap justify-center gap-2 mt-5 max-w-sm">
+              {mode === "data" && (
+                <>
+                  <PromptChip label="How has my fatigue been this month?" onTap={setInput} />
+                  <PromptChip label="Do my symptoms connect to sleep?" onTap={setInput} />
+                  <PromptChip label="Summarise my recent trends" onTap={setInput} />
+                </>
+              )}
+              {mode === "emotional" && (
+                <>
+                  <PromptChip label="I'm feeling overwhelmed today" onTap={setInput} />
+                  <PromptChip label="Help me with a breathing exercise" onTap={setInput} />
+                  <PromptChip label="I need a journaling prompt" onTap={setInput} />
+                </>
+              )}
+              {mode === "planning" && (
+                <>
+                  <PromptChip label="I have errands and a doctor visit today" onTap={setInput} />
+                  <PromptChip label="My fatigue is high — what should I skip?" onTap={setInput} />
+                  <PromptChip label="Help me prioritise my tasks" onTap={setInput} />
+                </>
+              )}
+              {mode === "guidance" && (
+                <>
+                  <PromptChip label="How do I track supplements?" onTap={setInput} />
+                  <PromptChip label="Where can I see my reports?" onTap={setInput} />
+                  <PromptChip label="What are cognitive games?" onTap={setInput} />
+                </>
+              )}
+            </div>
           </div>
         )}
 
