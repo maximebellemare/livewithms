@@ -19,6 +19,7 @@ import { useRelapses } from "@/hooks/useRelapses";
 import { useWeekStreak } from "@/hooks/useWeekStreak";
 import { format, startOfWeek } from "date-fns";
 import { AvatarUpload } from "@/components/community/AvatarUpload";
+import { useBadgeEvents } from "@/hooks/useBadgeEvents";
 
 function getNextMonday(): string {
   const today = new Date();
@@ -57,6 +58,8 @@ const ProfilePage = () => {
 
   // Consecutive-week streak — shared hook
   const { weekStreak } = useWeekStreak();
+  const { data: badgeEvents = [] } = useBadgeEvents();
+  const allBadgesEarned = badgeEvents.length >= 15;
 
   const [neuroEmail, setNeuroEmail] = useState<string>("");
   const [neuroName, setNeuroName] = useState<string>("");
@@ -449,6 +452,16 @@ const ProfilePage = () => {
             <span>🏆 Badges & Achievements</span>
             <ChevronRight className="h-4 w-4" />
           </Link>
+          {allBadgesEarned && (
+            <div className="mt-2 flex items-center gap-3 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-accent/10 p-3 shadow-soft">
+              <span className="text-3xl">🏆</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-foreground">Completionist</p>
+                <p className="text-[10px] text-muted-foreground">All 15 badges unlocked — you're incredible! 🎉</p>
+              </div>
+              <span className="text-xs font-semibold text-primary">15/15</span>
+            </div>
+          )}
           <Link
             to="/onboarding"
             className="mt-2 flex items-center justify-between rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground transition-colors hover:bg-muted"
