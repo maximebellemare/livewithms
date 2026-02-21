@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
-import { Shield, ShieldCheck, ShieldOff, FileText, Users, Flag, Plus, Pencil, Trash2, EyeOff, Eye, CheckCircle2, XCircle, ThumbsUp, ThumbsDown, MessageSquare } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, FileText, Users, Flag, Plus, Pencil, Trash2, EyeOff, Eye, CheckCircle2, XCircle, ThumbsUp, ThumbsDown, MessageSquare, CalendarIcon, X } from "lucide-react";
+import { format, formatDistanceToNow, isAfter, isBefore, startOfDay, endOfDay, subDays, subMonths } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import PageHeader from "@/components/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -12,7 +16,6 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
 import {
   useIsAdmin,
   useAdminArticles,
@@ -355,17 +358,91 @@ const ModerationTab = () => {
 };
 
 /* ─── Feedback Tab ─────────────────────────────────────── */
+const presets = [
+  { label: "All time", value: "all" },
+  { label: "7 days", value: "7d" },
+  { label: "30 days", value: "30d" },
+  { label: "90 days", value: "90d" },
+  { label: "Custom", value: "custom" },
+] as const;
+
 const FeedbackTab = () => {
   const { data: stats = [], isLoading } = useCoachFeedbackStats();
+  const [preset, setPreset] = useState<string>("all");
+  const [fromDate, setFromDate] = useState<Date | undefined>();
+  const [toDate, setToDate] = useState<Date | undefined>();
 
-  const totalUp = stats.reduce((s, r) => s + Number(r.thumbs_up), 0);
-  const totalDown = stats.reduce((s, r) => s + Number(r.thumbs_down), 0);
+  const handlePreset = (v: string) => {
+    setPreset(v);
+    if (v === "all") { setFromDate(undefined); setToDate(undefined); }
+    else if (v === "7d") { setFromDate(subDays(new Date(), 7)); setToDate(undefined); }
+    else if (v === "30d") { setFromDate(subDays(new Date(), 30)); setToDate(undefined); }
+    else if (v === "90d") { setFromDate(subMonths(new Date(), 3)); setToDate(undefined); }
+  };
+
+  const filtered = stats.filter((s) => {
+    const d = new Date(s.session_created_at);
+    if (fromDate && isBefore(d, startOfDay(fromDate))) return false;
+    if (toDate && isAfter(d, endOfDay(toDate))) return false;
+    return true;
+  });
+
+  const totalUp = filtered.reduce((s, r) => s + Number(r.thumbs_up), 0);
+  const totalDown = filtered.reduce((s, r) => s + Number(r.thumbs_down), 0);
   const total = totalUp + totalDown;
 
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}</div>;
 
   return (
     <>
+      {/* Date range filter */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {presets.map((p) => (
+          <Button
+            key={p.value}
+            size="sm"
+            variant={preset === p.value ? "default" : "outline"}
+            className="text-xs h-7"
+            onClick={() => handlePreset(p.value)}
+          >
+            {p.label}
+          </Button>
+        ))}
+      </div>
+
+      {preset === "custom" && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("text-xs h-7 gap-1", !fromDate && "text-muted-foreground")}>
+                <CalendarIcon className="h-3 w-3" />
+                {fromDate ? format(fromDate, "MMM d, yyyy") : "From"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={fromDate} onSelect={setFromDate} initialFocus className={cn("p-3 pointer-events-auto")} />
+            </PopoverContent>
+          </Popover>
+          <span className="text-xs text-muted-foreground">→</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("text-xs h-7 gap-1", !toDate && "text-muted-foreground")}>
+                <CalendarIcon className="h-3 w-3" />
+                {toDate ? format(toDate, "MMM d, yyyy") : "To"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={toDate} onSelect={setToDate} initialFocus className={cn("p-3 pointer-events-auto")} />
+            </PopoverContent>
+          </Popover>
+          {(fromDate || toDate) && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setFromDate(undefined); setToDate(undefined); }}>
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Aggregate stats */}
       <div className="grid grid-cols-3 gap-2 mb-4">
         <Card>
@@ -407,14 +484,14 @@ const FeedbackTab = () => {
       )}
 
       {/* Per-session breakdown */}
-      {stats.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="text-center py-8">
           <MessageSquare className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">No feedback yet</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {stats.map((s) => (
+          {filtered.map((s) => (
             <Card key={s.session_id}>
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
