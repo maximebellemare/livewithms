@@ -1228,6 +1228,19 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_smart_matches: {
+        Args: { requesting_user_id: string; result_limit?: number }
+        Returns: {
+          age_range: string
+          avatar_url: string
+          bio: string
+          display_name: string
+          looking_for: string
+          ms_type: string
+          opt_in: boolean
+          user_id: string
+        }[]
+      }
       get_user_join_date: { Args: { target_user_id: string }; Returns: string }
       get_user_public_badges: {
         Args: { target_user_id: string }
