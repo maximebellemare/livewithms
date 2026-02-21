@@ -10,6 +10,7 @@ import PageHeader from "@/components/PageHeader";
 import AIWeeklyInsight from "@/components/AIWeeklyInsight";
 import AISymptomCorrelations from "@/components/AISymptomCorrelations";
 import WeeklyMoodTrendChart from "@/components/WeeklyMoodTrendChart";
+import SleepFatigueScatter from "@/components/SleepFatigueScatter";
 import SymptomCorrelationMatrix from "@/components/SymptomCorrelationMatrix";
 import RelapseTimeline from "@/components/RelapseTimeline";
 import RelapseTrendCard from "@/components/RelapseTrendCard";
@@ -598,6 +599,13 @@ const InsightsPage = () => {
 
             {/* ── Weekly Mood Trend ── */}
             <WeeklyMoodTrendChart entries={allEntries} />
+
+            {/* ── Sleep → Fatigue Scatter ── */}
+            <SleepFatigueScatter
+              pairs={sleepFatiguePairs}
+              correlationR={correlationR}
+              corrLabel={corrLabel}
+            />
 
             {/* ── Main trend chart ── */}
             <div className="rounded-xl bg-card p-4 shadow-soft">
