@@ -44,6 +44,7 @@ const BadgesPage = lazy(() => import("./pages/BadgesPage"));
 const MessagesPage = lazy(() => import("./pages/MessagesPage"));
 const EnergyBudgetPage = lazy(() => import("./pages/EnergyBudgetPage"));
 const LifestylePage = lazy(() => import("./pages/LifestylePage"));
+const SmartMatchingPage = lazy(() => import("./pages/SmartMatchingPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -103,6 +104,7 @@ const AnimatedRoutes = () => {
         <Route path="/messages" element={<ProtectedRoute><LazyPage><MessagesPage /></LazyPage></ProtectedRoute>} />
         <Route path="/energy" element={<ProtectedRoute><LazyPage><EnergyBudgetPage /></LazyPage></ProtectedRoute>} />
         <Route path="/lifestyle" element={<ProtectedRoute><LazyPage><LifestylePage /></LazyPage></ProtectedRoute>} />
+        <Route path="/matching" element={<ProtectedRoute><LazyPage><SmartMatchingPage /></LazyPage></ProtectedRoute>} />
         <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
       </Routes>
     </AnimatePresence>
