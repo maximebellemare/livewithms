@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { MessageSquare, Trash2, BarChart3, Heart, CalendarClock, HelpCircle, Trash, Search, Pencil, Check, X, Pin, PinOff } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MessageSquare, BarChart3, Heart, CalendarClock, HelpCircle, Trash, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import type { CoachMode } from "@/hooks/useCoach";
-import { formatDistanceToNow } from "date-fns";
+import SwipeableSessionItem from "./SwipeableSessionItem";
 
 interface CoachSession {
   id: string;
@@ -61,21 +60,18 @@ const CoachHistory = ({ onSelectSession }: CoachHistoryProps) => {
     fetchSessions();
   }, [user]);
 
-  const deleteSession = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
+  const deleteSession = async (id: string) => {
     await supabase.from("coach_messages").delete().eq("session_id", id);
     await supabase.from("coach_sessions").delete().eq("id", id);
     setSessions((prev) => prev.filter((s) => s.id !== id));
   };
 
-  const startRename = (e: React.MouseEvent, s: CoachSession) => {
-    e.stopPropagation();
+  const startRename = (s: { id: string; title: string | null }) => {
     setEditingId(s.id);
     setEditTitle(s.title || "");
   };
 
-  const confirmRename = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const confirmRename = async () => {
     if (!editingId) return;
     const trimmed = editTitle.trim() || "Untitled conversation";
     await supabase.from("coach_sessions").update({ title: trimmed }).eq("id", editingId);
@@ -83,13 +79,11 @@ const CoachHistory = ({ onSelectSession }: CoachHistoryProps) => {
     setEditingId(null);
   };
 
-  const cancelRename = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const cancelRename = () => {
     setEditingId(null);
   };
 
-  const togglePin = async (e: React.MouseEvent, id: string, currentlyPinned: boolean) => {
-    e.stopPropagation();
+  const togglePin = async (id: string, currentlyPinned: boolean) => {
     await supabase.from("coach_sessions").update({ is_pinned: !currentlyPinned }).eq("id", id);
     setSessions((prev) => {
       const updated = prev.map((s) => s.id === id ? { ...s, is_pinned: !currentlyPinned } : s);
@@ -189,82 +183,23 @@ const CoachHistory = ({ onSelectSession }: CoachHistoryProps) => {
       {filteredSessions.length === 0 ? (
         <p className="text-xs text-muted-foreground text-center py-6">No matching conversations</p>
       ) : (
-        filteredSessions.map((s, i) => {
-        const Icon = modeIcons[s.mode] || MessageSquare;
-        return (
-          <motion.button
+        filteredSessions.map((s, i) => (
+          <SwipeableSessionItem
             key={s.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.03, duration: 0.2 }}
-            onClick={() => onSelectSession(s.id, s.mode as CoachMode)}
-            className={`w-full flex items-center gap-3 rounded-xl border bg-card p-3.5 text-left hover:border-primary/30 transition-all active:scale-[0.98] group ${s.is_pinned ? "border-primary/40" : "border-border"}`}
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
-              <Icon className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              {editingId === s.id ? (
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    autoFocus
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") confirmRename(e as unknown as React.MouseEvent);
-                      if (e.key === "Escape") setEditingId(null);
-                    }}
-                    className="flex-1 min-w-0 rounded-lg border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <button onClick={confirmRename} className="flex h-6 w-6 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition-colors" aria-label="Save">
-                    <Check className="h-3.5 w-3.5" />
-                  </button>
-                  <button onClick={cancelRename} className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent transition-colors" aria-label="Cancel">
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
-                    {s.is_pinned && <Pin className="h-3 w-3 text-primary shrink-0" />}
-                    {s.title || "Untitled conversation"}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {modeLabels[s.mode] || s.mode} · {formatDistanceToNow(new Date(s.updated_at), { addSuffix: true })}
-                  </p>
-                </>
-              )}
-            </div>
-            {editingId !== s.id && (
-              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
-                <button
-                  onClick={(e) => togglePin(e, s.id, s.is_pinned)}
-                  className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all ${s.is_pinned ? "text-primary hover:text-muted-foreground" : "text-muted-foreground hover:text-primary"} hover:bg-accent`}
-                  aria-label={s.is_pinned ? "Unpin conversation" : "Pin conversation"}
-                >
-                  {s.is_pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
-                </button>
-                <button
-                  onClick={(e) => startRename(e, s)}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-all"
-                  aria-label="Rename conversation"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={(e) => deleteSession(e, s.id)}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-                  aria-label="Delete conversation"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-          </motion.button>
-        );
-      })
+            session={s}
+            index={i}
+            onSelect={onSelectSession}
+            onDelete={deleteSession}
+            onTogglePin={togglePin}
+            onStartRename={startRename}
+            isEditing={editingId === s.id}
+            editTitle={editTitle}
+            onEditTitleChange={setEditTitle}
+            onConfirmRename={confirmRename}
+            onCancelRename={cancelRename}
+          />
+        ))
       )}
-
 
       {/* Clear All */}
       {confirmClearAll ? (
