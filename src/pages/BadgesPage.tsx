@@ -67,6 +67,7 @@ const BadgeCard = ({ badge, earned, earnedAt, index, onClick, currentStreak }: {
   const threshold = BADGE_THRESHOLDS[badge.id] ?? 0;
   const progress = threshold > 0 ? Math.min((currentStreak / threshold) * 100, 100) : 0;
   const nearUnlock = progress >= 75;
+  const almostUnlocked = progress >= 90;
 
   return (
     <motion.div
@@ -77,14 +78,26 @@ const BadgeCard = ({ badge, earned, earnedAt, index, onClick, currentStreak }: {
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick()}
-      className={`relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all cursor-pointer active:scale-95 ${
+      className={`relative overflow-hidden flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all cursor-pointer active:scale-95 ${
         earned
           ? "border-primary/30 bg-gradient-to-br from-primary/5 via-card to-accent shadow-soft"
-          : nearUnlock
-            ? "border-primary/20 bg-card/60 opacity-80 grayscale-[30%]"
-            : "border-border/50 bg-card/50 opacity-50 grayscale"
+          : almostUnlocked
+            ? "border-primary/30 bg-card/70 opacity-90 grayscale-[15%]"
+            : nearUnlock
+              ? "border-primary/20 bg-card/60 opacity-80 grayscale-[30%]"
+              : "border-border/50 bg-card/50 opacity-50 grayscale"
       }`}
     >
+      {/* Shimmer overlay for 90%+ badges */}
+      {!earned && almostUnlocked && (
+        <div
+          className="pointer-events-none absolute inset-0 animate-badge-shimmer"
+          style={{
+            backgroundImage: "linear-gradient(120deg, transparent 30%, hsl(var(--primary) / 0.12) 50%, transparent 70%)",
+            backgroundSize: "200% 100%",
+          }}
+        />
+      )}
       {!earned && (
         <div className="absolute right-2 top-2">
           <Lock className="h-3 w-3 text-muted-foreground" />
