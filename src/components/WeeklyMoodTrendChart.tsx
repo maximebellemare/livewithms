@@ -221,7 +221,7 @@ const WeeklyMoodTrendChart = ({ entries }: Props) => {
           const overallAvgMood = allMoods.reduce((a, b) => a + b, 0) / allMoods.length;
 
           const tagCorrelations = Object.entries(tagMoods)
-            .filter(([, v]) => v.count >= 2)
+            .filter(([, v]) => v.count >= 1)
             .map(([tag, v]) => {
               const tagAvg = v.withTag.reduce((a, b) => a + b, 0) / v.withTag.length;
               const diff = tagAvg - overallAvgMood;
