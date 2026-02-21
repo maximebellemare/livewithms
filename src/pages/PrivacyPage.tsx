@@ -92,7 +92,7 @@ const PrivacyPage = () => {
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
 
         {/* Privacy info */}
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div className="card-base space-y-3">
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
             <h2 className="font-display text-base font-semibold text-foreground">Your Data, Your Control</h2>
@@ -106,7 +106,7 @@ const PrivacyPage = () => {
         </div>
 
         {/* Export data */}
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div className="card-base space-y-3">
           <div className="flex items-center gap-2">
             <Download className="h-5 w-5 text-primary" />
             <h2 className="font-display text-base font-semibold text-foreground">Export Your Data</h2>

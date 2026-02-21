@@ -63,7 +63,7 @@ const HydrationCard = () => {
   };
 
   return (
-    <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+    <div className="card-base space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Droplets className="h-4 w-4 text-primary" />

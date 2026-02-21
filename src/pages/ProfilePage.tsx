@@ -450,7 +450,7 @@ const ProfilePage = () => {
       <PageHeader title="Profile" subtitle="Your MS companion settings" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
         {/* User info */}
-        <div className="rounded-xl bg-card p-4 shadow-soft">
+        <div className="card-base">
           <div className="flex items-center gap-3">
             <AvatarUpload currentUrl={(profile as any)?.avatar_url ?? null} />
             <div>
@@ -531,7 +531,7 @@ const ProfilePage = () => {
         </div>
 
         {/* MS Details */}
-        <div data-tour="profile-ms-details" className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div data-tour="profile-ms-details" className="card-base space-y-3">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium text-foreground">Community Display Name</p>
@@ -563,7 +563,7 @@ const ProfilePage = () => {
         </div>
 
         {/* Country */}
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div className="card-base space-y-3">
           <div className="flex items-center gap-2">
             <Globe className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium text-foreground">Country</p>
@@ -599,7 +599,7 @@ const ProfilePage = () => {
         </div>
 
         {/* City (for heat alerts) */}
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div className="card-base space-y-3">
           <div className="flex items-center gap-2">
             <Thermometer className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium text-foreground">City</p>
@@ -629,7 +629,7 @@ const ProfilePage = () => {
         </div>
 
         {/* Age Range */}
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div className="card-base space-y-3">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium text-foreground">Age Range</p>
@@ -662,7 +662,7 @@ const ProfilePage = () => {
         </div>
 
         {/* MS Type */}
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div className="card-base space-y-3">
           <div className="flex items-center gap-2">
             <Stethoscope className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium text-foreground">MS Type</p>
@@ -695,7 +695,7 @@ const ProfilePage = () => {
         </div>
 
         {/* Year Diagnosed */}
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div className="card-base space-y-3">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium text-foreground">Year Diagnosed</p>
@@ -728,7 +728,7 @@ const ProfilePage = () => {
         </div>
 
         {/* Symptoms */}
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div className="card-base space-y-3">
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium text-foreground">Key Symptoms</p>
@@ -762,7 +762,7 @@ const ProfilePage = () => {
         </div>
 
         {/* Goals */}
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div className="card-base space-y-3">
           <div className="flex items-center gap-2">
             <Target className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium text-foreground">Your Goals</p>
@@ -796,7 +796,7 @@ const ProfilePage = () => {
         </div>
 
         {/* Neurologist details */}
-        <div data-tour="profile-neurologist" className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div data-tour="profile-neurologist" className="card-base space-y-3">
           <div className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium text-foreground">Neurologist Details</p>
@@ -858,7 +858,7 @@ const ProfilePage = () => {
           <p data-tour="profile-notifications" className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Settings</p>
 
           {/* Theme selector */}
-          <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+          <div className="card-base space-y-3">
             <div className="flex items-center gap-2">
               {isDark ? <Moon className="h-4 w-4 text-primary" /> : <Sun className="h-4 w-4 text-primary" />}
               <p className="text-sm font-medium text-foreground">Appearance</p>
@@ -1108,7 +1108,7 @@ const ProfilePage = () => {
           ))}
 
           {/* Export Data */}
-          <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+          <div className="card-base space-y-3">
             <div className="flex items-center gap-2">
               <Download className="h-4 w-4 text-primary" />
               <p className="text-sm font-medium text-foreground">Export Your Data</p>

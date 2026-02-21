@@ -98,7 +98,7 @@ export default function MedicationStreakCounter() {
   const emoji = streak >= 7 ? "🔥" : streak >= 3 ? "⚡" : "💊";
 
   return (
-    <div className="rounded-xl bg-card p-4 shadow-soft flex items-center gap-4">
+    <div className="card-base flex items-center gap-4">
       <div className="flex items-center justify-center h-14 w-14 rounded-full bg-primary/10 text-2xl shrink-0">
         {emoji}
       </div>

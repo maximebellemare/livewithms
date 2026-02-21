@@ -93,7 +93,7 @@ export default function RelapseFreeStreak() {
     streakDays! >= 7 ? "✨" : "🛡️";
 
   return (
-    <div className="rounded-xl bg-card p-4 shadow-soft">
+    <div className="card-base">
       <div className="flex items-center gap-2 mb-3">
         <Shield className="h-4 w-4 text-primary" />
         <span className="text-sm font-semibold text-foreground">Relapse-Free Streak</span>

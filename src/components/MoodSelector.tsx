@@ -15,7 +15,7 @@ interface MoodSelectorProps {
 }
 
 const MoodSelector = ({ selected, onToggle }: MoodSelectorProps) => (
-  <div className="rounded-xl bg-card p-4 shadow-soft" role="group" aria-labelledby="mood-selector-label">
+  <div className="card-base" role="group" aria-labelledby="mood-selector-label">
     <p id="mood-selector-label" className="mb-3 text-sm font-medium text-foreground">How are you feeling?</p>
     <div className="flex flex-wrap gap-2" role="list">
       {moodTags.map(({ emoji, label }) => (

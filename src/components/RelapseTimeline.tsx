@@ -116,7 +116,7 @@ export default function RelapseTimeline() {
   if (isLoading) return null;
 
   return (
-    <div className="rounded-xl bg-card p-4 shadow-soft">
+    <div className="card-base">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-primary" />

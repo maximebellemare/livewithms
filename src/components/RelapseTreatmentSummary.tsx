@@ -21,7 +21,7 @@ export default function RelapseTreatmentSummary() {
   const maxCount = treatmentCounts[0][1];
 
   return (
-    <div className="rounded-xl bg-card p-4 shadow-soft">
+    <div className="card-base">
       <div className="flex items-center gap-2 mb-3">
         <Pill className="h-4 w-4 text-primary" />
         <span className="text-sm font-semibold text-foreground">Treatment History</span>

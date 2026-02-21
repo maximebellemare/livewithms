@@ -54,7 +54,7 @@ const SymptomSlider = ({ label, emoji, value, onChange, weekAvg, higherIsBetter 
   const dynamicColor = sliderColor(value, higherIsBetter);
 
   return (
-    <div className="rounded-xl bg-card p-4 shadow-soft">
+    <div className="card-base">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-lg">{emoji}</span>

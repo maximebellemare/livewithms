@@ -110,7 +110,7 @@ const GoalTrackingDashboard = () => {
   }, [rings, fireConfetti]);
 
   return (
-    <div ref={containerRef} className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+    <div ref={containerRef} className="card-base space-y-3">
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         Today's Goals
       </p>

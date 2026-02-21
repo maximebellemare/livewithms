@@ -32,7 +32,7 @@ export default function RelapseRecoveryTime() {
   const maxAvg = Math.max(...recoveryData.map((d) => d.avg));
 
   return (
-    <div className="rounded-xl bg-card p-4 shadow-soft">
+    <div className="card-base">
       <div className="flex items-center gap-2 mb-3">
         <Clock className="h-4 w-4 text-primary" />
         <span className="text-sm font-semibold text-foreground">Avg. Recovery Time</span>

@@ -39,7 +39,7 @@ export default function RelapseTrendCard() {
   const maxCount = Math.max(...stats.counts.map((c) => c.count), 1);
 
   return (
-    <div className="rounded-xl bg-card p-4 shadow-soft">
+    <div className="card-base">
       <div className="flex items-center gap-2 mb-3">
         <BarChart3 className="h-4 w-4 text-primary" />
         <span className="text-sm font-semibold text-foreground">Relapse Trend</span>

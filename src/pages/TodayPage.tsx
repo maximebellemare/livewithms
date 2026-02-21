@@ -371,7 +371,7 @@ const TodayPage = () => {
         <GoalTrackingDashboard />
 
         {/* Section: Your Week */}
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1">
+        <p className="section-label pt-1">
           📊 Your Week at a Glance
         </p>
 
@@ -545,9 +545,9 @@ const TodayPage = () => {
         </p>
 
         {/* Section: Quick Symptom Log */}
-        <div data-tour="quick-log" ref={logRef} className="rounded-xl bg-card shadow-soft p-4 space-y-3 animate-fade-in">
+        <div data-tour="quick-log" ref={logRef} className="card-base space-y-3 animate-fade-in">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+            <p className="section-label">
               ✏️ Full Symptom Log
             </p>
             <span className="text-[9px] text-muted-foreground/50 bg-muted rounded-full px-2 py-0.5">
@@ -572,7 +572,7 @@ const TodayPage = () => {
 
         {/* Sleep & Notes */}
         <div className="space-y-3 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-          <div className="rounded-xl bg-card p-4 shadow-soft">
+          <div className="card-base">
             <label className="mb-2 block text-sm font-medium text-foreground">
               💤 Hours of sleep
             </label>
@@ -599,7 +599,7 @@ const TodayPage = () => {
             }}
           />
 
-          <div className="rounded-xl bg-card p-4 shadow-soft">
+          <div className="card-base">
             <label className="mb-2 block text-sm font-medium text-foreground">
               📝 Notes
             </label>
@@ -615,7 +615,7 @@ const TodayPage = () => {
         </div>
 
         {/* Section: Wellness */}
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1">
+        <p className="section-label pt-1">
           ❤️ Wellness
         </p>
 
@@ -647,7 +647,7 @@ const TodayPage = () => {
         {/* Reminders */}
         {/* Section: Quick Actions */}
         <div data-tour="reminders" className="space-y-2 animate-slide-up" style={{ animationDelay: "0.35s" }}>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1">
+          <p className="section-label pt-1">
             ⚡ Quick Actions
           </p>
           <QuickCard emoji="💊" title="Medications" subtitle="Manage your medications" onClick={() => navigate("/medications")} />
@@ -655,7 +655,7 @@ const TodayPage = () => {
           <button
             onClick={() => setShowReportPreview(true)}
             disabled={downloadingReport}
-            className="flex w-full items-center gap-3 rounded-xl bg-card p-4 shadow-soft text-left transition-all hover:bg-secondary/50 active:scale-[0.98] disabled:opacity-60"
+            className="flex w-full items-center gap-3 card-base text-left transition-all hover:bg-secondary/50 active:scale-[0.98] disabled:opacity-60"
           >
             <span className="text-base">📄</span>
             <div className="flex-1 min-w-0">

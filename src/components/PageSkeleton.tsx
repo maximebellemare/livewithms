@@ -25,7 +25,7 @@ export const AppLoadingSkeleton = () => (
 export const CardListSkeleton = ({ count = 3 }: { count?: number }) => (
   <div className="space-y-3 animate-fade-in">
     {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="flex items-center gap-3 rounded-xl bg-card p-4 shadow-soft">
+      <div key={i} className="flex items-center gap-3 card-base">
         <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
         <div className="flex-1 space-y-2">
           <Skeleton className="h-4 w-3/4 rounded-md" />

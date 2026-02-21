@@ -65,7 +65,7 @@ const MedicationsPage = () => {
           }
         />
         <div className="mx-auto max-w-lg space-y-4 px-4 py-4 animate-fade-in">
-          <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+          <div className="card-base space-y-3">
             <label className="block text-sm font-medium text-foreground">Medication name</label>
             <input
               value={editing.name || ""}
@@ -82,7 +82,7 @@ const MedicationsPage = () => {
             />
           </div>
 
-          <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+          <div className="card-base space-y-3">
             <label className="block text-sm font-medium text-foreground">Schedule</label>
             <div className="flex gap-2">
               {(["daily", "custom", "infusion"] as const).map((type) => (
@@ -137,7 +137,7 @@ const MedicationsPage = () => {
           </div>
 
           {/* Reminder time */}
-          <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+          <div className="card-base space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-foreground">Daily reminder</label>
               <button
@@ -228,7 +228,7 @@ const MedicationsPage = () => {
         ) : (
           <div data-tour="meds-list">
           {meds.map((med) => (
-            <div key={med.id} className="flex items-center gap-3 rounded-xl bg-card p-4 shadow-soft animate-fade-in mb-3">
+            <div key={med.id} className="flex items-center gap-3 card-base animate-fade-in mb-3">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent">
                 <Pill className="h-5 w-5 text-accent-foreground" />
               </div>

@@ -37,7 +37,7 @@ export default function RelapseYearComparison() {
   if (isLoading || relapses.length === 0 || years.length === 0) return null;
 
   return (
-    <div className="rounded-xl bg-card p-4 shadow-soft">
+    <div className="card-base">
       <div className="flex items-center gap-2 mb-3">
         <CalendarDays className="h-4 w-4 text-primary" />
         <span className="text-sm font-semibold text-foreground">Year-over-Year</span>

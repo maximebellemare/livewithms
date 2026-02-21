@@ -96,7 +96,7 @@ export default function SymptomCorrelationMatrix({ entries }: Props) {
   if (entries.length < 5) return null;
 
   return (
-    <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+    <div className="card-base space-y-3">
       <div className="flex items-center gap-2">
         <span className="text-lg">🔗</span>
         <span className="text-sm font-semibold text-foreground">Symptom Correlation Matrix</span>

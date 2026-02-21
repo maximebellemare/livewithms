@@ -118,6 +118,17 @@
   }
 }
 
+@layer components {
+  /* Standard card — single source of truth for card styling */
+  .card-base {
+    @apply rounded-xl bg-card p-4 shadow-soft;
+  }
+  /* Section label — uppercase tracking used across pages */
+  .section-label {
+    @apply text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70;
+  }
+}
+
 /* Long-press progress ring — circle radius 18 → circumference ≈ 113.1 */
 @keyframes ring-fill {
   from { stroke-dashoffset: 113.1; }

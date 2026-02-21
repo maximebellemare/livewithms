@@ -16,8 +16,8 @@ const QuickCard = forwardRef<HTMLButtonElement, QuickCardProps>(
       onClick={onClick}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.97 }}
-      className={`tap-highlight-none flex w-full items-center gap-3 rounded-xl p-4 text-left shadow-soft transition-colors ${
-        accent ? "bg-accent" : "bg-card"
+      className={`tap-highlight-none flex w-full items-center gap-3 card-base text-left transition-colors ${
+        accent ? "!bg-accent" : ""
       }`}
     >
       <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-lg">

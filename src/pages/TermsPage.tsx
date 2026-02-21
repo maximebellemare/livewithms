@@ -60,7 +60,7 @@ const TermsPage = () => {
     <>
       <PageHeader title="Terms of Service" showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-2">
+        <div className="card-base space-y-2">
           <div className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
             <h2 className="font-display text-base font-semibold text-foreground">LiveWithMS Terms of Service</h2>
@@ -69,7 +69,7 @@ const TermsPage = () => {
         </div>
 
         {sections.map((section) => (
-          <div key={section.title} className="rounded-xl bg-card p-4 shadow-soft space-y-2">
+          <div key={section.title} className="card-base space-y-2">
             <h3 className="font-display text-sm font-semibold text-foreground">{section.title}</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">{section.body}</p>
           </div>

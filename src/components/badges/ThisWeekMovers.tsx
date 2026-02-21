@@ -31,7 +31,7 @@ const ThisWeekMovers = () => {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl bg-card shadow-soft p-4 space-y-3"
+      className="card-base space-y-3"
     >
       <p className="text-sm font-semibold text-foreground flex items-center gap-2">
         <TrendingUp className="h-4 w-4 text-primary" />

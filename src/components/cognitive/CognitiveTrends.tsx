@@ -52,7 +52,7 @@ const CognitiveTrends = ({ days = 30 }: { days?: number }) => {
   const gameTypes = [...new Set(sessions.map((s) => s.game_type))];
 
   return (
-    <div className="rounded-xl bg-card p-4 shadow-soft">
+    <div className="card-base">
       <div className="flex items-center gap-2 mb-3">
         <TrendingUp className="h-4 w-4 text-primary" />
         <h3 className="text-sm font-semibold text-foreground">Score Trends</h3>
