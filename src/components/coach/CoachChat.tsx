@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, AlertTriangle } from "lucide-react";
+import { Send, Loader2, BarChart3, Heart, Calendar, HelpCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCoach, type CoachMode } from "@/hooks/useCoach";
 import { useEntries } from "@/hooks/useEntries";
@@ -103,14 +103,63 @@ const CoachChat = ({ mode }: CoachChatProps) => {
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <div className="h-14 w-14 rounded-2xl bg-secondary flex items-center justify-center mb-4">
-              <AlertTriangle className="h-6 w-6 text-primary" />
+              {mode === "data" && <BarChart3 className="h-6 w-6 text-primary" />}
+              {mode === "emotional" && <Heart className="h-6 w-6 text-primary" />}
+              {mode === "planning" && <Calendar className="h-6 w-6 text-primary" />}
+              {mode === "guidance" && <HelpCircle className="h-6 w-6 text-primary" />}
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              {mode === "data" && "Ask me about your symptom trends, correlations, or what your data means."}
-              {mode === "emotional" && "Share what's on your mind. I'm here to listen and offer gentle support."}
-              {mode === "planning" && "Tell me about your plans for today and I'll help you pace your energy."}
-              {mode === "guidance" && "Ask me how to use any feature in the app and I'll guide you step by step."}
-            </p>
+            {mode === "data" && (
+              <div className="space-y-2 max-w-xs">
+                <p className="text-sm font-medium text-foreground">Understand Your Data</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Ask me about your symptom trends, patterns, or what your tracked data means. Try things like:
+                </p>
+                <ul className="text-xs text-muted-foreground/80 space-y-1 text-left list-disc list-inside">
+                  <li>"How has my fatigue been this month?"</li>
+                  <li>"Do my symptoms connect to sleep?"</li>
+                  <li>"Summarise my recent trends"</li>
+                </ul>
+              </div>
+            )}
+            {mode === "emotional" && (
+              <div className="space-y-2 max-w-xs">
+                <p className="text-sm font-medium text-foreground">Talk About How You're Feeling</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Share what's on your mind — I'll listen and offer gentle, supportive guidance. Try things like:
+                </p>
+                <ul className="text-xs text-muted-foreground/80 space-y-1 text-left list-disc list-inside">
+                  <li>"I'm feeling overwhelmed today"</li>
+                  <li>"Help me with a breathing exercise"</li>
+                  <li>"I need a journaling prompt"</li>
+                </ul>
+              </div>
+            )}
+            {mode === "planning" && (
+              <div className="space-y-2 max-w-xs">
+                <p className="text-sm font-medium text-foreground">Plan Your Day</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Tell me what you have planned and I'll help you pace your energy using Spoon Theory. Try things like:
+                </p>
+                <ul className="text-xs text-muted-foreground/80 space-y-1 text-left list-disc list-inside">
+                  <li>"I have errands and a doctor visit today"</li>
+                  <li>"My fatigue is high — what should I skip?"</li>
+                  <li>"Help me prioritise my tasks"</li>
+                </ul>
+              </div>
+            )}
+            {mode === "guidance" && (
+              <div className="space-y-2 max-w-xs">
+                <p className="text-sm font-medium text-foreground">App Guide</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Ask me how to use any feature and I'll walk you through it step by step. Try things like:
+                </p>
+                <ul className="text-xs text-muted-foreground/80 space-y-1 text-left list-disc list-inside">
+                  <li>"How do I track supplements?"</li>
+                  <li>"Where can I see my reports?"</li>
+                  <li>"What are cognitive games?"</li>
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
