@@ -19,6 +19,10 @@ const moreTabs = [
   { to: "/learn",     icon: BookOpen,      label: "Learn" },
 ];
 
+const vibrate = (pattern: number | number[] = 10) => {
+  if (navigator.vibrate) navigator.vibrate(pattern);
+};
+
 const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -122,7 +126,7 @@ const BottomNav = () => {
             {/* More button */}
             <div ref={moreRef} className="relative">
               <button
-                onClick={() => setMoreOpen((o) => !o)}
+                onClick={() => { vibrate(); setMoreOpen((o) => !o); }}
                 aria-label={moreBadge > 0 ? `More (${moreBadge} new)` : "More"}
                 aria-expanded={moreOpen}
                 className={`tap-highlight-none relative flex flex-col items-center gap-0.5 rounded-xl px-2 py-2 text-xs font-medium transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
@@ -184,6 +188,7 @@ const BottomNav = () => {
                       dragElastic={{ top: 0, bottom: 0.6 }}
                       onDragEnd={(_, info) => {
                         if (info.offset.y > 80 || info.velocity.y > 300) {
+                          vibrate([5, 30, 5]);
                           setMoreOpen(false);
                         }
                       }}
