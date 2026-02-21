@@ -32,6 +32,7 @@ import { useRelapseFreeStreak } from "@/hooks/useRelapseFreeStreak";
 import { useBadgeProximityAlert } from "@/hooks/useBadgeProximityAlert";
 import { useRecordBadgeEvent } from "@/hooks/useBadgeEvents";
 import GoalTrackingDashboard from "@/components/GoalTrackingDashboard";
+import HeatAlertCard from "@/components/HeatAlertCard";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
@@ -346,6 +347,7 @@ const TodayPage = () => {
         )}
 
         <DiagnosisAnniversaryCard />
+        <HeatAlertCard />
 
         {!todayLoading && alreadyLogged && (
           <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/8 px-4 py-3 animate-fade-in">

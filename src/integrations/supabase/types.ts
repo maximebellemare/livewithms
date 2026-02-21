@@ -710,6 +710,7 @@ export type Database = {
           age_range: string | null
           allow_dms: boolean
           avatar_url: string | null
+          city: string | null
           country: string | null
           created_at: string
           diagnosis_date: string | null
@@ -743,6 +744,7 @@ export type Database = {
           age_range?: string | null
           allow_dms?: boolean
           avatar_url?: string | null
+          city?: string | null
           country?: string | null
           created_at?: string
           diagnosis_date?: string | null
@@ -776,6 +778,7 @@ export type Database = {
           age_range?: string | null
           allow_dms?: boolean
           avatar_url?: string | null
+          city?: string | null
           country?: string | null
           created_at?: string
           diagnosis_date?: string | null

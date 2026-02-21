@@ -3,7 +3,7 @@ import SEOHead from "@/components/SEOHead";
 import DigestPreviewCard from "@/components/DigestPreviewCard";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope, Monitor, RotateCcw, Snowflake, MessageSquare } from "lucide-react";
+import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope, Monitor, RotateCcw, Snowflake, MessageSquare, Thermometer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
@@ -74,6 +74,9 @@ const ProfilePage = () => {
   const [country, setCountry] = useState("");
   const [countryInit, setCountryInit] = useState(false);
   const [savingCountry, setSavingCountry] = useState(false);
+  const [city, setCity] = useState("");
+  const [cityInit, setCityInit] = useState(false);
+  const [savingCity, setSavingCity] = useState(false);
   const [ageRange, setAgeRange] = useState("");
   const [ageRangeInit, setAgeRangeInit] = useState(false);
   const [savingAgeRange, setSavingAgeRange] = useState(false);
@@ -233,6 +236,11 @@ const ProfilePage = () => {
     setCountryInit(true);
   }
 
+  if (profile && !cityInit) {
+    setCity((profile as any).city ?? "");
+    setCityInit(true);
+  }
+
   if (profile && !ageRangeInit) {
     setAgeRange(profile.age_range ?? "");
     setAgeRangeInit(true);
@@ -281,6 +289,18 @@ const ProfilePage = () => {
       toast.error("Failed to save country");
     } finally {
       setSavingCountry(false);
+    }
+  };
+
+  const handleSaveCity = async () => {
+    setSavingCity(true);
+    try {
+      await updateProfile.mutateAsync({ city: city.trim() || null } as any);
+      toast.success("City saved — heat alerts are now active!");
+    } catch {
+      toast.error("Failed to save city");
+    } finally {
+      setSavingCity(false);
     }
   };
 
@@ -569,6 +589,36 @@ const ProfilePage = () => {
               className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
             >
               {savingCountry ? (
+                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              Save
+            </button>
+          </div>
+        </div>
+
+        {/* City (for heat alerts) */}
+        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+          <div className="flex items-center gap-2">
+            <Thermometer className="h-4 w-4 text-primary" />
+            <p className="text-sm font-medium text-foreground">City</p>
+          </div>
+          <p className="text-xs text-muted-foreground">Used for environmental heat alerts — we'll warn you when temperatures may worsen MS symptoms.</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="e.g. London, New York, Sydney"
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <button
+              onClick={handleSaveCity}
+              disabled={savingCity}
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+            >
+              {savingCity ? (
                 <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
               ) : (
                 <Check className="h-3.5 w-3.5" />
