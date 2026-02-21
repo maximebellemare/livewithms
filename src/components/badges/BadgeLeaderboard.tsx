@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { Trophy, Crown, Medal, Award, TrendingUp, TrendingDown, Minus, Sparkles } from "lucide-react";
 import { useBadgeLeaderboard } from "@/hooks/useBadgeLeaderboard";
 import { useAuth } from "@/hooks/useAuth";
+import UserProfileDialog from "./UserProfileDialog";
 
 const RANK_STYLES: Record<number, { icon: typeof Trophy; color: string }> = {
   1: { icon: Crown, color: "text-yellow-500" },
@@ -16,6 +17,9 @@ const BadgeLeaderboard = () => {
   const { data: entries = [], isLoading } = useBadgeLeaderboard();
   const { user } = useAuth();
   const celebratedRef = useRef(false);
+  const [selectedUser, setSelectedUser] = useState<{
+    userId: string; displayName: string; avatarUrl: string | null; badgeCount: number;
+  } | null>(null);
 
   const isMe = (uid: string) => uid === user?.id;
 
@@ -99,9 +103,15 @@ const BadgeLeaderboard = () => {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 24 }}
-              className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+              className={`flex items-center gap-3 px-4 py-3 transition-colors cursor-pointer hover:bg-secondary/40 ${
                 highlighted ? "bg-primary/5" : ""
               }`}
+              onClick={() => setSelectedUser({
+                userId: entry.user_id,
+                displayName: entry.display_name,
+                avatarUrl: entry.avatar_url,
+                badgeCount: entry.badge_count,
+              })}
             >
               {/* Rank */}
               <div className="w-6 flex-shrink-0 text-center">
@@ -168,6 +178,15 @@ const BadgeLeaderboard = () => {
           );
         })}
       </div>
+
+      <UserProfileDialog
+        userId={selectedUser?.userId ?? null}
+        displayName={selectedUser?.displayName ?? ""}
+        avatarUrl={selectedUser?.avatarUrl ?? null}
+        badgeCount={selectedUser?.badgeCount ?? 0}
+        open={!!selectedUser}
+        onOpenChange={(open) => !open && setSelectedUser(null)}
+      />
     </div>
   );
 };

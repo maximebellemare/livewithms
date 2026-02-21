@@ -910,6 +910,14 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_user_join_date: { Args: { target_user_id: string }; Returns: string }
+      get_user_public_badges: {
+        Args: { target_user_id: string }
+        Returns: {
+          badge_id: string
+          earned_at: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
