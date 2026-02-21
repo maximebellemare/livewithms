@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, BarChart3, TrendingUp, NotebookPen, Phone, Users, MoreHorizontal, MessageCircle, BookOpen } from "lucide-react";
+import { Home, BarChart3, TrendingUp, NotebookPen, Phone, Users, MoreHorizontal, MessageCircle, BookOpen, AlertTriangle } from "lucide-react";
 import { motion, LayoutGroup, AnimatePresence } from "framer-motion";
 import { useUnreadCommunityPosts } from "@/hooks/useUnreadCommunity";
 import { useUnreadMessagesCount } from "@/hooks/useMessages";
@@ -15,6 +15,7 @@ const mainTabs = [
 ];
 
 const moreTabs = [
+  { to: "/relapses", icon: AlertTriangle, label: "Relapses" },
   { to: "/messages",  icon: MessageCircle, label: "Messages" },
   { to: "/learn",     icon: BookOpen,      label: "Learn" },
 ];
