@@ -122,6 +122,41 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_message_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          message_index: number
+          reaction: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_index: number
+          reaction: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_index?: number
+          reaction?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_message_reactions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "coach_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coach_messages: {
         Row: {
           content: string

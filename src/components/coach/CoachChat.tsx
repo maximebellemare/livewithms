@@ -5,6 +5,8 @@ import { useCoach, type CoachMode } from "@/hooks/useCoach";
 import { useEntries } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { useRelapses } from "@/hooks/useRelapses";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 
 interface CoachChatProps {
@@ -56,16 +58,54 @@ const followUpsByMode: Record<string, string[][]> = {
 };
 
 const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
-  const { messages, isLoading, sendMessage, setMode, resetChat, loadSession } = useCoach();
+  const { messages, isLoading, sendMessage, setMode, resetChat, loadSession, sessionId } = useCoach();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [reactions, setReactions] = useState<Record<number, "up" | "down" | null>>({});
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const { user } = useAuth();
 
-  const toggleReaction = useCallback((idx: number, type: "up" | "down") => {
-    setReactions((prev) => ({ ...prev, [idx]: prev[idx] === type ? null : type }));
-  }, []);
+  // Load persisted reactions when session loads
+  useEffect(() => {
+    if (!sessionId || !user) return;
+    supabase
+      .from("coach_message_reactions")
+      .select("message_index, reaction")
+      .eq("session_id", sessionId)
+      .eq("user_id", user.id)
+      .then(({ data }) => {
+        if (data) {
+          const loaded: Record<number, "up" | "down" | null> = {};
+          data.forEach((r) => { loaded[r.message_index] = r.reaction as "up" | "down"; });
+          setReactions(loaded);
+        }
+      });
+  }, [sessionId, user]);
+
+  const toggleReaction = useCallback(async (idx: number, type: "up" | "down") => {
+    const current = reactions[idx];
+    const newVal = current === type ? null : type;
+    setReactions((prev) => ({ ...prev, [idx]: newVal }));
+
+    if (!sessionId || !user) return;
+
+    if (newVal === null) {
+      await supabase
+        .from("coach_message_reactions")
+        .delete()
+        .eq("session_id", sessionId)
+        .eq("user_id", user.id)
+        .eq("message_index", idx);
+    } else {
+      await supabase
+        .from("coach_message_reactions")
+        .upsert(
+          { session_id: sessionId, user_id: user.id, message_index: idx, reaction: newVal },
+          { onConflict: "user_id,session_id,message_index" }
+        );
+    }
+  }, [reactions, sessionId, user]);
 
   const { data: entries } = useEntries();
   const { data: profile } = useProfile();
