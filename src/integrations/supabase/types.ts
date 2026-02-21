@@ -671,6 +671,7 @@ export type Database = {
           notify_thread_replies: boolean
           onboarding_completed: boolean
           sleep_goal: number
+          streak_freeze_enabled: boolean
           symptoms: string[] | null
           updated_at: string
           user_id: string
@@ -702,6 +703,7 @@ export type Database = {
           notify_thread_replies?: boolean
           onboarding_completed?: boolean
           sleep_goal?: number
+          streak_freeze_enabled?: boolean
           symptoms?: string[] | null
           updated_at?: string
           user_id: string
@@ -733,6 +735,7 @@ export type Database = {
           notify_thread_replies?: boolean
           onboarding_completed?: boolean
           sleep_goal?: number
+          streak_freeze_enabled?: boolean
           symptoms?: string[] | null
           updated_at?: string
           user_id?: string
