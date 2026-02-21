@@ -41,6 +41,123 @@ function fmt(v: number | null, unit = "/10"): string {
   return v !== null ? `${v.toFixed(1)}${unit}` : "not recorded";
 }
 
+function pearson(xs: number[], ys: number[]): number | null {
+  if (xs.length < 3) return null;
+  const mx = xs.reduce((a, b) => a + b, 0) / xs.length;
+  const my = ys.reduce((a, b) => a + b, 0) / ys.length;
+  const num = xs.reduce((s, x, i) => s + (x - mx) * (ys[i] - my), 0);
+  const den = Math.sqrt(
+    xs.reduce((s, x) => s + (x - mx) ** 2, 0) *
+    ys.reduce((s, y) => s + (y - my) ** 2, 0)
+  );
+  return den === 0 ? null : num / den;
+}
+
+interface CorrelationResult {
+  metricA: string;
+  metricB: string;
+  r: number;
+  lag: string;
+  pairCount: number;
+}
+
+const METRIC_KEYS = ["fatigue", "pain", "brain_fog", "mood", "mobility", "spasticity", "stress", "sleep_hours"] as const;
+const METRIC_LABELS: Record<string, string> = {
+  fatigue: "Fatigue", pain: "Pain", brain_fog: "Brain Fog", mood: "Mood",
+  mobility: "Mobility", spasticity: "Spasticity", stress: "Stress", sleep_hours: "Sleep",
+};
+
+const NEXT_DAY_PAIRS: [string, string][] = [
+  ["sleep_hours", "fatigue"], ["sleep_hours", "mood"], ["sleep_hours", "brain_fog"],
+  ["sleep_hours", "pain"], ["stress", "fatigue"], ["stress", "pain"],
+  ["stress", "sleep_hours"], ["mood", "fatigue"],
+];
+
+// deno-lint-ignore no-explicit-any
+function computeCorrelations(entries: any[]): CorrelationResult[] {
+  const sorted = [...entries].sort((a: { date: string }, b: { date: string }) => a.date.localeCompare(b.date));
+  const results: CorrelationResult[] = [];
+
+  // Same-day
+  for (let i = 0; i < METRIC_KEYS.length; i++) {
+    for (let j = i + 1; j < METRIC_KEYS.length; j++) {
+      const a = METRIC_KEYS[i], b = METRIC_KEYS[j];
+      const pairs = sorted
+        .map((e: Record<string, unknown>) => ({ x: e[a] as number | null, y: e[b] as number | null }))
+        .filter((p): p is { x: number; y: number } => p.x !== null && p.y !== null);
+      if (pairs.length < 5) continue;
+      const r = pearson(pairs.map((p) => p.x), pairs.map((p) => p.y));
+      if (r !== null && Math.abs(r) >= 0.25) {
+        results.push({ metricA: METRIC_LABELS[a], metricB: METRIC_LABELS[b], r, lag: "same-day", pairCount: pairs.length });
+      }
+    }
+  }
+
+  // Next-day
+  for (const [aKey, bKey] of NEXT_DAY_PAIRS) {
+    const pairs: { x: number; y: number }[] = [];
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const x = sorted[i][aKey] as number | null;
+      const y = sorted[i + 1][bKey] as number | null;
+      if (x !== null && y !== null) pairs.push({ x, y });
+    }
+    if (pairs.length < 5) continue;
+    const r = pearson(pairs.map((p) => p.x), pairs.map((p) => p.y));
+    if (r !== null && Math.abs(r) >= 0.25) {
+      results.push({ metricA: METRIC_LABELS[aKey], metricB: METRIC_LABELS[bKey], r, lag: "next-day", pairCount: pairs.length });
+    }
+  }
+
+  return results.sort((a, b) => Math.abs(b.r) - Math.abs(a.r)).slice(0, 4);
+}
+
+async function generateCorrelationInsights(correlations: CorrelationResult[]): Promise<string[]> {
+  if (correlations.length === 0) return [];
+
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) return [];
+
+  const corrBlock = correlations
+    .map((c) => `- ${c.metricA} ↔ ${c.metricB} (${c.lag}): r=${c.r.toFixed(2)}, ${c.pairCount} data points`)
+    .join("\n");
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          {
+            role: "system",
+            content: `You are a compassionate health coach for someone with MS.
+Given symptom correlations, write 2-3 short bullet points (one sentence each) explaining the most meaningful patterns in warm, plain language with practical tips.
+Do NOT cite r values or statistics. Return ONLY a JSON array of strings.`,
+          },
+          { role: "user", content: `Correlations:\n${corrBlock}` },
+        ],
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("AI gateway error for correlations:", response.status);
+      return [];
+    }
+
+    const json = await response.json();
+    let raw = json.choices?.[0]?.message?.content ?? "[]";
+    raw = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error("Failed to generate correlation insights:", e);
+    return [];
+  }
+}
+
 /** Returns how many consecutive past weeks (including current) the user hit their goal. */
 async function computeWeekStreak(
   // deno-lint-ignore no-explicit-any
@@ -187,10 +304,10 @@ serve(async (req) => {
         }
         const email = userData.user.email;
 
-        // Fetch last 7 days of entries
+        // Fetch last 7 days of entries (include all metrics for correlations)
         const { data: entries, error: entErr } = await supabase
           .from("daily_entries")
-          .select("date, fatigue, pain, brain_fog, mood, mobility, sleep_hours")
+          .select("date, fatigue, pain, brain_fog, mood, mobility, sleep_hours, spasticity, stress")
           .eq("user_id", profile.user_id)
           .gte("date", weekStart)
           .lte("date", weekEnd);
@@ -227,6 +344,20 @@ serve(async (req) => {
         // Generate a secure unsubscribe token (HMAC-SHA256 of user_id)
         const unsubToken = await generateUnsubscribeToken(profile.user_id, SUPABASE_SERVICE_ROLE_KEY);
         const unsubscribeUrl = `https://fpjfoadvytpvrhligdye.supabase.co/functions/v1/unsubscribe?uid=${encodeURIComponent(profile.user_id)}&token=${encodeURIComponent(unsubToken)}`;
+
+        // Fetch 30 days of entries for correlation analysis
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const { data: allEntries } = await supabase
+          .from("daily_entries")
+          .select("date, fatigue, pain, brain_fog, mood, mobility, sleep_hours, spasticity, stress")
+          .eq("user_id", profile.user_id)
+          .gte("date", thirtyDaysAgo)
+          .lte("date", weekEnd)
+          .order("date", { ascending: true });
+
+        // Compute correlations and generate AI insights
+        const correlations = computeCorrelations(allEntries ?? entries);
+        const correlationInsights = await generateCorrelationInsights(correlations);
 
         // Step 1: Upsert a Klaviyo profile (409 = already exists, that's fine)
         await klaviyoPost("/profiles/", {
@@ -277,6 +408,13 @@ serve(async (req) => {
                 week_streak: weekStreak,
                 week_streak_label: weekStreakLabel,
                 unsubscribe_url: unsubscribeUrl,
+                // Symptom correlations
+                has_correlations: correlationInsights.length > 0,
+                correlation_count: correlationInsights.length,
+                correlation_insights: correlationInsights,
+                correlation_insight_1: correlationInsights[0] ?? null,
+                correlation_insight_2: correlationInsights[1] ?? null,
+                correlation_insight_3: correlationInsights[2] ?? null,
               },
             },
           },
