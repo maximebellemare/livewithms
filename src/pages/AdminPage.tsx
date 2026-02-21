@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
-import { Shield, ShieldCheck, ShieldOff, FileText, Users, Flag, Plus, Pencil, Trash2, EyeOff, Eye, CheckCircle2, XCircle } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, FileText, Users, Flag, Plus, Pencil, Trash2, EyeOff, Eye, CheckCircle2, XCircle, ThumbsUp, ThumbsDown, MessageSquare } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
   useAdminUsers,
   useAdminReports,
   useToggleRole,
+  useCoachFeedbackStats,
 } from "@/hooks/useAdmin";
 import { useResolveReport, useHidePost, useHideComment } from "@/hooks/useCommunity";
 
@@ -353,6 +354,98 @@ const ModerationTab = () => {
   );
 };
 
+/* ─── Feedback Tab ─────────────────────────────────────── */
+const FeedbackTab = () => {
+  const { data: stats = [], isLoading } = useCoachFeedbackStats();
+
+  const totalUp = stats.reduce((s, r) => s + Number(r.thumbs_up), 0);
+  const totalDown = stats.reduce((s, r) => s + Number(r.thumbs_down), 0);
+  const total = totalUp + totalDown;
+
+  if (isLoading) return <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}</div>;
+
+  return (
+    <>
+      {/* Aggregate stats */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <Card>
+          <CardContent className="p-3 text-center">
+            <p className="text-2xl font-bold text-foreground">{total}</p>
+            <p className="text-[10px] text-muted-foreground">Total Reactions</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 text-center">
+            <div className="flex items-center justify-center gap-1">
+              <ThumbsUp className="h-4 w-4 text-primary" />
+              <span className="text-2xl font-bold text-primary">{totalUp}</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Helpful</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 text-center">
+            <div className="flex items-center justify-center gap-1">
+              <ThumbsDown className="h-4 w-4 text-destructive" />
+              <span className="text-2xl font-bold text-destructive">{totalDown}</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Not Helpful</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {total > 0 && (
+        <div className="mb-4">
+          <div className="h-2 rounded-full bg-secondary overflow-hidden flex">
+            <div className="bg-primary h-full transition-all" style={{ width: `${(totalUp / total) * 100}%` }} />
+            <div className="bg-destructive h-full transition-all" style={{ width: `${(totalDown / total) * 100}%` }} />
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1 text-center">
+            {total > 0 ? Math.round((totalUp / total) * 100) : 0}% positive
+          </p>
+        </div>
+      )}
+
+      {/* Per-session breakdown */}
+      {stats.length === 0 ? (
+        <div className="text-center py-8">
+          <MessageSquare className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">No feedback yet</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {stats.map((s) => (
+            <Card key={s.session_id}>
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{s.session_title}</p>
+                    <div className="flex gap-2 text-[10px] text-muted-foreground mt-0.5">
+                      <span>{s.user_display_name}</span>
+                      <span>·</span>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{s.session_mode}</Badge>
+                      <span>·</span>
+                      <span>{formatDistanceToNow(new Date(s.session_created_at), { addSuffix: true })}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 text-xs">
+                    <span className="flex items-center gap-0.5 text-primary">
+                      <ThumbsUp className="h-3 w-3" /> {s.thumbs_up}
+                    </span>
+                    <span className="flex items-center gap-0.5 text-destructive">
+                      <ThumbsDown className="h-3 w-3" /> {s.thumbs_down}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </>
+  );
+};
+
 /* ─── Main Page ────────────────────────────────────────── */
 const AdminPage = () => {
   const { data: isAdmin, isLoading } = useIsAdmin();
@@ -372,7 +465,7 @@ const AdminPage = () => {
       <PageHeader title="Admin Dashboard" subtitle="Manage your platform" />
       <div className="mx-auto max-w-2xl px-4 py-4">
         <Tabs defaultValue="articles">
-          <TabsList className="w-full grid grid-cols-3">
+          <TabsList className="w-full grid grid-cols-4">
             <TabsTrigger value="articles" className="gap-1.5 text-xs">
               <FileText className="h-3.5 w-3.5" /> Articles
             </TabsTrigger>
@@ -381,6 +474,9 @@ const AdminPage = () => {
             </TabsTrigger>
             <TabsTrigger value="moderation" className="gap-1.5 text-xs">
               <Flag className="h-3.5 w-3.5" /> Reports
+            </TabsTrigger>
+            <TabsTrigger value="feedback" className="gap-1.5 text-xs">
+              <ThumbsUp className="h-3.5 w-3.5" /> Feedback
             </TabsTrigger>
           </TabsList>
 
@@ -392,6 +488,9 @@ const AdminPage = () => {
           </TabsContent>
           <TabsContent value="moderation">
             <ModerationTab />
+          </TabsContent>
+          <TabsContent value="feedback">
+            <FeedbackTab />
           </TabsContent>
         </Tabs>
       </div>
