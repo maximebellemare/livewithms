@@ -44,7 +44,7 @@ const BadgeLeaderboard = () => {
 
       toast.success("You're on the leaderboard! 🎉", {
         description: "Congrats on earning your first badge — keep going!",
-        duration: 5000,
+        duration: Infinity,
       });
     }, 600);
   }, [isLoading, entries, user]);
