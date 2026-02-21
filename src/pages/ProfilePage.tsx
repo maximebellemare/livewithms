@@ -12,7 +12,9 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import NotificationToggle from "@/components/NotificationToggle";
 import { toast } from "sonner";
-import { useEntriesInRange } from "@/hooks/useEntries";
+import { useEntries, useEntriesInRange } from "@/hooks/useEntries";
+import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
+import { useRelapses } from "@/hooks/useRelapses";
 import { useWeekStreak } from "@/hooks/useWeekStreak";
 import { format, startOfWeek } from "date-fns";
 import { AvatarUpload } from "@/components/community/AvatarUpload";
@@ -83,6 +85,56 @@ const ProfilePage = () => {
   const [savingGoals, setSavingGoals] = useState(false);
   const [sendingTestDigest, setSendingTestDigest] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState<string | null>(null);
+
+  // Data for individual CSV exports
+  const { data: allEntries } = useEntries();
+  const { data: allMedications } = useDbMedications();
+  const { data: allMedLogs } = useDbMedicationLogs();
+  const { data: allRelapses } = useRelapses();
+
+  const downloadCsv = useCallback((rows: Record<string, unknown>[], filename: string) => {
+    if (!rows.length) { toast.error("No data to export"); return; }
+    const headers = Object.keys(rows[0]);
+    const lines = [headers.join(",")];
+    for (const row of rows) {
+      lines.push(headers.map((h) => {
+        const v = row[h];
+        const s = v === null || v === undefined ? "" : Array.isArray(v) ? v.join("; ") : String(v);
+        return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+      }).join(","));
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`${filename} downloaded`);
+  }, []);
+
+  const handleExportIndividualCsv = useCallback((type: string) => {
+    setExportingCsv(type);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    try {
+      if (type === "entries" && allEntries) {
+        downloadCsv(allEntries as unknown as Record<string, unknown>[], `daily-entries-${dateStr}.csv`);
+      } else if (type === "medications" && allMedications) {
+        downloadCsv(allMedications as unknown as Record<string, unknown>[], `medications-${dateStr}.csv`);
+      } else if (type === "med_logs" && allMedLogs) {
+        downloadCsv(allMedLogs as unknown as Record<string, unknown>[], `medication-logs-${dateStr}.csv`);
+      } else if (type === "relapses" && allRelapses) {
+        downloadCsv(allRelapses as unknown as Record<string, unknown>[], `relapses-${dateStr}.csv`);
+      } else {
+        toast.error("Data not loaded yet");
+      }
+    } finally {
+      setExportingCsv(null);
+    }
+  }, [allEntries, allMedications, allMedLogs, allRelapses, downloadCsv]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -894,31 +946,61 @@ const ProfilePage = () => {
               <p className="text-sm font-medium text-foreground">Export Your Data</p>
             </div>
             <p className="text-xs text-muted-foreground">Download all your health data, entries, and profile information.</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleExportData("json")}
-                disabled={exporting}
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-all hover:border-primary/50 hover:text-primary disabled:opacity-50"
-              >
-                {exporting ? (
-                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                ) : (
+
+            {/* Individual CSV exports */}
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Individual CSV Downloads</p>
+              {[
+                { key: "entries", label: "Daily Entries", count: allEntries?.length },
+                { key: "medications", label: "Medications", count: allMedications?.length },
+                { key: "med_logs", label: "Medication Logs", count: allMedLogs?.length },
+                { key: "relapses", label: "Relapses", count: allRelapses?.length },
+              ].map(({ key, label, count }) => (
+                <button
+                  key={key}
+                  onClick={() => handleExportIndividualCsv(key)}
+                  disabled={exportingCsv === key || !count}
+                  className="flex w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-all hover:border-primary/50 hover:text-primary disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5" />
+                    {label}
+                    <span className="text-muted-foreground">({count ?? 0})</span>
+                  </span>
                   <Download className="h-3.5 w-3.5" />
-                )}
-                JSON
-              </button>
-              <button
-                onClick={() => handleExportData("csv")}
-                disabled={exporting}
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-all hover:border-primary/50 hover:text-primary disabled:opacity-50"
-              >
-                {exporting ? (
-                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                ) : (
-                  <Download className="h-3.5 w-3.5" />
-                )}
-                CSV
-              </button>
+                </button>
+              ))}
+            </div>
+
+            {/* Full export */}
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Full Export (All Data)</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleExportData("json")}
+                  disabled={exporting}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-all hover:border-primary/50 hover:text-primary disabled:opacity-50"
+                >
+                  {exporting ? (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5" />
+                  )}
+                  JSON
+                </button>
+                <button
+                  onClick={() => handleExportData("csv")}
+                  disabled={exporting}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-all hover:border-primary/50 hover:text-primary disabled:opacity-50"
+                >
+                  {exporting ? (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5" />
+                  )}
+                  CSV
+                </button>
+              </div>
             </div>
           </div>
 
