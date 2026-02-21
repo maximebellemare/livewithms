@@ -30,6 +30,7 @@ import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
 import { useDbAppointments } from "@/hooks/useAppointments";
 import { useRelapses } from "@/hooks/useRelapses";
 import { generateReportFromData } from "@/lib/report-generator-db";
+import ReportPreviewDialog from "@/components/ReportPreviewDialog";
 import { toast } from "sonner";
 
 const MILESTONE_DAYS = [7, 14, 30];
@@ -147,6 +148,7 @@ const TodayPage = () => {
 
   const { data: profile } = useProfile();
   const [downloadingReport, setDownloadingReport] = useState(false);
+  const [showReportPreview, setShowReportPreview] = useState(false);
 
   // Report data (last 30 days)
   const report30Start = format(subDays(today, 30), "yyyy-MM-dd");
@@ -608,7 +610,7 @@ const TodayPage = () => {
           <QuickCard emoji="💊" title="Medications" subtitle="Manage your medications" onClick={() => navigate("/medications")} />
           <QuickCard emoji="📅" title="Appointments" subtitle="View & manage appointments" onClick={() => navigate("/appointments")} />
           <button
-            onClick={handleDownloadReport}
+            onClick={() => setShowReportPreview(true)}
             disabled={downloadingReport}
             className="flex w-full items-center gap-3 rounded-xl bg-card p-4 shadow-soft text-left transition-all hover:bg-secondary/50 active:scale-[0.98] disabled:opacity-60"
           >
@@ -619,6 +621,27 @@ const TodayPage = () => {
             </div>
             <FileDown className="h-4 w-4 text-muted-foreground" />
           </button>
+          <ReportPreviewDialog
+            open={showReportPreview}
+            onOpenChange={setShowReportPreview}
+            onConfirm={() => { setShowReportPreview(false); handleDownloadReport(); }}
+            generating={downloadingReport}
+            startDate={report30Start}
+            endDate={report30End}
+            entries={report30Entries}
+            profile={profile || null}
+            medications={reportMeds}
+            medLogs={reportMedLogs}
+            appointments={reportAppts.filter((a) => a.date >= report30Start && a.date <= report30End)}
+            relapses={reportRelapses}
+            sections={{
+              includeProfile: true, includeSymptoms: true, includeMedications: true,
+              includeAppointments: true, includeNotes: true, includeRelapses: true,
+              includeHydration: true, includeRiskScore: true, includeTrendCharts: true,
+              includeMoodTags: true, includePeriodComparison: true, includeTriggerAnalysis: true,
+              includeAiInsight: false,
+            }}
+          />
         </div>
 
         {/* Log button */}
