@@ -358,13 +358,27 @@ const BadgesPage = () => {
             </div>
 
             {filteredTimelineItems.length === 0 ? (
-              <div className="rounded-2xl bg-card p-6 text-center space-y-2">
-                <Clock className="h-6 w-6 text-muted-foreground mx-auto" />
-                <p className="text-sm text-muted-foreground">
-                  {timelineFilter === "all" ? "No badges earned yet" : "No badges in this category yet"}
-                </p>
-                <p className="text-xs text-muted-foreground">Keep logging to unlock your first badge!</p>
-              </div>
+              (() => {
+                const emptyStates: Record<string, { emoji: string; title: string; message: string }> = {
+                  all: { emoji: "🌱", title: "Your journey starts here", message: "Start logging daily to earn your first badge — every small step counts!" },
+                  logging: { emoji: "📝", title: "Start your logging streak", message: "Log your symptoms for 3 days in a row to unlock your first Daily Logging badge." },
+                  weekly: { emoji: "📊", title: "Build your weekly rhythm", message: "Meet your weekly logging goal 2 weeks in a row to earn your first Weekly badge." },
+                  medication: { emoji: "💊", title: "Stay on track", message: "Take all your medications for 7 days straight to earn your first Medication badge." },
+                  relapse: { emoji: "🛡️", title: "Every day is progress", message: "Reach 30 days relapse-free to unlock your first milestone in this category." },
+                };
+                const state = emptyStates[timelineFilter] ?? emptyStates.all;
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-2xl bg-card p-8 text-center space-y-3"
+                  >
+                    <span className="text-4xl block">{state.emoji}</span>
+                    <p className="text-sm font-semibold text-foreground">{state.title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed max-w-[260px] mx-auto">{state.message}</p>
+                  </motion.div>
+                );
+              })()
             ) : (
               <div className="relative">
                 <div className="absolute left-5 top-3 bottom-3 w-px bg-border" />
