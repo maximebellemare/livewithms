@@ -17,7 +17,7 @@ import InlineQuickLog from "@/components/InlineQuickLog";
 
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Settings, CheckCircle2, PenLine } from "lucide-react";
+import { Settings, CheckCircle2, PenLine, FileDown } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
 import UpcomingAppointments from "@/components/UpcomingAppointments";
 import DailyPromptCard from "@/components/DailyPromptCard";
@@ -26,6 +26,9 @@ import RelapseFreeStreakCompact from "@/components/RelapseFreeStreakCompact";
 import RelapseRiskIndicator from "@/components/RelapseRiskIndicator";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
+import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
+import { useDbAppointments } from "@/hooks/useAppointments";
+import { generateReportFromData } from "@/lib/report-generator-db";
 import { toast } from "sonner";
 
 const MILESTONE_DAYS = [7, 14, 30];
@@ -142,6 +145,39 @@ const TodayPage = () => {
   const { data: weekEntries = [] } = useEntriesInRange(weekStart, weekEnd);
 
   const { data: profile } = useProfile();
+  const [downloadingReport, setDownloadingReport] = useState(false);
+
+  // Report data (last 30 days)
+  const report30Start = format(subDays(today, 30), "yyyy-MM-dd");
+  const report30End = format(today, "yyyy-MM-dd");
+  const { data: report30Entries = [] } = useEntriesInRange(report30Start, report30End);
+  const { data: reportMeds = [] } = useDbMedications();
+  const { data: reportMedLogs = [] } = useDbMedicationLogs(report30Start, report30End);
+  const { data: reportAppts = [] } = useDbAppointments();
+
+  const handleDownloadReport = async () => {
+    setDownloadingReport(true);
+    try {
+      const filteredAppts = reportAppts.filter((a) => a.date >= report30Start && a.date <= report30End);
+      const blob = generateReportFromData({
+        startDate: report30Start, endDate: report30End,
+        includeSymptoms: true, includeMedications: true, includeAppointments: true,
+        includeProfile: true, includeNotes: true,
+        entries: report30Entries, profile: profile || null,
+        medications: reportMeds, medLogs: reportMedLogs, appointments: filteredAppts,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `LiveWithMS-Report-${format(today, "yyyy-MM-dd")}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Report downloaded ✓");
+    } catch (err: any) {
+      toast.error("Failed to generate report: " + err.message);
+    } finally {
+      setDownloadingReport(false);
+    }
+  };
+
   const thisWeekMonday = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
   const { data: thisWeekEntries = [] } = useEntriesInRange(thisWeekMonday, format(today, "yyyy-MM-dd"));
 
@@ -568,6 +604,18 @@ const TodayPage = () => {
           </p>
           <QuickCard emoji="💊" title="Medications" subtitle="Manage your medications" onClick={() => navigate("/medications")} />
           <QuickCard emoji="📅" title="Appointments" subtitle="View & manage appointments" onClick={() => navigate("/appointments")} />
+          <button
+            onClick={handleDownloadReport}
+            disabled={downloadingReport}
+            className="flex w-full items-center gap-3 rounded-xl bg-card p-4 shadow-soft text-left transition-all hover:bg-secondary/50 active:scale-[0.98] disabled:opacity-60"
+          >
+            <span className="text-base">📄</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">Download Report</p>
+              <p className="text-xs text-muted-foreground">{downloadingReport ? "Generating…" : "Last 30 days · PDF"}</p>
+            </div>
+            <FileDown className="h-4 w-4 text-muted-foreground" />
+          </button>
         </div>
 
         {/* Log button */}
