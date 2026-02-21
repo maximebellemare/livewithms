@@ -257,12 +257,18 @@ export function generateReportFromData(data: ReportData): Blob {
     // Mood & Sleep Trend Charts
     if (data.includeTrendCharts && entries.length >= 3) {
       y = checkPageBreak(doc, y, 110);
-      y = addSectionTitle(doc, "Mood & Sleep Trends", y);
+      y = addSectionTitle(doc, "Symptom & Wellness Trends", y);
       y += 4;
 
+      const FATIGUE_COLOR: [number, number, number] = [239, 68, 68]; // red
+      const PAIN_COLOR: [number, number, number] = [245, 158, 11]; // amber
       const MOOD_COLOR: [number, number, number] = [59, 130, 246]; // blue
       const SLEEP_COLOR: [number, number, number] = [139, 92, 246]; // purple
 
+      y = drawTrendChart(doc, entries, y, "Fatigue (0–10, lower = better)", (e) => e.fatigue, FATIGUE_COLOR, 10, "/10");
+      y = checkPageBreak(doc, y, 55);
+      y = drawTrendChart(doc, entries, y, "Pain (0–10, lower = better)", (e) => e.pain, PAIN_COLOR, 10, "/10");
+      y = checkPageBreak(doc, y, 55);
       y = drawTrendChart(doc, entries, y, "Mood (0–10, higher = better)", (e) => e.mood, MOOD_COLOR, 10, "/10");
       y = checkPageBreak(doc, y, 55);
       y = drawTrendChart(doc, entries, y, "Sleep (hours)", (e) => e.sleep_hours, SLEEP_COLOR, 12, "hrs");
