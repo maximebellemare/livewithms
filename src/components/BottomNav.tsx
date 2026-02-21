@@ -14,17 +14,39 @@ const mainTabs = [
   { to: "/community", icon: Users,       label: "Community" },
 ];
 
-const moreTabs = [
-  { to: "/my-ms-history", icon: History,      label: "My MS History" },
-  { to: "/relapses",     icon: AlertTriangle, label: "Relapses" },
-  { to: "/medications",  icon: Pill,          label: "Medications" },
-  { to: "/reports",      icon: FileText,      label: "Reports" },
-  { to: "/appointments", icon: CalendarDays,  label: "Appointments" },
-  { to: "/messages",     icon: MessageCircle, label: "Messages" },
-  { to: "/badges",       icon: Award,         label: "Badges" },
-  { to: "/learn",        icon: BookOpen,      label: "Learn" },
-  { to: "/profile",      icon: UserCog,       label: "Profile & Settings" },
+type MoreSection = {
+  heading: string;
+  items: { to: string; icon: typeof Home; label: string }[];
+};
+
+const moreSections: MoreSection[] = [
+  {
+    heading: "Health",
+    items: [
+      { to: "/my-ms-history", icon: History,       label: "My MS History" },
+      { to: "/relapses",      icon: AlertTriangle,  label: "Relapses" },
+      { to: "/medications",   icon: Pill,           label: "Medications" },
+      { to: "/reports",       icon: FileText,       label: "Reports" },
+      { to: "/appointments",  icon: CalendarDays,   label: "Appointments" },
+    ],
+  },
+  {
+    heading: "Social",
+    items: [
+      { to: "/messages", icon: MessageCircle, label: "Messages" },
+      { to: "/badges",   icon: Award,         label: "Badges" },
+      { to: "/learn",    icon: BookOpen,       label: "Learn" },
+    ],
+  },
+  {
+    heading: "Account",
+    items: [
+      { to: "/profile", icon: UserCog, label: "Profile & Settings" },
+    ],
+  },
 ];
+
+const allMoreRoutes = moreSections.flatMap((s) => s.items);
 
 const vibrate = (pattern: number | number[] = 10) => {
   if (navigator.vibrate) navigator.vibrate(pattern);
@@ -38,7 +60,7 @@ const BottomNav = () => {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
 
-  const isMoreActive = moreTabs.some((t) => location.pathname.startsWith(t.to));
+  const isMoreActive = allMoreRoutes.some((t) => location.pathname.startsWith(t.to));
   const moreBadge = unreadMessages || 0;
 
   // Close on outside click
@@ -206,33 +228,40 @@ const BottomNav = () => {
                         <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
                       </div>
                       {/* Items */}
-                      <div className="px-4 pb-6 space-y-1">
-                        {moreTabs.map(({ to, icon: Icon, label }, index) => {
-                          const active = location.pathname.startsWith(to);
-                          const badge = to === "/messages" ? unreadMessages : 0;
-                          const isLast = index === moreTabs.length - 1;
-                          return (
-                            <div key={to}>
-                              {isLast && (
-                                <div className="my-1 border-t border-border/50" />
-                              )}
-                              <button
-                                onClick={() => { setMoreOpen(false); navigate(to); }}
-                                className={`flex w-full items-center gap-4 rounded-xl px-4 py-3.5 text-sm transition-colors hover:bg-accent ${
-                                  active ? "text-primary font-semibold bg-accent/50" : "text-foreground"
-                                }`}
-                              >
-                                <Icon className="h-5 w-5" />
-                                <span className="flex-1 text-left text-base">{label}</span>
-                                {badge > 0 && (
-                                  <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
-                                    {badge > 99 ? "99+" : badge}
-                                  </span>
-                                )}
-                              </button>
+                      <div className="px-4 pb-6">
+                        {moreSections.map((section, sIdx) => (
+                          <div key={section.heading}>
+                            {sIdx > 0 && (
+                              <div className="my-1.5 border-t border-border/50" />
+                            )}
+                            <p className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              {section.heading}
+                            </p>
+                            <div className="space-y-0.5">
+                              {section.items.map(({ to, icon: Icon, label }) => {
+                                const active = location.pathname.startsWith(to);
+                                const badge = to === "/messages" ? unreadMessages : 0;
+                                return (
+                                  <button
+                                    key={to}
+                                    onClick={() => { setMoreOpen(false); navigate(to); }}
+                                    className={`flex w-full items-center gap-4 rounded-xl px-4 py-3 text-sm transition-colors hover:bg-accent ${
+                                      active ? "text-primary font-semibold bg-accent/50" : "text-foreground"
+                                    }`}
+                                  >
+                                    <Icon className="h-5 w-5" />
+                                    <span className="flex-1 text-left text-base">{label}</span>
+                                    {badge > 0 && (
+                                      <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+                                        {badge > 99 ? "99+" : badge}
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
                             </div>
-                          );
-                        })}
+                          </div>
+                        ))}
                       </div>
                     </motion.div>
                   </>
