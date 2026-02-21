@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Lock, Trophy } from "lucide-react";
+import { Lock, Share2, Trophy } from "lucide-react";
+import { toast } from "sonner";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { useStreak } from "@/components/StreakBadge";
@@ -168,6 +169,28 @@ const BadgesPage = () => {
 
   const earnedCount = earnedSet.size;
   const totalCount = BADGE_DEFS.length;
+  const earnedBadges = BADGE_DEFS.filter((b) => earnedSet.has(b.id));
+
+  const handleShare = useCallback(async () => {
+    const badgeEmojis = earnedBadges.map((b) => b.emoji).join(" ");
+    const text = `I've earned ${earnedCount}/${totalCount} badges on LiveWithMS! ${badgeEmojis}\n\nTracking my MS journey one day at a time 🧡`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "My LiveWithMS Badges", text });
+        return;
+      } catch {
+        // User cancelled or share failed — fall through to clipboard
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied to clipboard!");
+    } catch {
+      toast.error("Unable to share");
+    }
+  }, [earnedBadges, earnedCount, totalCount]);
 
   const categories = ["logging", "weekly", "medication", "relapse"] as const;
 
@@ -192,6 +215,15 @@ const BadgesPage = () => {
               transition={{ duration: 0.8, ease: "easeOut" }}
             />
           </div>
+          {earnedCount > 0 && (
+            <button
+              onClick={handleShare}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              Share my badges
+            </button>
+          )}
         </div>
 
         {/* Badge categories */}
