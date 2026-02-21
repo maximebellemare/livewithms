@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, BarChart3, Heart, CalendarClock, HelpCircle, Trash, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,6 +41,7 @@ const CoachHistory = ({ onSelectSession }: CoachHistoryProps) => {
   const [modeFilter, setModeFilter] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const fetchSessions = async () => {
     if (!user) return;
@@ -61,6 +63,13 @@ const CoachHistory = ({ onSelectSession }: CoachHistoryProps) => {
   }, [user]);
 
   const deleteSession = async (id: string) => {
+    setPendingDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    const id = pendingDeleteId;
+    setPendingDeleteId(null);
     await supabase.from("coach_messages").delete().eq("session_id", id);
     await supabase.from("coach_sessions").delete().eq("id", id);
     setSessions((prev) => prev.filter((s) => s.id !== id));
@@ -227,6 +236,44 @@ const CoachHistory = ({ onSelectSession }: CoachHistoryProps) => {
           Clear All History
         </button>
       )}
+
+      {/* Delete confirmation dialog */}
+      <AnimatePresence>
+        {pendingDeleteId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm px-6"
+            onClick={() => setPendingDeleteId(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xs rounded-2xl border border-border bg-card p-5 shadow-lg space-y-3"
+            >
+              <p className="text-sm font-semibold text-foreground">Delete conversation?</p>
+              <p className="text-xs text-muted-foreground">This will permanently remove this conversation and all its messages.</p>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setPendingDeleteId(null)}
+                  className="flex-1 rounded-xl bg-secondary px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 rounded-xl bg-destructive px-3 py-2 text-xs font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

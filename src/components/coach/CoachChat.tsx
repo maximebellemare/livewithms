@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, BarChart3, Heart, Calendar, HelpCircle } from "lucide-react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { Send, Loader2, BarChart3, Heart, Calendar, HelpCircle, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCoach, type CoachMode } from "@/hooks/useCoach";
 import { useEntries } from "@/hooks/useEntries";
@@ -21,11 +21,46 @@ const PromptChip = ({ label, onTap }: { label: string; onTap: (v: string) => voi
   </button>
 );
 
+const TypingDots = () => (
+  <div className="flex justify-start">
+    <div className="rounded-2xl rounded-bl-md bg-secondary px-4 py-3 flex items-center gap-1">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className="block h-2 w-2 rounded-full bg-muted-foreground/60"
+          animate={{ y: [0, -6, 0] }}
+          transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
+        />
+      ))}
+    </div>
+  </div>
+);
+
+const followUpsByMode: Record<string, string[][]> = {
+  data: [
+    ["What does this mean for my treatment?", "Show me a weekly breakdown", "Compare to last month"],
+    ["Which symptom is improving most?", "Are there any concerning trends?", "How does sleep affect my symptoms?"],
+  ],
+  emotional: [
+    ["Can you guide me through a breathing exercise?", "What's a good coping strategy?", "Help me reframe this thought"],
+    ["Tell me more about acceptance", "How can I talk to loved ones about this?", "I'd like a grounding exercise"],
+  ],
+  planning: [
+    ["What if I feel worse later?", "Can I fit in a rest break?", "Suggest a lighter version of my plan"],
+    ["Help me plan tomorrow too", "What should I prioritise?", "How many spoons does this leave?"],
+  ],
+  guidance: [
+    ["What other features should I try?", "How do I export my data?", "Where do I set up medications?"],
+    ["How does the community work?", "Can I track supplements?", "What are badges?"],
+  ],
+};
+
 const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
   const { messages, isLoading, sendMessage, setMode, resetChat, loadSession } = useCoach();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   const { data: entries } = useEntries();
   const { data: profile } = useProfile();
@@ -47,6 +82,35 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Scroll-to-bottom detection
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 100);
+  };
+
+  const scrollToBottom = () => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  };
+
+  // Session summary for resumed conversations
+  const sessionSummary = useMemo(() => {
+    if (!resumeSessionId || messages.length < 6) return null;
+    const firstUserMsg = messages.find((m) => m.role === "user");
+    const msgCount = messages.length;
+    const userCount = messages.filter((m) => m.role === "user").length;
+    return `Resumed conversation · ${userCount} messages from you · Started with "${firstUserMsg?.content.slice(0, 50)}${(firstUserMsg?.content.length || 0) > 50 ? "…" : ""}"`;
+  }, [resumeSessionId, messages]);
+
+  // Follow-up suggestions (pick a random set, rotate after each assistant reply)
+  const suggestedFollowUps = useMemo(() => {
+    const sets = followUpsByMode[mode] || followUpsByMode.data;
+    const assistantCount = messages.filter((m) => m.role === "assistant").length;
+    return sets[assistantCount % sets.length];
+  }, [mode, messages]);
+
+  const lastMsgIsAssistant = messages.length > 0 && messages[messages.length - 1]?.role === "assistant";
 
   const buildUserData = () => {
     if (mode === "data" || mode === "planning") {
@@ -111,9 +175,15 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
+    <div className="relative flex flex-1 flex-col overflow-hidden">
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      <div ref={scrollRef} onScroll={handleScroll} className="relative flex-1 overflow-y-auto px-4 py-3 space-y-3">
+        {/* Session summary banner */}
+        {sessionSummary && (
+          <div className="rounded-xl bg-secondary/50 border border-border px-3 py-2 mb-1">
+            <p className="text-[11px] text-muted-foreground leading-relaxed">{sessionSummary}</p>
+          </div>
+        )}
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <div className="h-14 w-14 rounded-2xl bg-secondary flex items-center justify-center mb-4">
@@ -216,17 +286,42 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
         </AnimatePresence>
 
         {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
+          <TypingDots />
+        )}
+
+        {/* Suggested follow-ups */}
+        {lastMsgIsAssistant && !isLoading && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex justify-start"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="flex flex-wrap gap-1.5 pt-1"
           >
-            <div className="rounded-2xl rounded-bl-md bg-secondary px-4 py-3">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            </div>
+            {suggestedFollowUps.map((s) => (
+              <PromptChip key={s} label={s} onTap={(v) => {
+                setInput(v);
+                setTimeout(() => inputRef.current?.focus(), 50);
+              }} />
+            ))}
           </motion.div>
         )}
       </div>
+
+      {/* Scroll to bottom button */}
+      <AnimatePresence>
+        {showScrollBtn && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={scrollToBottom}
+            className="absolute bottom-32 right-6 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-secondary border border-border shadow-md text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Scroll to bottom"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Disclaimer bar */}
       <div className="px-4 py-1">
