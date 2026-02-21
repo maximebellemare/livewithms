@@ -109,12 +109,29 @@ export function useBadgeProximityAlert(data: StreakData, onBadgesEarned?: (badge
       onBadgesEarnedRef.current(justEarned.map((b) => b.id));
     }
     setTimeout(() => {
-      fireConfetti();
-      const names = justEarned.map((b) => `${b.emoji} ${b.name}`).join(", ");
-      toast.success(`Badge${justEarned.length > 1 ? "s" : ""} unlocked! 🎉`, {
-        description: names,
-        duration: 5000,
+      // Check if ALL badges are now earned
+      const allEarned = BADGE_TARGETS.every((b) => {
+        const current = streakFor(b.category, data);
+        return current >= b.target;
       });
+
+      if (allEarned) {
+        // Grand celebration for completing all badges
+        fireConfetti();
+        setTimeout(() => fireConfetti(), 300);
+        setTimeout(() => fireConfetti(), 600);
+        toast.success("🏆 ALL BADGES UNLOCKED! 🏆", {
+          description: "You've earned every single badge — you're incredible! 🎉🧡",
+          duration: 8000,
+        });
+      } else {
+        fireConfetti();
+        const names = justEarned.map((b) => `${b.emoji} ${b.name}`).join(", ");
+        toast.success(`Badge${justEarned.length > 1 ? "s" : ""} unlocked! 🎉`, {
+          description: names,
+          duration: 5000,
+        });
+      }
     }, 500);
   }, [data]);
 }
