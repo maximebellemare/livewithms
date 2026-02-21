@@ -201,39 +201,97 @@ const WeeklyMoodTrendChart = ({ entries }: Props) => {
           </span>
         </div>
 
-        {/* Mood tag frequency */}
+        {/* Mood tag correlation breakdown */}
         {(() => {
-          const allTags: Record<string, number> = {};
+          // For each tag, compute the avg mood when that tag is present vs absent
+          const tagMoods: Record<string, { withTag: number[]; count: number }> = {};
+          const allMoods: number[] = [];
+
           entries.forEach((e) => {
+            if (e.mood === null) return;
+            allMoods.push(e.mood);
             e.mood_tags?.forEach((t) => {
-              allTags[t] = (allTags[t] || 0) + 1;
+              if (!tagMoods[t]) tagMoods[t] = { withTag: [], count: 0 };
+              tagMoods[t].withTag.push(e.mood!);
+              tagMoods[t].count++;
             });
           });
-          const sorted = Object.entries(allTags).sort((a, b) => b[1] - a[1]).slice(0, 5);
-          if (sorted.length === 0) return null;
-          const max = sorted[0][1];
+
+          if (allMoods.length === 0) return null;
+          const overallAvgMood = allMoods.reduce((a, b) => a + b, 0) / allMoods.length;
+
+          const tagCorrelations = Object.entries(tagMoods)
+            .filter(([, v]) => v.count >= 2)
+            .map(([tag, v]) => {
+              const tagAvg = v.withTag.reduce((a, b) => a + b, 0) / v.withTag.length;
+              const diff = tagAvg - overallAvgMood;
+              return { tag, tagAvg, diff, count: v.count };
+            })
+            .sort((a, b) => b.diff - a.diff);
+
+          if (tagCorrelations.length === 0) return null;
+          const maxAbsDiff = Math.max(...tagCorrelations.map((t) => Math.abs(t.diff)), 1);
 
           return (
             <div className="mt-4 pt-3 border-t border-border">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                Top mood tags (30 days)
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                Mood tag impact
               </p>
-              <div className="space-y-1.5">
-                {sorted.map(([tag, count]) => (
-                  <div key={tag} className="flex items-center gap-2">
-                    <span className="text-xs w-20 truncate text-foreground font-medium">{tag}</span>
-                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
+              <p className="text-[9px] text-muted-foreground mb-2.5">
+                Average mood when tag is logged vs overall ({overallAvgMood.toFixed(1)})
+              </p>
+              <div className="space-y-2">
+                {tagCorrelations.map(({ tag, tagAvg, diff, count }) => {
+                  const isPositive = diff > 0.2;
+                  const isNegative = diff < -0.2;
+                  const barPct = Math.min((Math.abs(diff) / maxAbsDiff) * 100, 100);
+
+                  return (
+                    <div key={tag} className="flex items-center gap-2">
+                      <span className="text-xs w-20 truncate text-foreground font-medium">{tag}</span>
+                      <div className="flex-1 flex items-center gap-1">
+                        {/* Diverging bar from center */}
+                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden relative">
+                          {isPositive && (
+                            <div
+                              className="absolute left-1/2 h-full rounded-r-full transition-all"
+                              style={{
+                                width: `${barPct / 2}%`,
+                                backgroundColor: "hsl(145 45% 45%)",
+                              }}
+                            />
+                          )}
+                          {isNegative && (
+                            <div
+                              className="absolute right-1/2 h-full rounded-l-full transition-all"
+                              style={{
+                                width: `${barPct / 2}%`,
+                                backgroundColor: "hsl(0 72% 51%)",
+                              }}
+                            />
+                          )}
+                          {!isPositive && !isNegative && (
+                            <div
+                              className="absolute left-1/2 -translate-x-1/2 h-full w-0.5 rounded-full"
+                              style={{ backgroundColor: "hsl(var(--muted-foreground))" }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <span
+                        className="text-[10px] font-semibold w-12 text-right"
                         style={{
-                          width: `${(count / max) * 100}%`,
-                          backgroundColor: TAG_COLORS[tag] || "hsl(var(--primary))",
+                          color: isPositive ? "hsl(145 45% 45%)" :
+                                 isNegative ? "hsl(0 72% 51%)" :
+                                 "hsl(var(--muted-foreground))",
                         }}
-                      />
+                      >
+                        {diff > 0 ? "+" : ""}{diff.toFixed(1)}
+                      </span>
+                      <span className="text-[9px] text-muted-foreground w-8 text-right">{count}×</span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground w-6 text-right">{count}×</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
