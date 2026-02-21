@@ -1415,6 +1415,18 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_coach_feedback_stats: {
+        Args: never
+        Returns: {
+          session_created_at: string
+          session_id: string
+          session_mode: string
+          session_title: string
+          thumbs_down: number
+          thumbs_up: number
+          user_display_name: string
+        }[]
+      }
       get_smart_matches: {
         Args: { requesting_user_id: string; result_limit?: number }
         Returns: {

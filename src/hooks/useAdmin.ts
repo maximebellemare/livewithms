@@ -138,3 +138,22 @@ export const useAdminReports = () =>
       return data;
     },
   });
+
+/* ─── Coach feedback stats (admin) ──────────────────────── */
+export const useCoachFeedbackStats = () =>
+  useQuery({
+    queryKey: ["admin-coach-feedback"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_coach_feedback_stats");
+      if (error) throw error;
+      return data as {
+        session_id: string;
+        session_title: string;
+        session_mode: string;
+        user_display_name: string;
+        thumbs_up: number;
+        thumbs_down: number;
+        session_created_at: string;
+      }[];
+    },
+  });
