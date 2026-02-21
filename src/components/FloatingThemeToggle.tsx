@@ -30,8 +30,8 @@ const FloatingThemeToggle = () => {
       onClick={toggle}
       aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
       initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: visible ? 1 : 0.6, opacity: visible ? 1 : 0, y: visible ? 0 : -20 }}
-      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      animate={visible ? { scale: [0.6, 1.15, 0.95, 1], opacity: 1, y: 0 } : { scale: 0.6, opacity: 0, y: -20 }}
+      transition={visible ? { scale: { times: [0, 0.4, 0.7, 1], duration: 0.45, ease: "easeOut" }, opacity: { duration: 0.2 }, y: { type: "spring", stiffness: 400, damping: 25 } } : { type: "spring", stiffness: 400, damping: 25 }}
       whileHover={{ scale: 1.12 }}
       whileTap={{ scale: 0.88 }}
       style={{ pointerEvents: visible ? "auto" : "none" }}
