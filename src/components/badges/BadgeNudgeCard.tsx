@@ -60,13 +60,13 @@ function streakFor(cat: string, data: StreakData): number {
  */
 function findClosestBadge(data: StreakData): NearBadge | null {
   let best: NearBadge | null = null;
-  let bestPct = 0;
+  let bestPct = -1;
 
   for (const b of BADGE_TARGETS) {
     const current = streakFor(b.category, data);
     if (current >= b.target) continue; // already earned
     const pct = current / b.target;
-    if (pct >= 0.5 && pct > bestPct) {
+    if (pct > bestPct) {
       bestPct = pct;
       best = {
         emoji: b.emoji,
@@ -88,6 +88,7 @@ const BadgeNudgeCard = ({ streakData }: { streakData: StreakData }) => {
 
   const remaining = nudge.target - nudge.current;
   const pct = Math.round((nudge.current / nudge.target) * 100);
+  const almostThere = pct >= 75;
 
   return (
     <motion.button
@@ -95,22 +96,25 @@ const BadgeNudgeCard = ({ streakData }: { streakData: StreakData }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.15, type: "spring", stiffness: 300, damping: 24 }}
       onClick={() => navigate("/badges")}
-      className="flex w-full items-center gap-3 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 to-card p-3.5 text-left shadow-soft transition-all hover:bg-secondary/50 active:scale-[0.98]"
+      className="flex w-full flex-col gap-2 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 to-card p-4 text-left shadow-soft transition-all hover:bg-secondary/50 active:scale-[0.98]"
     >
-      <span className="text-2xl flex-shrink-0">{nudge.emoji}</span>
-      <div className="flex-1 min-w-0 space-y-1.5">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-bold text-foreground truncate">
-            Almost there! <span className="font-semibold text-muted-foreground">· {nudge.name}</span>
-          </p>
-          <span className="text-[10px] font-semibold text-primary ml-2 flex-shrink-0">{pct}%</span>
-        </div>
-        <Progress value={pct} className="h-1.5" />
-        <p className="text-[10px] text-muted-foreground">
-          {remaining} more {nudge.unit} to go — keep it up! 🧡
-        </p>
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-primary/70">
+        <Trophy className="h-3 w-3" />
+        Next Badge to Unlock
       </div>
-      <Trophy className="h-4 w-4 text-primary/50 flex-shrink-0" />
+      <div className="flex items-center gap-3">
+        <span className="text-2xl flex-shrink-0">{nudge.emoji}</span>
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-foreground truncate">{nudge.name}</p>
+            <span className="text-xs font-semibold text-primary ml-2 flex-shrink-0">{pct}%</span>
+          </div>
+          <Progress value={pct} className="h-1.5" />
+          <p className="text-[10px] text-muted-foreground">
+            {almostThere ? "Almost there! " : ""}{remaining} more {nudge.unit} to go{almostThere ? " 🔥" : " — keep it up! 🧡"}
+          </p>
+        </div>
+      </div>
     </motion.button>
   );
 };
