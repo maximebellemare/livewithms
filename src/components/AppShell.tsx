@@ -5,6 +5,7 @@ import InstallPrompt from "./InstallPrompt";
 import OfflineBanner from "./OfflineBanner";
 import OnboardingTooltips from "./OnboardingTooltips";
 import WhatsNewBanner from "./WhatsNewBanner";
+import FloatingThemeToggle from "./FloatingThemeToggle";
 
 interface AppShellProps {
   children: ReactNode;
@@ -28,6 +29,7 @@ const AppShell = ({ children }: AppShellProps) => {
       </main>
       <BottomNav />
       <InstallPrompt />
+      {showNav && <FloatingThemeToggle />}
       {showNav && <WhatsNewBanner />}
       {showNav && location.pathname === "/today" && (
         <OnboardingTooltips
