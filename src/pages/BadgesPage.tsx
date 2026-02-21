@@ -66,6 +66,7 @@ const BADGE_THRESHOLDS: Record<string, number> = {
 const BadgeCard = ({ badge, earned, earnedAt, index, onClick, currentStreak }: { badge: BadgeDef; earned: boolean; earnedAt?: string; index: number; onClick: () => void; currentStreak: number }) => {
   const threshold = BADGE_THRESHOLDS[badge.id] ?? 0;
   const progress = threshold > 0 ? Math.min((currentStreak / threshold) * 100, 100) : 0;
+  const nearUnlock = progress >= 75;
 
   return (
     <motion.div
@@ -79,7 +80,9 @@ const BadgeCard = ({ badge, earned, earnedAt, index, onClick, currentStreak }: {
       className={`relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all cursor-pointer active:scale-95 ${
         earned
           ? "border-primary/30 bg-gradient-to-br from-primary/5 via-card to-accent shadow-soft"
-          : "border-border/50 bg-card/50 opacity-50 grayscale"
+          : nearUnlock
+            ? "border-primary/20 bg-card/60 opacity-80 grayscale-[30%]"
+            : "border-border/50 bg-card/50 opacity-50 grayscale"
       }`}
     >
       {!earned && (
@@ -107,11 +110,11 @@ const BadgeCard = ({ badge, earned, earnedAt, index, onClick, currentStreak }: {
         <div className="w-full space-y-1 mt-1">
           <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
             <div
-              className="h-full rounded-full bg-primary/40 transition-all duration-500"
+              className={`h-full rounded-full transition-all duration-500 ${nearUnlock ? "bg-primary" : "bg-primary/40"}`}
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-[9px] text-muted-foreground">
+          <p className={`text-[9px] ${nearUnlock ? "text-primary/80 font-semibold" : "text-muted-foreground"}`}>
             {currentStreak}/{threshold}
           </p>
         </div>
