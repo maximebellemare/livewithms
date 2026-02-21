@@ -179,7 +179,15 @@ const BottomNav = () => {
                       animate={{ y: 0 }}
                       exit={{ y: "100%" }}
                       transition={{ type: "spring", stiffness: 400, damping: 32 }}
-                      className="fixed bottom-0 left-0 right-0 z-[60] rounded-t-2xl border-t border-border bg-card pb-safe"
+                      drag="y"
+                      dragConstraints={{ top: 0, bottom: 0 }}
+                      dragElastic={{ top: 0, bottom: 0.6 }}
+                      onDragEnd={(_, info) => {
+                        if (info.offset.y > 80 || info.velocity.y > 300) {
+                          setMoreOpen(false);
+                        }
+                      }}
+                      className="fixed bottom-0 left-0 right-0 z-[60] rounded-t-2xl border-t border-border bg-card pb-safe touch-none"
                     >
                       {/* Handle */}
                       <div className="flex justify-center pt-3 pb-1">
