@@ -61,6 +61,8 @@ export default function MedicationStreakCounter() {
     { days: 7, label: "7-day perfect med streak! 🔥", emoji: "🔥" },
     { days: 14, label: "14-day perfect med streak! ⭐", emoji: "⭐" },
     { days: 30, label: "30-day perfect med streak! 🏆", emoji: "🏆" },
+    { days: 60, label: "60-day perfect med streak! 💎", emoji: "💎" },
+    { days: 90, label: "90-day perfect med streak! 👑", emoji: "👑" },
   ];
 
   useEffect(() => {
