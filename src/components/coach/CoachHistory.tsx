@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { MessageSquare, Trash2, BarChart3, Heart, CalendarClock, HelpCircle } from "lucide-react";
+import { MessageSquare, Trash2, BarChart3, Heart, CalendarClock, HelpCircle, Trash } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import type { CoachMode } from "@/hooks/useCoach";
@@ -35,6 +35,7 @@ const CoachHistory = ({ onSelectSession }: CoachHistoryProps) => {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<CoachSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   const fetchSessions = async () => {
     if (!user) return;
@@ -60,6 +61,15 @@ const CoachHistory = ({ onSelectSession }: CoachHistoryProps) => {
     await supabase.from("coach_messages").delete().eq("session_id", id);
     await supabase.from("coach_sessions").delete().eq("id", id);
     setSessions((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const clearAllSessions = async () => {
+    if (!user) return;
+    const ids = sessions.map((s) => s.id);
+    await supabase.from("coach_messages").delete().in("session_id", ids);
+    await supabase.from("coach_sessions").delete().in("id", ids);
+    setSessions([]);
+    setConfirmClearAll(false);
   };
 
   if (loading) {
@@ -118,6 +128,33 @@ const CoachHistory = ({ onSelectSession }: CoachHistoryProps) => {
           </motion.button>
         );
       })}
+
+      {/* Clear All */}
+      {confirmClearAll ? (
+        <div className="flex items-center justify-center gap-2 pt-2">
+          <span className="text-xs text-muted-foreground">Delete all conversations?</span>
+          <button
+            onClick={clearAllSessions}
+            className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors"
+          >
+            Confirm
+          </button>
+          <button
+            onClick={() => setConfirmClearAll(false)}
+            className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setConfirmClearAll(true)}
+          className="flex items-center justify-center gap-1.5 w-full rounded-xl py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors mt-1"
+        >
+          <Trash className="h-3.5 w-3.5" />
+          Clear All History
+        </button>
+      )}
     </div>
   );
 };
