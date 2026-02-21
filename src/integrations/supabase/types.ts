@@ -910,6 +910,7 @@ export type Database = {
           allow_dms: boolean
           avatar_url: string | null
           city: string | null
+          cog_streak_freeze_enabled: boolean
           country: string | null
           created_at: string
           diagnosis_date: string | null
@@ -944,6 +945,7 @@ export type Database = {
           allow_dms?: boolean
           avatar_url?: string | null
           city?: string | null
+          cog_streak_freeze_enabled?: boolean
           country?: string | null
           created_at?: string
           diagnosis_date?: string | null
@@ -978,6 +980,7 @@ export type Database = {
           allow_dms?: boolean
           avatar_url?: string | null
           city?: string | null
+          cog_streak_freeze_enabled?: boolean
           country?: string | null
           created_at?: string
           diagnosis_date?: string | null

@@ -1,14 +1,15 @@
-import { Brain } from "lucide-react";
+import { Brain, Snowflake } from "lucide-react";
 import { useCognitiveStreak } from "@/hooks/useCognitiveStreak";
 
 const CognitiveStreakBadge = () => {
-  const { streak, totalDays } = useCognitiveStreak();
+  const { streak, totalDays, frozeToday, freezesRemaining } = useCognitiveStreak();
 
   if (streak === 0 && totalDays === 0) return null;
 
   const isHot = streak >= 7;
   const isMid = streak >= 3;
   const playedToday = streak > 0;
+  const freezeEnabled = freezesRemaining > 0 || frozeToday;
 
   return (
     <div
@@ -46,14 +47,27 @@ const CognitiveStreakBadge = () => {
           {isHot ? " 🧠" : isMid ? " 🧩" : ""}
         </p>
         <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-          {playedToday
-            ? streak >= 7 ? "Amazing consistency — your brain thanks you!"
-              : streak >= 3 ? "Building a great habit — keep going!"
-              : "Nice! Play again tomorrow to build your streak."
-            : streak > 0
-              ? "Play today to keep your streak alive!"
-              : `${totalDays} day${totalDays !== 1 ? "s" : ""} played total — start a new streak!`}
+          {frozeToday
+            ? <span className="inline-flex items-center gap-1">
+                <Snowflake className="h-3 w-3 text-sky-500" />
+                Streak freeze active — play today to stay sharp!
+              </span>
+            : playedToday
+              ? streak >= 7 ? "Amazing consistency — your brain thanks you!"
+                : streak >= 3 ? "Building a great habit — keep going!"
+                : "Nice! Play again tomorrow to build your streak."
+              : streak > 0
+                ? "Play today to keep your streak alive!"
+                : `${totalDays} day${totalDays !== 1 ? "s" : ""} played total — start a new streak!`}
         </p>
+        {freezeEnabled && (
+          <div className="flex items-center gap-1 mt-1">
+            <Snowflake className={`h-3 w-3 ${freezesRemaining > 0 ? "text-sky-400" : "text-muted-foreground/50"}`} />
+            <span className="text-[10px] text-muted-foreground">
+              {freezesRemaining > 0 ? "1 freeze available this week" : "Freeze used this week"}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className={`flex-shrink-0 flex items-center justify-center rounded-full h-9 w-9 text-sm font-extrabold tabular-nums ${

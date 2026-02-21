@@ -27,6 +27,7 @@ export interface Profile {
   city: string | null;
   onboarding_completed: boolean;
   streak_freeze_enabled: boolean;
+  cog_streak_freeze_enabled: boolean;
   allow_dms: boolean;
 }
 

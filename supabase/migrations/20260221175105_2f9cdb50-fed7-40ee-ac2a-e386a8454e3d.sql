@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN cog_streak_freeze_enabled boolean NOT NULL DEFAULT false;
