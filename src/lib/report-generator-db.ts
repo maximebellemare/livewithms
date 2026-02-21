@@ -284,6 +284,10 @@ export function generateReportFromData(data: ReportData): Blob {
       y = drawTrendChart(doc, entries, y, "Mood (0–10, higher = better)", (e) => e.mood, MOOD_COLOR, 10, "/10");
       y = checkPageBreak(doc, y, 55);
       y = drawTrendChart(doc, entries, y, "Sleep (hours)", (e) => e.sleep_hours, SLEEP_COLOR, 12, "hrs");
+      y = checkPageBreak(doc, y, 55);
+
+      const HYDRATION_COLOR: [number, number, number] = [6, 182, 212]; // cyan
+      y = drawTrendChart(doc, entries, y, "Hydration (glasses)", (e) => e.water_glasses, HYDRATION_COLOR, 16, "gl");
 
       y = addSubtext(doc, "Charts show daily values with dashed average line over the report period.", y);
       y += 6;
