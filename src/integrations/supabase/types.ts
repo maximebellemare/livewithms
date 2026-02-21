@@ -74,6 +74,116 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_daily_usage: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          message_count: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          message_count?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          message_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      coach_memory: {
+        Row: {
+          created_at: string
+          id: string
+          traits: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          traits?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          traits?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      coach_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role?: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "coach_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coach_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          mode: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mode?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mode?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       cognitive_sessions: {
         Row: {
           created_at: string
@@ -907,6 +1017,7 @@ export type Database = {
       profiles: {
         Row: {
           age_range: string | null
+          ai_memory_enabled: boolean
           allow_dms: boolean
           avatar_url: string | null
           city: string | null
@@ -942,6 +1053,7 @@ export type Database = {
         }
         Insert: {
           age_range?: string | null
+          ai_memory_enabled?: boolean
           allow_dms?: boolean
           avatar_url?: string | null
           city?: string | null
@@ -977,6 +1089,7 @@ export type Database = {
         }
         Update: {
           age_range?: string | null
+          ai_memory_enabled?: boolean
           allow_dms?: boolean
           avatar_url?: string | null
           city?: string | null

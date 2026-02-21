@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, BarChart3, TrendingUp, NotebookPen, Phone, Users, MoreHorizontal, MessageCircle, BookOpen, AlertTriangle, FileText, CalendarDays, Pill, UserCog, Award, History, Map, Zap, Dumbbell, Heart, Brain } from "lucide-react";
+import { Home, BarChart3, TrendingUp, NotebookPen, Phone, Users, MoreHorizontal, MessageCircle, BookOpen, AlertTriangle, FileText, CalendarDays, Pill, UserCog, Award, History, Map, Zap, Dumbbell, Heart, Brain, Sparkles } from "lucide-react";
 import { motion, LayoutGroup, AnimatePresence } from "framer-motion";
 import { useUnreadCommunityPosts } from "@/hooks/useUnreadCommunity";
 import { useUnreadMessagesCount } from "@/hooks/useMessages";
@@ -9,7 +9,7 @@ import MedicalDisclaimerDialog from "@/components/MedicalDisclaimerDialog";
 const mainTabs = [
   { to: "/today",     icon: Home,        label: "Today" },
   { to: "/track",     icon: BarChart3,   label: "Track" },
-  { to: "/insights",  icon: TrendingUp,  label: "Insights" },
+  { to: "/coach",     icon: Sparkles,    label: "Coach" },
   { to: "/journal",   icon: NotebookPen, label: "Journal" },
   { to: "/community", icon: Users,       label: "Community" },
 ];
@@ -25,6 +25,7 @@ const moreSections: MoreSection[] = [
     heading: "Health",
     emoji: "❤️",
     items: [
+      { to: "/insights",      icon: TrendingUp,     label: "Insights" },
       { to: "/my-ms-history", icon: History,       label: "My MS History" },
       { to: "/relapses",      icon: AlertTriangle,  label: "Relapses" },
       { to: "/medications",   icon: Pill,           label: "Medications" },

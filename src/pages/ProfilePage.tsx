@@ -1074,6 +1074,24 @@ const ProfilePage = () => {
             </button>
           )}
 
+          {/* AI Memory toggle */}
+          {profile && (
+            <button
+              type="button"
+              onClick={() => updateProfile.mutate({ ai_memory_enabled: !(profile as any).ai_memory_enabled } as any)}
+              className="tap-highlight-none flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary text-foreground"
+            >
+              <Sparkles className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">AI Memory</p>
+                <p className="text-xs text-muted-foreground">Let your AI Coach remember your preferences across sessions</p>
+              </div>
+              <div className={`relative h-5 w-9 rounded-full transition-colors flex-shrink-0 ${(profile as any).ai_memory_enabled ? "bg-primary" : "bg-muted"}`}>
+                <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${(profile as any).ai_memory_enabled ? "translate-x-4" : "translate-x-0.5"}`} />
+              </div>
+            </button>
+          )}
+
 
           {[
             { icon: Shield, label: "Privacy & Data", desc: "Manage your data preferences", to: "/privacy" },

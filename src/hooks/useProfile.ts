@@ -29,6 +29,7 @@ export interface Profile {
   streak_freeze_enabled: boolean;
   cog_streak_freeze_enabled: boolean;
   allow_dms: boolean;
+  ai_memory_enabled: boolean;
 }
 
 export const useProfile = () => {

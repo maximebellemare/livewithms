@@ -46,6 +46,7 @@ const EnergyBudgetPage = lazy(() => import("./pages/EnergyBudgetPage"));
 const LifestylePage = lazy(() => import("./pages/LifestylePage"));
 const SmartMatchingPage = lazy(() => import("./pages/SmartMatchingPage"));
 const CognitivePage = lazy(() => import("./pages/CognitivePage"));
+const CoachPage = lazy(() => import("./pages/CoachPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -107,6 +108,7 @@ const AnimatedRoutes = () => {
         <Route path="/lifestyle" element={<ProtectedRoute><LazyPage><LifestylePage /></LazyPage></ProtectedRoute>} />
         <Route path="/matching" element={<ProtectedRoute><LazyPage><SmartMatchingPage /></LazyPage></ProtectedRoute>} />
         <Route path="/cognitive" element={<ProtectedRoute><LazyPage><CognitivePage /></LazyPage></ProtectedRoute>} />
+        <Route path="/coach" element={<ProtectedRoute><LazyPage><CoachPage /></LazyPage></ProtectedRoute>} />
         <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
       </Routes>
     </AnimatePresence>
