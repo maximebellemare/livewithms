@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Navigate } from "react-router-dom";
-import { Shield, ShieldCheck, ShieldOff, FileText, Users, Flag, Plus, Pencil, Trash2, EyeOff, Eye, CheckCircle2, XCircle, ThumbsUp, ThumbsDown, MessageSquare, CalendarIcon, X, Download } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, FileText, Users, Flag, Plus, Pencil, Trash2, EyeOff, Eye, CheckCircle2, XCircle, ThumbsUp, ThumbsDown, MessageSquare, CalendarIcon, X, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, formatDistanceToNow, isAfter, isBefore, startOfDay, endOfDay, subDays, subMonths } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -367,14 +367,18 @@ const presets = [
   { label: "Custom", value: "custom" },
 ] as const;
 
+const ITEMS_PER_PAGE = 10;
+
 const FeedbackTab = () => {
   const { data: stats = [], isLoading } = useCoachFeedbackStats();
   const [preset, setPreset] = useState<string>("all");
   const [fromDate, setFromDate] = useState<Date | undefined>();
   const [toDate, setToDate] = useState<Date | undefined>();
+  const [page, setPage] = useState(1);
 
   const handlePreset = (v: string) => {
     setPreset(v);
+    setPage(1);
     if (v === "all") { setFromDate(undefined); setToDate(undefined); }
     else if (v === "7d") { setFromDate(subDays(new Date(), 7)); setToDate(undefined); }
     else if (v === "30d") { setFromDate(subDays(new Date(), 30)); setToDate(undefined); }
@@ -391,6 +395,10 @@ const FeedbackTab = () => {
   const totalUp = filtered.reduce((s, r) => s + Number(r.thumbs_up), 0);
   const totalDown = filtered.reduce((s, r) => s + Number(r.thumbs_down), 0);
   const total = totalUp + totalDown;
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedItems = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
   const exportCSV = () => {
     if (filtered.length === 0) return;
@@ -521,34 +529,67 @@ const FeedbackTab = () => {
           <p className="text-sm text-muted-foreground">No feedback yet</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((s) => (
-            <Card key={s.session_id}>
-              <CardContent className="p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{s.session_title}</p>
-                    <div className="flex gap-2 text-[10px] text-muted-foreground mt-0.5">
-                      <span>{s.user_display_name}</span>
-                      <span>·</span>
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{s.session_mode}</Badge>
-                      <span>·</span>
-                      <span>{formatDistanceToNow(new Date(s.session_created_at), { addSuffix: true })}</span>
+        <>
+          <div className="space-y-2">
+            {paginatedItems.map((s) => (
+              <Card key={s.session_id}>
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{s.session_title}</p>
+                      <div className="flex gap-2 text-[10px] text-muted-foreground mt-0.5">
+                        <span>{s.user_display_name}</span>
+                        <span>·</span>
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{s.session_mode}</Badge>
+                        <span>·</span>
+                        <span>{formatDistanceToNow(new Date(s.session_created_at), { addSuffix: true })}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 text-xs">
+                      <span className="flex items-center gap-0.5 text-primary">
+                        <ThumbsUp className="h-3 w-3" /> {s.thumbs_up}
+                      </span>
+                      <span className="flex items-center gap-0.5 text-destructive">
+                        <ThumbsDown className="h-3 w-3" /> {s.thumbs_down}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 text-xs">
-                    <span className="flex items-center gap-0.5 text-primary">
-                      <ThumbsUp className="h-3 w-3" /> {s.thumbs_up}
-                    </span>
-                    <span className="flex items-center gap-0.5 text-destructive">
-                      <ThumbsDown className="h-3 w-3" /> {s.thumbs_down}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-[10px] text-muted-foreground">
+                {(safePage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(safePage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} sessions
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-xs text-muted-foreground px-2">
+                  {safePage} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </>
   );
