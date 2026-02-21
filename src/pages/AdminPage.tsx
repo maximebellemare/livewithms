@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Navigate } from "react-router-dom";
-import { Shield, ShieldCheck, ShieldOff, FileText, Users, Flag, Plus, Pencil, Trash2, EyeOff, Eye, CheckCircle2, XCircle, ThumbsUp, ThumbsDown, MessageSquare, CalendarIcon, X } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, FileText, Users, Flag, Plus, Pencil, Trash2, EyeOff, Eye, CheckCircle2, XCircle, ThumbsUp, ThumbsDown, MessageSquare, CalendarIcon, X, Download } from "lucide-react";
 import { format, formatDistanceToNow, isAfter, isBefore, startOfDay, endOfDay, subDays, subMonths } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -392,6 +392,28 @@ const FeedbackTab = () => {
   const totalDown = filtered.reduce((s, r) => s + Number(r.thumbs_down), 0);
   const total = totalUp + totalDown;
 
+  const exportCSV = () => {
+    if (filtered.length === 0) return;
+    const headers = ["Session Title", "User", "Mode", "Date", "Thumbs Up", "Thumbs Down"];
+    const rows = filtered.map((s) => [
+      `"${(s.session_title ?? "").replace(/"/g, '""')}"`,
+      `"${(s.user_display_name ?? "").replace(/"/g, '""')}"`,
+      s.session_mode,
+      format(new Date(s.session_created_at), "yyyy-MM-dd"),
+      s.thumbs_up,
+      s.thumbs_down,
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `feedback-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exported");
+  };
+
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}</div>;
 
   return (
@@ -409,6 +431,11 @@ const FeedbackTab = () => {
             {p.label}
           </Button>
         ))}
+        {filtered.length > 0 && (
+          <Button size="sm" variant="outline" className="text-xs h-7 ml-auto gap-1" onClick={exportCSV}>
+            <Download className="h-3 w-3" /> Export CSV
+          </Button>
+        )}
       </div>
 
       {preset === "custom" && (
