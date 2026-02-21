@@ -320,6 +320,30 @@ export type Database = {
           },
         ]
       }
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          last_message_at: string
+          participant_1: string
+          participant_2: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          participant_1: string
+          participant_2: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          participant_1?: string
+          participant_2?: string
+        }
+        Relationships: []
+      }
       daily_entries: {
         Row: {
           brain_fog: number | null
@@ -589,6 +613,41 @@ export type Database = {
         }
         Relationships: []
       }
+      messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          is_read: boolean
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           actor_id: string | null
@@ -649,6 +708,7 @@ export type Database = {
       profiles: {
         Row: {
           age_range: string | null
+          allow_dms: boolean
           avatar_url: string | null
           country: string | null
           created_at: string
@@ -681,6 +741,7 @@ export type Database = {
         }
         Insert: {
           age_range?: string | null
+          allow_dms?: boolean
           avatar_url?: string | null
           country?: string | null
           created_at?: string
@@ -713,6 +774,7 @@ export type Database = {
         }
         Update: {
           age_range?: string | null
+          allow_dms?: boolean
           avatar_url?: string | null
           country?: string | null
           created_at?: string
@@ -928,6 +990,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      user_allows_dms: { Args: { target_user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

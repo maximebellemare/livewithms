@@ -26,6 +26,7 @@ export interface Profile {
   country: string | null;
   onboarding_completed: boolean;
   streak_freeze_enabled: boolean;
+  allow_dms: boolean;
 }
 
 export const useProfile = () => {

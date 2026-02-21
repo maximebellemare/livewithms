@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { Calendar, Trophy, Lock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import NewMessageDialog from "@/components/messages/NewMessageDialog";
 
 /* ── Badge definitions (shared with BadgesPage) ── */
 const BADGE_DEFS = [
@@ -120,6 +121,14 @@ const UserProfileDialog = ({ userId, displayName, avatarUrl, badgeCount, open, o
               )}
             </div>
           </div>
+          {userId && (
+            <div className="mt-3 flex justify-center">
+              <NewMessageDialog
+                targetUserId={userId}
+                targetDisplayName={displayName}
+              />
+            </div>
+          )}
         </div>
 
         {/* Badge collection */}

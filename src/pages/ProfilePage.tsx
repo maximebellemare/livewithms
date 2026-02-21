@@ -3,7 +3,7 @@ import SEOHead from "@/components/SEOHead";
 import DigestPreviewCard from "@/components/DigestPreviewCard";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope, Monitor, RotateCcw, Snowflake } from "lucide-react";
+import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope, Monitor, RotateCcw, Snowflake, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
@@ -20,6 +20,7 @@ import { useWeekStreak } from "@/hooks/useWeekStreak";
 import { format, startOfWeek } from "date-fns";
 import { AvatarUpload } from "@/components/community/AvatarUpload";
 import { useBadgeEvents } from "@/hooks/useBadgeEvents";
+import { useUnreadMessagesCount } from "@/hooks/useMessages";
 
 function getNextMonday(): string {
   const today = new Date();
@@ -59,6 +60,7 @@ const ProfilePage = () => {
   // Consecutive-week streak — shared hook
   const { weekStreak } = useWeekStreak();
   const { data: badgeEvents = [] } = useBadgeEvents();
+  const { data: unreadCount = 0 } = useUnreadMessagesCount();
   const allBadgesEarned = badgeEvents.length >= 15;
 
   const [neuroEmail, setNeuroEmail] = useState<string>("");
@@ -450,6 +452,21 @@ const ProfilePage = () => {
             className="mt-2 flex items-center justify-between rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground transition-colors hover:bg-muted"
           >
             <span>🏆 Badges & Achievements</span>
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+          <Link
+            to="/messages"
+            className="mt-2 flex items-center justify-between rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground transition-colors hover:bg-muted"
+          >
+            <span className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Messages
+              {unreadCount > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </span>
             <ChevronRight className="h-4 w-4" />
           </Link>
           {allBadgesEarned && (
@@ -970,6 +987,25 @@ const ProfilePage = () => {
               </div>
             </button>
           )}
+
+          {/* Allow DMs toggle */}
+          {profile && (
+            <button
+              type="button"
+              onClick={() => updateProfile.mutate({ allow_dms: !(profile as any).allow_dms } as any)}
+              className="tap-highlight-none flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary text-foreground"
+            >
+              <MessageSquare className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Allow Direct Messages</p>
+                <p className="text-xs text-muted-foreground">Let other community members message you</p>
+              </div>
+              <div className={`relative h-5 w-9 rounded-full transition-colors flex-shrink-0 ${(profile as any).allow_dms ? "bg-primary" : "bg-muted"}`}>
+                <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${(profile as any).allow_dms ? "translate-x-4" : "translate-x-0.5"}`} />
+              </div>
+            </button>
+          )}
+
 
           {[
             { icon: Shield, label: "Privacy & Data", desc: "Manage your data preferences", to: "/privacy" },

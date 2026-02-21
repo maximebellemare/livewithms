@@ -41,6 +41,7 @@ const CommunityGuidelinesPage = lazy(() => import("./pages/CommunityGuidelinesPa
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
 const BadgesPage = lazy(() => import("./pages/BadgesPage"));
+const MessagesPage = lazy(() => import("./pages/MessagesPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -97,6 +98,7 @@ const AnimatedRoutes = () => {
         <Route path="/admin" element={<ProtectedRoute><LazyPage><AdminPage /></LazyPage></ProtectedRoute>} />
         <Route path="/terms" element={<ProtectedRoute><LazyPage><TermsPage /></LazyPage></ProtectedRoute>} />
         <Route path="/badges" element={<ProtectedRoute><LazyPage><BadgesPage /></LazyPage></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute><LazyPage><MessagesPage /></LazyPage></ProtectedRoute>} />
         <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
       </Routes>
     </AnimatePresence>
