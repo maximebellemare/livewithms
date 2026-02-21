@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import { motion } from "framer-motion";
 import { Lock, Share2, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import SEOHead from "@/components/SEOHead";
+import BadgeDetailDialog from "@/components/badges/BadgeDetailDialog";
 import PageHeader from "@/components/PageHeader";
 import { useStreak } from "@/components/StreakBadge";
 import { useWeekStreak } from "@/hooks/useWeekStreak";
@@ -102,12 +103,16 @@ function useRelapseFreeStreak() {
 }
 
 /* ── Badge Card ────────────────────────────────────────── */
-const BadgeCard = ({ badge, earned, index }: { badge: BadgeDef; earned: boolean; index: number }) => (
+const BadgeCard = ({ badge, earned, index, onClick }: { badge: BadgeDef; earned: boolean; index: number; onClick: () => void }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.8 }}
     animate={{ opacity: 1, scale: 1 }}
     transition={{ delay: index * 0.05, type: "spring", stiffness: 300, damping: 24 }}
-    className={`relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all ${
+    onClick={onClick}
+    role="button"
+    tabIndex={0}
+    onKeyDown={(e) => e.key === "Enter" && onClick()}
+    className={`relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all cursor-pointer active:scale-95 ${
       earned
         ? "border-primary/30 bg-gradient-to-br from-primary/5 via-card to-accent shadow-soft"
         : "border-border/50 bg-card/50 opacity-50 grayscale"
@@ -138,6 +143,20 @@ const BadgesPage = () => {
   const { weekStreak } = useWeekStreak();
   const medStreak = useMedStreak();
   const relapseStreak = useRelapseFreeStreak();
+  const [selectedBadge, setSelectedBadge] = useState<BadgeDef | null>(null);
+
+  const streakForCategory = useCallback(
+    (cat: string) => {
+      switch (cat) {
+        case "logging": return logStreak;
+        case "weekly": return weekStreak;
+        case "medication": return medStreak;
+        case "relapse": return relapseStreak;
+        default: return 0;
+      }
+    },
+    [logStreak, weekStreak, medStreak, relapseStreak]
+  );
 
   const earnedSet = useMemo(() => {
     const set = new Set<string>();
@@ -278,12 +297,26 @@ const BadgesPage = () => {
               </div>
               <div className="grid grid-cols-3 gap-3">
                 {badges.map((badge, i) => (
-                  <BadgeCard key={badge.id} badge={badge} earned={earnedSet.has(badge.id)} index={i} />
+                  <BadgeCard
+                    key={badge.id}
+                    badge={badge}
+                    earned={earnedSet.has(badge.id)}
+                    index={i}
+                    onClick={() => setSelectedBadge(badge)}
+                  />
                 ))}
               </div>
             </div>
           );
         })}
+
+        <BadgeDetailDialog
+          badge={selectedBadge}
+          earned={selectedBadge ? earnedSet.has(selectedBadge.id) : false}
+          currentStreak={selectedBadge ? streakForCategory(selectedBadge.category) : 0}
+          open={!!selectedBadge}
+          onOpenChange={(open) => !open && setSelectedBadge(null)}
+        />
       </div>
     </>
   );
