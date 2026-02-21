@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from "react";
-import { Send, Loader2, BarChart3, Heart, Calendar, HelpCircle, ChevronDown } from "lucide-react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { Send, BarChart3, Heart, Calendar, HelpCircle, ChevronDown, ThumbsUp, ThumbsDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCoach, type CoachMode } from "@/hooks/useCoach";
 import { useEntries } from "@/hooks/useEntries";
@@ -60,7 +60,12 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [reactions, setReactions] = useState<Record<number, "up" | "down" | null>>({});
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+
+  const toggleReaction = useCallback((idx: number, type: "up" | "down") => {
+    setReactions((prev) => ({ ...prev, [idx]: prev[idx] === type ? null : type }));
+  }, []);
 
   const { data: entries } = useEntries();
   const { data: profile } = useProfile();
@@ -264,7 +269,7 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2 }}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
             >
               <div
                 className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
@@ -281,6 +286,32 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                   msg.content
                 )}
               </div>
+              {msg.role === "assistant" && (
+                <div className="flex items-center gap-1 mt-1 ml-1">
+                  <button
+                    onClick={() => toggleReaction(i, "up")}
+                    className={`p-1 rounded-md transition-colors ${
+                      reactions[i] === "up"
+                        ? "text-primary bg-primary/10"
+                        : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary"
+                    }`}
+                    aria-label="Helpful"
+                  >
+                    <ThumbsUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => toggleReaction(i, "down")}
+                    className={`p-1 rounded-md transition-colors ${
+                      reactions[i] === "down"
+                        ? "text-destructive bg-destructive/10"
+                        : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary"
+                    }`}
+                    aria-label="Not helpful"
+                  >
+                    <ThumbsDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </motion.div>
           ))}
         </AnimatePresence>
