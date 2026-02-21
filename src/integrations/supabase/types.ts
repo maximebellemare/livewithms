@@ -649,6 +649,7 @@ export type Database = {
           notify_push_enabled: boolean
           notify_thread_replies: boolean
           onboarding_completed: boolean
+          sleep_goal: number
           symptoms: string[] | null
           updated_at: string
           user_id: string
@@ -679,6 +680,7 @@ export type Database = {
           notify_push_enabled?: boolean
           notify_thread_replies?: boolean
           onboarding_completed?: boolean
+          sleep_goal?: number
           symptoms?: string[] | null
           updated_at?: string
           user_id: string
@@ -709,6 +711,7 @@ export type Database = {
           notify_push_enabled?: boolean
           notify_thread_replies?: boolean
           onboarding_completed?: boolean
+          sleep_goal?: number
           symptoms?: string[] | null
           updated_at?: string
           user_id?: string

@@ -925,6 +925,33 @@ const ProfilePage = () => {
             </div>
           </button>
 
+          {/* Sleep goal setting */}
+          {profile && (
+            <div className="flex items-center gap-3 rounded-xl px-3 py-3">
+              <Moon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">Sleep Target</p>
+                <p className="text-xs text-muted-foreground mb-1.5">Daily hours goal for progress ring</p>
+                <div className="flex items-center gap-1.5">
+                  {[6, 7, 7.5, 8, 9].map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => updateProfile.mutate({ sleep_goal: h } as any)}
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors border ${
+                        (profile.sleep_goal ?? 8) === h
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-transparent text-muted-foreground border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {h}h
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {[
             { icon: Shield, label: "Privacy & Data", desc: "Manage your data preferences", to: "/privacy" },
             { icon: Sparkles, label: "Feature Roadmap", desc: "See what's coming next", to: "/roadmap" },

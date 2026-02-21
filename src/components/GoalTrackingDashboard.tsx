@@ -67,7 +67,7 @@ const GoalTrackingDashboard = () => {
   const logCurrent = weekEntries.length;
   const logProgress = logGoal > 0 ? logCurrent / logGoal : 0;
 
-  const sleepTarget = 8;
+  const sleepTarget = profile?.sleep_goal ?? 8;
   const sleepCurrent = todayEntry?.sleep_hours ?? 0;
   const sleepProgress = sleepTarget > 0 ? sleepCurrent / sleepTarget : 0;
 

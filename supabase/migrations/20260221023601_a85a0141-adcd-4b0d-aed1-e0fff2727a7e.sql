@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN sleep_goal numeric NOT NULL DEFAULT 8;
