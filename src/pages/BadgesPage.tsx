@@ -108,6 +108,7 @@ const BadgesPage = () => {
   const recordBadge = useRecordBadgeEvent();
   const [selectedBadge, setSelectedBadge] = useState<BadgeDef | null>(null);
   const [view, setView] = useState<"grid" | "timeline">("grid");
+  const [timelineFilter, setTimelineFilter] = useState<string>("all");
 
   // Map badge_id → earned_at for quick lookups
   const earnedAtMap = useMemo(() => {
@@ -128,6 +129,11 @@ const BadgesPage = () => {
       })
       .filter(Boolean) as (BadgeDef & { earnedAt: string })[];
   }, [badgeEvents]);
+
+  const filteredTimelineItems = useMemo(() => {
+    if (timelineFilter === "all") return timelineItems;
+    return timelineItems.filter((item) => item.category === timelineFilter);
+  }, [timelineItems, timelineFilter]);
 
   const streakForCategory = useCallback(
     (cat: string) => {
@@ -333,19 +339,37 @@ const BadgesPage = () => {
           </>
         ) : (
           /* Timeline view */
-          <div className="space-y-1">
-            {timelineItems.length === 0 ? (
+          <div className="space-y-3">
+            {/* Category filter chips */}
+            <div className="flex flex-wrap items-center gap-2">
+              {[{ key: "all", label: "All", emoji: "🏷️" }, ...categories.map((c) => ({ key: c, ...CATEGORY_LABELS[c] }))].map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => setTimelineFilter(opt.key)}
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+                    timelineFilter === opt.key
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {opt.emoji} {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {filteredTimelineItems.length === 0 ? (
               <div className="rounded-2xl bg-card p-6 text-center space-y-2">
                 <Clock className="h-6 w-6 text-muted-foreground mx-auto" />
-                <p className="text-sm text-muted-foreground">No badges earned yet</p>
+                <p className="text-sm text-muted-foreground">
+                  {timelineFilter === "all" ? "No badges earned yet" : "No badges in this category yet"}
+                </p>
                 <p className="text-xs text-muted-foreground">Keep logging to unlock your first badge!</p>
               </div>
             ) : (
               <div className="relative">
-                {/* Vertical line */}
                 <div className="absolute left-5 top-3 bottom-3 w-px bg-border" />
 
-                {timelineItems.map((item, i) => {
+                {filteredTimelineItems.map((item, i) => {
                   const meta = CATEGORY_LABELS[item.category];
                   return (
                     <motion.div
@@ -359,7 +383,6 @@ const BadgesPage = () => {
                       onKeyDown={(e) => e.key === "Enter" && setSelectedBadge(item)}
                       className="relative flex items-start gap-4 py-3 pl-2 cursor-pointer group"
                     >
-                      {/* Dot on the timeline */}
                       <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 border border-primary/30 text-lg group-hover:bg-primary/20 transition-colors">
                         {item.emoji}
                       </div>
