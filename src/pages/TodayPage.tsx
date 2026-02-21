@@ -327,7 +327,7 @@ const TodayPage = () => {
           </Link>
         }
       />
-      <div className="mx-auto max-w-lg space-y-4 px-4 py-4">
+      <div className="mx-auto max-w-lg space-y-3 px-4 py-3">
         {todayLoading ? (
           <div className="space-y-3 animate-fade-in">
             <Skeleton className="h-14 w-full rounded-xl" />
@@ -370,9 +370,13 @@ const TodayPage = () => {
         {/* Goal tracking progress rings */}
         <GoalTrackingDashboard />
 
-        {/* 7-day sparklines — gridRef is used by blockGrid() to imperatively swallow
-            stray click events after a panel save, preventing navigation side-effects */}
-        <div data-tour="sparklines" ref={gridRef} className={`grid grid-cols-2 gap-2${openPanel ? " pointer-events-none" : ""}`}>
+        {/* Section: Your Week */}
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1">
+          📊 Your Week at a Glance
+        </p>
+
+        {/* 7-day sparklines */}
+        <div data-tour="sparklines" ref={gridRef} className={`grid grid-cols-2 gap-1.5${openPanel ? " pointer-events-none" : ""}`}>
           <SymptomSparkline entries={weekEntries} metric="mood" label="Mood" emoji="😊" higherIsBetter
             saved={savedMetric === "mood"}
             onClick={() => setOpenPanel((p) => p === "mood" ? null : "mood")}
@@ -536,22 +540,29 @@ const TodayPage = () => {
           </div>
         )}
 
-        <p className="text-[10px] text-muted-foreground text-center -mt-1">
+        <p className="text-[10px] text-muted-foreground text-center -mt-1.5">
           Tap to log · hold to see insights
         </p>
 
-        {/* Quick symptom logging */}
-        <div data-tour="quick-log" ref={logRef} className="space-y-3 animate-fade-in">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Quick Log
-          </p>
-          <SymptomSlider label="Fatigue" emoji="🔋" value={fatigue} onChange={setFatigue} weekAvg={weekAvgs.fatigue} />
-          <SymptomSlider label="Pain" emoji="⚡" value={pain} onChange={setPain} weekAvg={weekAvgs.pain} />
-          <SymptomSlider label="Brain Fog" emoji="🌫️" value={brainFog} onChange={setBrainFog} weekAvg={weekAvgs.brain_fog} />
-          <SymptomSlider label="Mood" emoji="😊" value={mood} onChange={setMood} weekAvg={weekAvgs.mood} higherIsBetter />
-          <SymptomSlider label="Mobility" emoji="🚶" value={mobility} onChange={setMobility} weekAvg={weekAvgs.mobility} />
-          <SymptomSlider label="Spasticity" emoji="🦵" value={spasticity} onChange={setSpasticity} weekAvg={weekAvgs.spasticity} />
-          <SymptomSlider label="Stress" emoji="😰" value={stress} onChange={setStress} weekAvg={weekAvgs.stress} />
+        {/* Section: Quick Symptom Log */}
+        <div data-tour="quick-log" ref={logRef} className="rounded-xl bg-card shadow-soft p-4 space-y-3 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+              ✏️ Full Symptom Log
+            </p>
+            <span className="text-[9px] text-muted-foreground/50 bg-muted rounded-full px-2 py-0.5">
+              Slide to rate
+            </span>
+          </div>
+          <div className="space-y-2.5">
+            <SymptomSlider label="Fatigue" emoji="🔋" value={fatigue} onChange={setFatigue} weekAvg={weekAvgs.fatigue} />
+            <SymptomSlider label="Pain" emoji="⚡" value={pain} onChange={setPain} weekAvg={weekAvgs.pain} />
+            <SymptomSlider label="Brain Fog" emoji="🌫️" value={brainFog} onChange={setBrainFog} weekAvg={weekAvgs.brain_fog} />
+            <SymptomSlider label="Mood" emoji="😊" value={mood} onChange={setMood} weekAvg={weekAvgs.mood} higherIsBetter />
+            <SymptomSlider label="Mobility" emoji="🚶" value={mobility} onChange={setMobility} weekAvg={weekAvgs.mobility} />
+            <SymptomSlider label="Spasticity" emoji="🦵" value={spasticity} onChange={setSpasticity} weekAvg={weekAvgs.spasticity} />
+            <SymptomSlider label="Stress" emoji="😰" value={stress} onChange={setStress} weekAvg={weekAvgs.stress} />
+          </div>
         </div>
 
         {/* Mood tags */}
@@ -603,6 +614,11 @@ const TodayPage = () => {
           </div>
         </div>
 
+        {/* Section: Wellness */}
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1">
+          ❤️ Wellness
+        </p>
+
         {/* Medication checklist */}
         <div className="animate-slide-up" style={{ animationDelay: "0.25s" }}>
           <MedicationChecklist />
@@ -629,9 +645,10 @@ const TodayPage = () => {
         </div>
 
         {/* Reminders */}
+        {/* Section: Quick Actions */}
         <div data-tour="reminders" className="space-y-2 animate-slide-up" style={{ animationDelay: "0.35s" }}>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Reminders
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1">
+            ⚡ Quick Actions
           </p>
           <QuickCard emoji="💊" title="Medications" subtitle="Manage your medications" onClick={() => navigate("/medications")} />
           <QuickCard emoji="📅" title="Appointments" subtitle="View & manage appointments" onClick={() => navigate("/appointments")} />
