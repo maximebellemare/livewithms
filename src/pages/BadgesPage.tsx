@@ -55,48 +55,70 @@ const CATEGORY_LABELS: Record<string, { label: string; emoji: string }> = {
   relapse: { label: "Relapse-Free", emoji: "🛡️" },
 };
 
-
-
+const BADGE_THRESHOLDS: Record<string, number> = {
+  "log-3": 3, "log-7": 7, "log-14": 14, "log-30": 30,
+  "week-2": 2, "week-4": 4, "week-8": 8,
+  "med-7": 7, "med-14": 14, "med-30": 30, "med-60": 60, "med-90": 90,
+  "relapse-30": 30, "relapse-60": 60, "relapse-90": 90,
+};
 
 /* ── Badge Card ────────────────────────────────────────── */
-const BadgeCard = ({ badge, earned, earnedAt, index, onClick }: { badge: BadgeDef; earned: boolean; earnedAt?: string; index: number; onClick: () => void }) => (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.8 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ delay: index * 0.05, type: "spring", stiffness: 300, damping: 24 }}
-    onClick={onClick}
-    role="button"
-    tabIndex={0}
-    onKeyDown={(e) => e.key === "Enter" && onClick()}
-    className={`relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all cursor-pointer active:scale-95 ${
-      earned
-        ? "border-primary/30 bg-gradient-to-br from-primary/5 via-card to-accent shadow-soft"
-        : "border-border/50 bg-card/50 opacity-50 grayscale"
-    }`}
-  >
-    {!earned && (
-      <div className="absolute right-2 top-2">
-        <Lock className="h-3 w-3 text-muted-foreground" />
-      </div>
-    )}
-    <motion.span
-      className="text-3xl"
-      animate={earned ? { scale: [1, 1.15, 1] } : {}}
-      transition={earned ? { duration: 0.5, repeat: 0 } : {}}
+const BadgeCard = ({ badge, earned, earnedAt, index, onClick, currentStreak }: { badge: BadgeDef; earned: boolean; earnedAt?: string; index: number; onClick: () => void; currentStreak: number }) => {
+  const threshold = BADGE_THRESHOLDS[badge.id] ?? 0;
+  const progress = threshold > 0 ? Math.min((currentStreak / threshold) * 100, 100) : 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.05, type: "spring", stiffness: 300, damping: 24 }}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onClick()}
+      className={`relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all cursor-pointer active:scale-95 ${
+        earned
+          ? "border-primary/30 bg-gradient-to-br from-primary/5 via-card to-accent shadow-soft"
+          : "border-border/50 bg-card/50 opacity-50 grayscale"
+      }`}
     >
-      {badge.emoji}
-    </motion.span>
-    <p className={`text-xs font-bold leading-tight ${earned ? "text-foreground" : "text-muted-foreground"}`}>
-      {badge.name}
-    </p>
-    <p className="text-[10px] leading-snug text-muted-foreground">{badge.description}</p>
-    {earned && earnedAt && (
-      <p className="text-[9px] text-primary/70 font-medium">
-        {format(new Date(earnedAt), "MMM d, yyyy")}
+      {!earned && (
+        <div className="absolute right-2 top-2">
+          <Lock className="h-3 w-3 text-muted-foreground" />
+        </div>
+      )}
+      <motion.span
+        className="text-3xl"
+        animate={earned ? { scale: [1, 1.15, 1] } : {}}
+        transition={earned ? { duration: 0.5, repeat: 0 } : {}}
+      >
+        {badge.emoji}
+      </motion.span>
+      <p className={`text-xs font-bold leading-tight ${earned ? "text-foreground" : "text-muted-foreground"}`}>
+        {badge.name}
       </p>
-    )}
-  </motion.div>
-);
+      <p className="text-[10px] leading-snug text-muted-foreground">{badge.description}</p>
+      {earned && earnedAt && (
+        <p className="text-[9px] text-primary/70 font-medium">
+          {format(new Date(earnedAt), "MMM d, yyyy")}
+        </p>
+      )}
+      {!earned && threshold > 0 && (
+        <div className="w-full space-y-1 mt-1">
+          <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary/40 transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-[9px] text-muted-foreground">
+            {currentStreak}/{threshold}
+          </p>
+        </div>
+      )}
+    </motion.div>
+  );
+};
 
 /* ── Page ──────────────────────────────────────────────── */
 const BadgesPage = () => {
@@ -329,6 +351,7 @@ const BadgesPage = () => {
                         earned={earnedSet.has(badge.id)}
                         earnedAt={earnedAtMap.get(badge.id)}
                         index={i}
+                        currentStreak={streakForCategory(badge.category)}
                         onClick={() => setSelectedBadge(badge)}
                       />
                     ))}
