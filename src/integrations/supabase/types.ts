@@ -401,6 +401,71 @@ export type Database = {
         }
         Relationships: []
       }
+      diet_goal_logs: {
+        Row: {
+          completed: boolean
+          created_at: string
+          date: string
+          goal_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          date: string
+          goal_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          date?: string
+          goal_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diet_goal_logs_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "diet_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      diet_goals: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          target: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          target?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          target?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       energy_activities: {
         Row: {
           budget_id: string
@@ -465,6 +530,39 @@ export type Database = {
           id?: string
           total_spoons?: number
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      exercise_logs: {
+        Row: {
+          created_at: string
+          date: string
+          duration_minutes: number
+          id: string
+          intensity: string
+          notes: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          duration_minutes?: number
+          id?: string
+          intensity?: string
+          notes?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          duration_minutes?: number
+          id?: string
+          intensity?: string
+          notes?: string | null
+          type?: string
           user_id?: string
         }
         Relationships: []
@@ -992,6 +1090,33 @@ export type Database = {
         }
         Relationships: []
       }
+      supplement_logs: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          name: string
+          taken: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          name: string
+          taken?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          name?: string
+          taken?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1010,6 +1135,33 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      weight_logs: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          unit: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          unit?: string
+          user_id: string
+          weight: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          unit?: string
+          user_id?: string
+          weight?: number
         }
         Relationships: []
       }
