@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { MessageSquare, Trash2, BarChart3, Heart, CalendarClock, HelpCircle, Trash, Search } from "lucide-react";
+import { MessageSquare, Trash2, BarChart3, Heart, CalendarClock, HelpCircle, Trash, Search, Pencil, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import type { CoachMode } from "@/hooks/useCoach";
@@ -38,6 +38,8 @@ const CoachHistory = ({ onSelectSession }: CoachHistoryProps) => {
   const [confirmClearAll, setConfirmClearAll] = useState(false);
   const [search, setSearch] = useState("");
   const [modeFilter, setModeFilter] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
 
   const fetchSessions = async () => {
     if (!user) return;
@@ -59,10 +61,29 @@ const CoachHistory = ({ onSelectSession }: CoachHistoryProps) => {
 
   const deleteSession = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    // Delete messages first, then session
     await supabase.from("coach_messages").delete().eq("session_id", id);
     await supabase.from("coach_sessions").delete().eq("id", id);
     setSessions((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const startRename = (e: React.MouseEvent, s: CoachSession) => {
+    e.stopPropagation();
+    setEditingId(s.id);
+    setEditTitle(s.title || "");
+  };
+
+  const confirmRename = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!editingId) return;
+    const trimmed = editTitle.trim() || "Untitled conversation";
+    await supabase.from("coach_sessions").update({ title: trimmed }).eq("id", editingId);
+    setSessions((prev) => prev.map((s) => s.id === editingId ? { ...s, title: trimmed } : s));
+    setEditingId(null);
+  };
+
+  const cancelRename = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(null);
   };
 
   const clearAllSessions = async () => {
@@ -169,20 +190,54 @@ const CoachHistory = ({ onSelectSession }: CoachHistoryProps) => {
               <Icon className="h-4 w-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
-                {s.title || "Untitled conversation"}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {modeLabels[s.mode] || s.mode} · {formatDistanceToNow(new Date(s.updated_at), { addSuffix: true })}
-              </p>
+              {editingId === s.id ? (
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    autoFocus
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") confirmRename(e as unknown as React.MouseEvent);
+                      if (e.key === "Escape") setEditingId(null);
+                    }}
+                    className="flex-1 min-w-0 rounded-lg border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <button onClick={confirmRename} className="flex h-6 w-6 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition-colors" aria-label="Save">
+                    <Check className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={cancelRename} className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent transition-colors" aria-label="Cancel">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {s.title || "Untitled conversation"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {modeLabels[s.mode] || s.mode} · {formatDistanceToNow(new Date(s.updated_at), { addSuffix: true })}
+                  </p>
+                </>
+              )}
             </div>
-            <button
-              onClick={(e) => deleteSession(e, s.id)}
-              className="opacity-0 group-hover:opacity-100 flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-              aria-label="Delete conversation"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            {editingId !== s.id && (
+              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                <button
+                  onClick={(e) => startRename(e, s)}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-all"
+                  aria-label="Rename conversation"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={(e) => deleteSession(e, s.id)}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                  aria-label="Delete conversation"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
           </motion.button>
         );
       })
