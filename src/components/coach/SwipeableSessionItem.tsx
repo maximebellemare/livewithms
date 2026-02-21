@@ -62,6 +62,32 @@ const SwipeableSessionItem = ({
   // Background action buttons opacity based on drag
   const actionsOpacity = useTransform(x, [-ACTION_WIDTH, -SWIPE_THRESHOLD, 0], [1, 0.6, 0]);
 
+  // Long-press to reveal actions
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDragging = useRef(false);
+
+  const handlePointerDown = () => {
+    isDragging.current = false;
+    longPressTimer.current = setTimeout(() => {
+      if (!isDragging.current && !swiped) {
+        animate(x, -ACTION_WIDTH, { type: "spring", stiffness: 300, damping: 30 });
+        setSwiped(true);
+      }
+    }, 500);
+  };
+
+  const handlePointerUp = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleDragStart = () => {
+    isDragging.current = true;
+    handlePointerUp();
+  };
+
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     if (info.offset.x < -SWIPE_THRESHOLD) {
       animate(x, -ACTION_WIDTH, { type: "spring", stiffness: 300, damping: 30 });
@@ -129,7 +155,11 @@ const SwipeableSessionItem = ({
         drag="x"
         dragConstraints={{ left: -ACTION_WIDTH, right: 0 }}
         dragElastic={0.1}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         onClick={() => {
           if (swiped) {
             closeSwipe();
