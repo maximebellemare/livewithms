@@ -217,6 +217,7 @@ const BadgesPage = () => {
 
   const earnedCount = earnedSet.size;
   const totalCount = BADGE_DEFS.length;
+  const allBadgesEarned = earnedCount >= totalCount;
   const earnedBadges = BADGE_DEFS.filter((b) => earnedSet.has(b.id));
 
   // Record newly earned badges to DB + celebrate (once per session)
@@ -292,9 +293,9 @@ const BadgesPage = () => {
         <div className="rounded-2xl bg-card p-5 shadow-soft text-center space-y-2">
           <Trophy className="h-8 w-8 text-primary mx-auto" />
           <p className="text-2xl font-bold text-foreground">
-            {earnedCount} <span className="text-sm font-normal text-muted-foreground">/ {totalCount}</span>
+            {earnedCount}{allBadgesEarned ? " + 1" : ""} <span className="text-sm font-normal text-muted-foreground">/ {totalCount}</span>
           </p>
-          <p className="text-xs text-muted-foreground">badges earned</p>
+          <p className="text-xs text-muted-foreground">{allBadgesEarned ? "all badges + bonus earned" : "badges earned"}</p>
           {/* Progress bar */}
           <div className="mx-auto mt-2 h-2 w-full max-w-[200px] rounded-full bg-secondary overflow-hidden">
             <motion.div
@@ -375,6 +376,74 @@ const BadgesPage = () => {
                 </div>
               );
             })}
+
+            {/* Completionist bonus badge */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-foreground">
+                  ✨ Bonus
+                </p>
+                <span className="text-[10px] text-muted-foreground">
+                  {allBadgesEarned ? "1" : "0"}/1
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2, type: "spring", stiffness: 300, damping: 24 }}
+                  onClick={() => setSelectedBadge({
+                    id: "completionist",
+                    emoji: "🌈",
+                    name: "Completionist",
+                    description: "Earn all 15 badges to unlock this legendary achievement",
+                    category: "logging",
+                  })}
+                  role="button"
+                  tabIndex={0}
+                  className={`relative col-span-3 overflow-hidden flex items-center gap-4 rounded-2xl border p-4 transition-all cursor-pointer active:scale-[0.98] ${
+                    allBadgesEarned
+                      ? "border-primary/40 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 shadow-soft"
+                      : "border-border/50 bg-card/50 opacity-50 grayscale"
+                  }`}
+                >
+                  {allBadgesEarned && (
+                    <div
+                      className="pointer-events-none absolute inset-0 animate-badge-shimmer"
+                      style={{
+                        backgroundImage: "linear-gradient(120deg, transparent 20%, hsl(var(--primary) / 0.15) 45%, hsl(var(--accent) / 0.15) 55%, transparent 80%)",
+                        backgroundSize: "200% 100%",
+                      }}
+                    />
+                  )}
+                  {!allBadgesEarned && (
+                    <div className="absolute right-3 top-3">
+                      <Lock className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  )}
+                  <motion.span
+                    className="text-4xl flex-shrink-0"
+                    animate={allBadgesEarned ? { scale: [1, 1.15, 1], rotate: [0, 5, -5, 0] } : {}}
+                    transition={allBadgesEarned ? { duration: 2, repeat: Infinity, repeatDelay: 3 } : {}}
+                  >
+                    🌈
+                  </motion.span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-bold leading-tight ${allBadgesEarned ? "text-foreground" : "text-muted-foreground"}`}>
+                      Completionist
+                    </p>
+                    <p className="text-[10px] leading-snug text-muted-foreground mt-0.5">
+                      {allBadgesEarned
+                        ? "You've earned every single badge — legendary! 🎉"
+                        : `Earn all 15 badges to unlock • ${earnedCount}/15`}
+                    </p>
+                  </div>
+                  {allBadgesEarned && (
+                    <span className="text-xs font-bold text-primary flex-shrink-0">★</span>
+                  )}
+                </motion.div>
+              </div>
+            </div>
           </>
         ) : (
           /* Timeline view */
