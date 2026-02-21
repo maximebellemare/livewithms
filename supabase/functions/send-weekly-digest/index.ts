@@ -357,7 +357,12 @@ serve(async (req) => {
 
         // Compute correlations and generate AI insights
         const correlations = computeCorrelations(allEntries ?? entries);
+        console.log(`[digest] ${email}: ${(allEntries ?? []).length} entries, ${correlations.length} correlations found`);
+        if (correlations.length > 0) {
+          console.log(`[digest] Top correlation: ${correlations[0].metricA} ↔ ${correlations[0].metricB}, r=${correlations[0].r.toFixed(2)}`);
+        }
         const correlationInsights = await generateCorrelationInsights(correlations);
+        console.log(`[digest] Generated ${correlationInsights.length} AI insights:`, JSON.stringify(correlationInsights));
 
         // Step 1: Upsert a Klaviyo profile (409 = already exists, that's fine)
         await klaviyoPost("/profiles/", {
