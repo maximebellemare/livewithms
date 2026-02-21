@@ -264,6 +264,8 @@ export function generateReportFromData(data: ReportData): Blob {
       const PAIN_COLOR: [number, number, number] = [245, 158, 11]; // amber
       const BRAINFOG_COLOR: [number, number, number] = [168, 85, 247]; // violet
       const SPASTICITY_COLOR: [number, number, number] = [236, 72, 153]; // pink
+      const STRESS_COLOR: [number, number, number] = [220, 38, 38]; // deep red
+      const MOBILITY_COLOR: [number, number, number] = [16, 185, 129]; // emerald
       const MOOD_COLOR: [number, number, number] = [59, 130, 246]; // blue
       const SLEEP_COLOR: [number, number, number] = [139, 92, 246]; // purple
 
@@ -274,6 +276,10 @@ export function generateReportFromData(data: ReportData): Blob {
       y = drawTrendChart(doc, entries, y, "Brain Fog (0–10, lower = better)", (e) => e.brain_fog, BRAINFOG_COLOR, 10, "/10");
       y = checkPageBreak(doc, y, 55);
       y = drawTrendChart(doc, entries, y, "Spasticity (0–10, lower = better)", (e) => e.spasticity, SPASTICITY_COLOR, 10, "/10");
+      y = checkPageBreak(doc, y, 55);
+      y = drawTrendChart(doc, entries, y, "Stress (0–10, lower = better)", (e) => e.stress, STRESS_COLOR, 10, "/10");
+      y = checkPageBreak(doc, y, 55);
+      y = drawTrendChart(doc, entries, y, "Mobility (0–10, higher = better)", (e) => e.mobility, MOBILITY_COLOR, 10, "/10");
       y = checkPageBreak(doc, y, 55);
       y = drawTrendChart(doc, entries, y, "Mood (0–10, higher = better)", (e) => e.mood, MOOD_COLOR, 10, "/10");
       y = checkPageBreak(doc, y, 55);
