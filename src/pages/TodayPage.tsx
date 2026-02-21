@@ -28,6 +28,7 @@ import RelapseRiskIndicator from "@/components/RelapseRiskIndicator";
 import BadgeNudgeCard from "@/components/badges/BadgeNudgeCard";
 import { useMedStreak } from "@/hooks/useMedStreak";
 import { useRelapseFreeStreak } from "@/hooks/useRelapseFreeStreak";
+import { useBadgeProximityAlert } from "@/hooks/useBadgeProximityAlert";
 import GoalTrackingDashboard from "@/components/GoalTrackingDashboard";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
@@ -122,6 +123,7 @@ const TodayPage = () => {
   const medStreak = useMedStreak();
   const relapseStreak = useRelapseFreeStreak();
   const { weekStreak } = useWeekStreak();
+  useBadgeProximityAlert({ logStreak: streak, weekStreak, medStreak, relapseStreak });
 
   const isMilestone = celebratedStreak !== null
     ? MILESTONE_DAYS.includes(celebratedStreak) && !milestoneDismissed
