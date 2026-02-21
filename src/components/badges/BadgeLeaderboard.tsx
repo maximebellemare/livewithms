@@ -1,4 +1,6 @@
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import confetti from "canvas-confetti";
 import { Trophy, Crown, Medal, Award, TrendingUp, TrendingDown, Minus, Sparkles } from "lucide-react";
 import { useBadgeLeaderboard } from "@/hooks/useBadgeLeaderboard";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,6 +14,34 @@ const RANK_STYLES: Record<number, { icon: typeof Trophy; color: string }> = {
 const BadgeLeaderboard = () => {
   const { data: entries = [], isLoading } = useBadgeLeaderboard();
   const { user } = useAuth();
+  const celebratedRef = useRef(false);
+
+  const isMe = (uid: string) => uid === user?.id;
+
+  // Confetti when user first appears on leaderboard
+  useEffect(() => {
+    if (isLoading || entries.length === 0 || !user || celebratedRef.current) return;
+
+    const myEntry = entries.find((e) => e.user_id === user.id);
+    if (!myEntry || myEntry.previous_rank != null) return;
+
+    // User is new on the leaderboard — check session to avoid repeat
+    const key = "leaderboard-confetti-fired";
+    if (sessionStorage.getItem(key)) return;
+
+    celebratedRef.current = true;
+    sessionStorage.setItem(key, "1");
+
+    setTimeout(() => {
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#E8751A", "#FFB347", "#FFDAB9", "#4CAF50", "#42A5F5"],
+        disableForReducedMotion: true,
+      });
+    }, 600);
+  }, [isLoading, entries, user]);
 
   if (isLoading) {
     return (
@@ -36,8 +66,6 @@ const BadgeLeaderboard = () => {
       </div>
     );
   }
-
-  const isMe = (uid: string) => uid === user?.id;
 
   return (
     <div className="space-y-3">
