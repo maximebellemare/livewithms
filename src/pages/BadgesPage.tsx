@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import { motion } from "framer-motion";
-import { Lock, Share2, Trophy, Clock, Grid3X3, Calendar } from "lucide-react";
+import { Lock, Share2, Trophy, Clock, Grid3X3, Calendar, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import SEOHead from "@/components/SEOHead";
 import BadgeDetailDialog from "@/components/badges/BadgeDetailDialog";
@@ -282,6 +282,24 @@ const BadgesPage = () => {
     }
   }, [earnedBadges, earnedCount, totalCount]);
 
+  const handleShareCompletionist = useCallback(async () => {
+    const text = `🌈🏆 I've unlocked EVERY badge on LiveWithMS! 🏆🌈\n\n⚡🔥⭐🏆📊🗓️💫💊💉🏅💎👑🛡️💪🌟\n\n15/15 badges earned — Completionist achieved!\nConsistency, resilience, and dedication — one day at a time. 🧡\n\n#MSWarrior #LiveWithMS`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "🌈 LiveWithMS Completionist!", text });
+        return;
+      } catch { /* cancelled */ }
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Completionist message copied! 🌈");
+    } catch {
+      toast.error("Unable to share");
+    }
+  }, []);
+
   const categories = ["logging", "weekly", "medication", "relapse"] as const;
 
   return (
@@ -505,6 +523,26 @@ const BadgesPage = () => {
                   )}
                 </motion.div>
               </div>
+
+              {/* Completionist share card */}
+              {allBadgesEarned && (
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4, type: "spring", stiffness: 300, damping: 24 }}
+                  onClick={handleShareCompletionist}
+                  className="w-full flex items-center gap-3 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/5 via-card to-accent/5 p-4 text-left shadow-soft transition-all hover:from-primary/10 hover:to-accent/10 active:scale-[0.98]"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
+                    <Share2 className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-foreground">Share your legendary achievement</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Let the world know you've conquered every milestone 🌈</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </motion.button>
+              )}
             </div>
           </>
         ) : (
