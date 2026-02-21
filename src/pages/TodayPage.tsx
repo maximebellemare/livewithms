@@ -24,6 +24,7 @@ import DailyPromptCard from "@/components/DailyPromptCard";
 import HydrationCard from "@/components/HydrationCard";
 import RelapseFreeStreakCompact from "@/components/RelapseFreeStreakCompact";
 import RelapseRiskIndicator from "@/components/RelapseRiskIndicator";
+import GoalTrackingDashboard from "@/components/GoalTrackingDashboard";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
@@ -343,6 +344,9 @@ const TodayPage = () => {
         <WeeklySummaryBanner />
         <StreakBadge />
         <WeekStreakBadge />
+
+        {/* Goal tracking progress rings */}
+        <GoalTrackingDashboard />
 
         {/* 7-day sparklines — gridRef is used by blockGrid() to imperatively swallow
             stray click events after a panel save, preventing navigation side-effects */}
