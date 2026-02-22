@@ -821,9 +821,18 @@ const InsightsPage = () => {
                     <span className="text-sm font-semibold text-foreground">Sleep → Next-Day Fatigue</span>
                   </div>
                   {correlationR !== null && (
-                    <span className="text-xs font-mono font-bold text-muted-foreground">
-                      r = {correlationR.toFixed(2)}
-                    </span>
+                    <TooltipProvider delayDuration={200}>
+                      <UITooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-xs font-mono font-bold text-muted-foreground cursor-help">
+                            r = {correlationR.toFixed(2)}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="text-xs max-w-[220px]">
+                          Pearson correlation coefficient. Values near −1 mean more sleep = less fatigue, near +1 means they rise together, and near 0 means no clear link.
+                        </TooltipContent>
+                      </UITooltip>
+                    </TooltipProvider>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mb-3">
@@ -881,19 +890,30 @@ const InsightsPage = () => {
 
                 {/* Summary pill */}
                 {corrLabel && (
-                  <div className={`mt-3 flex items-start gap-2 rounded-lg px-3 py-2.5 text-xs ${
-                    corrLabel.positive === false
-                      ? "bg-destructive/10 text-destructive"
-                      : "bg-muted text-muted-foreground"
-                  }`}>
-                    <span className="text-base leading-none">{corrLabel.emoji}</span>
-                    <div>
-                      <p className="font-medium text-foreground">{corrLabel.text}</p>
-                      <p className="mt-0.5 text-muted-foreground">
-                        Based on {sleepFatiguePairs.length} consecutive day pairs
-                      </p>
-                    </div>
-                  </div>
+                  <TooltipProvider delayDuration={200}>
+                    <UITooltip>
+                      <TooltipTrigger asChild>
+                        <div className={`mt-3 flex items-start gap-2 rounded-lg px-3 py-2.5 text-xs cursor-help ${
+                          corrLabel.positive === false
+                            ? "bg-destructive/10 text-destructive"
+                            : "bg-muted text-muted-foreground"
+                        }`}>
+                          <span className="text-base leading-none">{corrLabel.emoji}</span>
+                          <div>
+                            <p className="font-medium text-foreground">{corrLabel.text}</p>
+                            <p className="mt-0.5 text-muted-foreground">
+                              Based on {sleepFatiguePairs.length} consecutive day pairs
+                            </p>
+                          </div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs max-w-[240px]">
+                        {corrLabel.positive === false && "A negative correlation suggests more sleep is linked to lower fatigue the next day."}
+                        {corrLabel.positive === true && "A positive correlation suggests sleep and fatigue tend to rise together — this may indicate other factors at play."}
+                        {corrLabel.positive === null && "The correlation is too weak to draw a clear conclusion between sleep and fatigue."}
+                      </TooltipContent>
+                    </UITooltip>
+                  </TooltipProvider>
                 )}
               </div>
             )}
