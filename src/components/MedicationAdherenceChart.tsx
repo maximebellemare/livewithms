@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, Cell,
 } from "recharts";
 import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
   range: 7 | 30;
@@ -135,19 +136,55 @@ export default function MedicationAdherenceChart({ range }: Props) {
 
       {/* Legend */}
       <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "hsl(145 45% 45%)" }} />
-          ≥80%
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "hsl(35 90% 55%)" }} />
-          50–79%
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "hsl(0 70% 55%)" }} />
-          &lt;50%
-        </span>
-        <span className="border-l border-border pl-3 ml-1">— 80% goal</span>
+        <TooltipProvider delayDuration={200}>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <span className="flex items-center gap-1 cursor-help">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "hsl(145 45% 45%)" }} />
+                ≥80%
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+              Great adherence — you took 80% or more of your daily medications.
+            </TooltipContent>
+          </UITooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={200}>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <span className="flex items-center gap-1 cursor-help">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "hsl(35 90% 55%)" }} />
+                50–79%
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+              Partial adherence — some medications were missed.
+            </TooltipContent>
+          </UITooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={200}>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <span className="flex items-center gap-1 cursor-help">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "hsl(0 70% 55%)" }} />
+                &lt;50%
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+              Low adherence — most medications were missed this day.
+            </TooltipContent>
+          </UITooltip>
+        </TooltipProvider>
+        <TooltipProvider delayDuration={200}>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <span className="border-l border-border pl-3 ml-1 cursor-help">— 80% goal</span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+              The dashed line marks the 80% adherence target recommended for optimal treatment benefit.
+            </TooltipContent>
+          </UITooltip>
+        </TooltipProvider>
       </div>
 
       <p className="text-[10px] text-muted-foreground text-center">
