@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useGroundingStreak } from "@/hooks/useGroundingStreak";
 import { useProfile } from "@/hooks/useProfile";
-import { Target } from "lucide-react";
+import { Target, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import confetti from "canvas-confetti";
 
 const GOAL_OPTIONS = [1, 2, 3, 4, 5, 7, 10];
@@ -210,6 +210,18 @@ const GroundingSessionsChart = () => {
         const activeWeeks = chartData.filter((w) => w.sessions > 0);
         const metWeeks = activeWeeks.filter((w) => w.sessions >= weeklyGoal);
         const pct = activeWeeks.length > 0 ? Math.round((metWeeks.length / activeWeeks.length) * 100) : 0;
+
+        // Trend: compare recent 4 weeks avg sessions vs prior 4 weeks
+        const half = Math.floor(chartData.length / 2);
+        const recentHalf = chartData.slice(half);
+        const priorHalf = chartData.slice(0, half);
+        const avg = (arr: typeof chartData) => arr.length > 0 ? arr.reduce((s, w) => s + w.sessions, 0) / arr.length : 0;
+        const recentAvg = avg(recentHalf);
+        const priorAvg = avg(priorHalf);
+        const diff = recentAvg - priorAvg;
+        const trendUp = diff > 0.25;
+        const trendDown = diff < -0.25;
+
         return activeWeeks.length > 0 ? (
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
@@ -222,8 +234,11 @@ const GroundingSessionsChart = () => {
                 Below goal
               </span>
             </div>
-            <span className="text-[10px] font-medium text-muted-foreground">
+            <span className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
               {metWeeks.length}/{activeWeeks.length} weeks ({pct}%)
+              {trendUp && <TrendingUp className="h-3 w-3 text-green-500" />}
+              {trendDown && <TrendingDown className="h-3 w-3 text-red-400" />}
+              {!trendUp && !trendDown && <Minus className="h-3 w-3 text-muted-foreground" />}
             </span>
           </div>
         ) : (
