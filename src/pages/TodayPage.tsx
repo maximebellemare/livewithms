@@ -31,6 +31,7 @@ import DiagnosisAnniversaryCard from "@/components/DiagnosisAnniversaryCard";
 import { useMedStreak } from "@/hooks/useMedStreak";
 import { useCognitiveStreak } from "@/hooks/useCognitiveStreak";
 import { useRelapseFreeStreak } from "@/hooks/useRelapseFreeStreak";
+import { useGroundingStreak } from "@/hooks/useGroundingStreak";
 import { useBadgeProximityAlert } from "@/hooks/useBadgeProximityAlert";
 import { useRecordBadgeEvent } from "@/hooks/useBadgeEvents";
 import GoalTrackingDashboard from "@/components/GoalTrackingDashboard";
@@ -129,6 +130,7 @@ const TodayPage = () => {
   const relapseStreak = useRelapseFreeStreak();
   const { weekStreak } = useWeekStreak();
   const { streak: cogStreak } = useCognitiveStreak();
+  const { streak: groundStreak, totalSessions: groundTotal } = useGroundingStreak();
   const recordBadge = useRecordBadgeEvent();
   useBadgeProximityAlert(
     { logStreak: streak, weekStreak, medStreak, relapseStreak, cogStreak },
@@ -634,6 +636,27 @@ const TodayPage = () => {
         <StaggerItem>
           <QuickCard emoji="🧘" title="Regulation Center" subtitle="Breathing, grounding & vagal tone" onClick={() => navigate("/nervous-system")} />
         </StaggerItem>
+        {groundTotal > 0 && (
+          <StaggerItem>
+            <div
+              onClick={() => navigate("/nervous-system")}
+              className="flex items-center gap-3 card-base cursor-pointer transition-all hover:bg-secondary/50 active:scale-[0.98]"
+            >
+              <span className="text-xl">🌿</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">Grounding Streak</p>
+                <p className="text-xs text-muted-foreground">
+                  {groundStreak > 0
+                    ? `${groundStreak} day${groundStreak !== 1 ? "s" : ""} in a row · ${groundTotal} total`
+                    : `${groundTotal} session${groundTotal !== 1 ? "s" : ""} completed`}
+                </p>
+              </div>
+              <span className="text-xs font-medium text-primary">
+                {groundStreak > 0 ? `🔥 ${groundStreak}` : "Start today"}
+              </span>
+            </div>
+          </StaggerItem>
+        )}
 
         {/* Section: Quick Actions */}
         <StaggerItem>
