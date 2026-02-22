@@ -316,6 +316,95 @@ export const CognitiveSkeleton = () => (
   </div>
 );
 
+/** Lifestyle page: tabs + checklist items */
+export const LifestyleSkeleton = () => (
+  <div className="animate-fade-in">
+    <div className="px-4 pt-6 pb-2">
+      <Skeleton className="h-7 w-24 rounded-lg" />
+      <Skeleton className="mt-1.5 h-4 w-52 rounded-md" />
+    </div>
+    <div className="mx-auto max-w-lg px-4 py-4 space-y-4">
+      {/* Tab bar */}
+      <div className="grid grid-cols-4 gap-1 rounded-lg bg-secondary p-1">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-8 rounded-md" />
+        ))}
+      </div>
+      {/* Header + add button */}
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-4 w-28 rounded-md" />
+        <Skeleton className="h-7 w-7 rounded-full" />
+      </div>
+      {/* List items */}
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 rounded-xl bg-card px-4 py-3 shadow-soft">
+          <Skeleton className="h-4 w-4 rounded-md flex-shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3.5 w-32 rounded-md" />
+            <Skeleton className="h-3 w-44 rounded-md" />
+          </div>
+          <Skeleton className="h-3.5 w-3.5 rounded-sm" />
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+/** Reports page: hero + presets + date range + toggles + actions */
+export const ReportsSkeleton = () => (
+  <div className="animate-fade-in">
+    <div className="px-4 pt-6 pb-2">
+      <Skeleton className="h-7 w-24 rounded-lg" />
+      <Skeleton className="mt-1.5 h-4 w-40 rounded-md" />
+    </div>
+    <div className="mx-auto max-w-lg px-4 py-4 space-y-4">
+      {/* Hero card */}
+      <div className="rounded-xl bg-card p-5 text-center space-y-3">
+        <Skeleton className="h-14 w-14 rounded-full mx-auto" />
+        <Skeleton className="h-5 w-44 rounded-md mx-auto" />
+        <Skeleton className="h-3 w-64 rounded-md mx-auto" />
+      </div>
+      {/* Quick select presets */}
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-24 rounded-md" />
+        <div className="flex gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 flex-1 rounded-lg" />
+          ))}
+        </div>
+      </div>
+      {/* Date range card */}
+      <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <Skeleton className="h-4 w-24 rounded-md" />
+        <div className="flex gap-3">
+          <div className="flex-1 space-y-1">
+            <Skeleton className="h-2.5 w-10 rounded-md" />
+            <Skeleton className="h-9 rounded-lg" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <Skeleton className="h-2.5 w-10 rounded-md" />
+            <Skeleton className="h-9 rounded-lg" />
+          </div>
+        </div>
+      </div>
+      {/* Include toggles */}
+      <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <Skeleton className="h-4 w-32 rounded-md" />
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+            <Skeleton className="h-4 w-4 rounded-sm" />
+            <Skeleton className="h-3.5 flex-1 rounded-md" />
+            <Skeleton className="h-5 w-5 rounded-md" />
+          </div>
+        ))}
+      </div>
+      {/* Action buttons */}
+      <Skeleton className="h-12 rounded-xl" />
+      <Skeleton className="h-12 rounded-xl" />
+    </div>
+  </div>
+);
+
 /** Badges page: summary card + view toggle + category grids */
 export const BadgesSkeleton = () => (
   <div className="animate-fade-in">

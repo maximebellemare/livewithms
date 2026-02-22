@@ -16,6 +16,8 @@ import AppLoadingSkeleton, {
   RelapsesSkeleton,
   BadgesSkeleton,
   EnergyBudgetSkeleton,
+  LifestyleSkeleton,
+  ReportsSkeleton,
 } from "@/components/PageSkeleton";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -108,7 +110,7 @@ const AnimatedRoutes = () => {
         <Route path="/profile" element={<ProtectedRoute><LazyPage fallback={<ProfileSkeleton />}><ProfilePage /></LazyPage></ProtectedRoute>} />
         <Route path="/medications" element={<ProtectedRoute><LazyPage fallback={<CardListSkeleton />}><MedicationsPage /></LazyPage></ProtectedRoute>} />
         <Route path="/appointments" element={<ProtectedRoute><LazyPage fallback={<CardListSkeleton />}><AppointmentsPage /></LazyPage></ProtectedRoute>} />
-        <Route path="/reports" element={<ProtectedRoute><LazyPage><ReportsPage /></LazyPage></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><LazyPage fallback={<ReportsSkeleton />}><ReportsPage /></LazyPage></ProtectedRoute>} />
         <Route path="/privacy" element={<ProtectedRoute><LazyPage><PrivacyPage /></LazyPage></ProtectedRoute>} />
         <Route path="/notifications/settings" element={<ProtectedRoute><LazyPage><NotificationSettingsPage /></LazyPage></ProtectedRoute>} />
         <Route path="/my-ms-history" element={<ProtectedRoute><LazyPage><MyMSHistoryPage /></LazyPage></ProtectedRoute>} />
@@ -121,7 +123,7 @@ const AnimatedRoutes = () => {
         <Route path="/badges" element={<ProtectedRoute><LazyPage fallback={<BadgesSkeleton />}><BadgesPage /></LazyPage></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><LazyPage fallback={<MessagesSkeleton />}><MessagesPage /></LazyPage></ProtectedRoute>} />
         <Route path="/energy" element={<ProtectedRoute><LazyPage fallback={<EnergyBudgetSkeleton />}><EnergyBudgetPage /></LazyPage></ProtectedRoute>} />
-        <Route path="/lifestyle" element={<ProtectedRoute><LazyPage><LifestylePage /></LazyPage></ProtectedRoute>} />
+        <Route path="/lifestyle" element={<ProtectedRoute><LazyPage fallback={<LifestyleSkeleton />}><LifestylePage /></LazyPage></ProtectedRoute>} />
         <Route path="/matching" element={<ProtectedRoute><LazyPage><SmartMatchingPage /></LazyPage></ProtectedRoute>} />
         <Route path="/cognitive" element={<ProtectedRoute><LazyPage fallback={<CognitiveSkeleton />}><CognitivePage /></LazyPage></ProtectedRoute>} />
         <Route path="/wearables" element={<ProtectedRoute><LazyPage><WearablesPage /></LazyPage></ProtectedRoute>} />
