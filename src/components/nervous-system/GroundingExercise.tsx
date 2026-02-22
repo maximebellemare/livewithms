@@ -68,10 +68,19 @@ const GroundingExercise = () => {
     setSaved(true);
     const newCount = (totalCount ?? 0) + 1;
     setTotalCount(newCount);
-    if ([5, 10, 25].includes(newCount)) {
+    if ([5, 10, 25, 50, 100].includes(newCount)) {
       setMilestoneHit(newCount);
       setTimeout(() => {
-        confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 }, colors: ["#4CAF50", "#81C784", "#A5D6A7", "#E8751A", "#FFB347", "#a855f7", "#3b82f6"] });
+        const isEpic = newCount >= 50;
+        confetti({
+          particleCount: isEpic ? 200 : 120,
+          spread: isEpic ? 100 : 80,
+          origin: { y: 0.5 },
+          colors: ["#4CAF50", "#81C784", "#A5D6A7", "#E8751A", "#FFB347", "#a855f7", "#3b82f6"],
+        });
+        if (newCount === 100) {
+          setTimeout(() => confetti({ particleCount: 150, spread: 120, origin: { y: 0.4 }, colors: ["#FFD700", "#FFA500", "#FF6347", "#a855f7"] }), 600);
+        }
       }, 300);
     }
   }, [user, inputs, saved, totalCount]);
@@ -314,14 +323,18 @@ const GroundingExercise = () => {
               {milestoneHit && (
                 <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 space-y-1">
                   <p className="text-base font-bold text-foreground">
-                    {milestoneHit === 5 ? "🌱" : milestoneHit === 10 ? "🌿" : "🌳"} {milestoneHit} sessions!
+                    {milestoneHit === 5 ? "🌱" : milestoneHit === 10 ? "🌿" : milestoneHit === 25 ? "🌳" : milestoneHit === 50 ? "🏔️" : "👑"} {milestoneHit} sessions!
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {milestoneHit === 5
                       ? "You're building a real grounding habit. Five sessions down — keep it up!"
                       : milestoneHit === 10
                       ? "Double digits! Your nervous system thanks you for showing up consistently."
-                      : "25 sessions is incredible. You've made grounding a true part of your routine."}
+                      : milestoneHit === 25
+                      ? "25 sessions is incredible. You've made grounding a true part of your routine."
+                      : milestoneHit === 50
+                      ? "Fifty sessions! You've built a rock-solid mindfulness practice. Truly inspiring."
+                      : "100 sessions — you're a grounding master. Your dedication is extraordinary! 🎉"}
                   </p>
                 </div>
               )}
