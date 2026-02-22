@@ -30,7 +30,7 @@ const NervousSystemPage = () => {
         showBack
       />
 
-      <div className="mx-auto max-w-lg px-4 py-4 pb-40">
+      <div className="mx-auto max-w-lg px-4 py-4 pb-56">
         <StaggerContainer className="space-y-5">
           {/* Hero card */}
           <StaggerItem>

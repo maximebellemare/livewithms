@@ -182,7 +182,7 @@ const GroundingExercise = () => {
 
           <button
             onClick={handleNext}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]"
+            className="relative z-50 w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]"
           >
             {step < senses.length - 1 ? "Next Sense" : "Complete"}
             <ChevronRight className="h-4 w-4" />
