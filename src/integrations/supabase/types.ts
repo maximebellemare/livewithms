@@ -1122,6 +1122,7 @@ export type Database = {
           diagnosis_date: string | null
           display_name: string | null
           goals: string[] | null
+          grounding_weekly_goal: number
           hydration_goal: number
           id: string
           is_premium: boolean
@@ -1163,6 +1164,7 @@ export type Database = {
           diagnosis_date?: string | null
           display_name?: string | null
           goals?: string[] | null
+          grounding_weekly_goal?: number
           hydration_goal?: number
           id?: string
           is_premium?: boolean
@@ -1204,6 +1206,7 @@ export type Database = {
           diagnosis_date?: string | null
           display_name?: string | null
           goals?: string[] | null
+          grounding_weekly_goal?: number
           hydration_goal?: number
           id?: string
           is_premium?: boolean
