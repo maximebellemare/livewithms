@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, Ear, Hand, Wind, Cookie, ChevronRight, RotateCcw, Check } from "lucide-react";
+import confetti from "canvas-confetti";
 
 const senses = [
   { count: 5, sense: "things you can see", icon: Eye, color: "text-[hsl(var(--brand-blue))]", bg: "bg-[hsl(var(--brand-blue))]/10" },
@@ -29,6 +30,12 @@ const GroundingExercise = () => {
     } else {
       vibrate([10, 40, 10, 40, 10]);
       setStep(senses.length);
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#4CAF50", "#81C784", "#A5D6A7", "#E8751A", "#FFB347"],
+      });
     }
   };
 
