@@ -29,6 +29,7 @@ const GroundingExercise = () => {
   const [pastSessions, setPastSessions] = useState<any[]>([]);
   const [saved, setSaved] = useState(false);
   const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [milestoneHit, setMilestoneHit] = useState<number | null>(null);
   const finished = step >= senses.length;
 
   const loadHistory = useCallback(async () => {
@@ -63,8 +64,12 @@ const GroundingExercise = () => {
       reflections,
     });
     setSaved(true);
-    setTotalCount((c) => (c ?? 0) + 1);
-  }, [user, inputs, saved]);
+    const newCount = (totalCount ?? 0) + 1;
+    setTotalCount(newCount);
+    if ([5, 10, 25].includes(newCount)) {
+      setMilestoneHit(newCount);
+    }
+  }, [user, inputs, saved, totalCount]);
 
   const deleteSession = useCallback(async (id: string) => {
     await supabase.from("grounding_sessions").delete().eq("id", id);
@@ -100,6 +105,7 @@ const GroundingExercise = () => {
     setShowReflections(false);
     setBreathProgress(0);
     setSaved(false);
+    setMilestoneHit(null);
     setInputs(senses.map((s) => Array(s.count).fill("")));
   };
 
@@ -288,6 +294,22 @@ const GroundingExercise = () => {
               <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
                 Well done. Notice how you feel right now.
               </p>
+
+              {milestoneHit && (
+                <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 space-y-1">
+                  <p className="text-base font-bold text-foreground">
+                    {milestoneHit === 5 ? "🌱" : milestoneHit === 10 ? "🌿" : "🌳"} {milestoneHit} sessions!
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {milestoneHit === 5
+                      ? "You're building a real grounding habit. Five sessions down — keep it up!"
+                      : milestoneHit === 10
+                      ? "Double digits! Your nervous system thanks you for showing up consistently."
+                      : "25 sessions is incredible. You've made grounding a true part of your routine."}
+                  </p>
+                </div>
+              )}
+
               <button
                 onClick={handleReset}
                 className="inline-flex items-center gap-2 rounded-xl bg-secondary px-5 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-secondary/80"
