@@ -31,6 +31,7 @@ import RelapseYearComparison from "@/components/RelapseYearComparison";
 import RelapseFrequencyTrend from "@/components/RelapseFrequencyTrend";
 import RelapseRiskIndicator from "@/components/RelapseRiskIndicator";
 import ContactNeurologistCard from "@/components/ContactNeurologistCard";
+import GroundingSessionsChart from "@/components/GroundingSessionsChart";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   ResponsiveContainer, Tooltip, Area, AreaChart, ReferenceLine,
@@ -858,6 +859,9 @@ const InsightsPage = () => {
 
             {/* ── Symptom Correlation Matrix ── */}
             <SymptomCorrelationMatrix entries={allEntries} />
+
+            {/* ── Grounding Sessions ── */}
+            <GroundingSessionsChart />
 
             {/* ── Medication Adherence ── */}
             <MedicationAdherenceChart range={range} />
