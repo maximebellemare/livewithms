@@ -14,6 +14,8 @@ import AppLoadingSkeleton, {
   CardListSkeleton,
   JournalEditorSkeleton,
   RelapsesSkeleton,
+  BadgesSkeleton,
+  EnergyBudgetSkeleton,
 } from "@/components/PageSkeleton";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -116,9 +118,9 @@ const AnimatedRoutes = () => {
         <Route path="/coming-soon/:feature" element={<ProtectedRoute><LazyPage><ComingSoonPage /></LazyPage></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><LazyPage><AdminPage /></LazyPage></ProtectedRoute>} />
         <Route path="/terms" element={<ProtectedRoute><LazyPage><TermsPage /></LazyPage></ProtectedRoute>} />
-        <Route path="/badges" element={<ProtectedRoute><LazyPage><BadgesPage /></LazyPage></ProtectedRoute>} />
+        <Route path="/badges" element={<ProtectedRoute><LazyPage fallback={<BadgesSkeleton />}><BadgesPage /></LazyPage></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><LazyPage fallback={<MessagesSkeleton />}><MessagesPage /></LazyPage></ProtectedRoute>} />
-        <Route path="/energy" element={<ProtectedRoute><LazyPage><EnergyBudgetPage /></LazyPage></ProtectedRoute>} />
+        <Route path="/energy" element={<ProtectedRoute><LazyPage fallback={<EnergyBudgetSkeleton />}><EnergyBudgetPage /></LazyPage></ProtectedRoute>} />
         <Route path="/lifestyle" element={<ProtectedRoute><LazyPage><LifestylePage /></LazyPage></ProtectedRoute>} />
         <Route path="/matching" element={<ProtectedRoute><LazyPage><SmartMatchingPage /></LazyPage></ProtectedRoute>} />
         <Route path="/cognitive" element={<ProtectedRoute><LazyPage fallback={<CognitiveSkeleton />}><CognitivePage /></LazyPage></ProtectedRoute>} />

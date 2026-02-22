@@ -316,4 +316,94 @@ export const CognitiveSkeleton = () => (
   </div>
 );
 
+/** Badges page: summary card + view toggle + category grids */
+export const BadgesSkeleton = () => (
+  <div className="animate-fade-in">
+    <div className="px-4 pt-6 pb-2">
+      <Skeleton className="h-7 w-24 rounded-lg" />
+      <Skeleton className="mt-1.5 h-4 w-44 rounded-md" />
+    </div>
+    <div className="mx-auto max-w-lg px-4 py-4 space-y-6">
+      {/* Summary card */}
+      <div className="rounded-2xl bg-card p-5 shadow-soft text-center space-y-2">
+        <Skeleton className="h-8 w-8 rounded-md mx-auto" />
+        <Skeleton className="h-7 w-20 rounded-md mx-auto" />
+        <Skeleton className="h-3 w-24 rounded-md mx-auto" />
+        <Skeleton className="h-2 w-[200px] rounded-full mx-auto" />
+      </div>
+      {/* View toggle */}
+      <div className="flex justify-center gap-2">
+        <Skeleton className="h-8 w-20 rounded-full" />
+        <Skeleton className="h-8 w-24 rounded-full" />
+      </div>
+      {/* Category grids */}
+      {Array.from({ length: 3 }).map((_, cat) => (
+        <div key={cat} className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-28 rounded-md" />
+            <Skeleton className="h-3 w-8 rounded-md" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-border/50 bg-card/50 p-4 text-center space-y-2">
+                <Skeleton className="h-8 w-8 rounded-md mx-auto" />
+                <Skeleton className="h-3 w-16 rounded-md mx-auto" />
+                <Skeleton className="h-2.5 w-full rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+/** Energy Budget page: spoon meter + activity list + history + tip */
+export const EnergyBudgetSkeleton = () => (
+  <div className="animate-fade-in">
+    <div className="px-4 pt-6 pb-2">
+      <Skeleton className="h-7 w-36 rounded-lg" />
+      <Skeleton className="mt-1.5 h-4 w-44 rounded-md" />
+    </div>
+    <div className="mx-auto max-w-lg px-4 py-4 space-y-4">
+      {/* Spoon meter */}
+      <div className="rounded-xl bg-card p-5 shadow-soft space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-5 w-5 rounded-md" />
+            <Skeleton className="h-5 w-40 rounded-md" />
+          </div>
+          <Skeleton className="h-4 w-16 rounded-md" />
+        </div>
+        <Skeleton className="h-3 rounded-full" />
+        <div className="flex gap-1">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <Skeleton key={i} className="h-5 w-5 rounded-sm" />
+          ))}
+        </div>
+      </div>
+      {/* Activities card */}
+      <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-32 rounded-md" />
+          <Skeleton className="h-7 w-7 rounded-full" />
+        </div>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 rounded-lg bg-secondary px-3 py-2.5">
+            <Skeleton className="h-5 w-5 rounded-full flex-shrink-0" />
+            <Skeleton className="h-3.5 flex-1 rounded-md" />
+            <Skeleton className="h-3 w-8 rounded-md" />
+          </div>
+        ))}
+      </div>
+      {/* History */}
+      <div className="rounded-xl bg-card p-4 shadow-soft">
+        <Skeleton className="h-4 w-28 rounded-md" />
+      </div>
+      {/* Tip card */}
+      <Skeleton className="h-24 rounded-xl" />
+    </div>
+  </div>
+);
+
 export default AppLoadingSkeleton;
