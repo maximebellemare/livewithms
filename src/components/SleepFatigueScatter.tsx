@@ -2,6 +2,7 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
   ResponsiveContainer, Tooltip, ReferenceLine,
 } from "recharts";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Pair {
   sleep: number;
@@ -45,9 +46,18 @@ const SleepFatigueScatter = ({ pairs, correlationR, corrLabel }: Props) => {
           </p>
         </div>
         {correlationR !== null && (
-          <span className="text-lg font-bold text-foreground tabular-nums">
-            r = {correlationR.toFixed(2)}
-          </span>
+          <TooltipProvider delayDuration={200}>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <span className="text-lg font-bold text-foreground tabular-nums cursor-help">
+                  r = {correlationR.toFixed(2)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="text-xs max-w-[220px]">
+                Pearson correlation coefficient. Values near −1 mean more sleep = less fatigue, near +1 means they rise together, and near 0 means no clear link.
+              </TooltipContent>
+            </UITooltip>
+          </TooltipProvider>
         )}
       </div>
 
@@ -112,19 +122,30 @@ const SleepFatigueScatter = ({ pairs, correlationR, corrLabel }: Props) => {
 
         {/* Correlation label */}
         {corrLabel && (
-          <div
-            className="mt-3 rounded-lg px-3 py-2 text-xs"
-            style={{
-              background: corrLabel.positive === false
-                ? "hsl(0 72% 51% / 0.08)"
-                : corrLabel.positive === true
-                ? "hsl(145 45% 45% / 0.08)"
-                : "hsl(var(--muted))",
-            }}
-          >
-            <span className="mr-1">{corrLabel.emoji}</span>
-            <span className="text-foreground font-medium">{corrLabel.text}</span>
-          </div>
+          <TooltipProvider delayDuration={200}>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className="mt-3 rounded-lg px-3 py-2 text-xs cursor-help"
+                  style={{
+                    background: corrLabel.positive === false
+                      ? "hsl(0 72% 51% / 0.08)"
+                      : corrLabel.positive === true
+                      ? "hsl(145 45% 45% / 0.08)"
+                      : "hsl(var(--muted))",
+                  }}
+                >
+                  <span className="mr-1">{corrLabel.emoji}</span>
+                  <span className="text-foreground font-medium">{corrLabel.text}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs max-w-[220px]">
+                {corrLabel.positive === false && "A negative correlation suggests more sleep is linked to lower fatigue the next day."}
+                {corrLabel.positive === true && "A positive correlation suggests sleep and fatigue tend to rise together — this may indicate other factors at play."}
+                {corrLabel.positive === null && "The correlation is too weak to draw a clear conclusion between sleep and fatigue."}
+              </TooltipContent>
+            </UITooltip>
+          </TooltipProvider>
         )}
 
         <p className="mt-2 text-[9px] text-muted-foreground text-center">
