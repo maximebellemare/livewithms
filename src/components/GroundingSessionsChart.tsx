@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ComposedChart, Bar, Cell, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
 import { format, subDays, eachWeekOfInterval, endOfWeek, isWithinInterval } from "date-fns";
@@ -66,13 +66,14 @@ const GroundingSessionsChart = () => {
     setShowGoalPicker(false);
   };
 
-  const hasCelebratedRef = useRef(false);
   const currentWeek = chartData[chartData.length - 1];
   const currentWeekMet = currentWeek && currentWeek.sessions >= weeklyGoal;
 
   useEffect(() => {
-    if (currentWeekMet && !hasCelebratedRef.current) {
-      hasCelebratedRef.current = true;
+    const key = "grounding_confetti_week";
+    const currentWeekLabel = currentWeek?.week;
+    if (currentWeekMet && currentWeekLabel && sessionStorage.getItem(key) !== currentWeekLabel) {
+      sessionStorage.setItem(key, currentWeekLabel);
       confetti({
         particleCount: 60,
         spread: 55,
@@ -80,7 +81,7 @@ const GroundingSessionsChart = () => {
         colors: ["#4CAF50", "#81C784", "#A5D6A7"],
       });
     }
-  }, [currentWeekMet]);
+  }, [currentWeekMet, currentWeek?.week]);
 
   if (totalSessions === 0) return null;
 
