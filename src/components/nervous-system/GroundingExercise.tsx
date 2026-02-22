@@ -18,10 +18,16 @@ const GroundingExercise = () => {
 
   const currentSense = senses[step];
 
+  const vibrate = (pattern: number | number[]) => {
+    try { navigator?.vibrate?.(pattern); } catch {}
+  };
+
   const handleNext = () => {
+    vibrate([5, 30, 5]);
     if (step < senses.length - 1) {
       setStep((s) => s + 1);
     } else {
+      vibrate([10, 40, 10, 40, 10]);
       setStep(senses.length);
     }
   };
