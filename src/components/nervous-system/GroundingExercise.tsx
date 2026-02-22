@@ -28,6 +28,7 @@ const GroundingExercise = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [pastSessions, setPastSessions] = useState<any[]>([]);
   const [saved, setSaved] = useState(false);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const finished = step >= senses.length;
 
   const loadHistory = useCallback(async () => {
@@ -39,6 +40,15 @@ const GroundingExercise = () => {
       .order("completed_at", { ascending: false })
       .limit(20);
     if (data) setPastSessions(data);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("grounding_sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .then(({ count }) => setTotalCount(count ?? 0));
   }, [user]);
 
   const saveSession = useCallback(async () => {
@@ -53,11 +63,13 @@ const GroundingExercise = () => {
       reflections,
     });
     setSaved(true);
+    setTotalCount((c) => (c ?? 0) + 1);
   }, [user, inputs, saved]);
 
   const deleteSession = useCallback(async (id: string) => {
     await supabase.from("grounding_sessions").delete().eq("id", id);
     setPastSessions((prev) => prev.filter((s) => s.id !== id));
+    setTotalCount((c) => Math.max((c ?? 1) - 1, 0));
   }, []);
 
   const currentSense = senses[step];
@@ -196,6 +208,11 @@ const GroundingExercise = () => {
           <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
             Engage each of your senses to gently bring yourself back to the present moment. There's no rush — take your time.
           </p>
+          {user && totalCount !== null && totalCount > 0 && (
+            <p className="text-xs font-medium text-muted-foreground">
+              🌿 {totalCount} session{totalCount !== 1 ? "s" : ""} completed
+            </p>
+          )}
           <div className="flex flex-col gap-2">
             <button
               onClick={() => setStarted(true)}
