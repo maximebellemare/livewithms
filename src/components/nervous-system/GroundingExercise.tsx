@@ -70,6 +70,8 @@ const GroundingExercise = () => {
   }
 
   if (finished) {
+    const hasAnyInput = inputs.some((group) => group.some((v) => v.trim()));
+
     return (
       <div className="space-y-5">
         <motion.div
@@ -92,6 +94,40 @@ const GroundingExercise = () => {
             Start Over
           </button>
         </motion.div>
+
+        {hasAnyInput && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="rounded-xl bg-card p-5 shadow-soft space-y-4"
+          >
+            <h4 className="text-sm font-semibold text-foreground">Your reflections</h4>
+            {senses.map((sense, sIdx) => {
+              const filled = inputs[sIdx].filter((v) => v.trim());
+              if (filled.length === 0) return null;
+              const Icon = sense.icon;
+              return (
+                <div key={sIdx} className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Icon className={`h-4 w-4 ${sense.color}`} />
+                    <span className="text-xs font-medium text-muted-foreground capitalize">{sense.sense}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {filled.map((v, i) => (
+                      <span
+                        key={i}
+                        className={`inline-block rounded-lg ${sense.bg} px-2.5 py-1 text-xs font-medium text-foreground`}
+                      >
+                        {v}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </motion.div>
+        )}
       </div>
     );
   }
