@@ -17,7 +17,7 @@ const GroundingSessionsChart = () => {
       const since = format(subDays(new Date(), 56), "yyyy-MM-dd");
       const { data } = await supabase
         .from("grounding_sessions")
-        .select("completed_at")
+        .select("completed_at, created_at")
         .eq("user_id", user!.id)
         .gte("completed_at", since)
         .order("completed_at", { ascending: true });
@@ -32,13 +32,24 @@ const GroundingSessionsChart = () => {
 
     return weeks.map((weekStart) => {
       const wEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
-      const count = sessions.filter((s) =>
+      const weekSessions = sessions.filter((s) =>
         isWithinInterval(new Date(s.completed_at), { start: weekStart, end: wEnd })
-      ).length;
+      );
+      const count = weekSessions.length;
+
+      const avgMin = count > 0
+        ? Math.round(
+            weekSessions.reduce((sum, s) => {
+              const dur = (new Date(s.completed_at).getTime() - new Date(s.created_at).getTime()) / 60000;
+              return sum + Math.max(dur, 0);
+            }, 0) / count
+          )
+        : 0;
 
       return {
         week: format(weekStart, "MMM d"),
         sessions: count,
+        avgMin,
       };
     });
   }, [sessions]);
@@ -65,36 +76,55 @@ const GroundingSessionsChart = () => {
               axisLine={false}
             />
             <YAxis
+              yAxisId="left"
               allowDecimals={false}
               tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
               tickLine={false}
               axisLine={false}
               width={20}
             />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              allowDecimals={false}
+              tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+              tickLine={false}
+              axisLine={false}
+              width={28}
+              unit="m"
+            />
             <Tooltip
               cursor={{ fill: "hsl(var(--muted) / 0.3)" }}
               content={({ active, payload, label }) => {
                 if (!active || !payload?.length) return null;
+                const sessions = payload.find((p) => p.dataKey === "sessions");
+                const avgMin = payload.find((p) => p.dataKey === "avgMin");
                 return (
                   <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-card text-xs">
                     <p className="font-semibold text-foreground">Week of {label}</p>
-                    <p className="text-foreground">🌿 {payload[0].value} session{payload[0].value !== 1 ? "s" : ""}</p>
+                    <p className="text-foreground">🌿 {sessions?.value} session{sessions?.value !== 1 ? "s" : ""}</p>
+                    {Number(avgMin?.value) > 0 && (
+                      <p className="text-foreground">⏱ ~{avgMin?.value} min avg</p>
+                    )}
                   </div>
                 );
               }}
             />
             <Bar
+              yAxisId="left"
               dataKey="sessions"
               fill="hsl(145 45% 45%)"
               radius={[4, 4, 0, 0]}
             />
             <Line
+              yAxisId="right"
               type="monotone"
-              dataKey="sessions"
+              dataKey="avgMin"
               stroke="hsl(var(--primary))"
               strokeWidth={2}
               dot={{ r: 2.5, fill: "hsl(var(--primary))" }}
-              name="Trend"
+              name="Avg Duration"
+              connectNulls
             />
           </ComposedChart>
         </ResponsiveContainer>
