@@ -15,6 +15,7 @@ import { useMedStreak } from "@/hooks/useMedStreak";
 import { useRelapseFreeStreak } from "@/hooks/useRelapseFreeStreak";
 import { useBadgeEvents, useRecordBadgeEvent } from "@/hooks/useBadgeEvents";
 import { useCognitiveStreak } from "@/hooks/useCognitiveStreak";
+import { useGroundingStreak } from "@/hooks/useGroundingStreak";
 import { differenceInDays, parseISO, format, subDays, eachDayOfInterval } from "date-fns";
 
 /* ── Badge definition ───────────────────────────────────── */
@@ -23,7 +24,7 @@ interface BadgeDef {
   emoji: string;
   name: string;
   description: string;
-  category: "logging" | "weekly" | "medication" | "relapse" | "cognitive";
+  category: "logging" | "weekly" | "medication" | "relapse" | "cognitive" | "grounding";
 }
 
 const BADGE_DEFS: BadgeDef[] = [
@@ -54,6 +55,14 @@ const BADGE_DEFS: BadgeDef[] = [
   { id: "cog-1", emoji: "🧩", name: "First Game", description: "Play your first cognitive game", category: "cognitive" },
   { id: "cog-7", emoji: "🧠", name: "Brain Trainer", description: "Play cognitive games 7 days in a row", category: "cognitive" },
   { id: "cog-30", emoji: "🎓", name: "Memory Master", description: "Play cognitive games 30 days in a row", category: "cognitive" },
+
+  // Grounding
+  { id: "ground-1", emoji: "🌱", name: "First Grounding", description: "Complete your first grounding session", category: "grounding" },
+  { id: "ground-5", emoji: "🌿", name: "Grounded Habit", description: "Complete 5 grounding sessions", category: "grounding" },
+  { id: "ground-10", emoji: "🌳", name: "Rooted", description: "Complete 10 grounding sessions", category: "grounding" },
+  { id: "ground-25", emoji: "🏕️", name: "Nature's Calm", description: "Complete 25 grounding sessions", category: "grounding" },
+  { id: "ground-50", emoji: "🏔️", name: "Mountain Still", description: "Complete 50 grounding sessions", category: "grounding" },
+  { id: "ground-100", emoji: "👑", name: "Grounding Master", description: "Complete 100 grounding sessions", category: "grounding" },
 ];
 
 const CATEGORY_LABELS: Record<string, { label: string; emoji: string }> = {
@@ -62,6 +71,7 @@ const CATEGORY_LABELS: Record<string, { label: string; emoji: string }> = {
   medication: { label: "Medication", emoji: "💊" },
   relapse: { label: "Relapse-Free", emoji: "🛡️" },
   cognitive: { label: "Cognitive Games", emoji: "🧠" },
+  grounding: { label: "Grounding", emoji: "🌿" },
 };
 
 const BADGE_THRESHOLDS: Record<string, number> = {
@@ -70,6 +80,7 @@ const BADGE_THRESHOLDS: Record<string, number> = {
   "med-7": 7, "med-14": 14, "med-30": 30, "med-60": 60, "med-90": 90,
   "relapse-30": 30, "relapse-60": 60, "relapse-90": 90,
   "cog-1": 1, "cog-7": 7, "cog-30": 30,
+  "ground-1": 1, "ground-5": 5, "ground-10": 10, "ground-25": 25, "ground-50": 50, "ground-100": 100,
 };
 
 /* ── Badge Card ────────────────────────────────────────── */
@@ -153,6 +164,7 @@ const BadgesPage = () => {
   const medStreak = useMedStreak();
   const relapseStreak = useRelapseFreeStreak();
   const { streak: cogStreak } = useCognitiveStreak();
+  const { totalSessions: groundingSessions } = useGroundingStreak();
   const { data: badgeEvents = [] } = useBadgeEvents();
   const recordBadge = useRecordBadgeEvent();
   const [selectedBadge, setSelectedBadge] = useState<BadgeDef | null>(null);
@@ -192,10 +204,11 @@ const BadgesPage = () => {
         case "medication": return medStreak;
         case "relapse": return relapseStreak;
         case "cognitive": return cogStreak;
+        case "grounding": return groundingSessions;
         default: return 0;
       }
     },
-    [logStreak, weekStreak, medStreak, relapseStreak, cogStreak]
+    [logStreak, weekStreak, medStreak, relapseStreak, cogStreak, groundingSessions]
   );
 
   const earnedSet = useMemo(() => {
@@ -229,8 +242,16 @@ const BadgesPage = () => {
     if (cogStreak >= 7) set.add("cog-7");
     if (cogStreak >= 30) set.add("cog-30");
 
+    // Grounding
+    if (groundingSessions >= 1) set.add("ground-1");
+    if (groundingSessions >= 5) set.add("ground-5");
+    if (groundingSessions >= 10) set.add("ground-10");
+    if (groundingSessions >= 25) set.add("ground-25");
+    if (groundingSessions >= 50) set.add("ground-50");
+    if (groundingSessions >= 100) set.add("ground-100");
+
     return set;
-  }, [logStreak, weekStreak, medStreak, relapseStreak, cogStreak]);
+  }, [logStreak, weekStreak, medStreak, relapseStreak, cogStreak, groundingSessions]);
 
   const earnedCount = earnedSet.size;
   const totalCount = BADGE_DEFS.length;
@@ -317,7 +338,7 @@ const BadgesPage = () => {
     }
   }, []);
 
-  const categories = ["logging", "weekly", "medication", "relapse", "cognitive"] as const;
+  const categories = ["logging", "weekly", "medication", "relapse", "cognitive", "grounding"] as const;
 
   return (
     <>
@@ -437,7 +458,7 @@ const BadgesPage = () => {
                     id: "completionist",
                     emoji: "🌈",
                     name: "Completionist",
-                    description: "Earn all 18 badges to unlock this legendary achievement",
+                    description: `Earn all ${totalCount} badges to unlock this legendary achievement`,
                     category: "logging",
                   })}
                   role="button"
@@ -591,6 +612,7 @@ const BadgesPage = () => {
                   medication: { emoji: "💊", title: "Stay on track", message: "Take all your medications for 7 days straight to earn your first Medication badge." },
                   relapse: { emoji: "🛡️", title: "Every day is progress", message: "Reach 30 days relapse-free to unlock your first milestone in this category." },
                   cognitive: { emoji: "🧠", title: "Exercise your brain", message: "Play a cognitive game to earn your first Brain badge — every round counts!" },
+                  grounding: { emoji: "🌿", title: "Get grounded", message: "Complete your first 5-4-3-2-1 grounding exercise to earn your first badge." },
                 };
                 const state = emptyStates[timelineFilter] ?? emptyStates.all;
                 return (

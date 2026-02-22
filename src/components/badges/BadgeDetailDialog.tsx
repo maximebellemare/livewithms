@@ -9,7 +9,7 @@ export interface BadgeDef {
   emoji: string;
   name: string;
   description: string;
-  category: "logging" | "weekly" | "medication" | "relapse" | "cognitive";
+  category: "logging" | "weekly" | "medication" | "relapse" | "cognitive" | "grounding";
 }
 
 /** Maps badge id → required threshold */
@@ -18,6 +18,7 @@ const BADGE_THRESHOLDS: Record<string, number> = {
   "week-2": 2, "week-4": 4, "week-8": 8,
   "med-7": 7, "med-14": 14, "med-30": 30, "med-60": 60, "med-90": 90,
   "relapse-30": 30, "relapse-60": 60, "relapse-90": 90,
+  "ground-1": 1, "ground-5": 5, "ground-10": 10, "ground-25": 25, "ground-50": 50, "ground-100": 100,
   "cog-1": 1, "cog-7": 7, "cog-30": 30,
 };
 

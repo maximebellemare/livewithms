@@ -21,7 +21,7 @@ export const useGroundingStreak = () => {
   });
 
   const result = useMemo(() => {
-    if (sessions.length === 0) return { streak: 0, isAliveToday: false };
+    if (sessions.length === 0) return { streak: 0, isAliveToday: false, totalSessions: 0 };
 
     const daysWithSessions = new Set(
       sessions.map((s) => format(new Date(s.completed_at), "yyyy-MM-dd"))
@@ -43,7 +43,7 @@ export const useGroundingStreak = () => {
       }
     }
 
-    return { streak: count, isAliveToday: todayDone };
+    return { streak: count, isAliveToday: todayDone, totalSessions: sessions.length };
   }, [sessions]);
 
   return { ...result, isLoading };
