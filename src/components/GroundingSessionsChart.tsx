@@ -236,14 +236,32 @@ const GroundingSessionsChart = () => {
         return activeWeeks.length > 0 ? (
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <span className="inline-block h-2 w-2 rounded-sm" style={{ background: "hsl(145 45% 45%)" }} />
-                Goal met
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="inline-block h-2 w-2 rounded-sm bg-muted-foreground/30" />
-                Below goal
-              </span>
+              <TooltipProvider delayDuration={200}>
+                <UITooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center gap-1 cursor-help">
+                      <span className="inline-block h-2 w-2 rounded-sm" style={{ background: "hsl(145 45% 45%)" }} />
+                      Goal met
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+                    Weeks where you completed {weeklyGoal}+ grounding sessions.
+                  </TooltipContent>
+                </UITooltip>
+              </TooltipProvider>
+              <TooltipProvider delayDuration={200}>
+                <UITooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center gap-1 cursor-help">
+                      <span className="inline-block h-2 w-2 rounded-sm bg-muted-foreground/30" />
+                      Below goal
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+                    Weeks with fewer than {weeklyGoal} grounding sessions.
+                  </TooltipContent>
+                </UITooltip>
+              </TooltipProvider>
             </div>
             <span className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
               {metWeeks.length}/{activeWeeks.length} weeks ({pct}%)
@@ -267,15 +285,33 @@ const GroundingSessionsChart = () => {
           </div>
         ) : (
           <div className="mt-3 flex items-center gap-3 text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-sm" style={{ background: "hsl(145 45% 45%)" }} />
-              Goal met
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-sm bg-muted-foreground/30" />
-              Below goal
-            </span>
-          </div>
+              <TooltipProvider delayDuration={200}>
+                <UITooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center gap-1 cursor-help">
+                      <span className="inline-block h-2 w-2 rounded-sm" style={{ background: "hsl(145 45% 45%)" }} />
+                      Goal met
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+                    Weeks where you completed {weeklyGoal}+ grounding sessions.
+                  </TooltipContent>
+                </UITooltip>
+              </TooltipProvider>
+              <TooltipProvider delayDuration={200}>
+                <UITooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center gap-1 cursor-help">
+                      <span className="inline-block h-2 w-2 rounded-sm bg-muted-foreground/30" />
+                      Below goal
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+                    Weeks with fewer than {weeklyGoal} grounding sessions.
+                  </TooltipContent>
+                </UITooltip>
+              </TooltipProvider>
+            </div>
         );
       })()}
 
