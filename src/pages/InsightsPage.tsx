@@ -437,6 +437,7 @@ const InsightsPage = () => {
                   </div>
 
                   {/* Rows */}
+                  <TooltipProvider delayDuration={200}>
                   <div className="divide-y divide-border">
                     {rows.map(({ key, label, emoji, curAvg, prevAvg, diff, improved, worsened }) => (
                       <div key={key} className="flex items-center gap-3 px-4 py-3">
@@ -460,22 +461,39 @@ const InsightsPage = () => {
                         <div className="flex items-center gap-1.5 min-w-[56px] justify-end">
                           <span className="text-sm font-bold text-foreground">{curAvg.toFixed(1)}</span>
                           {diff !== null ? (
-                            <span
-                              className="flex items-center gap-0.5 text-[10px] font-medium"
-                              style={{ color: improved ? "hsl(145 45% 40%)" : worsened ? "hsl(0 72% 51%)" : "hsl(var(--muted-foreground))" }}
-                            >
-                              {improved ? <TrendingDown className="h-3 w-3" /> :
-                               worsened ? <TrendingUp className="h-3 w-3" /> :
-                                          <Minus className="h-3 w-3" />}
-                              {diff > 0 ? "+" : ""}{diff.toFixed(1)}
-                            </span>
+                            <UITooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  className="flex items-center gap-0.5 text-[10px] font-medium cursor-help"
+                                  style={{ color: improved ? "hsl(145 45% 40%)" : worsened ? "hsl(0 72% 51%)" : "hsl(var(--muted-foreground))" }}
+                                >
+                                  {improved ? <TrendingDown className="h-3 w-3" /> :
+                                   worsened ? <TrendingUp className="h-3 w-3" /> :
+                                              <Minus className="h-3 w-3" />}
+                                  {diff > 0 ? "+" : ""}{diff.toFixed(1)}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="text-xs max-w-[220px]">
+                                {label} went from {prevAvg!.toFixed(1)} → {curAvg.toFixed(1)} ({diff > 0 ? "+" : ""}{diff.toFixed(1)}) vs. prior period.
+                                {improved && " That's an improvement!"}
+                                {worsened && " Keep an eye on this."}
+                              </TooltipContent>
+                            </UITooltip>
                           ) : (
-                            <span className="text-[10px] text-muted-foreground">new</span>
+                            <UITooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-[10px] text-muted-foreground cursor-help">new</span>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="text-xs max-w-[200px]">
+                                No prior data to compare — this is your first {range}-day window for {label.toLowerCase()}.
+                              </TooltipContent>
+                            </UITooltip>
                           )}
                         </div>
                       </div>
                     ))}
                   </div>
+                  </TooltipProvider>
 
                   {/* Best / Worst day callouts */}
                   {(() => {
