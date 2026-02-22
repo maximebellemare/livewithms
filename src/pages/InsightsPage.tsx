@@ -41,6 +41,7 @@ import { useEntries } from "@/hooks/useEntries";
 import { InsightsSkeleton } from "@/components/PageSkeleton";
 import { useNavigate, useLocation } from "react-router-dom";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const MOOD_TAG_META: Record<string, string> = {
   Happy: "😊", Calm: "😌", Frustrated: "😤", Sad: "😔",
@@ -393,23 +394,46 @@ const InsightsPage = () => {
                         vs. prior {range}-day period
                       </p>
                     </div>
-                    <div className="flex gap-2">
-                      {improvedCount > 0 && (
-                        <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
-                          <TrendingDown className="h-3 w-3" />{improvedCount} better
-                        </span>
-                      )}
-                      {worsenedCount > 0 && (
-                        <span className="flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
-                          <TrendingUp className="h-3 w-3" />{worsenedCount} worse
-                        </span>
-                      )}
-                      {stableCount > 0 && improvedCount === 0 && worsenedCount === 0 && (
-                        <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                          <Minus className="h-3 w-3" />Stable
-                        </span>
-                      )}
-                    </div>
+                    <TooltipProvider delayDuration={200}>
+                      <div className="flex gap-2">
+                        {improvedCount > 0 && (
+                          <UITooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 cursor-help">
+                                <TrendingDown className="h-3 w-3" />{improvedCount} better
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-xs max-w-[220px]">
+                              {improvedCount} symptom{improvedCount > 1 ? "s" : ""} improved by more than 0.4 points compared to the prior {range}-day period.
+                            </TooltipContent>
+                          </UITooltip>
+                        )}
+                        {worsenedCount > 0 && (
+                          <UITooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive cursor-help">
+                                <TrendingUp className="h-3 w-3" />{worsenedCount} worse
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-xs max-w-[220px]">
+                              {worsenedCount} symptom{worsenedCount > 1 ? "s" : ""} worsened by more than 0.4 points compared to the prior {range}-day period.
+                            </TooltipContent>
+                          </UITooltip>
+                        )}
+                        {stableCount > 0 && improvedCount === 0 && worsenedCount === 0 && (
+                          <UITooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground cursor-help">
+                                <Minus className="h-3 w-3" />Stable
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-xs max-w-[220px]">
+                              All symptoms stayed within 0.4 points of the prior {range}-day period — no major changes.
+                            </TooltipContent>
+                          </UITooltip>
+                        )}
+                      </div>
+                    </TooltipProvider>
                   </div>
 
                   {/* Rows */}
