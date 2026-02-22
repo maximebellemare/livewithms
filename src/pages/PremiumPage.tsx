@@ -1,12 +1,13 @@
-import { useState } from "react";
-import { Crown, Sparkles, Brain, Stethoscope, Zap, BarChart3, BookOpen, Check, Star } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Crown, Sparkles, Brain, Stethoscope, Zap, BarChart3, BookOpen, Check, Star, CreditCard, Loader2 } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
-import { usePremium } from "@/hooks/usePremium";
-import { useUpdateProfile } from "@/hooks/useProfile";
+import { usePremium, STRIPE_PRICES } from "@/hooks/usePremium";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
+import { useSearchParams } from "react-router-dom";
 
 const features = [
   { icon: Sparkles, label: "AI Monthly Health Review", desc: "Personalized monthly summaries of your health patterns." },
@@ -18,27 +19,54 @@ const features = [
 ];
 
 const PremiumPage = () => {
-  const { isPremium } = usePremium();
-  const updateProfile = useUpdateProfile();
+  const { isPremium, premiumUntil, checkSubscription } = usePremium();
   const [billing, setBilling] = useState<"monthly" | "annual">("annual");
-  const [activating, setActivating] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [managingPortal, setManagingPortal] = useState(false);
+  const [searchParams] = useSearchParams();
 
-  const handleActivateTrial = async () => {
-    setActivating(true);
-    try {
-      const until = new Date();
-      until.setDate(until.getDate() + 14); // 14-day trial
-      await updateProfile.mutateAsync({
-        is_premium: true,
-        premium_started_at: new Date().toISOString(),
-        premium_until: until.toISOString(),
-      } as any);
-      toast.success("Welcome to Premium! 🎉 Your 14-day trial has started.");
+  // Handle checkout return
+  useEffect(() => {
+    const checkout = searchParams.get("checkout");
+    if (checkout === "success") {
       confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#E8751A", "#F5A623", "#FFFFFF"] });
-    } catch {
-      toast.error("Something went wrong. Please try again.");
+      toast.success("Welcome to Premium! 🎉 Your subscription is active.");
+      checkSubscription();
+    } else if (checkout === "cancel") {
+      toast.info("Checkout cancelled. No charges were made.");
+    }
+  }, [searchParams, checkSubscription]);
+
+  const handleCheckout = async () => {
+    setLoading(true);
+    try {
+      const priceId = billing === "monthly" ? STRIPE_PRICES.monthly : STRIPE_PRICES.annual;
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: { priceId },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to start checkout. Please try again.");
     } finally {
-      setActivating(false);
+      setLoading(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    setManagingPortal(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customer-portal");
+      if (error) throw error;
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to open billing portal.");
+    } finally {
+      setManagingPortal(false);
     }
   };
 
@@ -64,12 +92,24 @@ const PremiumPage = () => {
 
           {isPremium ? (
             <StaggerItem>
-              <div className="rounded-xl bg-[hsl(var(--brand-green))]/10 border border-[hsl(var(--brand-green))]/20 p-5 text-center">
+              <div className="rounded-xl bg-[hsl(var(--brand-green))]/10 border border-[hsl(var(--brand-green))]/20 p-5 text-center space-y-3">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <Star className="h-5 w-5 text-[hsl(var(--brand-green))]" />
                   <span className="text-sm font-semibold text-foreground">You're a Premium member!</span>
                 </div>
-                <p className="text-xs text-muted-foreground">All premium features are unlocked.</p>
+                {premiumUntil && (
+                  <p className="text-xs text-muted-foreground">
+                    Renews on {new Date(premiumUntil).toLocaleDateString()}
+                  </p>
+                )}
+                <button
+                  onClick={handleManageSubscription}
+                  disabled={managingPortal}
+                  className="inline-flex items-center gap-2 rounded-full bg-secondary px-5 py-2 text-sm font-medium text-foreground transition-all hover:bg-secondary/80 disabled:opacity-60"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  {managingPortal ? "Opening…" : "Manage Subscription"}
+                </button>
               </div>
             </StaggerItem>
           ) : (
@@ -175,18 +215,19 @@ const PremiumPage = () => {
             <StaggerItem>
               <div className="space-y-3">
                 <button
-                  onClick={handleActivateTrial}
-                  disabled={activating}
+                  onClick={handleCheckout}
+                  disabled={loading}
                   className="w-full flex items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
                 >
-                  <Crown className="h-5 w-5" />
-                  {activating ? "Activating…" : "Start 14-Day Free Trial"}
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Crown className="h-5 w-5" />
+                  )}
+                  {loading ? "Opening checkout…" : "Start 14-Day Free Trial"}
                 </button>
                 <p className="text-center text-[11px] text-muted-foreground">
-                  No credit card required • Cancel anytime
-                </p>
-                <p className="text-center text-[10px] text-muted-foreground">
-                  Full payment integration coming soon. Trial activates all Premium features immediately.
+                  14-day free trial • Cancel anytime
                 </p>
               </div>
             </StaggerItem>
