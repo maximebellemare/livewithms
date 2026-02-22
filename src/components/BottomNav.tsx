@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, BarChart3, TrendingUp, NotebookPen, Phone, Users, MoreHorizontal, MessageCircle, BookOpen, AlertTriangle, FileText, CalendarDays, Pill, UserCog, Award, History, Map, Zap, Dumbbell, Heart, Brain, Sparkles, Crown } from "lucide-react";
+import { Home, BarChart3, TrendingUp, NotebookPen, Phone, Users, MoreHorizontal, MessageCircle, BookOpen, AlertTriangle, FileText, CalendarDays, Pill, UserCog, Award, History, Map, Zap, Dumbbell, Heart, Brain, Sparkles, Crown, Leaf } from "lucide-react";
 import { motion, LayoutGroup, AnimatePresence } from "framer-motion";
 import { useUnreadCommunityPosts } from "@/hooks/useUnreadCommunity";
 import { useUnreadMessagesCount } from "@/hooks/useMessages";
@@ -34,6 +34,7 @@ const moreSections: MoreSection[] = [
       { to: "/energy",        icon: Zap,            label: "Energy Budget" },
       { to: "/lifestyle",     icon: Dumbbell,       label: "Lifestyle" },
       { to: "/cognitive",     icon: Brain,          label: "Cognitive Games" },
+      { to: "/nervous-system", icon: Leaf,           label: "Regulation Center" },
     ],
   },
   {
