@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DayEntry {
   date: string;
@@ -199,29 +200,47 @@ export default function SymptomHeatmap({ entries, days, activeMetric: controlled
       )}
 
       {/* Legend */}
-      <div className="mt-3 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[9px] text-muted-foreground">
-            {metric.higherIsBetter ? "Low" : "None"}
-          </span>
-          {["hsl(0 72% 51%)", "hsl(25 85% 50%)", "hsl(45 90% 52%)", "hsl(145 40% 58%)", "hsl(145 50% 42%)"].map(
-            (color, i) => (
-              <span
-                key={i}
-                className="h-3 w-4 rounded-sm inline-block"
-                style={{ backgroundColor: metric.higherIsBetter ? color : ["hsl(145 50% 42%)", "hsl(145 40% 58%)", "hsl(45 90% 52%)", "hsl(25 85% 50%)", "hsl(0 72% 51%)"][i] }}
-              />
-            ),
-          )}
-          <span className="text-[9px] text-muted-foreground">
-            {metric.higherIsBetter ? "High" : "Severe"}
-          </span>
+      <TooltipProvider delayDuration={200}>
+        <div className="mt-3 flex items-center justify-between">
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1.5 cursor-help">
+                <span className="text-[9px] text-muted-foreground">
+                  {metric.higherIsBetter ? "Low" : "None"}
+                </span>
+                {["hsl(0 72% 51%)", "hsl(25 85% 50%)", "hsl(45 90% 52%)", "hsl(145 40% 58%)", "hsl(145 50% 42%)"].map(
+                  (color, i) => (
+                    <span
+                      key={i}
+                      className="h-3 w-4 rounded-sm inline-block"
+                      style={{ backgroundColor: metric.higherIsBetter ? color : ["hsl(145 50% 42%)", "hsl(145 40% 58%)", "hsl(45 90% 52%)", "hsl(25 85% 50%)", "hsl(0 72% 51%)"][i] }}
+                    />
+                  ),
+                )}
+                <span className="text-[9px] text-muted-foreground">
+                  {metric.higherIsBetter ? "High" : "Severe"}
+                </span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs max-w-[240px]">
+              {metric.higherIsBetter
+                ? `Green = high ${metric.label.toLowerCase()} (good). Red = low ${metric.label.toLowerCase()} (needs attention).`
+                : `Green = low ${metric.label.toLowerCase()} (good). Red = severe ${metric.label.toLowerCase()} (needs attention).`}
+            </TooltipContent>
+          </UITooltip>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <span className="text-[9px] text-muted-foreground cursor-help">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm align-middle" style={{ backgroundColor: "hsl(var(--muted) / 0.4)" }} />
+                {" "}No data
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs max-w-[200px]">
+              Grey squares mean no entry was logged that day.
+            </TooltipContent>
+          </UITooltip>
         </div>
-        <span className="text-[9px] text-muted-foreground">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm align-middle" style={{ backgroundColor: "hsl(var(--muted) / 0.4)" }} />
-          {" "}No data
-        </span>
-      </div>
+      </TooltipProvider>
     </div>
   );
 }
