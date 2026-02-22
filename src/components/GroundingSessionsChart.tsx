@@ -1,14 +1,23 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { ComposedChart, Bar, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { format, subDays, eachWeekOfInterval, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ComposedChart, Bar, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
+import { format, subDays, eachWeekOfInterval, endOfWeek, isWithinInterval } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useGroundingStreak } from "@/hooks/useGroundingStreak";
+import { useProfile } from "@/hooks/useProfile";
+import { Target } from "lucide-react";
+
+const GOAL_OPTIONS = [1, 2, 3, 4, 5, 7, 10];
 
 const GroundingSessionsChart = () => {
   const { user } = useAuth();
   const { streak, totalSessions } = useGroundingStreak();
+  const { data: profile } = useProfile();
+  const queryClient = useQueryClient();
+  const [showGoalPicker, setShowGoalPicker] = useState(false);
+
+  const weeklyGoal = (profile as any)?.grounding_weekly_goal ?? 3;
 
   const { data: sessions = [] } = useQuery({
     queryKey: ["grounding-chart-sessions", user?.id],
@@ -36,7 +45,6 @@ const GroundingSessionsChart = () => {
         isWithinInterval(new Date(s.completed_at), { start: weekStart, end: wEnd })
       );
       const count = weekSessions.length;
-
       const avgMin = count > 0
         ? Math.round(
             weekSessions.reduce((sum, s) => {
@@ -46,13 +54,16 @@ const GroundingSessionsChart = () => {
           )
         : 0;
 
-      return {
-        week: format(weekStart, "MMM d"),
-        sessions: count,
-        avgMin,
-      };
+      return { week: format(weekStart, "MMM d"), sessions: count, avgMin };
     });
   }, [sessions]);
+
+  const updateGoal = async (goal: number) => {
+    if (!user) return;
+    await supabase.from("profiles").update({ grounding_weekly_goal: goal } as any).eq("user_id", user.id);
+    queryClient.invalidateQueries({ queryKey: ["profile"] });
+    setShowGoalPicker(false);
+  };
 
   if (totalSessions === 0) return null;
 
@@ -63,8 +74,35 @@ const GroundingSessionsChart = () => {
           <span className="text-lg">🌿</span>
           <span className="text-sm font-semibold text-foreground">Grounding Sessions</span>
         </div>
-        <span className="text-xs text-muted-foreground">8-week view</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowGoalPicker((v) => !v)}
+            className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+          >
+            <Target className="h-3 w-3" />
+            Goal: {weeklyGoal}/wk
+          </button>
+          <span className="text-xs text-muted-foreground">8-week view</span>
+        </div>
       </div>
+
+      {showGoalPicker && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {GOAL_OPTIONS.map((g) => (
+            <button
+              key={g}
+              onClick={() => updateGoal(g)}
+              className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                g === weeklyGoal
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-foreground hover:bg-secondary/80"
+              }`}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="h-40">
         <ResponsiveContainer width="100%" height="100%">
@@ -97,17 +135,35 @@ const GroundingSessionsChart = () => {
               cursor={{ fill: "hsl(var(--muted) / 0.3)" }}
               content={({ active, payload, label }) => {
                 if (!active || !payload?.length) return null;
-                const sessions = payload.find((p) => p.dataKey === "sessions");
-                const avgMin = payload.find((p) => p.dataKey === "avgMin");
+                const sess = payload.find((p) => p.dataKey === "sessions");
+                const avgM = payload.find((p) => p.dataKey === "avgMin");
+                const met = Number(sess?.value) >= weeklyGoal;
                 return (
                   <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-card text-xs">
                     <p className="font-semibold text-foreground">Week of {label}</p>
-                    <p className="text-foreground">🌿 {sessions?.value} session{sessions?.value !== 1 ? "s" : ""}</p>
-                    {Number(avgMin?.value) > 0 && (
-                      <p className="text-foreground">⏱ ~{avgMin?.value} min avg</p>
+                    <p className="text-foreground">
+                      🌿 {sess?.value} session{sess?.value !== 1 ? "s" : ""}
+                      {met ? " ✓" : ""}
+                    </p>
+                    {Number(avgM?.value) > 0 && (
+                      <p className="text-foreground">⏱ ~{avgM?.value} min avg</p>
                     )}
                   </div>
                 );
+              }}
+            />
+            <ReferenceLine
+              yAxisId="left"
+              y={weeklyGoal}
+              stroke="hsl(var(--primary))"
+              strokeDasharray="6 3"
+              strokeWidth={1.5}
+              label={{
+                value: `Goal: ${weeklyGoal}`,
+                position: "insideTopLeft",
+                fill: "hsl(var(--primary))",
+                fontSize: 9,
+                fontWeight: 600,
               }}
             />
             <Bar

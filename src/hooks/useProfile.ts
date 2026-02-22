@@ -35,6 +35,7 @@ export interface Profile {
   premium_started_at: string | null;
   monthly_reports_used: number;
   monthly_reports_reset_at: string | null;
+  grounding_weekly_goal: number;
 }
 
 export const useProfile = () => {

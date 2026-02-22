@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN grounding_weekly_goal integer NOT NULL DEFAULT 3;
