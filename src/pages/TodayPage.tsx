@@ -631,6 +631,9 @@ const TodayPage = () => {
         <StaggerItem><HydrationCard /></StaggerItem>
         <StaggerItem><RelapseRiskIndicator /></StaggerItem>
         <StaggerItem><RelapseFreeStreakCompact /></StaggerItem>
+        <StaggerItem>
+          <QuickCard emoji="🧘" title="Regulation Center" subtitle="Breathing, grounding & vagal tone" onClick={() => navigate("/nervous-system")} />
+        </StaggerItem>
 
         {/* Section: Quick Actions */}
         <StaggerItem>
