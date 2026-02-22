@@ -10,6 +10,14 @@ import RiskBar from "./relapse-risk/RiskBar";
 import RiskSparkline from "./relapse-risk/RiskSparkline";
 import WeekOverWeekChange from "./relapse-risk/WeekOverWeekChange";
 import RiskFactors from "./relapse-risk/RiskFactors";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+const LEVEL_DESCRIPTIONS: Record<string, string> = {
+  low: "Symptoms are stable with no significant changes in the past 14 days.",
+  moderate: "Some symptoms are slightly elevated — worth keeping an eye on.",
+  elevated: "Multiple symptoms trending upward — monitor closely and consider contacting your neurologist.",
+  high: "Significant symptom worsening detected — reaching out to your neurologist is recommended.",
+};
 
 export default function RelapseRiskIndicator() {
   const today = new Date();
@@ -69,12 +77,32 @@ export default function RelapseRiskIndicator() {
       <div className="flex items-center gap-2 mb-2">
         <Icon className={`h-4 w-4 ${cfg.color}`} />
         <span className="text-sm font-semibold text-foreground">Relapse Risk</span>
-        <span className={`ml-auto text-xs font-bold ${cfg.color}`}>
-          {cfg.emoji} {cfg.label}
-        </span>
+        <TooltipProvider delayDuration={200}>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <span className={`ml-auto text-xs font-bold ${cfg.color} cursor-help`}>
+                {cfg.emoji} {cfg.label}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="text-xs max-w-[220px]">
+              {LEVEL_DESCRIPTIONS[risk.level]}
+            </TooltipContent>
+          </UITooltip>
+        </TooltipProvider>
       </div>
 
-      <RiskBar level={risk.level} score={risk.score} />
+      <TooltipProvider delayDuration={200}>
+        <UITooltip>
+          <TooltipTrigger asChild>
+            <div className="cursor-help">
+              <RiskBar level={risk.level} score={risk.score} />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+            Risk score: {risk.score}/100 — based on symptom changes over the past 14 days.
+          </TooltipContent>
+        </UITooltip>
+      </TooltipProvider>
       <RiskSparkline weeklyScores={weeklyScores} />
       {prevRisk && <WeekOverWeekChange risk={risk} prevRisk={prevRisk} />}
       <RiskFactors factors={risk.factors} isLow={risk.level === "low"} />
