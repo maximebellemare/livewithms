@@ -66,6 +66,7 @@ const CognitivePage = lazy(() => import("./pages/CognitivePage"));
 const WearablesPage = lazy(() => import("./pages/WearablesPage"));
 const CoachPage = lazy(() => import("./pages/CoachPage"));
 const PremiumPage = lazy(() => import("./pages/PremiumPage"));
+const NervousSystemPage = lazy(() => import("./pages/NervousSystemPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -130,6 +131,7 @@ const AnimatedRoutes = () => {
         <Route path="/wearables" element={<ProtectedRoute><LazyPage><WearablesPage /></LazyPage></ProtectedRoute>} />
         <Route path="/coach" element={<ProtectedRoute><LazyPage fallback={<CoachSkeleton />}><CoachPage /></LazyPage></ProtectedRoute>} />
         <Route path="/premium" element={<ProtectedRoute><LazyPage><PremiumPage /></LazyPage></ProtectedRoute>} />
+        <Route path="/nervous-system" element={<ProtectedRoute><LazyPage><NervousSystemPage /></LazyPage></ProtectedRoute>} />
         <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
       </Routes>
     </AnimatePresence>
