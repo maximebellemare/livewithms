@@ -280,57 +280,70 @@ const WeeklyMoodTrendChart = ({ entries }: Props) => {
                 Average mood when tag is logged vs overall ({overallAvgMood.toFixed(1)})
               </p>
               <div className="space-y-2">
+                <TooltipProvider delayDuration={200}>
                 {tagCorrelations.map(({ tag, tagAvg, diff, count }) => {
                   const isPositive = diff > 0.2;
                   const isNegative = diff < -0.2;
                   const barPct = Math.min((Math.abs(diff) / maxAbsDiff) * 100, 100);
 
                   return (
-                    <div key={tag} className="flex items-center gap-2">
-                      <span className="text-xs w-20 truncate text-foreground font-medium">{tag}</span>
-                      <div className="flex-1 flex items-center gap-1">
-                        {/* Diverging bar from center */}
-                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden relative">
-                          {isPositive && (
-                            <div
-                              className="absolute left-1/2 h-full rounded-r-full transition-all"
-                              style={{
-                                width: `${barPct / 2}%`,
-                                backgroundColor: "hsl(145 45% 45%)",
-                              }}
-                            />
-                          )}
-                          {isNegative && (
-                            <div
-                              className="absolute right-1/2 h-full rounded-l-full transition-all"
-                              style={{
-                                width: `${barPct / 2}%`,
-                                backgroundColor: "hsl(0 72% 51%)",
-                              }}
-                            />
-                          )}
-                          {!isPositive && !isNegative && (
-                            <div
-                              className="absolute left-1/2 -translate-x-1/2 h-full w-0.5 rounded-full"
-                              style={{ backgroundColor: "hsl(var(--muted-foreground))" }}
-                            />
-                          )}
+                    <UITooltip key={tag}>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-2 cursor-help">
+                          <span className="text-xs w-20 truncate text-foreground font-medium">{tag}</span>
+                          <div className="flex-1 flex items-center gap-1">
+                            {/* Diverging bar from center */}
+                            <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden relative">
+                              {isPositive && (
+                                <div
+                                  className="absolute left-1/2 h-full rounded-r-full transition-all"
+                                  style={{
+                                    width: `${barPct / 2}%`,
+                                    backgroundColor: "hsl(145 45% 45%)",
+                                  }}
+                                />
+                              )}
+                              {isNegative && (
+                                <div
+                                  className="absolute right-1/2 h-full rounded-l-full transition-all"
+                                  style={{
+                                    width: `${barPct / 2}%`,
+                                    backgroundColor: "hsl(0 72% 51%)",
+                                  }}
+                                />
+                              )}
+                              {!isPositive && !isNegative && (
+                                <div
+                                  className="absolute left-1/2 -translate-x-1/2 h-full w-0.5 rounded-full"
+                                  style={{ backgroundColor: "hsl(var(--muted-foreground))" }}
+                                />
+                              )}
+                            </div>
+                          </div>
+                          <span
+                            className="text-[10px] font-semibold w-12 text-right"
+                            style={{
+                              color: isPositive ? "hsl(145 45% 45%)" :
+                                     isNegative ? "hsl(0 72% 51%)" :
+                                     "hsl(var(--muted-foreground))",
+                            }}
+                          >
+                            {diff > 0 ? "+" : ""}{diff.toFixed(1)}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground w-8 text-right">{count}×</span>
                         </div>
-                      </div>
-                      <span
-                        className="text-[10px] font-semibold w-12 text-right"
-                        style={{
-                          color: isPositive ? "hsl(145 45% 45%)" :
-                                 isNegative ? "hsl(0 72% 51%)" :
-                                 "hsl(var(--muted-foreground))",
-                        }}
-                      >
-                        {diff > 0 ? "+" : ""}{diff.toFixed(1)}
-                      </span>
-                      <span className="text-[9px] text-muted-foreground w-8 text-right">{count}×</span>
-                    </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs max-w-[240px]">
+                        {isPositive
+                          ? `When you tag "${tag}", your mood averages ${tagAvg.toFixed(1)}/10 — ${Math.abs(diff).toFixed(1)} points above your overall average.`
+                          : isNegative
+                          ? `When you tag "${tag}", your mood averages ${tagAvg.toFixed(1)}/10 — ${Math.abs(diff).toFixed(1)} points below your overall average.`
+                          : `When you tag "${tag}", your mood averages ${tagAvg.toFixed(1)}/10 — close to your overall average.`}
+                      </TooltipContent>
+                    </UITooltip>
                   );
                 })}
+                </TooltipProvider>
               </div>
             </div>
           );
