@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { ComposedChart, Bar, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { format, subDays, eachWeekOfInterval, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -57,7 +57,7 @@ const GroundingSessionsChart = () => {
 
       <div className="h-40">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} barCategoryGap="20%">
+          <ComposedChart data={chartData} barCategoryGap="20%">
             <XAxis
               dataKey="week"
               tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
@@ -88,7 +88,15 @@ const GroundingSessionsChart = () => {
               fill="hsl(145 45% 45%)"
               radius={[4, 4, 0, 0]}
             />
-          </BarChart>
+            <Line
+              type="monotone"
+              dataKey="sessions"
+              stroke="hsl(var(--primary))"
+              strokeWidth={2}
+              dot={{ r: 2.5, fill: "hsl(var(--primary))" }}
+              name="Trend"
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
 
