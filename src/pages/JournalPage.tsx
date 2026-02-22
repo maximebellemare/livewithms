@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import SEOHead from "@/components/SEOHead";
+import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import { format, isToday, isYesterday, startOfWeek, addDays, isFuture } from "date-fns";
 import confetti from "canvas-confetti";
 import PageHeader from "@/components/PageHeader";
@@ -269,8 +270,9 @@ const JournalPage = () => {
       <SEOHead title="Journal" description="Write daily reflections and track your emotional well-being with MS." />
       <PageHeader title="Journal" subtitle="Your daily thoughts & feelings" />
 
-      <div className="mx-auto max-w-lg px-4 py-4 space-y-6 animate-fade-in pb-10">
+      <StaggerContainer className="mx-auto max-w-lg px-4 py-4 space-y-6 pb-10">
         {/* Today's editor */}
+        <StaggerItem>
         <section data-tour="journal-editor" className="space-y-2">
           <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Write today's entry
@@ -286,14 +288,18 @@ const JournalPage = () => {
             />
           )}
         </section>
+        </StaggerItem>
 
         {/* This week in reflection */}
+        <StaggerItem>
         <div data-tour="journal-week">
           <ThisWeekInReflection entries={entries} />
         </div>
+        </StaggerItem>
 
         {/* Past entries */}
         {pastEntries.length > 0 && (
+          <StaggerItem>
           <section className="space-y-2">
             <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Past entries
@@ -304,10 +310,12 @@ const JournalPage = () => {
               ))}
             </div>
           </section>
+          </StaggerItem>
         )}
 
         {!isLoading && pastEntries.length === 0 && (
-          <div className="rounded-2xl bg-card border border-border shadow-soft px-6 py-10 text-center space-y-3 animate-fade-in">
+          <StaggerItem>
+          <div className="rounded-2xl bg-card border border-border shadow-soft px-6 py-10 text-center space-y-3">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-accent/50">
               <svg viewBox="0 0 48 48" className="h-10 w-10 text-primary" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="8" y="4" width="32" height="40" rx="4" />
@@ -322,8 +330,9 @@ const JournalPage = () => {
               Start writing today and your reflections will build up here — a personal timeline of how you're feeling.
             </p>
           </div>
+          </StaggerItem>
         )}
-      </div>
+      </StaggerContainer>
     </>
   );
 };

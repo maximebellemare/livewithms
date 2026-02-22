@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import { BarChart3, Heart, CalendarClock, HelpCircle, ArrowLeft, Sparkles, History } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import SEOHead from "@/components/SEOHead";
@@ -99,21 +100,21 @@ const CoachPage = () => {
             <PageHeader title="AI Coach" subtitle="Your personal MS support companion" />
 
             {/* Disclaimer */}
+            <StaggerContainer className="px-0">
+            <StaggerItem>
             <div className="mx-4 mb-4 rounded-xl border border-border bg-secondary/50 px-4 py-3">
               <p className="text-xs text-muted-foreground leading-relaxed">
                 <Sparkles className="inline h-3 w-3 mr-1 text-primary" />
                 This AI provides support and educational guidance only. It does not replace medical care.
               </p>
             </div>
+            </StaggerItem>
 
             {/* Mode cards */}
             <div className="px-4 space-y-3">
-              {modes.map((m, i) => (
-                <motion.button
-                  key={m.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.08, duration: 0.3 }}
+              {modes.map((m) => (
+                <StaggerItem key={m.id}>
+                <button
                   onClick={() => handleNewChat(m.id)}
                   className="w-full flex items-start gap-4 rounded-2xl border border-border bg-card p-5 text-left shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-card)] hover:border-primary/30 transition-all active:scale-[0.98]"
                 >
@@ -124,11 +125,13 @@ const CoachPage = () => {
                     <h3 className="text-sm font-semibold text-foreground mb-1">{m.label}</h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">{m.description}</p>
                   </div>
-                </motion.button>
+                </button>
+                </StaggerItem>
               ))}
             </div>
 
             {/* History section */}
+            <StaggerItem>
             <div className="mt-6">
               <button
                 onClick={() => setShowHistory(!showHistory)}
@@ -152,6 +155,8 @@ const CoachPage = () => {
                 )}
               </AnimatePresence>
             </div>
+            </StaggerItem>
+            </StaggerContainer>
           </motion.div>
         )}
       </AnimatePresence>

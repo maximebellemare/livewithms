@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import SEOHead from "@/components/SEOHead";
+import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import { Link } from "react-router-dom";
 import { Bookmark, Shield } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -76,7 +77,8 @@ const CommunityPage = () => {
             roles={roles}
           />
         ) : (
-          <>
+          <StaggerContainer className="space-y-0">
+            <StaggerItem>
             <div data-tour="community-trending">
               <TrendingPosts
                 channels={channels}
@@ -84,11 +86,15 @@ const CommunityPage = () => {
                 onSelectChannel={setSelectedChannel}
               />
             </div>
+            </StaggerItem>
+            <StaggerItem>
             <WeeklyHighlights
               channels={channels}
               onSelectPost={setSelectedPost}
               onSelectChannel={setSelectedChannel}
             />
+            </StaggerItem>
+            <StaggerItem>
             <div data-tour="community-channels">
               <ChannelList
                 channels={channels}
@@ -96,6 +102,8 @@ const CommunityPage = () => {
                 roles={roles}
               />
             </div>
+            </StaggerItem>
+            <StaggerItem>
             <Link
               to="/community/guidelines"
               className="flex items-center gap-2 rounded-xl bg-secondary px-4 py-3 text-sm text-secondary-foreground transition-colors hover:bg-muted"
@@ -103,7 +111,8 @@ const CommunityPage = () => {
               <Shield className="h-4 w-4 text-primary" />
               <span>Community Guidelines</span>
             </Link>
-          </>
+            </StaggerItem>
+          </StaggerContainer>
         )}
       </div>
     </>

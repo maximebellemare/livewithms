@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import SEOHead from "@/components/SEOHead";
+import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import PageHeader from "@/components/PageHeader";
 import { Plus, Pill, Trash2, Edit2, ArrowLeft, Bell, BellOff } from "lucide-react";
 import { useDbMedications, useSaveMedication, useDeleteMedication } from "@/hooks/useMedications";
@@ -204,11 +205,12 @@ const MedicationsPage = () => {
           </button>
         }
       />
-      <div className="mx-auto max-w-lg space-y-3 px-4 py-4">
+      <StaggerContainer className="mx-auto max-w-lg space-y-3 px-4 py-4">
         {isLoading ? (
           <CardListSkeleton count={3} />
         ) : meds.length === 0 ? (
-          <div className="rounded-2xl bg-card border border-border shadow-soft px-6 py-10 text-center space-y-3 animate-fade-in">
+          <StaggerItem>
+          <div className="rounded-2xl bg-card border border-border shadow-soft px-6 py-10 text-center space-y-3">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-accent/50">
               <svg viewBox="0 0 48 48" className="h-10 w-10 text-primary" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="14" y="6" width="20" height="36" rx="10" />
@@ -225,10 +227,12 @@ const MedicationsPage = () => {
               <Plus className="h-4 w-4" /> Add medication
             </button>
           </div>
+          </StaggerItem>
         ) : (
           <div data-tour="meds-list">
           {meds.map((med) => (
-            <div key={med.id} className="flex items-center gap-3 card-base animate-fade-in mb-3">
+            <StaggerItem key={med.id}>
+            <div className="flex items-center gap-3 card-base mb-3">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent">
                 <Pill className="h-5 w-5 text-accent-foreground" />
               </div>
@@ -257,10 +261,11 @@ const MedicationsPage = () => {
                 </button>
               </div>
             </div>
+            </StaggerItem>
           ))}
           </div>
         )}
-      </div>
+      </StaggerContainer>
     </>
   );
 };
