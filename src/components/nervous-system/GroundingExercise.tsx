@@ -4,6 +4,7 @@ import { Eye, Ear, Hand, Wind, Cookie, ChevronRight, RotateCcw, Check, History, 
 import confetti from "canvas-confetti";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useGroundingStreak } from "@/hooks/useGroundingStreak";
 import { format } from "date-fns";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -20,6 +21,7 @@ const senses = [
 
 const GroundingExercise = () => {
   const { user } = useAuth();
+  const { streak: groundingStreak, isAliveToday: groundingToday } = useGroundingStreak();
   const [step, setStep] = useState(0);
   const [started, setStarted] = useState(false);
   const [inputs, setInputs] = useState<string[][]>(senses.map((s) => Array(s.count).fill("")));
@@ -218,9 +220,20 @@ const GroundingExercise = () => {
             Engage each of your senses to gently bring yourself back to the present moment. There's no rush — take your time.
           </p>
           {user && totalCount !== null && totalCount > 0 && (
-            <p className="text-xs font-medium text-muted-foreground">
-              🌿 {totalCount} session{totalCount !== 1 ? "s" : ""} completed
-            </p>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">
+                🌿 {totalCount} session{totalCount !== 1 ? "s" : ""} completed
+              </p>
+              {groundingStreak > 0 && (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--brand-green))]/10 px-3 py-1">
+                  <span className="text-sm">🔥</span>
+                  <span className="text-xs font-bold text-[hsl(var(--brand-green))]">
+                    {groundingStreak} day{groundingStreak !== 1 ? "s" : ""} in a row
+                  </span>
+                  {groundingToday && <span className="text-xs">✓</span>}
+                </div>
+              )}
+            </div>
           )}
           <div className="flex flex-col gap-2">
             <button
