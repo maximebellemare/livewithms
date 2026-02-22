@@ -45,7 +45,7 @@ export const ChannelList = ({
                 <button
                   key={ch.id}
                   onClick={() => onSelect(ch)}
-                  className="tap-highlight-none flex w-full items-center gap-3 rounded-xl bg-card p-3 shadow-soft transition-all active:scale-[0.98]"
+                  className="tap-highlight-none flex w-full items-center gap-3 rounded-xl bg-card p-3 shadow-soft transition-all duration-200 hover:shadow-card hover:-translate-y-0.5 hover:border-primary/20 active:scale-[0.98]"
                 >
                   <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-base">
                     {ch.emoji}

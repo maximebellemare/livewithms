@@ -69,7 +69,7 @@ const StreakBadge = () => {
 
   return (
     <div
-      className={`flex items-center gap-2 rounded-2xl px-4 py-3 shadow-soft animate-fade-in border ${
+      className={`flex items-center gap-2 rounded-2xl px-4 py-3 shadow-soft animate-fade-in border transition-all duration-200 hover:shadow-card hover:-translate-y-0.5 ${
         isHot
           ? "bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800"
           : isMid

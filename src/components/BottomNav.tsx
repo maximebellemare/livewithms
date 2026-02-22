@@ -261,7 +261,7 @@ const BottomNav = () => {
                                   <button
                                     key={to}
                                     onClick={() => { setMoreOpen(false); navigate(to); }}
-                                    className={`flex w-full items-center gap-4 rounded-xl px-4 py-3 text-sm transition-colors hover:bg-accent ${
+                                    className={`flex w-full items-center gap-4 rounded-xl px-4 py-3 text-sm transition-all duration-200 hover:bg-accent hover:-translate-x-0.5 active:scale-[0.98] ${
                                       active ? "text-primary font-semibold bg-accent/50" : "text-foreground"
                                     }`}
                                   >

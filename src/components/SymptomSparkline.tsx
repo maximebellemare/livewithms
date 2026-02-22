@@ -119,7 +119,7 @@ export default function SymptomSparkline({
     return (
       <Tag
         {...((onClick || onLongPress) ? pressHandlers : {})}
-        className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full border border-dashed border-border/60 overflow-hidden transition-all duration-300${(onClick || onLongPress) ? " cursor-pointer hover:bg-secondary/70 hover:border-primary/40 active:scale-95 transition-all duration-150" : ""}${saved ? " ring-2 ring-[hsl(145_45%_45%)] shadow-[0_0_12px_2px_hsl(145_45%_45%/0.35)]" : ""}`}
+        className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full border border-dashed border-border/60 overflow-hidden transition-all duration-200${(onClick || onLongPress) ? " cursor-pointer hover:bg-secondary/70 hover:border-primary/40 hover:shadow-card hover:-translate-y-0.5 active:scale-95" : ""}${saved ? " ring-2 ring-[hsl(145_45%_45%)] shadow-[0_0_12px_2px_hsl(145_45%_45%/0.35)]" : ""}`}
       >
         <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
           {emoji} {label}
@@ -194,7 +194,7 @@ export default function SymptomSparkline({
   return (
     <Tag
       {...((onClick || onLongPress) ? pressHandlers : {})}
-      className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full overflow-hidden transition-all duration-300${(onClick || onLongPress) ? " cursor-pointer hover:bg-secondary/70 active:scale-95 transition-all duration-150" : ""}${saved ? " ring-2 ring-[hsl(145_50%_48%)] shadow-[0_0_16px_4px_hsl(145_50%_48%/0.4)]" : ""}`}
+      className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full overflow-hidden transition-all duration-200${(onClick || onLongPress) ? " cursor-pointer hover:bg-secondary/70 hover:shadow-card hover:-translate-y-0.5 active:scale-95" : ""}${saved ? " ring-2 ring-[hsl(145_50%_48%)] shadow-[0_0_16px_4px_hsl(145_50%_48%/0.4)]" : ""}`}
     >
       {/* Header row */}
       <div className="flex items-center justify-between">
