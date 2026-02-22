@@ -68,6 +68,9 @@ const GroundingExercise = () => {
     setTotalCount(newCount);
     if ([5, 10, 25].includes(newCount)) {
       setMilestoneHit(newCount);
+      setTimeout(() => {
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 }, colors: ["#4CAF50", "#81C784", "#A5D6A7", "#E8751A", "#FFB347", "#a855f7", "#3b82f6"] });
+      }, 300);
     }
   }, [user, inputs, saved, totalCount]);
 
