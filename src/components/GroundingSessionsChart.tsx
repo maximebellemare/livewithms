@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ComposedChart, Bar, Cell, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
 import { format, subDays, eachWeekOfInterval, endOfWeek, isWithinInterval } from "date-fns";
@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useGroundingStreak } from "@/hooks/useGroundingStreak";
 import { useProfile } from "@/hooks/useProfile";
 import { Target } from "lucide-react";
+import confetti from "canvas-confetti";
 
 const GOAL_OPTIONS = [1, 2, 3, 4, 5, 7, 10];
 
@@ -64,6 +65,22 @@ const GroundingSessionsChart = () => {
     queryClient.invalidateQueries({ queryKey: ["profile"] });
     setShowGoalPicker(false);
   };
+
+  const hasCelebratedRef = useRef(false);
+  const currentWeek = chartData[chartData.length - 1];
+  const currentWeekMet = currentWeek && currentWeek.sessions >= weeklyGoal;
+
+  useEffect(() => {
+    if (currentWeekMet && !hasCelebratedRef.current) {
+      hasCelebratedRef.current = true;
+      confetti({
+        particleCount: 60,
+        spread: 55,
+        origin: { y: 0.7 },
+        colors: ["#4CAF50", "#81C784", "#A5D6A7"],
+      });
+    }
+  }, [currentWeekMet]);
 
   if (totalSessions === 0) return null;
 
