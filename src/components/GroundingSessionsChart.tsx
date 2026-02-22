@@ -189,7 +189,18 @@ const GroundingSessionsChart = () => {
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+      <div className="mt-3 flex items-center gap-3 text-[10px] text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2 w-2 rounded-sm" style={{ background: "hsl(145 45% 45%)" }} />
+          Goal met
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2 w-2 rounded-sm bg-muted-foreground/30" />
+          Below goal
+        </span>
+      </div>
+
+      <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
         <span>{totalSessions} total session{totalSessions !== 1 ? "s" : ""}</span>
         {streak > 0 && (
           <span className="font-medium text-primary">🔥 {streak} day streak</span>
