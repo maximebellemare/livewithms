@@ -3,8 +3,9 @@ import { format } from "date-fns";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus, Check, Trash2, Zap, Battery, BatteryLow, BatteryWarning, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { Plus, Minus, Check, Trash2, Zap, Battery, BatteryLow, BatteryWarning, ChevronDown, ChevronUp, Info, ExternalLink } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   useTodayBudget,
   useBudgetActivities,
@@ -44,6 +45,7 @@ const EnergyBudgetPage = () => {
 
   const [newName, setNewName] = useState("");
   const [newCost, setNewCost] = useState(1);
+  const [showSpoonDialog, setShowSpoonDialog] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -165,14 +167,48 @@ const EnergyBudgetPage = () => {
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help inline-block" />
+                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help inline-block" onClick={() => setShowSpoonDialog(true)} />
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[280px] text-xs leading-relaxed">
                 <p className="font-semibold mb-1">What is Spoon Theory?</p>
                 <p>Created by Christine Miserandino, it explains life with chronic illness. Each day you start with limited "spoons" of energy — every activity costs spoons. When they're gone, you're done for the day.</p>
+                <button onClick={() => setShowSpoonDialog(true)} className="mt-1.5 text-primary hover:underline font-medium">Learn more →</button>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          <Dialog open={showSpoonDialog} onOpenChange={setShowSpoonDialog}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 font-display">
+                  <span className="text-2xl">🥄</span> The Spoon Theory
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
+                <p>
+                  The <span className="font-semibold text-foreground">Spoon Theory</span> was written by Christine Miserandino in 2003 to help her best friend understand what it's like to live with Lupus — and it has since become a widely-used metaphor across all chronic illness communities.
+                </p>
+                <p>
+                  Imagine you wake up each morning with a fixed number of spoons. Every task — getting dressed, cooking, working, socializing — costs one or more spoons. Healthy people may feel like they have an unlimited supply, but for someone with a chronic illness, the supply is small and unpredictable.
+                </p>
+                <p>
+                  Once your spoons are gone, you're done. Pushing beyond your limit means borrowing from tomorrow's supply, often leading to flare-ups and prolonged fatigue.
+                </p>
+                <p>
+                  This planner helps you <span className="font-semibold text-foreground">visualize and budget your energy</span> so you can make intentional choices about how to spend your spoons each day.
+                </p>
+                <a
+                  href="https://butyoudontlooksick.com/articles/written-by-christine/the-spoon-theory/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium text-sm"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Read the original essay by Christine Miserandino
+                </a>
+              </div>
+            </DialogContent>
+          </Dialog>
         </span>
       } showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
