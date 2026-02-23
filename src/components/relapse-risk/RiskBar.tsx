@@ -59,7 +59,14 @@ export default function RiskBar({ level, score }: RiskBarProps) {
           className={`h-full rounded-full ${BAR_COLORS[level]} transition-all duration-500`}
           style={{
             width: `${Math.max(5, displayScore)}%`,
-            ...(level === "high" ? { boxShadow: "0 0 8px 2px rgba(239, 68, 68, 0.5)" } : {}),
+            boxShadow:
+              level === "high"
+                ? "0 0 8px 2px rgba(239, 68, 68, 0.5)"
+                : level === "elevated"
+                  ? "0 0 6px 2px rgba(249, 115, 22, 0.4)"
+                  : level === "moderate"
+                    ? "0 0 5px 1px rgba(245, 158, 11, 0.3)"
+                    : "none",
           }}
         />
       </div>
