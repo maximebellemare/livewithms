@@ -24,6 +24,7 @@ import MorningCheckInWidget, { detectMorningCheckIn } from "./MorningCheckInWidg
 import MindfulEatingWidget, { detectMindfulEating } from "./MindfulEatingWidget";
 import GratitudeWidget, { detectGratitude } from "./GratitudeWidget";
 import ValuesWidget, { detectValues } from "./ValuesWidget";
+import EmotionalCheckInWidget, { detectEmotionalCheckIn } from "./EmotionalCheckInWidget";
 
 interface CoachChatProps {
   mode: CoachMode;
@@ -360,6 +361,7 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                    <PromptChip label="Try a mindful eating exercise" onTap={setInput} />
                    <PromptChip label="Try a gratitude journaling exercise" onTap={setInput} />
                    <PromptChip label="Try a values clarification exercise" onTap={setInput} />
+                   <PromptChip label="Do an emotional check-in" onTap={setInput} />
                 </>
               )}
               {mode === "planning" && (
@@ -403,6 +405,7 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                     </div>
                     {(() => {
                     if (detectValues(msg.content)) return <ValuesWidget />;
+                    if (detectEmotionalCheckIn(msg.content)) return <EmotionalCheckInWidget />;
                     if (detectGratitude(msg.content)) return <GratitudeWidget />;
                     if (detectMindfulEating(msg.content)) return <MindfulEatingWidget />;
                     if (detectMorningCheckIn(msg.content)) return <MorningCheckInWidget />;
