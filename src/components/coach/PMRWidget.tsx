@@ -40,6 +40,7 @@ const PMRWidget = () => {
   const totalCompleted = completed.filter(Boolean).length;
   const progress = activeGroups.length > 0 ? totalCompleted / activeGroups.length : 0;
   const allDone = phase === "done";
+  const totalDuration = activeGroups.reduce((sum, g) => sum + g.tenseDuration + g.relaxDuration, 0);
 
   const selectedCount = selected.filter(Boolean).length;
 
@@ -270,8 +271,7 @@ const PMRWidget = () => {
           >
             {allDone ? (
               <>
-                <Check className="h-6 w-6 text-primary" />
-                <span className="text-xs font-semibold text-foreground mt-1">Relaxed</span>
+                <Check className="h-7 w-7 text-primary" />
               </>
             ) : phase === "idle" ? (
               <>
@@ -333,11 +333,38 @@ const PMRWidget = () => {
       </div>
       <p className="text-[11px] text-muted-foreground">
         {allDone
-          ? "All muscle groups complete"
+          ? ""
           : phase === "idle"
           ? `${activeGroups.length} muscle group${activeGroups.length !== 1 ? "s" : ""} selected`
           : `${currentGroup?.name} — ${groupIdx + 1} of ${activeGroups.length}`}
       </p>
+
+      {/* Completion summary */}
+      {allDone && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="flex flex-col items-center gap-2 max-w-[260px]"
+        >
+          <p className="text-sm font-semibold text-foreground">Session Complete 🎉</p>
+          <div className="grid grid-cols-2 gap-3 w-full">
+            <div className="flex flex-col items-center rounded-lg bg-primary/10 px-3 py-2">
+              <span className="text-lg font-bold text-primary">{activeGroups.length}</span>
+              <span className="text-[10px] text-muted-foreground">Groups</span>
+            </div>
+            <div className="flex flex-col items-center rounded-lg bg-primary/10 px-3 py-2">
+              <span className="text-lg font-bold text-primary">
+                {Math.floor(totalDuration / 60)}:{String(totalDuration % 60).padStart(2, "0")}
+              </span>
+              <span className="text-[10px] text-muted-foreground">Duration</span>
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground text-center leading-relaxed mt-1">
+            {activeGroups.map((g) => g.name).join(" · ")}
+          </p>
+        </motion.div>
+      )}
 
       {/* Controls */}
       <div className="flex items-center gap-2">
