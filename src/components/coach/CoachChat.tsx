@@ -26,6 +26,7 @@ import GratitudeWidget, { detectGratitude } from "./GratitudeWidget";
 import ValuesWidget, { detectValues } from "./ValuesWidget";
 import EmotionalCheckInWidget, { detectEmotionalCheckIn } from "./EmotionalCheckInWidget";
 import WorryTimeWidget, { detectWorryTime } from "./WorryTimeWidget";
+import ThoughtDefusionWidget, { detectThoughtDefusion } from "./ThoughtDefusionWidget";
 
 interface CoachChatProps {
   mode: CoachMode;
@@ -364,6 +365,7 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                    <PromptChip label="Try a values clarification exercise" onTap={setInput} />
                    <PromptChip label="Do an emotional check-in" onTap={setInput} />
                    <PromptChip label="Try a worry time exercise" onTap={setInput} />
+                   <PromptChip label="Try a thought defusion exercise" onTap={setInput} />
                 </>
               )}
               {mode === "planning" && (
@@ -409,6 +411,7 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                     if (detectValues(msg.content)) return <ValuesWidget />;
                     if (detectEmotionalCheckIn(msg.content)) return <EmotionalCheckInWidget />;
                     if (detectWorryTime(msg.content)) return <WorryTimeWidget />;
+                    if (detectThoughtDefusion(msg.content)) return <ThoughtDefusionWidget />;
                     if (detectGratitude(msg.content)) return <GratitudeWidget />;
                     if (detectMindfulEating(msg.content)) return <MindfulEatingWidget />;
                     if (detectMorningCheckIn(msg.content)) return <MorningCheckInWidget />;
