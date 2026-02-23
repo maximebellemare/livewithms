@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SEOHead from "@/components/SEOHead";
 import AnimatedList, { listItemVariants } from "@/components/AnimatedList";
 import { motion } from "framer-motion";
@@ -103,20 +104,19 @@ const LearnPage = () => {
         </div>
 
         {/* Category filters */}
-        <div data-tour="learn-filters" className="mb-3 flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setFilter(cat)}
-              className={`tap-highlight-none flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all ${
-                filter === cat
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+        <div data-tour="learn-filters" className="mb-3">
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="w-full rounded-xl bg-card">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Filter toggles */}
