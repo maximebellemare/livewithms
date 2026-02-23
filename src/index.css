@@ -157,3 +157,9 @@
   from { stroke-dashoffset: 113.1; }
   to   { stroke-dashoffset: 0; }
 }
+
+/* Risk card glow pulse for elevated/high levels */
+@keyframes risk-glow-pulse {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  50% { opacity: 0.92; filter: brightness(1.05); }
+}

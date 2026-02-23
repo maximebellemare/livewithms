@@ -128,10 +128,16 @@ export default function RiskScoreSummaryCard() {
     latest.score >= 35 ? "hsl(25, 85%, 50%)" :
     latest.score >= 15 ? "hsl(35, 80%, 50%)" : "hsl(145, 45%, 45%)";
 
+  const isUrgent = latest.level === "elevated" || latest.level === "high";
+
   return (
     <Link
       to="/risk-history"
-      className={`flex items-center gap-3 rounded-xl border ${cfg.border} ${cfg.bg} px-4 py-3 transition-colors hover:opacity-90`}
+      className={`flex items-center gap-3 rounded-xl border ${cfg.border} ${cfg.bg} px-4 py-3 transition-all hover:opacity-90`}
+      style={isUrgent ? {
+        boxShadow: `0 0 14px -3px ${strokeColor}50`,
+        animation: "risk-glow-pulse 3s ease-in-out infinite",
+      } as React.CSSProperties : undefined}
     >
       <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${cfg.bg}`}>
         <Icon className={`h-4.5 w-4.5 ${cfg.color}`} aria-hidden="true" />
