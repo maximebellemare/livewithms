@@ -1379,6 +1379,39 @@ export type Database = {
         }
         Relationships: []
       }
+      risk_scores: {
+        Row: {
+          created_at: string
+          factors: string[]
+          id: string
+          level: string
+          score: number
+          user_id: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          factors?: string[]
+          id?: string
+          level: string
+          score: number
+          user_id: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          factors?: string[]
+          id?: string
+          level?: string
+          score?: number
+          user_id?: string
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       smart_match_profiles: {
         Row: {
           bio: string | null

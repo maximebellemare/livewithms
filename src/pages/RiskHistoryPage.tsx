@@ -1,13 +1,12 @@
 import { useMemo } from "react";
 import { format, subDays, subWeeks } from "date-fns";
+import { useRiskScores, RiskScore } from "@/hooks/useRiskScores";
 import { useEntriesInRange } from "@/hooks/useEntries";
 import { computeRisk } from "@/components/relapse-risk/computeRisk";
 import { RISK_CONFIG, RiskLevel } from "@/components/relapse-risk/types";
 import PageHeader from "@/components/PageHeader";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-import { Shield, TrendingUp, TrendingDown, Minus } from "lucide-react";
-
-const WEEKS = 12;
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface WeekPoint {
   week: string;
@@ -25,13 +24,31 @@ function getLevelColor(level: RiskLevel | null): string {
   }
 }
 
+const WEEKS = 12;
+
 export default function RiskHistoryPage() {
+  const { data: dbScores = [], isLoading: dbLoading } = useRiskScores(WEEKS);
+
+  // Fallback: compute from entries if no DB scores yet
   const today = new Date();
   const start = format(subDays(today, WEEKS * 7 + 14), "yyyy-MM-dd");
   const end = format(today, "yyyy-MM-dd");
-  const { data: entries = [], isLoading } = useEntriesInRange(start, end);
+  const { data: entries = [], isLoading: entriesLoading } = useEntriesInRange(start, end);
+
+  const isLoading = dbLoading || entriesLoading;
 
   const weeklyData = useMemo<WeekPoint[]>(() => {
+    // Prefer DB scores if available
+    if (dbScores.length > 0) {
+      return dbScores.map((s: RiskScore) => ({
+        week: format(new Date(s.week_start + "T00:00:00"), "MMM d"),
+        label: `Week of ${format(new Date(s.week_start + "T00:00:00"), "MMM d")}`,
+        score: s.score,
+        level: s.level as RiskLevel,
+      }));
+    }
+
+    // Fallback: compute from entries
     const points: WeekPoint[] = [];
     for (let w = WEEKS - 1; w >= 0; w--) {
       const weekEnd = subWeeks(today, w);
@@ -56,7 +73,7 @@ export default function RiskHistoryPage() {
       }
     }
     return points;
-  }, [entries]);
+  }, [dbScores, entries]);
 
   const validPoints = weeklyData.filter((p) => p.score !== null);
   const currentScore = validPoints.length > 0 ? validPoints[validPoints.length - 1].score! : null;
@@ -78,7 +95,7 @@ export default function RiskHistoryPage() {
   const monthlySummaries = useMemo(() => {
     const months: Record<string, number[]> = {};
     for (const p of validPoints) {
-      const monthKey = p.week.split(" ")[0]; // e.g. "Jan"
+      const monthKey = p.week.split(" ")[0];
       if (!months[monthKey]) months[monthKey] = [];
       months[monthKey].push(p.score!);
     }
@@ -203,9 +220,16 @@ export default function RiskHistoryPage() {
           </section>
         )}
 
-        <p className="text-center text-[9px] text-muted-foreground">
-          Based on 14-day rolling symptom trends · not medical advice
-        </p>
+        {dbScores.length > 0 && (
+          <p className="text-center text-[9px] text-muted-foreground">
+            Showing {dbScores.length} persisted weekly scores · not medical advice
+          </p>
+        )}
+        {dbScores.length === 0 && (
+          <p className="text-center text-[9px] text-muted-foreground">
+            Based on 14-day rolling symptom trends · not medical advice
+          </p>
+        )}
       </div>
     </div>
   );

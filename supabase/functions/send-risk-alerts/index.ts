@@ -151,15 +151,14 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Get all users with push enabled
-    const { data: pushUsers, error: pushErr } = await supabase
+    // Get ALL users (for score persistence) — push alerts only for push-enabled users
+    const { data: allUsers, error: usersErr } = await supabase
       .from("profiles")
-      .select("user_id")
-      .eq("notify_push_enabled", true);
+      .select("user_id, notify_push_enabled");
 
-    if (pushErr) throw pushErr;
-    if (!pushUsers || pushUsers.length === 0) {
-      return new Response(JSON.stringify({ sent: 0, message: "No push-enabled users" }), {
+    if (usersErr) throw usersErr;
+    if (!allUsers || allUsers.length === 0) {
+      return new Response(JSON.stringify({ sent: 0, message: "No users" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -174,7 +173,7 @@ Deno.serve(async (req) => {
     let lowRisk = 0;
     const staleEndpoints: string[] = [];
 
-    for (const { user_id } of pushUsers) {
+    for (const { user_id, notify_push_enabled } of allUsers) {
       try {
         // Check if we already alerted this user today
         const alertKey = `risk_push_${user_id}_${todayStr}`;
@@ -203,8 +202,28 @@ Deno.serve(async (req) => {
 
         const risk = computeRiskScore(recent, older);
 
+        // Persist the weekly risk score (upsert by user + week_start)
+        const weekEnd = todayStr;
+        const weekStart = new Date(now.getTime() - 6 * 86400000).toISOString().slice(0, 10);
+        await supabase.from("risk_scores").upsert(
+          {
+            user_id,
+            week_start: weekStart,
+            week_end: weekEnd,
+            score: risk.score,
+            level: risk.level,
+            factors: risk.factors,
+          },
+          { onConflict: "user_id,week_start" }
+        );
+
         if (risk.level !== "high" && risk.level !== "elevated") {
           lowRisk++;
+          continue;
+        }
+
+        // Skip push notifications if user has them disabled
+        if (!notify_push_enabled) {
           continue;
         }
 
