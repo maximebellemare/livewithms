@@ -72,8 +72,12 @@ export default function RelapseRiskIndicator() {
   const cfg = RISK_CONFIG[risk.level];
   const Icon = cfg.icon;
 
+  const srAnnouncement = `Relapse risk: ${cfg.label}. Score ${risk.score} out of 100. ${LEVEL_DESCRIPTIONS[risk.level]}${risk.factors.length ? ` Contributing factors: ${risk.factors.join(", ")}.` : ""}`;
+
   return (
-    <div
+    <section
+      aria-label="Relapse Risk Indicator"
+      role="region"
       className={`rounded-xl border ${cfg.border} ${cfg.bg} p-4 animate-fade-in transition-shadow duration-700 ${
         risk.level === "high"
           ? "shadow-[0_0_15px_3px_rgba(239,68,68,0.35)] animate-pulse"
@@ -84,9 +88,12 @@ export default function RelapseRiskIndicator() {
               : ""
       }`}
     >
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {srAnnouncement}
+      </div>
       <div className="flex items-center gap-2 mb-2">
-        <Icon className={`h-4 w-4 ${cfg.color}`} />
-        <span className="text-sm font-semibold text-foreground">Relapse Risk</span>
+        <Icon className={`h-4 w-4 ${cfg.color}`} aria-hidden="true" />
+        <span className="text-sm font-semibold text-foreground" id="relapse-risk-heading">Relapse Risk</span>
         <TooltipProvider delayDuration={200}>
           <UITooltip>
             <TooltipTrigger asChild>
@@ -104,7 +111,7 @@ export default function RelapseRiskIndicator() {
       <TooltipProvider delayDuration={200}>
         <UITooltip>
           <TooltipTrigger asChild>
-            <div className="cursor-help">
+            <div className="cursor-help" role="meter" aria-label={`Risk score: ${risk.score} out of 100`} aria-valuenow={risk.score} aria-valuemin={0} aria-valuemax={100}>
               <RiskBar level={risk.level} score={risk.score} />
             </div>
           </TooltipTrigger>
@@ -130,7 +137,7 @@ export default function RelapseRiskIndicator() {
               : "bg-orange-600 text-white hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-800"
           }`}
         >
-          <Mail className="h-3.5 w-3.5" />
+          <Mail className="h-3.5 w-3.5" aria-hidden="true" />
           {profile?.neurologist_email ? "Contact neurologist" : "Set up neurologist email"}
         </a>
       )}
@@ -138,6 +145,6 @@ export default function RelapseRiskIndicator() {
       <p className="mt-2 text-[9px] text-muted-foreground">
         Based on 14-day trends · not medical advice
       </p>
-    </div>
+    </section>
   );
 }
