@@ -26,9 +26,10 @@ export const detectAffirmation = (content: string): boolean => {
   return (
     /affirmation\s*(card|exercise|practice)/i.test(lower) ||
     /positive\s*affirmation/i.test(lower) ||
-    /here\s*(are|is)\s*(some|a)\s*affirmation/i.test(lower) ||
+    /here\s*(are|is)\s*(some|a|a few)\s*affirmation/i.test(lower) ||
     /rotating\s*affirmation/i.test(lower) ||
-    /daily\s*affirmation/i.test(lower)
+    /daily\s*affirmation/i.test(lower) ||
+    (lower.includes("affirmation") && (lower.includes("tailored") || lower.includes("for you") || lower.includes("to keep")))
   );
 };
 
