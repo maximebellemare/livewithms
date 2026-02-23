@@ -3,7 +3,8 @@ import { format } from "date-fns";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus, Check, Trash2, Zap, Battery, BatteryLow, BatteryWarning, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Minus, Check, Trash2, Zap, Battery, BatteryLow, BatteryWarning, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   useTodayBudget,
   useBudgetActivities,
@@ -158,7 +159,22 @@ const EnergyBudgetPage = () => {
   return (
     <>
       <SEOHead title="Energy Budget" description="Track your daily energy using the Spoon Theory." />
-      <PageHeader title="Energy Budget" subtitle="Spoon Theory Planner 🥄" showBack />
+      <PageHeader title="Energy Budget" subtitle={
+        <span className="inline-flex items-center gap-1">
+          Spoon Theory Planner 🥄
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help inline-block" />
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[280px] text-xs leading-relaxed">
+                <p className="font-semibold mb-1">What is Spoon Theory?</p>
+                <p>Created by Christine Miserandino, it explains life with chronic illness. Each day you start with limited "spoons" of energy — every activity costs spoons. When they're gone, you're done for the day.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </span>
+      } showBack />
       <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
 
         {/* Spoon meter */}

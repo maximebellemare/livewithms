@@ -6,7 +6,7 @@ import NotificationBell from "./NotificationBell";
 
 interface PageHeaderProps {
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   action?: ReactNode;
   /** Show a back arrow that calls navigate(-1). Use on deeper pages behind the More menu. */
   showBack?: boolean;
