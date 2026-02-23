@@ -561,175 +561,196 @@ const TodayPage = () => {
           Tap to log · hold to see insights
         </p>
 
-        {/* Section: Quick Symptom Log */}
-        <div data-tour="quick-log" ref={logRef} className="card-base space-y-3 animate-fade-in">
-          <div className="flex items-center justify-between">
-            <p className="section-label">
-              ✏️ Full Symptom Log
-            </p>
-            <span className="text-[9px] text-muted-foreground/50 bg-muted rounded-full px-2 py-0.5">
-              Slide to rate
-            </span>
-          </div>
-          <div className="space-y-2.5">
-            <SymptomSlider label="Fatigue" emoji="🔋" value={fatigue} onChange={setFatigue} weekAvg={weekAvgs.fatigue} />
-            <SymptomSlider label="Pain" emoji="⚡" value={pain} onChange={setPain} weekAvg={weekAvgs.pain} />
-            <SymptomSlider label="Brain Fog" emoji="🌫️" value={brainFog} onChange={setBrainFog} weekAvg={weekAvgs.brain_fog} />
-            <SymptomSlider label="Mood" emoji="😊" value={mood} onChange={setMood} weekAvg={weekAvgs.mood} higherIsBetter />
-            <SymptomSlider label="Mobility" emoji="🚶" value={mobility} onChange={setMobility} weekAvg={weekAvgs.mobility} />
-            <SymptomSlider label="Spasticity" emoji="🦵" value={spasticity} onChange={setSpasticity} weekAvg={weekAvgs.spasticity} />
-            <SymptomSlider label="Stress" emoji="😰" value={stress} onChange={setStress} weekAvg={weekAvgs.stress} />
-          </div>
-        </div>
-
-        {/* Mood tags */}
-        <div data-tour="mood-tags" className="animate-slide-up" style={{ animationDelay: "0.1s" }}>
-          <MoodSelector selected={moodTags} onToggle={toggleMoodTag} />
-        </div>
-
-        {/* Sleep & Notes */}
-        <div className="space-y-3 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-          <div className="card-base">
-            <label className="mb-2 block text-sm font-medium text-foreground">
-              💤 Hours of sleep
-            </label>
-            <input
-              type="number"
-              min={0}
-              max={24}
-              step={0.5}
-              placeholder="e.g. 7.5"
-              value={sleepHours}
-              onChange={(e) => setSleepHours(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-
-          <DailyPromptCard
-            onUsePrompt={(prompt) => {
-              const prefix = notes.trim() ? notes + "\n\n" : "";
-              setNotes(prefix + prompt + " ");
-              setTimeout(() => {
-                notesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                notesRef.current?.focus();
-              }, 50);
-            }}
-          />
-
-          <div className="card-base">
-            <label className="mb-2 block text-sm font-medium text-foreground">
-              📝 Notes
-            </label>
-            <textarea
-              ref={notesRef}
-              rows={3}
-              placeholder="Anything else you want to remember..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        </div>
-
-        {/* Section: Wellness */}
+        {/* Section: Full Symptom Log — collapsed by default when already logged */}
         <StaggerItem>
-          <p className="section-label pt-1">❤️ Wellness</p>
-        </StaggerItem>
-
-        <StaggerItem><MedicationChecklist /></StaggerItem>
-        <StaggerItem><UpcomingAppointments /></StaggerItem>
-        <StaggerItem><HydrationCard /></StaggerItem>
-        <StaggerItem><RelapseRiskIndicator /></StaggerItem>
-        <StaggerItem><RelapseFreeStreakCompact /></StaggerItem>
-        <StaggerItem>
-          <Collapsible>
+          <Collapsible defaultOpen={!alreadyLogged}>
             <CollapsibleTrigger className="flex w-full items-center justify-between card-base text-left group">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-lg">✨</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">Exercises</p>
-                  <p className="text-xs text-muted-foreground">Breathing, grounding & relaxation</p>
-                </div>
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold text-primary">10</span>
+              <p className="section-label">✏️ Full Symptom Log</p>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-muted-foreground/50 bg-muted rounded-full px-2 py-0.5">
+                  Slide to rate
+                </span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
               </div>
-              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2 mt-2">
-              <QuickCard emoji="🧘" title="Regulation Center" subtitle="Breathing, grounding & vagal tone" onClick={() => navigate("/nervous-system")} />
-              <QuickCard emoji="💪" title="Muscle Relaxation" subtitle="Progressive muscle relaxation exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try progressive muscle relaxation" } })} />
-              <QuickCard emoji="🌬️" title="Box Breathing" subtitle="Calming 4-4-4-4 breathing exercise" onClick={() => navigate("/coach", { state: { autoSend: "Guide me through box breathing" } })} />
-              <QuickCard emoji="🖐️" title="Grounding Exercise" subtitle="5-4-3-2-1 sensory grounding" onClick={() => navigate("/coach", { state: { autoSend: "I'd like a 5-4-3-2-1 grounding exercise" } })} />
-              <QuickCard emoji="💛" title="Self-Compassion" subtitle="Guided self-compassion exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try a self-compassion exercise with me" } })} />
-              <QuickCard emoji="🔄" title="Thought Reframing" subtitle="Reframe a negative thought" onClick={() => navigate("/coach", { state: { autoSend: "Help me reframe a negative thought" } })} />
-              <QuickCard emoji="🧠" title="Body Scan" subtitle="Guided body scan meditation" onClick={() => navigate("/coach", { state: { autoSend: "Guide me through a body scan meditation" } })} />
-              <QuickCard emoji="🌄" title="Visualization" subtitle="Guided visualization exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try a visualization exercise with me" } })} />
-              <QuickCard emoji="🎧" title="Guided Meditation" subtitle="Calming guided meditation session" onClick={() => navigate("/coach", { state: { autoSend: "Try a guided meditation with me" } })} />
-              <QuickCard emoji="🤸" title="Stretching Routine" subtitle="Gentle stretching for flexibility" onClick={() => navigate("/coach", { state: { autoSend: "Try a gentle stretching routine" } })} />
+            <CollapsibleContent>
+              <div data-tour="quick-log" ref={logRef} className="card-base space-y-2.5 mt-2">
+                <SymptomSlider label="Fatigue" emoji="🔋" value={fatigue} onChange={setFatigue} weekAvg={weekAvgs.fatigue} />
+                <SymptomSlider label="Pain" emoji="⚡" value={pain} onChange={setPain} weekAvg={weekAvgs.pain} />
+                <SymptomSlider label="Brain Fog" emoji="🌫️" value={brainFog} onChange={setBrainFog} weekAvg={weekAvgs.brain_fog} />
+                <SymptomSlider label="Mood" emoji="😊" value={mood} onChange={setMood} weekAvg={weekAvgs.mood} higherIsBetter />
+                <SymptomSlider label="Mobility" emoji="🚶" value={mobility} onChange={setMobility} weekAvg={weekAvgs.mobility} />
+                <SymptomSlider label="Spasticity" emoji="🦵" value={spasticity} onChange={setSpasticity} weekAvg={weekAvgs.spasticity} />
+                <SymptomSlider label="Stress" emoji="😰" value={stress} onChange={setStress} weekAvg={weekAvgs.stress} />
+              </div>
             </CollapsibleContent>
           </Collapsible>
         </StaggerItem>
-        {groundTotal > 0 && (
-          <StaggerItem>
-            <div
-              onClick={() => navigate("/nervous-system")}
-              className="flex items-center gap-3 card-base cursor-pointer transition-all hover:bg-secondary/50 active:scale-[0.98]"
-            >
-              <span className="text-xl">🌿</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">Grounding Streak</p>
-                <p className="text-xs text-muted-foreground">
-                  {groundStreak > 0
-                    ? `${groundStreak} day${groundStreak !== 1 ? "s" : ""} in a row · ${groundTotal} total`
-                    : `${groundTotal} session${groundTotal !== 1 ? "s" : ""} completed`}
-                </p>
-              </div>
-              <span className="text-xs font-medium text-primary">
-                {groundStreak > 0 ? `🔥 ${groundStreak}` : "Start today"}
-              </span>
-            </div>
-          </StaggerItem>
-        )}
 
-        {/* Section: Quick Actions */}
+        {/* Mood tags + Sleep & Notes — inside same collapsible flow */}
         <StaggerItem>
-        <div data-tour="reminders" className="space-y-2">
-          <p className="section-label pt-1">⚡ Quick Actions</p>
-          <QuickCard emoji="💊" title="Medications" subtitle="Manage your medications" onClick={() => navigate("/medications")} />
-          <QuickCard emoji="📅" title="Appointments" subtitle="View & manage appointments" onClick={() => navigate("/appointments")} />
-          <button
-            onClick={() => setShowReportPreview(true)}
-            disabled={downloadingReport}
-            className="flex w-full items-center gap-3 card-base text-left transition-all hover:bg-secondary/50 active:scale-[0.98] disabled:opacity-60"
-          >
-            <span className="text-base">📄</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">Download Report</p>
-              <p className="text-xs text-muted-foreground">{downloadingReport ? "Generating…" : "Last 30 days · PDF"}</p>
-            </div>
-            <FileDown className="h-4 w-4 text-muted-foreground" />
-          </button>
-          <ReportPreviewDialog
-            open={showReportPreview}
-            onOpenChange={setShowReportPreview}
-            onConfirm={() => { setShowReportPreview(false); handleDownloadReport(); }}
-            generating={downloadingReport}
-            startDate={report30Start}
-            endDate={report30End}
-            entries={report30Entries}
-            profile={profile || null}
-            medications={reportMeds}
-            medLogs={reportMedLogs}
-            appointments={reportAppts.filter((a) => a.date >= report30Start && a.date <= report30End)}
-            relapses={reportRelapses}
-            sections={{
-              includeProfile: true, includeSymptoms: true, includeMedications: true,
-              includeAppointments: true, includeNotes: true, includeRelapses: true,
-              includeHydration: true, includeRiskScore: true, includeTrendCharts: true,
-              includeMoodTags: true, includePeriodComparison: true, includeTriggerAnalysis: true,
-              includeAiInsight: false,
-            }}
-          />
-        </div>
+          <Collapsible defaultOpen={!alreadyLogged}>
+            <CollapsibleTrigger className="flex w-full items-center justify-between card-base text-left group">
+              <p className="section-label">🏷️ Mood, Sleep & Notes</p>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3 mt-2">
+              <div data-tour="mood-tags">
+                <MoodSelector selected={moodTags} onToggle={toggleMoodTag} />
+              </div>
+
+              <div className="card-base">
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  💤 Hours of sleep
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={24}
+                  step={0.5}
+                  placeholder="e.g. 7.5"
+                  value={sleepHours}
+                  onChange={(e) => setSleepHours(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <DailyPromptCard
+                onUsePrompt={(prompt) => {
+                  const prefix = notes.trim() ? notes + "\n\n" : "";
+                  setNotes(prefix + prompt + " ");
+                  setTimeout(() => {
+                    notesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    notesRef.current?.focus();
+                  }, 50);
+                }}
+              />
+
+              <div className="card-base">
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  📝 Notes
+                </label>
+                <textarea
+                  ref={notesRef}
+                  rows={3}
+                  placeholder="Anything else you want to remember..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </StaggerItem>
+
+        {/* Section: Wellness — collapsed by default */}
+        <StaggerItem>
+          <Collapsible>
+            <CollapsibleTrigger className="flex w-full items-center justify-between card-base text-left group">
+              <p className="section-label">❤️ Wellness</p>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2 mt-2">
+              <MedicationChecklist />
+              <UpcomingAppointments />
+              <HydrationCard />
+              <RelapseRiskIndicator />
+              <RelapseFreeStreakCompact />
+              <Collapsible>
+                <CollapsibleTrigger className="flex w-full items-center justify-between card-base text-left group">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-lg">✨</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground">Exercises</p>
+                      <p className="text-xs text-muted-foreground">Breathing, grounding & relaxation</p>
+                    </div>
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold text-primary">10</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-2 mt-2">
+                  <QuickCard emoji="🧘" title="Regulation Center" subtitle="Breathing, grounding & vagal tone" onClick={() => navigate("/nervous-system")} />
+                  <QuickCard emoji="💪" title="Muscle Relaxation" subtitle="Progressive muscle relaxation exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try progressive muscle relaxation" } })} />
+                  <QuickCard emoji="🌬️" title="Box Breathing" subtitle="Calming 4-4-4-4 breathing exercise" onClick={() => navigate("/coach", { state: { autoSend: "Guide me through box breathing" } })} />
+                  <QuickCard emoji="🖐️" title="Grounding Exercise" subtitle="5-4-3-2-1 sensory grounding" onClick={() => navigate("/coach", { state: { autoSend: "I'd like a 5-4-3-2-1 grounding exercise" } })} />
+                  <QuickCard emoji="💛" title="Self-Compassion" subtitle="Guided self-compassion exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try a self-compassion exercise with me" } })} />
+                  <QuickCard emoji="🔄" title="Thought Reframing" subtitle="Reframe a negative thought" onClick={() => navigate("/coach", { state: { autoSend: "Help me reframe a negative thought" } })} />
+                  <QuickCard emoji="🧠" title="Body Scan" subtitle="Guided body scan meditation" onClick={() => navigate("/coach", { state: { autoSend: "Guide me through a body scan meditation" } })} />
+                  <QuickCard emoji="🌄" title="Visualization" subtitle="Guided visualization exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try a visualization exercise with me" } })} />
+                  <QuickCard emoji="🎧" title="Guided Meditation" subtitle="Calming guided meditation session" onClick={() => navigate("/coach", { state: { autoSend: "Try a guided meditation with me" } })} />
+                  <QuickCard emoji="🤸" title="Stretching Routine" subtitle="Gentle stretching for flexibility" onClick={() => navigate("/coach", { state: { autoSend: "Try a gentle stretching routine" } })} />
+                </CollapsibleContent>
+              </Collapsible>
+              {groundTotal > 0 && (
+                <div
+                  onClick={() => navigate("/nervous-system")}
+                  className="flex items-center gap-3 card-base cursor-pointer transition-all hover:bg-secondary/50 active:scale-[0.98]"
+                >
+                  <span className="text-xl">🌿</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground">Grounding Streak</p>
+                    <p className="text-xs text-muted-foreground">
+                      {groundStreak > 0
+                        ? `${groundStreak} day${groundStreak !== 1 ? "s" : ""} in a row · ${groundTotal} total`
+                        : `${groundTotal} session${groundTotal !== 1 ? "s" : ""} completed`}
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-primary">
+                    {groundStreak > 0 ? `🔥 ${groundStreak}` : "Start today"}
+                  </span>
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        </StaggerItem>
+
+        {/* Section: Quick Actions — collapsed by default */}
+        <StaggerItem>
+          <Collapsible>
+            <CollapsibleTrigger className="flex w-full items-center justify-between card-base text-left group">
+              <p className="section-label">⚡ Quick Actions</p>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2 mt-2">
+              <div data-tour="reminders" className="space-y-2">
+                <QuickCard emoji="💊" title="Medications" subtitle="Manage your medications" onClick={() => navigate("/medications")} />
+                <QuickCard emoji="📅" title="Appointments" subtitle="View & manage appointments" onClick={() => navigate("/appointments")} />
+                <button
+                  onClick={() => setShowReportPreview(true)}
+                  disabled={downloadingReport}
+                  className="flex w-full items-center gap-3 card-base text-left transition-all hover:bg-secondary/50 active:scale-[0.98] disabled:opacity-60"
+                >
+                  <span className="text-base">📄</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground">Download Report</p>
+                    <p className="text-xs text-muted-foreground">{downloadingReport ? "Generating…" : "Last 30 days · PDF"}</p>
+                  </div>
+                  <FileDown className="h-4 w-4 text-muted-foreground" />
+                </button>
+                <ReportPreviewDialog
+                  open={showReportPreview}
+                  onOpenChange={setShowReportPreview}
+                  onConfirm={() => { setShowReportPreview(false); handleDownloadReport(); }}
+                  generating={downloadingReport}
+                  startDate={report30Start}
+                  endDate={report30End}
+                  entries={report30Entries}
+                  profile={profile || null}
+                  medications={reportMeds}
+                  medLogs={reportMedLogs}
+                  appointments={reportAppts.filter((a) => a.date >= report30Start && a.date <= report30End)}
+                  relapses={reportRelapses}
+                  sections={{
+                    includeProfile: true, includeSymptoms: true, includeMedications: true,
+                    includeAppointments: true, includeNotes: true, includeRelapses: true,
+                    includeHydration: true, includeRiskScore: true, includeTrendCharts: true,
+                    includeMoodTags: true, includePeriodComparison: true, includeTriggerAnalysis: true,
+                    includeAiInsight: false,
+                  }}
+                />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </StaggerItem>
 
         {/* Log button */}
