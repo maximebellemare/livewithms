@@ -369,6 +369,77 @@ async function computeWeekStreak(
   return streak;
 }
 
+// ── Relapse risk computation (mirrors frontend computeRisk.ts) ──
+type RiskLevel = "low" | "moderate" | "elevated" | "high";
+interface RiskResult { level: RiskLevel; score: number; factors: string[] }
+
+function riskAvg(vals: (number | null | undefined)[]): number | null {
+  const v = vals.filter((x): x is number => typeof x === "number");
+  return v.length >= 2 ? v.reduce((a, b) => a + b, 0) / v.length : null;
+}
+
+function riskTrend(recent: (number | null | undefined)[], older: (number | null | undefined)[]): number | null {
+  const r = riskAvg(recent); const o = riskAvg(older);
+  return (r !== null && o !== null) ? r - o : null;
+}
+
+// deno-lint-ignore no-explicit-any
+function computeRiskScore(recent: any[], older: any[]): RiskResult {
+  const factors: string[] = [];
+  let score = 0;
+  const worseHigher = [
+    { key: "fatigue", label: "Fatigue", weight: 15 },
+    { key: "pain", label: "Pain", weight: 12 },
+    { key: "brain_fog", label: "Brain fog", weight: 10 },
+    { key: "spasticity", label: "Spasticity", weight: 12 },
+    { key: "stress", label: "Stress", weight: 10 },
+  ];
+  const betterHigher = [
+    { key: "mood", label: "Mood", weight: 8 },
+    { key: "mobility", label: "Mobility", weight: 10 },
+  ];
+
+  for (const { key, label, weight } of worseHigher) {
+    const t = riskTrend(recent.map((e) => e[key]), older.map((e) => e[key]));
+    if (t !== null && t > 1) { score += Math.min(weight, (t / 3) * weight); factors.push(`${label} trending up (+${t.toFixed(1)})`); }
+    const ra = riskAvg(recent.map((e) => e[key]));
+    if (ra !== null && ra >= 7) { score += weight * 0.4; factors.push(`${label} consistently high (${ra.toFixed(1)}/10)`); }
+  }
+  for (const { key, label, weight } of betterHigher) {
+    const t = riskTrend(recent.map((e) => e[key]), older.map((e) => e[key]));
+    if (t !== null && t < -1) { score += Math.min(weight, (Math.abs(t) / 3) * weight); factors.push(`${label} declining (${t.toFixed(1)})`); }
+  }
+  const recentSleep = riskAvg(recent.map((e) => e.sleep_hours));
+  const olderSleep = riskAvg(older.map((e) => e.sleep_hours));
+  if (recentSleep !== null && recentSleep < 6) { score += 8; factors.push(`Sleep low (${recentSleep.toFixed(1)} hrs)`); }
+  else if (recentSleep !== null && olderSleep !== null && recentSleep < olderSleep - 1) { score += 5; factors.push(`Sleep declining`); }
+
+  const worseningCount = factors.filter((f) => f.includes("trending") || f.includes("declining")).length;
+  if (worseningCount >= 3) score += 10;
+
+  score = Math.min(100, Math.round(score));
+  const level: RiskLevel = score >= 60 ? "high" : score >= 35 ? "elevated" : score >= 15 ? "moderate" : "low";
+  return { level, score, factors: [...new Set(factors)].slice(0, 4) };
+}
+
+// deno-lint-ignore no-explicit-any
+function computeWeeklyRiskScores(entries: any[], today: Date): number[] {
+  const scores: number[] = [];
+  const fmtDate = (d: Date) => d.toISOString().slice(0, 10);
+  for (let w = 0; w < 4; w++) {
+    const recentEnd = fmtDate(new Date(today.getTime() - w * 7 * 86400000));
+    const recentStart = fmtDate(new Date(today.getTime() - (w * 7 + 6) * 86400000));
+    const olderEnd = recentStart;
+    const olderStart = fmtDate(new Date(today.getTime() - (w * 7 + 13) * 86400000));
+    const recent = entries.filter((e: { date: string }) => e.date <= recentEnd && e.date > recentStart);
+    const older = entries.filter((e: { date: string }) => e.date <= olderEnd && e.date > olderStart);
+    if (recent.length >= 2 && older.length >= 2) scores.unshift(computeRiskScore(recent, older).score);
+  }
+  return scores;
+}
+
+const RISK_LABELS: Record<RiskLevel, string> = { low: "🛡️ Low", moderate: "⚠️ Moderate", elevated: "🔶 Elevated", high: "🔴 High" };
+
 async function klaviyoPost(path: string, body: unknown, apiKey: string, allow409 = false) {
   const res = await fetch(`${KLAVIYO_BASE}${path}`, {
     method: "POST",
@@ -509,13 +580,13 @@ serve(async (req) => {
         const unsubToken = await generateUnsubscribeToken(profile.user_id, SUPABASE_SERVICE_ROLE_KEY);
         const unsubscribeUrl = `https://fpjfoadvytpvrhligdye.supabase.co/functions/v1/unsubscribe?uid=${encodeURIComponent(profile.user_id)}&token=${encodeURIComponent(unsubToken)}`;
 
-        // Fetch 30 days of entries for correlation analysis
-        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        // Fetch 42 days of entries for correlation analysis + risk score
+        const fortyTwoDaysAgo = new Date(now.getTime() - 42 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         const { data: allEntries } = await supabase
           .from("daily_entries")
           .select("date, fatigue, pain, brain_fog, mood, mobility, sleep_hours, spasticity, stress")
           .eq("user_id", profile.user_id)
-          .gte("date", thirtyDaysAgo)
+          .gte("date", fortyTwoDaysAgo)
           .lte("date", weekEnd)
           .order("date", { ascending: true });
 
@@ -527,6 +598,41 @@ serve(async (req) => {
         }
         const correlationInsights = await generateCorrelationInsights(correlations);
         console.log(`[digest] Generated ${correlationInsights.length} AI insights:`, JSON.stringify(correlationInsights));
+
+        // ── Relapse risk score ──
+        const weeklyRiskScores = computeWeeklyRiskScores(allEntries ?? entries, now);
+        let riskScore: number | null = null;
+        let riskLevel: RiskLevel | null = null;
+        let riskDelta: number | null = null;
+        let riskDirection: "up" | "down" | "stable" | null = null;
+        let riskFactors: string[] = [];
+        let riskLabel: string | null = null;
+        let riskTrendLabel: string | null = null;
+
+        if (weeklyRiskScores.length >= 1) {
+          riskScore = weeklyRiskScores[weeklyRiskScores.length - 1];
+          riskLevel = riskScore >= 60 ? "high" : riskScore >= 35 ? "elevated" : riskScore >= 15 ? "moderate" : "low";
+          riskLabel = RISK_LABELS[riskLevel];
+
+          // Compute current risk factors from recent vs older entries
+          const midpoint = new Date(now.getTime() - 6 * 86400000).toISOString().slice(0, 10);
+          const recentRisk = (allEntries ?? []).filter((e: { date: string }) => e.date > midpoint);
+          const olderRisk = (allEntries ?? []).filter((e: { date: string }) => e.date <= midpoint && e.date > new Date(now.getTime() - 13 * 86400000).toISOString().slice(0, 10));
+          if (recentRisk.length >= 2 && olderRisk.length >= 2) {
+            riskFactors = computeRiskScore(recentRisk, olderRisk).factors;
+          }
+
+          if (weeklyRiskScores.length >= 2) {
+            const prev = weeklyRiskScores[weeklyRiskScores.length - 2];
+            riskDelta = riskScore - prev;
+            riskDirection = riskDelta > 2 ? "up" : riskDelta < -2 ? "down" : "stable";
+            const arrow = riskDirection === "up" ? "📈 Rising" : riskDirection === "down" ? "📉 Improving" : "➡️ Stable";
+            riskTrendLabel = `${arrow} (${riskDelta > 0 ? "+" : ""}${riskDelta} vs prior week)`;
+          } else {
+            riskTrendLabel = "First week tracked";
+          }
+        }
+        console.log(`[digest] ${email}: risk score=${riskScore}, level=${riskLevel}, trend=${riskDirection}`);
 
         // ── Badge progress ──
         const [logStreak, medStreak, relapseStreak] = await Promise.all([
@@ -619,6 +725,18 @@ serve(async (req) => {
                 log_streak: logStreak,
                 med_streak: medStreak,
                 relapse_free_streak: relapseStreak,
+                // Relapse risk
+                has_risk_score: riskScore !== null,
+                risk_score: riskScore,
+                risk_level: riskLevel,
+                risk_label: riskLabel,
+                risk_delta: riskDelta,
+                risk_direction: riskDirection,
+                risk_trend_label: riskTrendLabel,
+                risk_factors: riskFactors,
+                risk_factor_1: riskFactors[0] ?? null,
+                risk_factor_2: riskFactors[1] ?? null,
+                risk_factor_3: riskFactors[2] ?? null,
               },
             },
           },
