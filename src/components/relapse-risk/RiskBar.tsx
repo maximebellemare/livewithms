@@ -60,7 +60,7 @@ export default function RiskBar({ level, score }: RiskBarProps) {
           style={{ width: `${Math.max(5, displayScore)}%` }}
         />
       </div>
-      <span className={`text-[11px] font-bold tabular-nums ${TEXT_COLORS[level]}`}>
+      <span className={`text-[11px] font-bold tabular-nums ${TEXT_COLORS[level]}${level === "elevated" || level === "high" ? " animate-pulse" : ""}`}>
         {displayScore}/100
       </span>
     </div>
