@@ -20,6 +20,7 @@ import AffirmationCardWidget, { detectAffirmation } from "./AffirmationCardWidge
 import SelfCompassionWidget, { detectSelfCompassion } from "./SelfCompassionWidget";
 import StretchingWidget, { detectStretching } from "./StretchingWidget";
 import SleepWindDownWidget, { detectSleepWindDown } from "./SleepWindDownWidget";
+import MorningCheckInWidget, { detectMorningCheckIn } from "./MorningCheckInWidget";
 
 interface CoachChatProps {
   mode: CoachMode;
@@ -352,6 +353,7 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                    <PromptChip label="Guide me through a self-compassion break" onTap={setInput} />
                    <PromptChip label="Try a gentle stretching routine" onTap={setInput} />
                    <PromptChip label="Try a sleep wind-down routine" onTap={setInput} />
+                   <PromptChip label="Try a morning check-in routine" onTap={setInput} />
                 </>
               )}
               {mode === "planning" && (
@@ -394,6 +396,7 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                     {(() => {
+                    if (detectMorningCheckIn(msg.content)) return <MorningCheckInWidget />;
                     if (detectSleepWindDown(msg.content)) return <SleepWindDownWidget />;
                        if (detectStretching(msg.content)) return <StretchingWidget />;
                        if (detectSelfCompassion(msg.content)) return <SelfCompassionWidget />;
