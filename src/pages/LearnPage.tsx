@@ -257,6 +257,11 @@ const LearnPage = () => {
                         <span className="text-[10px] font-medium uppercase tracking-wider text-primary">
                           {article.category}
                         </span>
+                        {Date.now() - new Date(article.created_at).getTime() < 14 * 86400000 && (
+                          <span className="inline-flex items-center rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-semibold text-accent-foreground">
+                            New
+                          </span>
+                        )}
                         {(progressMap[article.id] ?? 0) >= 1 && (
                           <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
                             <CheckCircle2 className="h-3 w-3" />
