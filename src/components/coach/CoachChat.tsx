@@ -18,6 +18,7 @@ import BodyScanWidget, { detectBodyScan } from "./BodyScanWidget";
 import VisualizationWidget, { detectVisualization } from "./VisualizationWidget";
 import AffirmationCardWidget, { detectAffirmation } from "./AffirmationCardWidget";
 import SelfCompassionWidget, { detectSelfCompassion } from "./SelfCompassionWidget";
+import StretchingWidget, { detectStretching } from "./StretchingWidget";
 
 interface CoachChatProps {
   mode: CoachMode;
@@ -348,6 +349,7 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                    <PromptChip label="Try a visualization exercise" onTap={setInput} />
                    <PromptChip label="Show me some positive affirmations" onTap={setInput} />
                    <PromptChip label="Guide me through a self-compassion break" onTap={setInput} />
+                   <PromptChip label="Try a gentle stretching routine" onTap={setInput} />
                 </>
               )}
               {mode === "planning" && (
@@ -390,7 +392,8 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                     {(() => {
-                    if (detectSelfCompassion(msg.content)) return <SelfCompassionWidget />;
+                    if (detectStretching(msg.content)) return <StretchingWidget />;
+                       if (detectSelfCompassion(msg.content)) return <SelfCompassionWidget />;
                        if (detectPMR(msg.content)) return <PMRWidget />;
                        if (detectBodyScan(msg.content)) return <BodyScanWidget />;
                        if (detectVisualization(msg.content)) return <VisualizationWidget />;
