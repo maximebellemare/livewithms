@@ -412,6 +412,8 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                     {(() => {
+                    if (detectPMR(msg.content)) return <PMRWidget />;
+                    if (detectBodyScan(msg.content)) return <BodyScanWidget />;
                     if (detectValues(msg.content)) return <ValuesWidget />;
                     if (detectEmotionalCheckIn(msg.content)) return <EmotionalCheckInWidget />;
                     if (detectWorryTime(msg.content)) return <WorryTimeWidget />;
@@ -422,18 +424,16 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                     if (detectMindfulEating(msg.content)) return <MindfulEatingWidget />;
                     if (detectMorningCheckIn(msg.content)) return <MorningCheckInWidget />;
                     if (detectSleepWindDown(msg.content)) return <SleepWindDownWidget />;
-                       if (detectStretching(msg.content)) return <StretchingWidget />;
-                       if (detectSelfCompassion(msg.content)) return <SelfCompassionWidget />;
-                       if (detectPMR(msg.content)) return <PMRWidget />;
-                       if (detectBodyScan(msg.content)) return <BodyScanWidget />;
-                       if (detectVisualization(msg.content)) return <VisualizationWidget />;
-                       if (detectAffirmation(msg.content)) return <AffirmationCardWidget />;
-                      if (detectJournalingExercise(msg.content)) return <JournalPromptWidget />;
-                      if (detectCognitiveReframing(msg.content)) return <CognitiveReframingWidget />;
-                      if (detectGroundingExercise(msg.content)) return <GroundingWidget />;
-                      const bp = detectBreathingPattern(msg.content);
-                      if (bp) return <BreathingTimer pattern={bp} />;
-                      return null;
+                    if (detectStretching(msg.content)) return <StretchingWidget />;
+                    if (detectSelfCompassion(msg.content)) return <SelfCompassionWidget />;
+                    if (detectVisualization(msg.content)) return <VisualizationWidget />;
+                    if (detectAffirmation(msg.content)) return <AffirmationCardWidget />;
+                    if (detectJournalingExercise(msg.content)) return <JournalPromptWidget />;
+                    if (detectCognitiveReframing(msg.content)) return <CognitiveReframingWidget />;
+                    if (detectGroundingExercise(msg.content)) return <GroundingWidget />;
+                    const bp = detectBreathingPattern(msg.content);
+                    if (bp) return <BreathingTimer pattern={bp} />;
+                    return null;
                     })()}
                   </>
                 ) : (
