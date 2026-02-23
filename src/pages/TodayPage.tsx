@@ -645,10 +645,11 @@ const TodayPage = () => {
             <CollapsibleTrigger className="flex w-full items-center justify-between card-base text-left group">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-lg">✨</span>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground">Exercises</p>
                   <p className="text-xs text-muted-foreground">Breathing, grounding & relaxation</p>
                 </div>
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold text-primary">6</span>
               </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
