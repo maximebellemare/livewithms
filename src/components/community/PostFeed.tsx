@@ -6,6 +6,8 @@ import {
   Channel, Post, usePosts, useCreatePost, useHidePost, useDisplayName,
 } from "@/hooks/useCommunity";
 import { useCommunityRoles } from "@/hooks/useCommunityRoles";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +34,25 @@ export const PostFeed = ({
   const { data: communityRoles = {} } = useCommunityRoles();
   const isMod = roles.includes("admin") || roles.includes("moderator");
 
+  // Fetch premium status for all visible post authors
+  const authorIds = useMemo(() => [...new Set(posts.map((p) => p.user_id))], [posts]);
+  const { data: premiumUsers = new Set<string>() } = useQuery({
+    queryKey: ["premium-users", authorIds],
+    enabled: authorIds.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles_public" as any)
+        .select("user_id");
+      // profiles_public doesn't have is_premium, query profiles instead via rpc or direct
+      // We need to use a different approach - query profiles for the author IDs
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, is_premium")
+        .in("user_id", authorIds)
+        .eq("is_premium", true);
+      return new Set((profiles ?? []).map((p: any) => p.user_id));
+    },
+  });
   /* ─── Infinite scroll sentinel ─────────────────────────── */
   const sentinelRef = useRef<HTMLDivElement>(null);
   const handleIntersect = useCallback(
