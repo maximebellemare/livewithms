@@ -26,6 +26,7 @@ import DailyPromptCard from "@/components/DailyPromptCard";
 import HydrationCard from "@/components/HydrationCard";
 import RelapseFreeStreakCompact from "@/components/RelapseFreeStreakCompact";
 import RelapseRiskIndicator from "@/components/RelapseRiskIndicator";
+import RiskScoreSummaryCard from "@/components/RiskScoreSummaryCard";
 import BadgeNudgeCard from "@/components/badges/BadgeNudgeCard";
 import DiagnosisAnniversaryCard from "@/components/DiagnosisAnniversaryCard";
 import { useMedStreak } from "@/hooks/useMedStreak";
@@ -381,6 +382,8 @@ const TodayPage = () => {
             📊 Your Week at a Glance
           </p>
         </StaggerItem>
+
+        <StaggerItem><RiskScoreSummaryCard /></StaggerItem>
 
         {/* 7-day sparklines */}
         <StaggerItem>
