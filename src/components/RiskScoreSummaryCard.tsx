@@ -3,8 +3,23 @@ import { useRiskScores } from "@/hooks/useRiskScores";
 import { RISK_CONFIG } from "./relapse-risk/types";
 import type { RiskLevel } from "./relapse-risk/types";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 function MiniSparkline({ scores, color }: { scores: number[]; color: string }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold: 0.3 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
   if (scores.length < 2) return null;
   const max = Math.max(...scores, 20);
   const len = scores.length;
@@ -14,33 +29,57 @@ function MiniSparkline({ scores, color }: { scores: number[]; color: string }) {
     return `${x},${y}`;
   });
 
-  // Area fill
   const firstX = points[0].split(",")[0];
   const lastX = points[len - 1].split(",")[0];
   const areaPoints = [...points, `${lastX},19`, `${firstX},19`].join(" ");
+  const polylineStr = points.join(" ");
+
+  // Approximate total path length for stroke animation
+  const pathLength = 200;
 
   return (
-    <svg viewBox="0 0 60 20" className="h-5 w-14 flex-shrink-0" preserveAspectRatio="none">
+    <svg
+      ref={svgRef}
+      viewBox="0 0 60 20"
+      className="h-5 w-14 flex-shrink-0"
+      preserveAspectRatio="none"
+    >
       <defs>
         <linearGradient id="miniSparkFill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.3" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polygon points={areaPoints} fill="url(#miniSparkFill)" />
+      <polygon
+        points={areaPoints}
+        fill="url(#miniSparkFill)"
+        style={{
+          opacity: visible ? 1 : 0,
+          transition: "opacity 0.6s ease 0.4s",
+        }}
+      />
       <polyline
-        points={points.join(" ")}
+        points={polylineStr}
         fill="none"
         stroke={color}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+        strokeDasharray={pathLength}
+        strokeDashoffset={visible ? 0 : pathLength}
+        style={{ transition: "stroke-dashoffset 0.8s ease-out 0.1s" }}
       />
       <circle
         cx={parseFloat(points[len - 1].split(",")[0])}
         cy={parseFloat(points[len - 1].split(",")[1])}
         r="2.5"
         fill={color}
+        style={{
+          opacity: visible ? 1 : 0,
+          transform: visible ? "scale(1)" : "scale(0)",
+          transformOrigin: `${points[len - 1].split(",")[0]}px ${points[len - 1].split(",")[1]}px`,
+          transition: "opacity 0.3s ease 0.7s, transform 0.3s ease 0.7s",
+        }}
       />
     </svg>
   );
