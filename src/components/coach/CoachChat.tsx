@@ -380,11 +380,11 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                     {(() => {
+                      if (detectJournalingExercise(msg.content)) return <JournalPromptWidget />;
+                      if (detectCognitiveReframing(msg.content)) return <CognitiveReframingWidget />;
+                      if (detectGroundingExercise(msg.content)) return <GroundingWidget />;
                       const bp = detectBreathingPattern(msg.content);
                       if (bp) return <BreathingTimer pattern={bp} />;
-                      if (detectGroundingExercise(msg.content)) return <GroundingWidget />;
-                      if (detectCognitiveReframing(msg.content)) return <CognitiveReframingWidget />;
-                      if (detectJournalingExercise(msg.content)) return <JournalPromptWidget />;
                       return null;
                     })()}
                   </>
