@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus, Check, Trash2, Zap, Battery, BatteryLow, BatteryWarning, ChevronDown, ChevronUp, Info, ExternalLink } from "lucide-react";
+import { Plus, Minus, Check, Trash2, Zap, Battery, BatteryLow, BatteryWarning, ChevronDown, ChevronUp, Info, ExternalLink, Star } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -15,9 +15,12 @@ import {
   useDeleteActivity,
   useUpdateBudget,
   useEnergyHistory,
+  useFrequentActivities,
 } from "@/hooks/useEnergyBudget";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const SPOON_KEY = "livewithms_last_spoon_count";
 
 const PRESET_ACTIVITIES = [
   { name: "Shower", cost: 2 },
@@ -42,6 +45,7 @@ const EnergyBudgetPage = () => {
   const toggleActivity = useToggleActivity();
   const deleteActivity = useDeleteActivity();
   const { data: history = [] } = useEnergyHistory(7);
+  const { data: frequentActivities = [] } = useFrequentActivities(6);
 
   const [newName, setNewName] = useState("");
   const [newCost, setNewCost] = useState(1);
@@ -49,7 +53,12 @@ const EnergyBudgetPage = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [spoonCount, setSpoonCount] = useState(12);
+  const [spoonCount, setSpoonCount] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SPOON_KEY);
+      return saved ? parseInt(saved, 10) : 12;
+    } catch { return 12; }
+  });
 
   const usedSpoons = useMemo(
     () => activities.filter((a) => a.completed).reduce((s, a) => s + a.spoon_cost, 0),
@@ -66,6 +75,7 @@ const EnergyBudgetPage = () => {
 
   const handleCreateBudget = async () => {
     try {
+      localStorage.setItem(SPOON_KEY, String(spoonCount));
       await createBudget.mutateAsync({ date: today, total_spoons: spoonCount });
       toast.success("Energy budget set for today!");
     } catch {
@@ -342,7 +352,27 @@ const EnergyBudgetPage = () => {
             )}
           </AnimatePresence>
 
-          {activities.length === 0 && (
+          {/* Frequent activities suggestion */}
+          {frequentActivities.length > 0 && activities.length === 0 && (
+            <div className="space-y-2">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <Star className="h-3 w-3" /> Your frequent activities
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {frequentActivities.map((fa) => (
+                  <button
+                    key={fa.name}
+                    onClick={() => handleAddPreset({ name: fa.name, cost: fa.cost })}
+                    className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs text-foreground hover:bg-primary/20 active:scale-95 transition-all"
+                  >
+                    {fa.name} ({fa.cost}🥄)
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activities.length === 0 && frequentActivities.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">
               No activities planned yet. Tap + to add your first activity.
             </p>

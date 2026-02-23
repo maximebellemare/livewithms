@@ -177,3 +177,50 @@ export function useEnergyHistory(days = 7) {
     enabled: !!user,
   });
 }
+
+/** Returns the user's most frequently added activities (name + average cost), sorted by frequency */
+export function useFrequentActivities(limit = 6) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["energy-frequent-activities", user?.id],
+    queryFn: async () => {
+      // Fetch all activities for this user from the last 30 days
+      const cutoff = format(new Date(Date.now() - 30 * 86400000), "yyyy-MM-dd");
+      const { data: budgets, error: bErr } = await supabase
+        .from("energy_budgets" as any)
+        .select("id")
+        .eq("user_id", user!.id)
+        .gte("date", cutoff);
+      if (bErr) throw bErr;
+
+      const budgetIds = (budgets ?? []).map((b: any) => b.id);
+      if (budgetIds.length === 0) return [];
+
+      const { data: acts, error: aErr } = await supabase
+        .from("energy_activities" as any)
+        .select("name, spoon_cost")
+        .in("budget_id", budgetIds);
+      if (aErr) throw aErr;
+
+      // Aggregate by name
+      const map = new Map<string, { count: number; totalCost: number }>();
+      for (const a of (acts ?? []) as any[]) {
+        const key = a.name.toLowerCase().trim();
+        const existing = map.get(key) || { count: 0, totalCost: 0 };
+        map.set(key, { count: existing.count + 1, totalCost: existing.totalCost + a.spoon_cost });
+      }
+
+      return Array.from(map.entries())
+        .map(([name, { count, totalCost }]) => ({
+          name: (acts as any[])!.find((a: any) => a.name.toLowerCase().trim() === name)?.name ?? name,
+          cost: Math.round(totalCost / count),
+          count,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+}
