@@ -1,10 +1,31 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, BarChart3, TrendingUp, NotebookPen, Phone, Users, MoreHorizontal, MessageCircle, BookOpen, AlertTriangle, FileText, CalendarDays, Pill, UserCog, Award, History, Map, Zap, Dumbbell, Heart, Brain, Sparkles, Crown, Leaf } from "lucide-react";
+import { Home, BarChart3, TrendingUp, NotebookPen, Phone, Users, MoreHorizontal, MessageCircle, BookOpen, AlertTriangle, FileText, CalendarDays, Pill, UserCog, Award, History, Map, Zap, Dumbbell, Heart, Brain, Sparkles, Crown, Leaf, Clock } from "lucide-react";
 import { motion, LayoutGroup, AnimatePresence } from "framer-motion";
 import { useUnreadCommunityPosts } from "@/hooks/useUnreadCommunity";
 import { useUnreadMessagesCount } from "@/hooks/useMessages";
 import MedicalDisclaimerDialog from "@/components/MedicalDisclaimerDialog";
+
+const RECENT_KEY = "livewithms_recent_pages";
+const MAX_RECENT = 3;
+
+const useRecentPages = () => {
+  const [recent, setRecent] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+    } catch { return []; }
+  });
+
+  const recordVisit = useCallback((path: string) => {
+    setRecent((prev) => {
+      const next = [path, ...prev.filter((p) => p !== path)].slice(0, MAX_RECENT + 2);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  return { recent, recordVisit };
+};
 
 const mainTabs = [
   { to: "/today",     icon: Home,        label: "Today" },
@@ -77,9 +98,24 @@ const BottomNav = () => {
   const { data: unreadMessages = 0 } = useUnreadMessagesCount();
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+  const { recent, recordVisit } = useRecentPages();
 
   const isMoreActive = allMoreRoutes.some((t) => location.pathname.startsWith(t.to));
   const moreBadge = unreadMessages || 0;
+
+  // Track visits to More-menu routes
+  useEffect(() => {
+    const match = allMoreRoutes.find((r) => location.pathname.startsWith(r.to));
+    if (match) recordVisit(match.to);
+  }, [location.pathname, recordVisit]);
+
+  // Build recently visited items (only show routes from allMoreRoutes)
+  const recentItems = useMemo(() => {
+    return recent
+      .map((path) => allMoreRoutes.find((r) => r.to === path))
+      .filter(Boolean)
+      .slice(0, MAX_RECENT) as typeof allMoreRoutes;
+  }, [recent]);
 
   // Close on outside click
   useEffect(() => {
@@ -246,7 +282,39 @@ const BottomNav = () => {
                         <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
                       </div>
                       {/* Items */}
-                      <div className="px-4 pb-6">
+                      <div className="px-4 pb-6 max-h-[60vh] overflow-y-auto">
+                        {/* Recently Visited */}
+                        {recentItems.length > 0 && (
+                          <div>
+                            <p className="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              <span className="mr-1">🕑</span>Recently Visited
+                            </p>
+                            <div className="space-y-0.5">
+                              {recentItems.map(({ to, icon: Icon, label }) => {
+                                const active = location.pathname.startsWith(to);
+                                const badge = to === "/messages" ? unreadMessages : 0;
+                                return (
+                                  <button
+                                    key={to}
+                                    onClick={() => { setMoreOpen(false); navigate(to); }}
+                                    className={`flex w-full items-center gap-4 rounded-xl px-4 py-3 text-sm transition-all duration-200 hover:bg-accent hover:-translate-x-0.5 active:scale-[0.98] ${
+                                      active ? "text-primary font-semibold bg-accent/50" : "text-foreground"
+                                    }`}
+                                  >
+                                    <Icon className="h-5 w-5" />
+                                    <span className="flex-1 text-left text-base">{label}</span>
+                                    {badge > 0 && (
+                                      <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+                                        {badge > 99 ? "99+" : badge}
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div className="my-1.5 border-t border-border/50" />
+                          </div>
+                        )}
                         {moreSections.map((section, sIdx) => (
                           <div key={section.heading}>
                             {sIdx > 0 && (
