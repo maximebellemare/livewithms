@@ -152,6 +152,25 @@
   }
 }
 
+/* Collapsible smooth expand/collapse */
+@keyframes collapsible-expand {
+  from { height: 0; opacity: 0; }
+  to   { height: var(--radix-collapsible-content-height); opacity: 1; }
+}
+@keyframes collapsible-collapse {
+  from { height: var(--radix-collapsible-content-height); opacity: 1; }
+  to   { height: 0; opacity: 0; }
+}
+
+[data-radix-collapsible-content][data-state="open"] {
+  animation: collapsible-expand 0.25s ease-out forwards;
+  overflow: hidden;
+}
+[data-radix-collapsible-content][data-state="closed"] {
+  animation: collapsible-collapse 0.2s ease-in forwards;
+  overflow: hidden;
+}
+
 /* Long-press progress ring — circle radius 18 → circumference ≈ 113.1 */
 @keyframes ring-fill {
   from { stroke-dashoffset: 113.1; }
