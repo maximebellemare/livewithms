@@ -99,6 +99,104 @@ FEATURE DETAILS:
 - Smart Matching → connect with others who have similar MS profiles`,
 };
 
+// ─── Guided exercise library ───
+const EXERCISE_INSTRUCTIONS = `
+GUIDED EXERCISES — When a user asks for an exercise, deliver it step-by-step inside the conversation:
+
+🫁 BOX BREATHING (4-4-4-4):
+Guide them through 4 cycles: inhale 4s → hold 4s → exhale 4s → hold 4s. Count along. End with a gentle reflection.
+
+🌿 5-4-3-2-1 GROUNDING:
+Walk them through naming 5 things they see, 4 they can touch, 3 they hear, 2 they smell, 1 they taste. Be descriptive and encouraging.
+
+🧊 COLD WATER RESET:
+Suggest splashing cold water on wrists/face. Explain the vagal nerve activation simply.
+
+🧠 COGNITIVE REFRAME:
+1. Ask them to write down the negative thought
+2. Identify the cognitive distortion (catastrophizing, all-or-nothing, etc.)
+3. Help them find a balanced alternative thought
+4. Validate that reframing is hard and takes practice
+
+🧘 BODY SCAN RELAXATION:
+Guide a 2-minute progressive relaxation from toes to head. Use calming language, pausing between body parts.
+
+💜 SELF-COMPASSION BREAK (Kristin Neff):
+1. Acknowledge suffering: "This is a moment of difficulty"
+2. Common humanity: "Others with MS feel this way too"
+3. Self-kindness: Guide them to place a hand on their heart and speak gently to themselves
+
+Always ask how they feel after the exercise and offer to continue or try a different one.
+`;
+
+// ─── Mood-awareness instructions ───
+function buildMoodAwareness(userData: any): string {
+  if (!userData) return "";
+
+  const todayMood = userData.todayEntry?.mood;
+  const avgMood = userData.thirtyDayAverages?.mood;
+  const todayFatigue = userData.todayEntry?.fatigue;
+  const avgFatigue = userData.thirtyDayAverages?.fatigue;
+
+  const parts: string[] = [];
+
+  // Mood-aware tone adjustment
+  if (todayMood != null) {
+    if (todayMood <= 3) {
+      parts.push(`MOOD AWARENESS: The user logged a low mood today (${todayMood}/10). Lead with extra empathy and validation before offering suggestions. Use a softer, slower conversational pace. Acknowledge that tough days are part of the journey.`);
+    } else if (todayMood >= 8) {
+      parts.push(`MOOD AWARENESS: The user is feeling great today (${todayMood}/10)! Match their positive energy. Celebrate their good day and help them build on it.`);
+    }
+  }
+
+  // Fatigue-aware pacing
+  if (todayFatigue != null && todayFatigue >= 7) {
+    parts.push(`FATIGUE ALERT: Fatigue is high today (${todayFatigue}/10). Keep responses shorter and simpler. Suggest rest-friendly activities. Don't overwhelm with long lists.`);
+  }
+
+  // Trend detection
+  if (avgFatigue != null && todayFatigue != null && todayFatigue > avgFatigue + 2) {
+    parts.push(`SPIKE DETECTED: Today's fatigue (${todayFatigue}) is notably higher than their 30-day average (${avgFatigue.toFixed(1)}). You may want to gently acknowledge this.`);
+  }
+  if (avgMood != null && todayMood != null && todayMood < avgMood - 2) {
+    parts.push(`MOOD DIP: Today's mood (${todayMood}) is below their usual (${avgMood.toFixed(1)}). Check in gently.`);
+  }
+
+  return parts.length > 0 ? "\n\n" + parts.join("\n") : "";
+}
+
+// ─── Proactive check-in opener ───
+function buildProactiveContext(userData: any): string {
+  if (!userData) return "";
+
+  const insights: string[] = [];
+
+  // Streak info
+  if (userData.medAdherence != null) {
+    if (userData.medAdherence >= 90) {
+      insights.push(`Medication adherence is excellent at ${userData.medAdherence}% — celebrate this if appropriate.`);
+    } else if (userData.medAdherence < 70) {
+      insights.push(`Medication adherence is ${userData.medAdherence}% — if relevant, gently ask if anything is making it harder to stay on track.`);
+    }
+  }
+
+  if (userData.sleepTrend) {
+    insights.push(`Sleep trend: ${userData.sleepTrend}`);
+  }
+
+  if (userData.recentSymptomChanges?.length > 0) {
+    insights.push(`Recent notable changes: ${userData.recentSymptomChanges.join(", ")}`);
+  }
+
+  if (userData.daysWithoutEntry != null && userData.daysWithoutEntry >= 3) {
+    insights.push(`The user hasn't logged symptoms for ${userData.daysWithoutEntry} days. You might gently encourage them to log when they're ready.`);
+  }
+
+  if (insights.length === 0) return "";
+
+  return `\n\nPROACTIVE INSIGHTS (use naturally when relevant, don't dump all at once):\n${insights.map(i => `- ${i}`).join("\n")}`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -152,7 +250,6 @@ serve(async (req) => {
 
     const currentCount = usage?.message_count ?? 0;
 
-    // For now, apply free limit to all users (premium gating can be added later with Stripe)
     if (currentCount >= FREE_DAILY_LIMIT) {
       return new Response(
         JSON.stringify({
@@ -173,7 +270,6 @@ serve(async (req) => {
     const isCrisis = CRISIS_KEYWORDS.some((kw) => latestUserMsg.includes(kw));
 
     if (isCrisis) {
-      // Increment usage
       await adminClient.from("coach_daily_usage").upsert(
         { user_id: user.id, date: today, message_count: currentCount + 1 },
         { onConflict: "user_id,date" }
@@ -192,12 +288,29 @@ serve(async (req) => {
     const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.emotional;
     const disclaimer = `\n\nIMPORTANT: Always include this disclaimer naturally at the start of your first response in a session: "I'm here to support you, but I'm not a licensed therapist or medical professional. For medical concerns, please consult your healthcare team."`;
 
+    // ─── Context blocks ───
+
+    // User data context — now injected for ALL modes
     let contextBlock = "";
-    if (userData && mode === "data") {
-      contextBlock = `\n\nUSER'S HEALTH DATA:\n${JSON.stringify(userData, null, 2)}`;
-    } else if (userData && mode === "planning") {
-      contextBlock = `\n\nUSER'S ENERGY DATA:\n${JSON.stringify(userData, null, 2)}`;
+    if (userData) {
+      const dataLabel = mode === "planning" ? "ENERGY DATA" : "HEALTH DATA";
+      const cleanData = { ...userData };
+      // Remove computed fields that are only for prompt building
+      delete cleanData.medAdherence;
+      delete cleanData.sleepTrend;
+      delete cleanData.recentSymptomChanges;
+      delete cleanData.daysWithoutEntry;
+      contextBlock = `\n\nUSER'S ${dataLabel}:\n${JSON.stringify(cleanData, null, 2)}`;
     }
+
+    // Mood-aware tone adjustment
+    const moodBlock = buildMoodAwareness(userData);
+
+    // Proactive check-in context
+    const proactiveBlock = buildProactiveContext(userData);
+
+    // Exercise instructions — available in emotional + planning modes
+    const exerciseBlock = (mode === "emotional" || mode === "planning") ? "\n\n" + EXERCISE_INSTRUCTIONS : "";
 
     // Check for memory + risk score
     let memoryBlock = "";
@@ -209,7 +322,6 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    // Fetch latest risk score
     const { data: latestRisk } = await adminClient
       .from("risk_scores")
       .select("score, level, factors, week_start, week_end")
@@ -234,7 +346,7 @@ serve(async (req) => {
       }
     }
 
-    const fullSystemPrompt = systemPrompt + disclaimer + contextBlock + riskBlock + memoryBlock;
+    const fullSystemPrompt = systemPrompt + disclaimer + contextBlock + moodBlock + proactiveBlock + exerciseBlock + riskBlock + memoryBlock;
 
     // Call Lovable AI
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
