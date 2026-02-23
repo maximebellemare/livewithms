@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDbMedications } from "@/hooks/useMedications";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
+import BreathingTimer, { detectBreathingPattern } from "./BreathingTimer";
 
 interface CoachChatProps {
   mode: CoachMode;
@@ -370,9 +371,15 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                 }`}
               >
                 {msg.role === "assistant" ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:mb-2 [&_ul]:mb-2 [&_ol]:mb-2 [&_li]:mb-0.5">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
+                  <>
+                    <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:mb-2 [&_ul]:mb-2 [&_ol]:mb-2 [&_li]:mb-0.5">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                    {(() => {
+                      const bp = detectBreathingPattern(msg.content);
+                      return bp ? <BreathingTimer pattern={bp} /> : null;
+                    })()}
+                  </>
                 ) : (
                   msg.content
                 )}
