@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import FeatureCarousel from "@/components/onboarding/FeatureCarousel";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, ChevronLeft, Shield, CheckCircle2, Globe, Calendar, User, Sparkles, TrendingUp, Heart, Brain, Target, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -173,11 +174,12 @@ const OnboardingPage = () => {
       <p className="mt-3 text-base text-muted-foreground leading-relaxed max-w-xs mx-auto">
         Your personal companion for living well with Multiple Sclerosis. Let's set things up — it only takes a minute.
       </p>
+      <FeatureCarousel />
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="mt-8 flex items-center gap-3 text-sm text-muted-foreground"
+        transition={{ delay: 0.9 }}
+        className="mt-5 flex items-center gap-3 text-sm text-muted-foreground"
       >
         <span className="flex items-center gap-1.5"><span className="text-base">🔒</span> Private</span>
         <span className="text-muted-foreground/30">•</span>
@@ -185,12 +187,17 @@ const OnboardingPage = () => {
         <span className="text-muted-foreground/30">•</span>
         <span className="flex items-center gap-1.5"><span className="text-base">💜</span> Free</span>
       </motion.div>
-      <div className="mt-6 mx-auto max-w-sm rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.1 }}
+        className="mt-4 mx-auto max-w-sm rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3"
+      >
         <p className="text-xs font-semibold text-destructive mb-1">⚕️ Medical Disclaimer</p>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
           This app does <strong>not</strong> provide medical advice. Always consult your neurologist before making medical decisions.
         </p>
-      </div>
+      </motion.div>
     </div>,
 
     // 1: Privacy & Consent
