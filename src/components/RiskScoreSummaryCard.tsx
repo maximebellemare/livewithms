@@ -3,8 +3,38 @@ import { useRiskScores } from "@/hooks/useRiskScores";
 import { RISK_CONFIG } from "./relapse-risk/types";
 import type { RiskLevel } from "./relapse-risk/types";
 
+function MiniSparkline({ scores, color }: { scores: number[]; color: string }) {
+  if (scores.length < 2) return null;
+  const max = Math.max(...scores, 20);
+  const len = scores.length;
+  const points = scores.map((s, i) => {
+    const x = (i / (len - 1)) * 56 + 2;
+    const y = 18 - (s / max) * 14;
+    return `${x},${y}`;
+  });
+  return (
+    <svg viewBox="0 0 60 20" className="h-5 w-14 flex-shrink-0" preserveAspectRatio="none">
+      <polyline
+        points={points.join(" ")}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Current dot */}
+      <circle
+        cx={parseFloat(points[len - 1].split(",")[0])}
+        cy={parseFloat(points[len - 1].split(",")[1])}
+        r="2.5"
+        fill={color}
+      />
+    </svg>
+  );
+}
+
 export default function RiskScoreSummaryCard() {
-  const { data: scores, isLoading } = useRiskScores(4);
+  const { data: scores, isLoading } = useRiskScores(6);
 
   if (isLoading || !scores || scores.length === 0) return null;
 
@@ -13,6 +43,11 @@ export default function RiskScoreSummaryCard() {
   const cfg = RISK_CONFIG[latest.level as RiskLevel];
   const Icon = cfg.icon;
   const delta = prev ? latest.score - prev.score : null;
+
+  const strokeColor =
+    latest.score >= 60 ? "hsl(0, 72%, 51%)" :
+    latest.score >= 35 ? "hsl(25, 85%, 50%)" :
+    latest.score >= 15 ? "hsl(35, 80%, 50%)" : "hsl(145, 45%, 45%)";
 
   return (
     <Link
@@ -37,6 +72,9 @@ export default function RiskScoreSummaryCard() {
           {delta === 0 && " (unchanged)"}
         </p>
       </div>
+      {scores.length >= 2 && (
+        <MiniSparkline scores={scores.map((s) => s.score)} color={strokeColor} />
+      )}
       <span className="text-[10px] text-muted-foreground">→</span>
     </Link>
   );
