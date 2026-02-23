@@ -5,7 +5,7 @@ import AnimatedList, { listItemVariants } from "@/components/AnimatedList";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import PageHeader from "@/components/PageHeader";
-import { Bookmark, BookmarkCheck, CheckCircle2, ChevronDown, ChevronUp, Search, X, Clock, EyeOff, CircleCheckBig, Trophy, BookOpen } from "lucide-react";
+import { Bookmark, BookmarkCheck, CheckCircle2, ChevronDown, ChevronUp, Search, X, Clock, EyeOff, CircleCheckBig, Trophy, BookOpen, PlayCircle } from "lucide-react";
 import { useLearnArticles, useLearnBookmarkIds, useToggleLearnBookmark, useLearnReads, useMarkArticleRead } from "@/hooks/useLearnArticles";
 import { Skeleton } from "@/components/ui/skeleton";
 import ArticleBody from "@/components/learn/ArticleBody";
@@ -137,9 +137,14 @@ const LearnPage = () => {
                         <span className="text-[9px] font-medium uppercase tracking-wider text-primary">{article.category}</span>
                         <p className="text-xs font-semibold text-foreground line-clamp-1">{article.title}</p>
                       </div>
-                      <div className="flex-shrink-0 text-right">
-                        <span className="text-[10px] font-semibold text-primary">{Math.round(progress * 100)}%</span>
-                        {remaining > 0 && <p className="text-[9px] text-muted-foreground">{remaining} min left</p>}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="text-right">
+                          <span className="text-[10px] font-semibold text-primary">{Math.round(progress * 100)}%</span>
+                          {remaining > 0 && <p className="text-[9px] text-muted-foreground">{remaining} min left</p>}
+                        </div>
+                        <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/15 text-primary">
+                          <PlayCircle className="h-3.5 w-3.5" />
+                        </div>
                       </div>
                     </div>
                   </button>
