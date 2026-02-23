@@ -127,7 +127,11 @@ export default function RiskScoreSummaryCard() {
     prevLevelRef.current = level;
 
     if (level === "elevated" || level === "high") {
-      const cfg = RISK_CONFIG[level];
+      const todayKey = new Date().toISOString().slice(0, 10);
+      const storageKey = `risk_toast_${todayKey}_${level}`;
+      if (localStorage.getItem(storageKey)) return;
+      localStorage.setItem(storageKey, "1");
+
       toast.warning(
         level === "high" ? "🔴 High relapse risk detected" : "🔶 Elevated relapse risk",
         {
