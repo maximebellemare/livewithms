@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocation } from "react-router-dom";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import { BarChart3, Heart, CalendarClock, HelpCircle, ArrowLeft, Sparkles, History } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -41,9 +42,23 @@ const modes: { id: CoachMode; icon: typeof Heart; label: string; description: st
 ];
 
 const CoachPage = () => {
+  const location = useLocation();
   const [activeMode, setActiveMode] = useState<CoachMode | null>(null);
   const [resumeSessionId, setResumeSessionId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [initialMessage, setInitialMessage] = useState<string | null>(null);
+
+  // Auto-send support: navigate with state.autoSend to auto-open emotional mode and send a message
+  useEffect(() => {
+    const state = location.state as { autoSend?: string } | null;
+    if (state?.autoSend) {
+      setInitialMessage(state.autoSend);
+      setResumeSessionId(null);
+      setActiveMode("emotional");
+      // Clear the state so it doesn't re-trigger on navigation
+      window.history.replaceState({}, "");
+    }
+  }, [location.state]);
 
   const handleNewChat = (mode: CoachMode) => {
     setResumeSessionId(null);
@@ -88,7 +103,7 @@ const CoachPage = () => {
                 </h2>
               </div>
             </div>
-            <CoachChat mode={activeMode} resumeSessionId={resumeSessionId} />
+            <CoachChat mode={activeMode} resumeSessionId={resumeSessionId} initialMessage={initialMessage} />
           </motion.div>
         ) : (
           <motion.div

@@ -642,6 +642,9 @@ const TodayPage = () => {
         <StaggerItem>
           <QuickCard emoji="🧘" title="Regulation Center" subtitle="Breathing, grounding & vagal tone" onClick={() => navigate("/nervous-system")} />
         </StaggerItem>
+        <StaggerItem>
+          <QuickCard emoji="💪" title="Muscle Relaxation" subtitle="Progressive muscle relaxation exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try progressive muscle relaxation" } })} />
+        </StaggerItem>
         {groundTotal > 0 && (
           <StaggerItem>
             <div

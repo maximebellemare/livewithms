@@ -33,6 +33,7 @@ import GuidedMeditationWidget, { detectGuidedMeditation } from "./GuidedMeditati
 interface CoachChatProps {
   mode: CoachMode;
   resumeSessionId?: string | null;
+  initialMessage?: string | null;
 }
 
 const PromptChip = ({ label, onTap }: { label: string; onTap: (v: string) => void }) => (
@@ -78,7 +79,7 @@ const followUpsByMode: Record<string, string[][]> = {
   ],
 };
 
-const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
+const CoachChat = ({ mode, resumeSessionId, initialMessage }: CoachChatProps) => {
   const { messages, isLoading, sendMessage, setMode, resetChat, loadSession, sessionId } = useCoach();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -143,7 +144,19 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
     }
   }, [mode, resumeSessionId, setMode, resetChat, loadSession]);
 
-  // Auto-scroll
+  // Auto-send initial message (e.g. from Today page quick-action)
+  const initialMessageSent = useRef(false);
+  useEffect(() => {
+    if (initialMessage && !initialMessageSent.current && !resumeSessionId) {
+      initialMessageSent.current = true;
+      // Small delay to let the chat initialize
+      const timer = setTimeout(() => {
+        const userData = buildUserData();
+        sendMessage(initialMessage, userData);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [initialMessage, resumeSessionId]);
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
