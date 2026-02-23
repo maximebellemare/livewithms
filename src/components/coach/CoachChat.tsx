@@ -6,6 +6,7 @@ import { useEntries } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { useRelapses } from "@/hooks/useRelapses";
 import { useAuth } from "@/hooks/useAuth";
+import { useDbMedications } from "@/hooks/useMedications";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 
@@ -44,8 +45,8 @@ const followUpsByMode: Record<string, string[][]> = {
     ["Which symptom is improving most?", "Are there any concerning trends?", "How does sleep affect my symptoms?"],
   ],
   emotional: [
-    ["Can you guide me through a breathing exercise?", "What's a good coping strategy?", "Help me reframe this thought"],
-    ["Tell me more about acceptance", "How can I talk to loved ones about this?", "I'd like a grounding exercise"],
+    ["Guide me through a body scan relaxation", "What's a good coping strategy for today?", "Help me reframe this thought"],
+    ["Try a self-compassion exercise with me", "I'd like a 5-4-3-2-1 grounding exercise", "Help me with box breathing"],
   ],
   planning: [
     ["What if I feel worse later?", "Can I fit in a rest break?", "Suggest a lighter version of my plan"],
@@ -110,6 +111,7 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
   const { data: entries } = useEntries();
   const { data: profile } = useProfile();
   const { data: relapses } = useRelapses();
+  const { data: medications } = useDbMedications();
 
   // Set mode on mount or resume session
   useEffect(() => {
@@ -158,48 +160,96 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
   const lastMsgIsAssistant = messages.length > 0 && messages[messages.length - 1]?.role === "assistant";
 
   const buildUserData = () => {
-    if (mode === "data" || mode === "planning") {
-      const recent30 = (entries || []).slice(0, 30);
-      const avgFatigue = recent30.filter((e) => e.fatigue != null).reduce((s, e) => s + (e.fatigue || 0), 0) / Math.max(recent30.filter((e) => e.fatigue != null).length, 1);
-      const avgMood = recent30.filter((e) => e.mood != null).reduce((s, e) => s + (e.mood || 0), 0) / Math.max(recent30.filter((e) => e.mood != null).length, 1);
-      const avgSleep = recent30.filter((e) => e.sleep_hours != null).reduce((s, e) => s + (e.sleep_hours || 0), 0) / Math.max(recent30.filter((e) => e.sleep_hours != null).length, 1);
-      const avgPain = recent30.filter((e) => e.pain != null).reduce((s, e) => s + (e.pain || 0), 0) / Math.max(recent30.filter((e) => e.pain != null).length, 1);
-      const avgBrainFog = recent30.filter((e) => e.brain_fog != null).reduce((s, e) => s + (e.brain_fog || 0), 0) / Math.max(recent30.filter((e) => e.brain_fog != null).length, 1);
+    const recent30 = (entries || []).slice(0, 30);
+    const avg = (arr: (number | null | undefined)[]) => {
+      const valid = arr.filter((v): v is number => v != null);
+      return valid.length > 0 ? valid.reduce((s, v) => s + v, 0) / valid.length : null;
+    };
 
-      const todayEntry = recent30[0];
+    const avgFatigue = avg(recent30.map((e) => e.fatigue));
+    const avgMood = avg(recent30.map((e) => e.mood));
+    const avgSleep = avg(recent30.map((e) => e.sleep_hours ? Number(e.sleep_hours) : null));
+    const avgPain = avg(recent30.map((e) => e.pain));
+    const avgBrainFog = avg(recent30.map((e) => e.brain_fog));
 
-      return {
-        msType: profile?.ms_type,
-        diagnosisDate: profile?.diagnosis_date || profile?.year_diagnosed,
-        symptoms: profile?.symptoms,
-        goals: profile?.goals,
-        thirtyDayAverages: {
-          fatigue: +avgFatigue.toFixed(1),
-          mood: +avgMood.toFixed(1),
-          sleep: +avgSleep.toFixed(1),
-          pain: +avgPain.toFixed(1),
-          brainFog: +avgBrainFog.toFixed(1),
-        },
-        todayEntry: todayEntry
-          ? {
-              fatigue: todayEntry.fatigue,
-              mood: todayEntry.mood,
-              sleep: todayEntry.sleep_hours,
-              pain: todayEntry.pain,
-              brainFog: todayEntry.brain_fog,
-            }
-          : null,
-        totalRelapses: (relapses || []).length,
-        recentRelapses: (relapses || []).slice(0, 3).map((r) => ({
-          startDate: r.start_date,
-          severity: r.severity,
-          symptoms: r.symptoms,
-          recovered: r.is_recovered,
-        })),
-        entriesLogged: recent30.length,
-      };
+    const todayEntry = recent30[0];
+
+    // Compute days without entry
+    let daysWithoutEntry: number | null = null;
+    if (recent30.length > 0) {
+      const lastDate = new Date(recent30[0].date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      daysWithoutEntry = Math.floor((today.getTime() - lastDate.getTime()) / 86400000);
     }
-    return undefined;
+
+    // Sleep trend (last 7 vs prior 7)
+    let sleepTrend: string | null = null;
+    if (recent30.length >= 14) {
+      const recent7Sleep = avg(recent30.slice(0, 7).map((e) => e.sleep_hours ? Number(e.sleep_hours) : null));
+      const prior7Sleep = avg(recent30.slice(7, 14).map((e) => e.sleep_hours ? Number(e.sleep_hours) : null));
+      if (recent7Sleep != null && prior7Sleep != null) {
+        const diff = recent7Sleep - prior7Sleep;
+        if (Math.abs(diff) >= 0.5) {
+          sleepTrend = diff > 0 ? `Improving (+${diff.toFixed(1)}h vs prior week)` : `Declining (${diff.toFixed(1)}h vs prior week)`;
+        } else {
+          sleepTrend = "Stable";
+        }
+      }
+    }
+
+    // Notable symptom changes (7-day vs 30-day avg)
+    const recentSymptomChanges: string[] = [];
+    if (recent30.length >= 7) {
+      const r7 = recent30.slice(0, 7);
+      const r7Fatigue = avg(r7.map((e) => e.fatigue));
+      if (r7Fatigue != null && avgFatigue != null && r7Fatigue > avgFatigue + 1.5) {
+        recentSymptomChanges.push(`Fatigue trending up (${r7Fatigue.toFixed(1)} vs avg ${avgFatigue.toFixed(1)})`);
+      }
+      const r7Pain = avg(r7.map((e) => e.pain));
+      if (r7Pain != null && avgPain != null && r7Pain > avgPain + 1.5) {
+        recentSymptomChanges.push(`Pain trending up (${r7Pain.toFixed(1)} vs avg ${avgPain.toFixed(1)})`);
+      }
+    }
+
+    // Medication count
+    const activeMeds = (medications || []).filter((m) => m.active);
+
+    return {
+      msType: profile?.ms_type,
+      diagnosisDate: profile?.diagnosis_date || profile?.year_diagnosed,
+      symptoms: profile?.symptoms,
+      goals: profile?.goals,
+      thirtyDayAverages: {
+        fatigue: avgFatigue != null ? +avgFatigue.toFixed(1) : null,
+        mood: avgMood != null ? +avgMood.toFixed(1) : null,
+        sleep: avgSleep != null ? +avgSleep.toFixed(1) : null,
+        pain: avgPain != null ? +avgPain.toFixed(1) : null,
+        brainFog: avgBrainFog != null ? +avgBrainFog.toFixed(1) : null,
+      },
+      todayEntry: todayEntry
+        ? {
+            fatigue: todayEntry.fatigue,
+            mood: todayEntry.mood,
+            sleep: todayEntry.sleep_hours,
+            pain: todayEntry.pain,
+            brainFog: todayEntry.brain_fog,
+            stress: todayEntry.stress,
+          }
+        : null,
+      totalRelapses: (relapses || []).length,
+      recentRelapses: (relapses || []).slice(0, 3).map((r) => ({
+        startDate: r.start_date,
+        severity: r.severity,
+        symptoms: r.symptoms,
+        recovered: r.is_recovered,
+      })),
+      entriesLogged: recent30.length,
+      activeMedications: activeMeds.map((m) => m.name),
+      sleepTrend,
+      recentSymptomChanges,
+      daysWithoutEntry,
+    };
   };
 
   const handleSend = () => {
@@ -280,8 +330,9 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
               {mode === "emotional" && (
                 <>
                   <PromptChip label="I'm feeling overwhelmed today" onTap={setInput} />
-                  <PromptChip label="Help me with a breathing exercise" onTap={setInput} />
-                  <PromptChip label="I need a journaling prompt" onTap={setInput} />
+                  <PromptChip label="Guide me through box breathing" onTap={setInput} />
+                  <PromptChip label="I need a grounding exercise" onTap={setInput} />
+                  <PromptChip label="Help me reframe a negative thought" onTap={setInput} />
                 </>
               )}
               {mode === "planning" && (
