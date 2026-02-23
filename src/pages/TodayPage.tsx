@@ -648,6 +648,9 @@ const TodayPage = () => {
         <StaggerItem>
           <QuickCard emoji="🌬️" title="Box Breathing" subtitle="Calming 4-4-4-4 breathing exercise" onClick={() => navigate("/coach", { state: { autoSend: "Guide me through box breathing" } })} />
         </StaggerItem>
+        <StaggerItem>
+          <QuickCard emoji="🖐️" title="Grounding Exercise" subtitle="5-4-3-2-1 sensory grounding" onClick={() => navigate("/coach", { state: { autoSend: "I'd like a 5-4-3-2-1 grounding exercise" } })} />
+        </StaggerItem>
         {groundTotal > 0 && (
           <StaggerItem>
             <div
