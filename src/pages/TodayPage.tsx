@@ -27,6 +27,7 @@ import HydrationCard from "@/components/HydrationCard";
 import RelapseFreeStreakCompact from "@/components/RelapseFreeStreakCompact";
 import RelapseRiskIndicator from "@/components/RelapseRiskIndicator";
 import RiskScoreSummaryCard from "@/components/RiskScoreSummaryCard";
+import RiskAlertBanner from "@/components/RiskAlertBanner";
 import BadgeNudgeCard from "@/components/badges/BadgeNudgeCard";
 import DiagnosisAnniversaryCard from "@/components/DiagnosisAnniversaryCard";
 import { useMedStreak } from "@/hooks/useMedStreak";
@@ -344,6 +345,8 @@ const TodayPage = () => {
           </div>
         ) : (
         <>
+
+        <StaggerItem><RiskAlertBanner /></StaggerItem>
 
         {isMilestone && (
           <StaggerItem>
