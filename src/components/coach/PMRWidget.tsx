@@ -5,11 +5,11 @@ import { Play, Pause, RotateCcw, ChevronRight, Check, Zap, ZapOff } from "lucide
 interface MuscleGroup {
   name: string;
   instruction: string;
-  tenseDuration: number; // seconds
+  tenseDuration: number;
   relaxDuration: number;
 }
 
-const MUSCLE_GROUPS: MuscleGroup[] = [
+const ALL_MUSCLE_GROUPS: MuscleGroup[] = [
   { name: "Hands", instruction: "Clench both fists as tightly as you can", tenseDuration: 5, relaxDuration: 10 },
   { name: "Arms", instruction: "Bend your elbows and tense your biceps", tenseDuration: 5, relaxDuration: 10 },
   { name: "Shoulders", instruction: "Raise your shoulders up toward your ears", tenseDuration: 5, relaxDuration: 10 },
@@ -20,28 +20,51 @@ const MUSCLE_GROUPS: MuscleGroup[] = [
   { name: "Feet", instruction: "Curl your toes downward tightly", tenseDuration: 5, relaxDuration: 10 },
 ];
 
-type Phase = "idle" | "tense" | "release" | "done";
+type Phase = "select" | "idle" | "tense" | "release" | "done";
 
 const PMRWidget = () => {
+  const [selected, setSelected] = useState<boolean[]>(ALL_MUSCLE_GROUPS.map(() => true));
+  const [activeGroups, setActiveGroups] = useState<MuscleGroup[]>(ALL_MUSCLE_GROUPS);
   const [groupIdx, setGroupIdx] = useState(0);
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [phase, setPhase] = useState<Phase>("select");
   const [timer, setTimer] = useState(0);
   const [running, setRunning] = useState(false);
-  const [completed, setCompleted] = useState<boolean[]>(MUSCLE_GROUPS.map(() => false));
+  const [completed, setCompleted] = useState<boolean[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const currentGroup = MUSCLE_GROUPS[groupIdx];
+  const currentGroup = activeGroups[groupIdx];
   const totalCompleted = completed.filter(Boolean).length;
-  const progress = totalCompleted / MUSCLE_GROUPS.length;
+  const progress = activeGroups.length > 0 ? totalCompleted / activeGroups.length : 0;
   const allDone = phase === "done";
+
+  const selectedCount = selected.filter(Boolean).length;
 
   const haptic = useCallback(() => {
     if (navigator.vibrate) navigator.vibrate(15);
   }, []);
 
+  const toggleGroup = (idx: number) => {
+    setSelected((prev) => {
+      const next = [...prev];
+      next[idx] = !next[idx];
+      return next;
+    });
+  };
+
+  const selectAll = () => setSelected(ALL_MUSCLE_GROUPS.map(() => true));
+  const selectNone = () => setSelected(ALL_MUSCLE_GROUPS.map(() => false));
+
+  const confirmSelection = () => {
+    const groups = ALL_MUSCLE_GROUPS.filter((_, i) => selected[i]);
+    setActiveGroups(groups);
+    setCompleted(groups.map(() => false));
+    setGroupIdx(0);
+    setPhase("idle");
+  };
+
   // Timer logic
   useEffect(() => {
-    if (!running || phase === "idle" || phase === "done") return;
+    if (!running || phase === "idle" || phase === "done" || phase === "select") return;
 
     intervalRef.current = setInterval(() => {
       setTimer((t) => {
@@ -49,24 +72,22 @@ const PMRWidget = () => {
         if (next <= 0) {
           haptic();
           if (phase === "tense") {
-            // Switch to release
             setPhase("release");
             return currentGroup.relaxDuration;
           } else {
-            // Release done — mark completed and move on
             setCompleted((prev) => {
-              const next = [...prev];
-              next[groupIdx] = true;
-              return next;
+              const n = [...prev];
+              n[groupIdx] = true;
+              return n;
             });
-            if (groupIdx + 1 >= MUSCLE_GROUPS.length) {
+            if (groupIdx + 1 >= activeGroups.length) {
               setPhase("done");
               setRunning(false);
               return 0;
             }
             setGroupIdx((i) => i + 1);
             setPhase("tense");
-            return MUSCLE_GROUPS[groupIdx + 1].tenseDuration;
+            return activeGroups[groupIdx + 1].tenseDuration;
           }
         }
         return next;
@@ -76,7 +97,7 @@ const PMRWidget = () => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [running, phase, groupIdx, currentGroup, haptic]);
+  }, [running, phase, groupIdx, currentGroup, activeGroups, haptic]);
 
   const start = () => {
     haptic();
@@ -94,37 +115,81 @@ const PMRWidget = () => {
     haptic();
     if (intervalRef.current) clearInterval(intervalRef.current);
     setCompleted((prev) => {
-      const next = [...prev];
-      next[groupIdx] = true;
-      return next;
+      const n = [...prev];
+      n[groupIdx] = true;
+      return n;
     });
-    if (groupIdx + 1 >= MUSCLE_GROUPS.length) {
+    if (groupIdx + 1 >= activeGroups.length) {
       setPhase("done");
       setRunning(false);
     } else {
       setGroupIdx((i) => i + 1);
       setPhase("tense");
-      setTimer(MUSCLE_GROUPS[groupIdx + 1].tenseDuration);
+      setTimer(activeGroups[groupIdx + 1].tenseDuration);
     }
   };
 
   const reset = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
+    setPhase("select");
     setGroupIdx(0);
-    setPhase("idle");
     setTimer(0);
     setRunning(false);
-    setCompleted(MUSCLE_GROUPS.map(() => false));
+    setCompleted([]);
   };
 
   const CIRCLE_R = 46;
   const CIRCUMFERENCE = 2 * Math.PI * CIRCLE_R;
   const progressOffset = CIRCUMFERENCE * (1 - progress);
 
-  // Phase-specific timer ring
-  const maxTime = phase === "tense" ? currentGroup.tenseDuration : currentGroup.relaxDuration;
-  const timerProgress = maxTime > 0 ? timer / maxTime : 0;
+  const maxTime = phase === "tense" ? currentGroup?.tenseDuration : currentGroup?.relaxDuration;
+  const timerProgress = maxTime && maxTime > 0 ? timer / maxTime : 0;
   const timerOffset = CIRCUMFERENCE * (1 - timerProgress);
+
+  // Selection screen
+  if (phase === "select") {
+    return (
+      <div className="flex flex-col items-center gap-3 py-4">
+        <p className="text-sm font-semibold text-foreground">Choose Muscle Groups</p>
+        <p className="text-[11px] text-muted-foreground">Select the areas you'd like to focus on</p>
+
+        <div className="grid grid-cols-2 gap-2 w-full max-w-[280px] mt-1">
+          {ALL_MUSCLE_GROUPS.map((g, i) => (
+            <button
+              key={g.name}
+              onClick={() => toggleGroup(i)}
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-all active:scale-95 border ${
+                selected[i]
+                  ? "bg-primary/10 border-primary/30 text-foreground"
+                  : "bg-secondary/50 border-border text-muted-foreground"
+              }`}
+            >
+              <div className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                selected[i] ? "bg-primary border-primary" : "border-muted-foreground/30"
+              }`}>
+                {selected[i] && <Check className="h-3 w-3 text-primary-foreground" />}
+              </div>
+              {g.name}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 mt-1">
+          <button onClick={selectAll} className="text-[11px] text-primary hover:underline">Select all</button>
+          <span className="text-muted-foreground/40">·</span>
+          <button onClick={selectNone} className="text-[11px] text-muted-foreground hover:text-foreground">Clear</button>
+        </div>
+
+        <button
+          onClick={confirmSelection}
+          disabled={selectedCount === 0}
+          className="mt-2 flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-40 active:scale-95 transition-all"
+        >
+          <Play className="h-4 w-4" /> Start ({selectedCount} group{selectedCount !== 1 ? "s" : ""})
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-3 py-4">
@@ -135,12 +200,8 @@ const PMRWidget = () => {
           {phase === "idle" || allDone ? (
             <circle
               cx={60} cy={60} r={CIRCLE_R}
-              fill="none"
-              stroke="hsl(var(--primary))"
-              strokeWidth={5}
-              strokeLinecap="round"
-              strokeDasharray={CIRCUMFERENCE}
-              strokeDashoffset={progressOffset}
+              fill="none" stroke="hsl(var(--primary))" strokeWidth={5}
+              strokeLinecap="round" strokeDasharray={CIRCUMFERENCE} strokeDashoffset={progressOffset}
               style={{ transition: "stroke-dashoffset 0.4s ease" }}
             />
           ) : (
@@ -148,10 +209,8 @@ const PMRWidget = () => {
               cx={60} cy={60} r={CIRCLE_R}
               fill="none"
               stroke={phase === "tense" ? "hsl(var(--primary))" : "hsl(var(--accent-foreground) / 0.6)"}
-              strokeWidth={5}
-              strokeLinecap="round"
-              strokeDasharray={CIRCUMFERENCE}
-              strokeDashoffset={timerOffset}
+              strokeWidth={5} strokeLinecap="round"
+              strokeDasharray={CIRCUMFERENCE} strokeDashoffset={timerOffset}
               style={{ transition: "stroke-dashoffset 0.3s linear" }}
             />
           )}
@@ -193,7 +252,7 @@ const PMRWidget = () => {
       </div>
 
       {/* Instruction */}
-      {!allDone && (
+      {!allDone && currentGroup && (
         <AnimatePresence mode="wait">
           <motion.div
             key={`${groupIdx}-${phase}`}
@@ -215,7 +274,7 @@ const PMRWidget = () => {
 
       {/* Muscle group dots */}
       <div className="flex items-center gap-1">
-        {MUSCLE_GROUPS.map((_, i) => (
+        {activeGroups.map((_, i) => (
           <div
             key={i}
             className={`h-1.5 rounded-full transition-all ${
@@ -232,8 +291,8 @@ const PMRWidget = () => {
         {allDone
           ? "All muscle groups complete"
           : phase === "idle"
-          ? `${MUSCLE_GROUPS.length} muscle groups`
-          : `${currentGroup.name} — ${groupIdx + 1} of ${MUSCLE_GROUPS.length}`}
+          ? `${activeGroups.length} muscle group${activeGroups.length !== 1 ? "s" : ""} selected`
+          : `${currentGroup?.name} — ${groupIdx + 1} of ${activeGroups.length}`}
       </p>
 
       {/* Controls */}
@@ -282,9 +341,6 @@ const PMRWidget = () => {
   );
 };
 
-/**
- * Detects if a message contains a progressive muscle relaxation exercise.
- */
 export function detectPMR(content: string): boolean {
   const lower = content.toLowerCase();
   return (
