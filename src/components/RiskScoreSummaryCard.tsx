@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useRiskScores } from "@/hooks/useRiskScores";
 import { RISK_CONFIG } from "./relapse-risk/types";
 import type { RiskLevel } from "./relapse-risk/types";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 function MiniSparkline({ scores, color }: { scores: number[]; color: string }) {
   if (scores.length < 2) return null;
@@ -12,8 +13,21 @@ function MiniSparkline({ scores, color }: { scores: number[]; color: string }) {
     const y = 18 - (s / max) * 14;
     return `${x},${y}`;
   });
+
+  // Area fill
+  const firstX = points[0].split(",")[0];
+  const lastX = points[len - 1].split(",")[0];
+  const areaPoints = [...points, `${lastX},19`, `${firstX},19`].join(" ");
+
   return (
     <svg viewBox="0 0 60 20" className="h-5 w-14 flex-shrink-0" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="miniSparkFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPoints} fill="url(#miniSparkFill)" />
       <polyline
         points={points.join(" ")}
         fill="none"
@@ -22,7 +36,6 @@ function MiniSparkline({ scores, color }: { scores: number[]; color: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Current dot */}
       <circle
         cx={parseFloat(points[len - 1].split(",")[0])}
         cy={parseFloat(points[len - 1].split(",")[1])}
@@ -30,6 +43,33 @@ function MiniSparkline({ scores, color }: { scores: number[]; color: string }) {
         fill={color}
       />
     </svg>
+  );
+}
+
+function DeltaIndicator({ delta }: { delta: number }) {
+  if (delta === 0) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-muted-foreground">
+        <Minus className="h-3 w-3" />
+        <span>0</span>
+      </span>
+    );
+  }
+
+  const isUp = delta > 0;
+  const absDelta = Math.abs(delta);
+  // Bar width: scale 1-30 delta to 8-28px
+  const barWidth = Math.min(28, Math.max(8, (absDelta / 30) * 28));
+
+  return (
+    <span className={`inline-flex items-center gap-1 ${isUp ? "text-red-500 dark:text-red-400" : "text-emerald-500 dark:text-emerald-400"}`}>
+      {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+      <span className="text-[10px] font-bold">{isUp ? "+" : ""}{delta}</span>
+      <span
+        className={`h-1.5 rounded-full ${isUp ? "bg-red-500/60 dark:bg-red-400/50" : "bg-emerald-500/60 dark:bg-emerald-400/50"}`}
+        style={{ width: `${barWidth}px` }}
+      />
+    </span>
   );
 }
 
@@ -62,15 +102,12 @@ export default function RiskScoreSummaryCard() {
           <span className="text-sm font-semibold text-foreground">Relapse Risk</span>
           <span className={`text-xs font-bold ${cfg.color}`}>{cfg.emoji} {cfg.label}</span>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          Score {latest.score}/100
-          {delta !== null && delta !== 0 && (
-            <span className={delta > 0 ? "text-red-500 dark:text-red-400" : "text-emerald-500 dark:text-emerald-400"}>
-              {" "}({delta > 0 ? "+" : ""}{delta} vs last week)
-            </span>
-          )}
-          {delta === 0 && " (unchanged)"}
-        </p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[11px] text-muted-foreground">
+            {latest.score}/100
+          </span>
+          {delta !== null && <DeltaIndicator delta={delta} />}
+        </div>
       </div>
       {scores.length >= 2 && (
         <MiniSparkline scores={scores.map((s) => s.score)} color={strokeColor} />
