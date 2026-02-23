@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, RotateCcw } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
 
 type Phase = "inhale" | "hold" | "exhale" | "holdOut";
 
@@ -60,6 +60,25 @@ const BreathingTimer = ({ pattern }: BreathingTimerProps) => {
   const [cycle, setCycle] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [done, setDone] = useState(false);
+  const [soundOn, setSoundOn] = useState(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const playChime = useCallback((freq: number = 600, dur: number = 0.15) => {
+    if (!soundOn) return;
+    try {
+      if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
+      const ctx = audioCtxRef.current;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.18, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + dur);
+    } catch { /* silent fallback */ }
+  }, [soundOn]);
 
   const currentPhase = config.phases[phaseIdx];
   const phaseDuration = currentPhase.config.duration;
@@ -92,17 +111,22 @@ const BreathingTimer = ({ pattern }: BreathingTimerProps) => {
       const nextCycle = cycle + 1;
       if (nextCycle >= config.cycles) {
         haptic("heavy");
+        playChime(800, 0.3);
         setRunning(false);
         setDone(true);
         return;
       }
       setCycle(nextCycle);
       setPhaseIdx(0);
+      playChime(600, 0.15);
     } else {
       setPhaseIdx(nextPhase);
+      // Higher pitch for inhale, lower for exhale
+      const next = config.phases[nextPhase];
+      playChime(next.phase === "inhale" ? 660 : next.phase === "exhale" ? 440 : 520, 0.12);
     }
     setElapsed(0);
-  }, [phaseIdx, cycle, config, haptic]);
+  }, [phaseIdx, cycle, config, haptic, playChime]);
 
   useEffect(() => {
     if (!running) return;
@@ -215,6 +239,17 @@ const BreathingTimer = ({ pattern }: BreathingTimerProps) => {
             <RotateCcw className="h-4 w-4" />
           </button>
         )}
+        <button
+          onClick={() => setSoundOn((s) => !s)}
+          className={`flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-95 ${
+            soundOn
+              ? "bg-primary/15 text-primary"
+              : "bg-secondary text-muted-foreground hover:text-foreground"
+          }`}
+          aria-label={soundOn ? "Mute chime" : "Enable chime"}
+        >
+          {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+        </button>
       </div>
     </div>
   );
