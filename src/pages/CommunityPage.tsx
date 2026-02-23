@@ -17,6 +17,8 @@ import { TrendingPosts } from "@/components/community/TrendingPosts";
 import { WeeklyHighlights } from "@/components/community/WeeklyHighlights";
 import { SavedPosts } from "@/components/community/SavedPosts";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const CommunityPage = () => {
   const { data: channels = [], isLoading } = useChannels();
@@ -25,6 +27,18 @@ const CommunityPage = () => {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showSaved, setShowSaved] = useState(false);
+
+  // Fetch premium users for badge display
+  const { data: premiumUsers = new Set<string>() } = useQuery({
+    queryKey: ["premium-users-community"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("profiles_public")
+        .select("user_id, is_premium")
+        .eq("is_premium", true);
+      return new Set(((data as any[]) ?? []).map((p: any) => p.user_id as string));
+    },
+  });
 
   useEffect(() => {
     markCommunityVisited();
@@ -62,6 +76,7 @@ const CommunityPage = () => {
             onBack={() => setSelectedPost(null)}
             roles={roles}
             communityRoles={communityRoles}
+            premiumUsers={premiumUsers}
           />
         ) : showSaved ? (
           <SavedPosts

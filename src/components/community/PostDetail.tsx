@@ -2,6 +2,7 @@ import { useState } from "react";
 import { MessageCircle, Pin, ArrowLeft, Send, Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 import { CommunityAvatar } from "./CommunityAvatar";
 import { RoleBadge } from "./RoleBadge";
+import PremiumBadge from "@/components/premium/PremiumBadge";
 import { ReactionBar } from "./ReactionBar";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -20,8 +21,8 @@ import { formatDistanceToNow } from "date-fns";
 const timeAgo = (d: string) => formatDistanceToNow(new Date(d), { addSuffix: true });
 
 export const PostDetail = ({
-  post, onBack, roles, communityRoles,
-}: { post: Post; onBack: () => void; roles: string[]; communityRoles?: Record<string, string[]> }) => {
+  post, onBack, roles, communityRoles, premiumUsers,
+}: { post: Post; onBack: () => void; roles: string[]; communityRoles?: Record<string, string[]>; premiumUsers?: Set<string> }) => {
   const { user } = useAuth();
   const { data: comments = [], isLoading } = useComments(post.id);
   const { data: displayName = "Anonymous" } = useDisplayName();
@@ -67,6 +68,7 @@ export const PostDetail = ({
             {post.is_pinned && <Pin className="h-3 w-3 text-primary" />}
             <CommunityAvatar userId={post.user_id} displayName={post.display_name} size="md" />
             <p className="text-xs font-medium text-primary">{post.display_name}</p>
+            {premiumUsers?.has(post.user_id) && <PremiumBadge />}
             {communityRoles?.[post.user_id] && <RoleBadge roles={communityRoles[post.user_id]} />}
           </div>
           <p className="text-[10px] text-muted-foreground">{timeAgo(post.created_at)}</p>
@@ -104,6 +106,7 @@ export const PostDetail = ({
                   <div className="flex items-center gap-1.5">
                     <CommunityAvatar userId={c.user_id} displayName={c.display_name} />
                     <p className="text-[11px] font-medium text-primary">{c.display_name}</p>
+                    {premiumUsers?.has(c.user_id) && <PremiumBadge />}
                     {communityRoles?.[c.user_id] && <RoleBadge roles={communityRoles[c.user_id]} />}
                   </div>
                   <div className="flex items-center gap-2">
