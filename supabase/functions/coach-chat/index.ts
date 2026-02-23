@@ -199,13 +199,28 @@ serve(async (req) => {
       contextBlock = `\n\nUSER'S ENERGY DATA:\n${JSON.stringify(userData, null, 2)}`;
     }
 
-    // Check for memory
+    // Check for memory + risk score
     let memoryBlock = "";
+    let riskBlock = "";
+
     const { data: profile } = await adminClient
       .from("profiles")
       .select("ai_memory_enabled")
       .eq("user_id", user.id)
       .maybeSingle();
+
+    // Fetch latest risk score
+    const { data: latestRisk } = await adminClient
+      .from("risk_scores")
+      .select("score, level, factors, week_start, week_end")
+      .eq("user_id", user.id)
+      .order("week_start", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestRisk) {
+      riskBlock = `\n\nUSER'S RELAPSE RISK (week of ${latestRisk.week_start} to ${latestRisk.week_end}):\n- Score: ${latestRisk.score}/100\n- Level: ${latestRisk.level}\n- Contributing factors: ${latestRisk.factors?.length ? latestRisk.factors.join(", ") : "none identified"}\nUse this context to inform your responses when relevant. If risk is elevated or high, gently acknowledge it and suggest the user monitor closely or contact their neurologist. Do NOT alarm the user unnecessarily if risk is low/moderate.`;
+    }
 
     if (profile?.ai_memory_enabled) {
       const { data: memory } = await adminClient
@@ -219,7 +234,7 @@ serve(async (req) => {
       }
     }
 
-    const fullSystemPrompt = systemPrompt + disclaimer + contextBlock + memoryBlock;
+    const fullSystemPrompt = systemPrompt + disclaimer + contextBlock + riskBlock + memoryBlock;
 
     // Call Lovable AI
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
