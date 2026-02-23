@@ -40,17 +40,12 @@ export const PostFeed = ({
     queryKey: ["premium-users", authorIds],
     enabled: authorIds.length > 0,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles_public" as any)
-        .select("user_id");
-      // profiles_public doesn't have is_premium, query profiles instead via rpc or direct
-      // We need to use a different approach - query profiles for the author IDs
-      const { data: profiles } = await supabase
-        .from("profiles")
+      const { data } = await (supabase as any)
+        .from("profiles_public")
         .select("user_id, is_premium")
         .in("user_id", authorIds)
         .eq("is_premium", true);
-      return new Set((profiles ?? []).map((p: any) => p.user_id));
+      return new Set(((data as any[]) ?? []).map((p: any) => p.user_id as string));
     },
   });
   /* ─── Infinite scroll sentinel ─────────────────────────── */
@@ -240,7 +235,7 @@ export const PostFeed = ({
         <AnimatedList className="space-y-3">
           {filteredPosts.map((post) => (
             <motion.div key={post.id} variants={listItemVariants}>
-              <PostCard post={post} onClick={() => onSelectPost(post)} isMod={isMod} onHide={hidePost} userRoles={communityRoles[post.user_id]} />
+              <PostCard post={post} onClick={() => onSelectPost(post)} isMod={isMod} onHide={hidePost} userRoles={communityRoles[post.user_id]} isPremiumUser={premiumUsers.has(post.user_id)} />
             </motion.div>
           ))}
 
