@@ -110,7 +110,13 @@ export default function MedicationAdherenceChart({ range }: Props) {
               tickLine={false}
               tickFormatter={(v) => `${v}%`}
             />
-            <ReferenceLine y={80} strokeDasharray="4 4" stroke="hsl(var(--muted-foreground))" strokeOpacity={0.4} />
+            <ReferenceLine
+              y={80}
+              strokeDasharray="4 4"
+              stroke="hsl(var(--muted-foreground))"
+              strokeOpacity={0.4}
+              label={{ value: "80% goal", position: "right", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+            />
             <Tooltip
               cursor={{ fill: "hsl(var(--muted) / 0.3)" }}
               contentStyle={{
@@ -119,10 +125,14 @@ export default function MedicationAdherenceChart({ range }: Props) {
                 borderRadius: 8,
                 fontSize: 11,
               }}
-              formatter={(value: number, _: string, props: { payload: { taken: number; total: number } }) => [
-                `${props.payload.taken}/${props.payload.total} taken (${value}%)`,
-                "Adherence",
-              ]}
+              formatter={(value: number, _: string, props: { payload: { taken: number; total: number; date: string } }) => {
+                const pct = value;
+                const quality = pct >= 80 ? "Great adherence" : pct >= 50 ? "Partial adherence" : "Low adherence";
+                return [
+                  `${props.payload.taken}/${props.payload.total} taken (${pct}%) — ${quality}`,
+                  "Adherence",
+                ];
+              }}
               labelFormatter={(label) => label}
             />
             <Bar dataKey="pct" radius={[4, 4, 0, 0]} maxBarSize={range <= 7 ? 32 : 14}>
