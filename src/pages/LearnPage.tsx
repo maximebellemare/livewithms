@@ -31,7 +31,7 @@ const LearnPage = () => {
     articles.forEach((a) => { counts[a.category] = (counts[a.category] || 0) + 1; });
     return counts;
   }, [articles]);
-  const categories = ["All", ...Array.from(new Set(articles.map((a) => a.category)))];
+  const categories = ["All", ...Array.from(new Set(articles.map((a) => a.category))).sort((a, b) => a.localeCompare(b))];
 
   const readArticleIds = useMemo(() => new Set(recentReads.map((r) => r.article_id)), [recentReads]);
 
