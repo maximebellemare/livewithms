@@ -38,6 +38,7 @@ import { useGroundingStreak } from "@/hooks/useGroundingStreak";
 import { useBadgeProximityAlert } from "@/hooks/useBadgeProximityAlert";
 import { useRecordBadgeEvent } from "@/hooks/useBadgeEvents";
 import GoalTrackingDashboard from "@/components/GoalTrackingDashboard";
+import SuggestedNextCards from "@/components/SuggestedNextCards";
 import HeatAlertCard from "@/components/HeatAlertCard";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
@@ -560,6 +561,8 @@ const TodayPage = () => {
         <p className="text-[10px] text-muted-foreground text-center -mt-1.5">
           Tap to log · hold to see insights
         </p>
+
+        <StaggerItem><SuggestedNextCards /></StaggerItem>
 
         {/* Section: Full Symptom Log — collapsed by default when already logged */}
         <StaggerItem>
