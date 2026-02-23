@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import BreathingTimer, { detectBreathingPattern } from "./BreathingTimer";
 import GroundingWidget, { detectGroundingExercise } from "./GroundingWidget";
+import CognitiveReframingWidget, { detectCognitiveReframing } from "./CognitiveReframingWidget";
 
 interface CoachChatProps {
   mode: CoachMode;
@@ -380,6 +381,7 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                       const bp = detectBreathingPattern(msg.content);
                       if (bp) return <BreathingTimer pattern={bp} />;
                       if (detectGroundingExercise(msg.content)) return <GroundingWidget />;
+                      if (detectCognitiveReframing(msg.content)) return <CognitiveReframingWidget />;
                       return null;
                     })()}
                   </>
