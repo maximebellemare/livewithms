@@ -117,7 +117,10 @@ const EnergyBudgetPage = () => {
             </div>
             <h2 className="font-display text-xl font-semibold text-foreground">How many spoons do you have today?</h2>
             <p className="text-sm text-muted-foreground">
-              The Spoon Theory helps you visualize and plan your daily energy. Each "spoon" represents a unit of energy you can spend on activities.
+              The <span className="font-semibold text-foreground">Spoon Theory</span> was created by Christine Miserandino to explain what it's like living with a chronic illness. Imagine starting each day with a limited number of spoons — each one represents a unit of energy. Every activity, from showering to cooking, "costs" spoons. When they're gone, you're done for the day.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              This planner helps you budget your energy so you can prioritize what matters most and avoid crashing.
             </p>
             <div className="flex items-center justify-center gap-4">
               <button
