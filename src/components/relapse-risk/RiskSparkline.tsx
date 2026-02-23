@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface RiskSparklineProps {
   weeklyScores: number[];
@@ -115,7 +116,16 @@ export default function RiskSparkline({ weeklyScores }: RiskSparklineProps) {
             </div>
           )}
         </div>
-        <span className="text-[9px] text-muted-foreground whitespace-nowrap">4-week trend</span>
+        <TooltipProvider delayDuration={200}>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <span className="text-[9px] text-muted-foreground whitespace-nowrap cursor-help">4-week trend</span>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="text-xs max-w-[220px]">
+              Shows how your risk score changed over the past 4 weeks. A rising line suggests worsening symptoms; a falling line means improvement.
+            </TooltipContent>
+          </UITooltip>
+        </TooltipProvider>
       </div>
     </div>
   );
