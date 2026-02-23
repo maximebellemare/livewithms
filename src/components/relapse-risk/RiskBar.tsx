@@ -57,7 +57,10 @@ export default function RiskBar({ level, score }: RiskBarProps) {
       <div className="h-1.5 flex-1 rounded-full bg-muted">
         <div
           className={`h-full rounded-full ${BAR_COLORS[level]} transition-all duration-500`}
-          style={{ width: `${Math.max(5, displayScore)}%` }}
+          style={{
+            width: `${Math.max(5, displayScore)}%`,
+            ...(level === "high" ? { boxShadow: "0 0 8px 2px rgba(239, 68, 68, 0.5)" } : {}),
+          }}
         />
       </div>
       <span className={`text-[11px] font-bold tabular-nums ${TEXT_COLORS[level]}${level === "elevated" || level === "high" ? " animate-pulse" : ""}`}>
