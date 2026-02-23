@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import SEOHead from "@/components/SEOHead";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,7 +20,7 @@ import InlineQuickLog from "@/components/InlineQuickLog";
 
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Settings, CheckCircle2, PenLine, FileDown } from "lucide-react";
+import { Settings, CheckCircle2, PenLine, FileDown, ChevronDown } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
 import UpcomingAppointments from "@/components/UpcomingAppointments";
 import DailyPromptCard from "@/components/DailyPromptCard";
@@ -640,22 +641,26 @@ const TodayPage = () => {
         <StaggerItem><RelapseRiskIndicator /></StaggerItem>
         <StaggerItem><RelapseFreeStreakCompact /></StaggerItem>
         <StaggerItem>
-          <QuickCard emoji="🧘" title="Regulation Center" subtitle="Breathing, grounding & vagal tone" onClick={() => navigate("/nervous-system")} />
-        </StaggerItem>
-        <StaggerItem>
-          <QuickCard emoji="💪" title="Muscle Relaxation" subtitle="Progressive muscle relaxation exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try progressive muscle relaxation" } })} />
-        </StaggerItem>
-        <StaggerItem>
-          <QuickCard emoji="🌬️" title="Box Breathing" subtitle="Calming 4-4-4-4 breathing exercise" onClick={() => navigate("/coach", { state: { autoSend: "Guide me through box breathing" } })} />
-        </StaggerItem>
-        <StaggerItem>
-          <QuickCard emoji="🖐️" title="Grounding Exercise" subtitle="5-4-3-2-1 sensory grounding" onClick={() => navigate("/coach", { state: { autoSend: "I'd like a 5-4-3-2-1 grounding exercise" } })} />
-        </StaggerItem>
-        <StaggerItem>
-          <QuickCard emoji="💛" title="Self-Compassion" subtitle="Guided self-compassion exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try a self-compassion exercise with me" } })} />
-        </StaggerItem>
-        <StaggerItem>
-          <QuickCard emoji="🔄" title="Thought Reframing" subtitle="Reframe a negative thought" onClick={() => navigate("/coach", { state: { autoSend: "Help me reframe a negative thought" } })} />
+          <Collapsible>
+            <CollapsibleTrigger className="flex w-full items-center justify-between card-base text-left group">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-lg">✨</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">Exercises</p>
+                  <p className="text-xs text-muted-foreground">Breathing, grounding & relaxation</p>
+                </div>
+              </div>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2 mt-2">
+              <QuickCard emoji="🧘" title="Regulation Center" subtitle="Breathing, grounding & vagal tone" onClick={() => navigate("/nervous-system")} />
+              <QuickCard emoji="💪" title="Muscle Relaxation" subtitle="Progressive muscle relaxation exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try progressive muscle relaxation" } })} />
+              <QuickCard emoji="🌬️" title="Box Breathing" subtitle="Calming 4-4-4-4 breathing exercise" onClick={() => navigate("/coach", { state: { autoSend: "Guide me through box breathing" } })} />
+              <QuickCard emoji="🖐️" title="Grounding Exercise" subtitle="5-4-3-2-1 sensory grounding" onClick={() => navigate("/coach", { state: { autoSend: "I'd like a 5-4-3-2-1 grounding exercise" } })} />
+              <QuickCard emoji="💛" title="Self-Compassion" subtitle="Guided self-compassion exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try a self-compassion exercise with me" } })} />
+              <QuickCard emoji="🔄" title="Thought Reframing" subtitle="Reframe a negative thought" onClick={() => navigate("/coach", { state: { autoSend: "Help me reframe a negative thought" } })} />
+            </CollapsibleContent>
+          </Collapsible>
         </StaggerItem>
         {groundTotal > 0 && (
           <StaggerItem>
