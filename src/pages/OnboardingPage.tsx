@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import FeatureCarousel from "@/components/onboarding/FeatureCarousel";
+import AppPreview from "@/components/onboarding/AppPreview";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, ChevronLeft, Shield, CheckCircle2, Globe, Calendar, User, Sparkles, TrendingUp, Heart, Brain, Target, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -174,7 +174,7 @@ const OnboardingPage = () => {
       <p className="mt-3 text-base text-muted-foreground leading-relaxed max-w-xs mx-auto">
         Your personal companion for living well with Multiple Sclerosis. Let's set things up — it only takes a minute.
       </p>
-      <FeatureCarousel />
+      <AppPreview />
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
