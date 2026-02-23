@@ -17,6 +17,7 @@ export const useCoach = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<CoachMode>("emotional");
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [showUpgradeNudge, setShowUpgradeNudge] = useState(false);
   const sessionIdRef = useRef<string | null>(null);
 
   const resetChat = useCallback(() => {
@@ -140,6 +141,9 @@ export const useCoach = () => {
           }
 
           if (json.error) {
+            if (json.error === "daily_limit") {
+              setShowUpgradeNudge(true);
+            }
             toast({
               title: json.error === "daily_limit" ? "Daily limit reached" : "Error",
               description: json.message || json.error,
@@ -246,6 +250,7 @@ export const useCoach = () => {
     isLoading,
     mode,
     sessionId,
+    showUpgradeNudge,
     setMode,
     sendMessage,
     resetChat,

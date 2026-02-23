@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Send, BarChart3, Heart, Calendar, HelpCircle, ChevronDown, ThumbsUp, ThumbsDown } from "lucide-react";
+import UpgradeNudge from "@/components/premium/UpgradeNudge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCoach, type CoachMode } from "@/hooks/useCoach";
 import { useEntries } from "@/hooks/useEntries";
@@ -80,7 +81,7 @@ const followUpsByMode: Record<string, string[][]> = {
 };
 
 const CoachChat = ({ mode, resumeSessionId, initialMessage }: CoachChatProps) => {
-  const { messages, isLoading, sendMessage, setMode, resetChat, loadSession, sessionId } = useCoach();
+  const { messages, isLoading, sendMessage, setMode, resetChat, loadSession, sessionId, showUpgradeNudge } = useCoach();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -543,17 +544,25 @@ const CoachChat = ({ mode, resumeSessionId, initialMessage }: CoachChatProps) =>
             placeholder="Type a message…"
             rows={1}
             className="flex-1 resize-none rounded-xl border border-input bg-background px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            disabled={isLoading}
+            disabled={isLoading || showUpgradeNudge}
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || showUpgradeNudge}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40 transition-opacity active:scale-95"
             aria-label="Send message"
           >
             <Send className="h-4 w-4" />
           </button>
         </div>
+        {showUpgradeNudge && (
+          <div className="px-4 pb-3">
+            <UpgradeNudge
+              message="You've reached your daily AI limit"
+              description="Upgrade to Premium for unlimited AI coaching, advanced insights, and more."
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ import MonthlyHealthReview from "@/components/premium/MonthlyHealthReview";
 import FatigueDeepDive from "@/components/premium/FatigueDeepDive";
 import AdvancedCorrelations from "@/components/premium/AdvancedCorrelations";
 import DoctorMode from "@/components/premium/DoctorMode";
+import PremiumInsightPreview from "@/components/premium/PremiumInsightPreview";
 import WeeklyMoodTrendChart from "@/components/WeeklyMoodTrendChart";
 import SleepFatigueScatter from "@/components/SleepFatigueScatter";
 import SymptomCorrelationMatrix from "@/components/SymptomCorrelationMatrix";
@@ -1015,11 +1016,39 @@ const InsightsPage = () => {
               );
             })()}
 
-            {/* ── Premium Sections ── */}
-            <StaggerItem><MonthlyHealthReview /></StaggerItem>
-            <StaggerItem><FatigueDeepDive /></StaggerItem>
-            <StaggerItem><AdvancedCorrelations /></StaggerItem>
-            <StaggerItem><DoctorMode /></StaggerItem>
+            {/* ── Premium Sections (with blurred preview for free users) ── */}
+            <StaggerItem>
+              <PremiumInsightPreview
+                title="Monthly Health Review"
+                description="AI-generated monthly summary with trends, patterns, and actionable recommendations."
+              >
+                <MonthlyHealthReview />
+              </PremiumInsightPreview>
+            </StaggerItem>
+            <StaggerItem>
+              <PremiumInsightPreview
+                title="Fatigue Deep Dive"
+                description="Detailed fatigue analysis with sleep correlation and energy patterns."
+              >
+                <FatigueDeepDive />
+              </PremiumInsightPreview>
+            </StaggerItem>
+            <StaggerItem>
+              <PremiumInsightPreview
+                title="Advanced Correlations"
+                description="Discover hidden relationships between your symptoms, lifestyle, and treatments."
+              >
+                <AdvancedCorrelations />
+              </PremiumInsightPreview>
+            </StaggerItem>
+            <StaggerItem>
+              <PremiumInsightPreview
+                title="Doctor Mode"
+                description="Clinical-grade visualizations and export-ready data for your neurologist."
+              >
+                <DoctorMode />
+              </PremiumInsightPreview>
+            </StaggerItem>
 
             {/* ── CTA ── */}
             <button

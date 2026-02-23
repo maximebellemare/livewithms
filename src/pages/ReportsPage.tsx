@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { useReportHistory, useAddReportHistory, useDeleteReportHistory } from "@/hooks/useReportHistory";
 import ReportPreviewDialog from "@/components/ReportPreviewDialog";
 import { useRiskScores } from "@/hooks/useRiskScores";
+import ExportQualityGap from "@/components/premium/ExportQualityGap";
 
 
 const PRESETS = [
@@ -462,6 +463,9 @@ const ReportsPage = () => {
           )}
 
           <p className="text-center text-[10px] text-muted-foreground">⚕️ This report is for informational purposes only. Always consult your neurologist for medical decisions.</p>
+
+          {/* Export Quality Gap — premium upsell */}
+          <ExportQualityGap />
         </div>
 
         {/* Report History Section */}

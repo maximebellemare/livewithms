@@ -60,11 +60,12 @@ function markCelebrated(streak: number) {
   localStorage.setItem(`milestone_celebrated_${streak}`, "1");
 }
 
-const greetings = () => {
+const greetings = (displayName?: string | null) => {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+  const name = displayName ? `, ${displayName}` : "";
+  if (hour < 12) return `Good morning${name}`;
+  if (hour < 18) return `Good afternoon${name}`;
+  return `Good evening${name}`;
 };
 
 // Which quick-log panel is open (null = none)
@@ -326,7 +327,7 @@ const TodayPage = () => {
       <SEOHead title="Today" description="Your daily MS symptom check-in and wellness overview." />
       <PageHeader
         title="Today"
-        subtitle={greetings() + " 🧡"}
+        subtitle={greetings(profile?.display_name) + " 🧡"}
         action={
           <Link to="/profile" className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-secondary">
             <Settings className="h-5 w-5" />

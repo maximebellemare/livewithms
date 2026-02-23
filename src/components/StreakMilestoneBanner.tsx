@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import { Sparkles, X, Crown } from "lucide-react";
+import { usePremium } from "@/hooks/usePremium";
+import { useNavigate } from "react-router-dom";
 
 interface Props {
   streak: number;
@@ -109,6 +111,8 @@ const StreakMilestoneBanner = ({ streak, onDismiss }: Props) => {
   const [visible, setVisible] = useState(true);
   const [entered, setEntered] = useState(false);
   const milestone = MILESTONES[streak];
+  const { isPremium } = usePremium();
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Small delay before entrance so the animation is noticeable
@@ -170,6 +174,17 @@ const StreakMilestoneBanner = ({ streak, onDismiss }: Props) => {
           <span className="text-lg">🔥</span>
           <span className="text-sm font-bold text-primary">{streak} days in a row</span>
         </div>
+
+        {/* Premium nudge on milestone */}
+        {!isPremium && streak >= 14 && (
+          <button
+            onClick={() => navigate("/premium")}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-4 py-2 text-xs font-semibold text-primary transition-all hover:bg-primary/20 active:scale-[0.98]"
+          >
+            <Crown className="h-3.5 w-3.5" />
+            You've earned a look at Premium ✨
+          </button>
+        )}
 
         <p className="mt-3 text-[10px] text-muted-foreground">
           Tap ✕ to dismiss · Keep going!
