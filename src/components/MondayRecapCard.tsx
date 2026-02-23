@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
-import { format, startOfWeek, endOfWeek, subWeeks } from "date-fns";
-import { X, CalendarDays, Trophy } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { format, startOfWeek, endOfWeek, subWeeks, subDays } from "date-fns";
+import { X, CalendarDays, Trophy, TrendingUp, TrendingDown, Minus, Shield } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
 import { useEntriesInRange } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { useStreak } from "@/components/StreakBadge";
 import { useWeekStreak } from "@/hooks/useWeekStreak";
 import { useMedStreak } from "@/hooks/useMedStreak";
 import { useRelapseFreeStreak } from "@/hooks/useRelapseFreeStreak";
+import { computeRisk, computeWeeklyScores } from "@/components/relapse-risk/computeRisk";
+import { RISK_CONFIG } from "@/components/relapse-risk/types";
 import { Progress } from "@/components/ui/progress";
 
 /* ── helpers ─────────────────────────────────────────────── */
@@ -77,7 +79,12 @@ const MondayRecapCard = () => {
   const lastWeekStart = format(startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 }), "yyyy-MM-dd");
   const lastWeekEnd   = format(endOfWeek(subWeeks(new Date(), 1),   { weekStartsOn: 1 }), "yyyy-MM-dd");
 
+  // Wider range for risk trend (need ~5 weeks of data for 4-week scores)
+  const riskRangeStart = format(subDays(new Date(), 42), "yyyy-MM-dd");
+  const riskRangeEnd   = format(new Date(), "yyyy-MM-dd");
+
   const { data: entries = [], isLoading: entriesLoading } = useEntriesInRange(lastWeekStart, lastWeekEnd);
+  const { data: riskEntries = [] } = useEntriesInRange(riskRangeStart, riskRangeEnd);
   const { data: profile, isLoading: profileLoading }      = useProfile();
 
   const { streak: logStreak } = useStreak();
@@ -118,6 +125,17 @@ const MondayRecapCard = () => {
     mobility:    avg(entries.map(e => e.mobility)),
     sleep_hours: avg(entries.map(e => e.sleep_hours)),
   }), [entries]);
+
+  const riskSummary = useMemo(() => {
+    const scores = computeWeeklyScores(riskEntries, new Date());
+    if (scores.length < 2) return null;
+    const current = scores[scores.length - 1];
+    const prev = scores[scores.length - 2];
+    const delta = current - prev;
+    const level = current >= 60 ? "high" as const : current >= 35 ? "elevated" as const : current >= 15 ? "moderate" as const : "low" as const;
+    const direction: "up" | "down" | "stable" = delta > 2 ? "up" : delta < -2 ? "down" : "stable";
+    return { current, prev, delta, level, direction, weeks: scores.length };
+  }, [riskEntries]);
 
   if (!isMonday || dismissed || entriesLoading || profileLoading) return null;
 
@@ -236,6 +254,40 @@ const MondayRecapCard = () => {
           )}
         </div>
       </button>
+
+      {/* Risk trend summary */}
+      {riskSummary && (
+        <Link
+          to="/risk-history"
+          className="mx-4 mb-2 flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 transition-all hover:bg-muted/50 active:scale-[0.98]"
+        >
+          {(() => {
+            const cfg = RISK_CONFIG[riskSummary.level];
+            const Icon = cfg.icon;
+            const TrendIcon = riskSummary.direction === "up" ? TrendingUp : riskSummary.direction === "down" ? TrendingDown : Minus;
+            const trendColor = riskSummary.direction === "up" ? "text-red-500" : riskSummary.direction === "down" ? "text-emerald-500" : "text-muted-foreground";
+            const trendLabel = riskSummary.direction === "up" ? "Rising" : riskSummary.direction === "down" ? "Improving" : "Stable";
+            return (
+              <>
+                <Icon className={`h-4 w-4 flex-shrink-0 ${cfg.color}`} aria-hidden="true" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-semibold text-foreground">Relapse Risk</span>
+                    <span className={`text-[10px] font-bold ${cfg.color}`}>{riskSummary.current}/100</span>
+                  </div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <TrendIcon className={`h-3 w-3 ${trendColor}`} />
+                    <span className={`text-[10px] font-medium ${trendColor}`}>
+                      {trendLabel} ({riskSummary.delta > 0 ? "+" : ""}{riskSummary.delta} vs prior week)
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-muted-foreground flex-shrink-0">View →</span>
+              </>
+            );
+          })()}
+        </Link>
+      )}
 
       {/* Motivational message */}
       <div className="px-4 pb-4 pt-2">
