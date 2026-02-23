@@ -10,6 +10,7 @@ import { useDbMedications } from "@/hooks/useMedications";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import BreathingTimer, { detectBreathingPattern } from "./BreathingTimer";
+import GroundingWidget, { detectGroundingExercise } from "./GroundingWidget";
 
 interface CoachChatProps {
   mode: CoachMode;
@@ -377,7 +378,9 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                     </div>
                     {(() => {
                       const bp = detectBreathingPattern(msg.content);
-                      return bp ? <BreathingTimer pattern={bp} /> : null;
+                      if (bp) return <BreathingTimer pattern={bp} />;
+                      if (detectGroundingExercise(msg.content)) return <GroundingWidget />;
+                      return null;
                     })()}
                   </>
                 ) : (
