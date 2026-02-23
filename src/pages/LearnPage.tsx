@@ -202,7 +202,15 @@ const LearnPage = () => {
                       )}
                     </div>
                     <p className="mt-0.5 text-xs font-semibold text-foreground line-clamp-2">{article.title}</p>
-                    <p className="mt-1 text-[10px] text-muted-foreground">{article.read_time}</p>
+                    {(() => {
+                      const progress = progressMap[article.id] ?? 0;
+                      const mins = parseInt(article.read_time) || 0;
+                      const remaining = Math.ceil(mins * (1 - progress));
+                      if (progress > 0 && progress < 1 && remaining > 0) {
+                        return <p className="mt-1 text-[10px] font-medium text-primary">{remaining} min left</p>;
+                      }
+                      return <p className="mt-1 text-[10px] text-muted-foreground">{article.read_time}</p>;
+                    })()}
                   </button>
                 );
               })}
@@ -277,12 +285,15 @@ const LearnPage = () => {
                       <h3 className="mt-0.5 text-sm font-semibold text-foreground">{article.title}</h3>
                       <p className="mt-1 text-xs text-muted-foreground">{article.summary}</p>
                       <div className="mt-2 flex items-center gap-2">
-                        <span className="text-[10px] text-muted-foreground">{article.read_time} read</span>
-                        {(progressMap[article.id] ?? 0) > 0 && !isExpanded && (
-                          <span className="text-[10px] font-medium text-primary">
-                            {Math.round((progressMap[article.id] ?? 0) * 100)}%
-                          </span>
-                        )}
+                        {(() => {
+                          const progress = progressMap[article.id] ?? 0;
+                          const mins = parseInt(article.read_time) || 0;
+                          const remaining = Math.ceil(mins * (1 - progress));
+                          if (progress > 0 && progress < 1 && remaining > 0) {
+                            return <span className="text-[10px] font-medium text-primary">{remaining} min left</span>;
+                          }
+                          return <span className="text-[10px] text-muted-foreground">{article.read_time} read</span>;
+                        })()}
                         {isExpanded ? (
                           <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
                         ) : (
