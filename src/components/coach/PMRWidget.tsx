@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, RotateCcw, ChevronRight, Check, Zap, ZapOff } from "lucide-react";
+import { Play, Pause, RotateCcw, ChevronRight, Check, Zap, ZapOff, Vibrate } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 
 interface MuscleGroup {
   name: string;
@@ -25,7 +26,8 @@ type Phase = "select" | "idle" | "tense" | "release" | "done";
 
 const PMRWidget = () => {
   const [selected, setSelected] = useState<boolean[]>(ALL_MUSCLE_GROUPS.map(() => true));
-  const [difficulty, setDifficulty] = useState(1); // 0=gentle, 1=standard, 2=deep
+  const [difficulty, setDifficulty] = useState(1);
+  const [hapticEnabled, setHapticEnabled] = useState(true);
   const [activeGroups, setActiveGroups] = useState<MuscleGroup[]>(ALL_MUSCLE_GROUPS);
   const [groupIdx, setGroupIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>("select");
@@ -42,8 +44,8 @@ const PMRWidget = () => {
   const selectedCount = selected.filter(Boolean).length;
 
   const haptic = useCallback(() => {
-    if (navigator.vibrate) navigator.vibrate(15);
-  }, []);
+    if (hapticEnabled && navigator.vibrate) navigator.vibrate(15);
+  }, [hapticEnabled]);
 
   const toggleGroup = (idx: number) => {
     setSelected((prev) => {
@@ -211,6 +213,15 @@ const PMRWidget = () => {
             <span>Standard</span>
             <span>Deep</span>
           </div>
+        </div>
+
+        {/* Haptic toggle */}
+        <div className="w-full max-w-[280px] flex items-center justify-between mt-1">
+          <div className="flex items-center gap-1.5">
+            <Vibrate className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[11px] font-medium text-foreground">Haptic feedback</span>
+          </div>
+          <Switch checked={hapticEnabled} onCheckedChange={setHapticEnabled} />
         </div>
 
         <button
