@@ -654,6 +654,9 @@ const TodayPage = () => {
         <StaggerItem>
           <QuickCard emoji="💛" title="Self-Compassion" subtitle="Guided self-compassion exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try a self-compassion exercise with me" } })} />
         </StaggerItem>
+        <StaggerItem>
+          <QuickCard emoji="🔄" title="Thought Reframing" subtitle="Reframe a negative thought" onClick={() => navigate("/coach", { state: { autoSend: "Help me reframe a negative thought" } })} />
+        </StaggerItem>
         {groundTotal > 0 && (
           <StaggerItem>
             <div
