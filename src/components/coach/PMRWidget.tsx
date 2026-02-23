@@ -1,8 +1,33 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, RotateCcw, ChevronRight, Check, Zap, ZapOff, Vibrate } from "lucide-react";
+import { Play, Pause, RotateCcw, ChevronRight, Check, Zap, ZapOff, Vibrate, Volume2 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+
+// Web Audio API tone generator for phase transition cues
+const playTone = (freq: number, dur: number, vol = 0.12) => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + dur);
+    osc.onended = () => ctx.close();
+  } catch { /* audio not supported */ }
+};
+const playTenseCue = () => playTone(520, 0.25);
+const playReleaseCue = () => playTone(330, 0.5, 0.1);
+const playDoneCue = () => {
+  playTone(440, 0.15, 0.1);
+  setTimeout(() => playTone(554, 0.15, 0.1), 150);
+  setTimeout(() => playTone(659, 0.3, 0.1), 300);
+};
 
 interface MuscleGroup {
   name: string;
@@ -28,6 +53,7 @@ const PMRWidget = () => {
   const [selected, setSelected] = useState<boolean[]>(ALL_MUSCLE_GROUPS.map(() => true));
   const [difficulty, setDifficulty] = useState(1);
   const [hapticEnabled, setHapticEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [activeGroups, setActiveGroups] = useState<MuscleGroup[]>(ALL_MUSCLE_GROUPS);
   const [groupIdx, setGroupIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>("select");
@@ -47,6 +73,13 @@ const PMRWidget = () => {
   const haptic = useCallback(() => {
     if (hapticEnabled && navigator.vibrate) navigator.vibrate(15);
   }, [hapticEnabled]);
+
+  const audioCue = useCallback((type: "tense" | "release" | "done") => {
+    if (!soundEnabled) return;
+    if (type === "tense") playTenseCue();
+    else if (type === "release") playReleaseCue();
+    else playDoneCue();
+  }, [soundEnabled]);
 
   const toggleGroup = (idx: number) => {
     setSelected((prev) => {
@@ -87,6 +120,7 @@ const PMRWidget = () => {
         if (next <= 0) {
           haptic();
           if (phase === "tense") {
+            audioCue("release");
             setPhase("release");
             return currentGroup.relaxDuration;
           } else {
@@ -96,10 +130,12 @@ const PMRWidget = () => {
               return n;
             });
             if (groupIdx + 1 >= activeGroups.length) {
+              audioCue("done");
               setPhase("done");
               setRunning(false);
               return 0;
             }
+            audioCue("tense");
             setGroupIdx((i) => i + 1);
             setPhase("tense");
             return activeGroups[groupIdx + 1].tenseDuration;
@@ -112,10 +148,11 @@ const PMRWidget = () => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [running, phase, groupIdx, currentGroup, activeGroups, haptic]);
+  }, [running, phase, groupIdx, currentGroup, activeGroups, haptic, audioCue]);
 
   const start = () => {
     haptic();
+    audioCue("tense");
     setPhase("tense");
     setTimer(currentGroup.tenseDuration);
     setRunning(true);
@@ -223,6 +260,15 @@ const PMRWidget = () => {
             <span className="text-[11px] font-medium text-foreground">Haptic feedback</span>
           </div>
           <Switch checked={hapticEnabled} onCheckedChange={setHapticEnabled} />
+        </div>
+
+        {/* Sound toggle */}
+        <div className="w-full max-w-[280px] flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[11px] font-medium text-foreground">Audio cues</span>
+          </div>
+          <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
         </div>
 
         <button
