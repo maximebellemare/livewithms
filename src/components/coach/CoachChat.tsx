@@ -14,6 +14,7 @@ import GroundingWidget, { detectGroundingExercise } from "./GroundingWidget";
 import CognitiveReframingWidget, { detectCognitiveReframing } from "./CognitiveReframingWidget";
 import JournalPromptWidget, { detectJournalingExercise } from "./JournalPromptWidget";
 import PMRWidget, { detectPMR } from "./PMRWidget";
+import BodyScanWidget, { detectBodyScan } from "./BodyScanWidget";
 
 interface CoachChatProps {
   mode: CoachMode;
@@ -338,8 +339,9 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                   <PromptChip label="Guide me through box breathing" onTap={setInput} />
                   <PromptChip label="I need a grounding exercise" onTap={setInput} />
                   <PromptChip label="Help me reframe a negative thought" onTap={setInput} />
-                  <PromptChip label="Guide me through a journaling prompt" onTap={setInput} />
-                  <PromptChip label="Try progressive muscle relaxation" onTap={setInput} />
+                   <PromptChip label="Guide me through a journaling prompt" onTap={setInput} />
+                   <PromptChip label="Try progressive muscle relaxation" onTap={setInput} />
+                   <PromptChip label="Guide me through a body scan" onTap={setInput} />
                 </>
               )}
               {mode === "planning" && (
@@ -383,6 +385,7 @@ const CoachChat = ({ mode, resumeSessionId }: CoachChatProps) => {
                     </div>
                     {(() => {
                       if (detectPMR(msg.content)) return <PMRWidget />;
+                      if (detectBodyScan(msg.content)) return <BodyScanWidget />;
                       if (detectJournalingExercise(msg.content)) return <JournalPromptWidget />;
                       if (detectCognitiveReframing(msg.content)) return <CognitiveReframingWidget />;
                       if (detectGroundingExercise(msg.content)) return <GroundingWidget />;
