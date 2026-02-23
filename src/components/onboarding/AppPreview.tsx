@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Activity, BarChart3, Brain, BookOpen, MessageCircle, Shield } from "lucide-react";
 
@@ -167,12 +167,27 @@ const screens = [
 
 const AppPreview = () => {
   const [active, setActive] = useState(0);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const frameRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setActive((prev) => (prev + 1) % screens.length);
     }, 3200);
     return () => clearInterval(timer);
+  }, []);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = frameRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setTilt({ x: y * -12, y: x * 12 });
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setTilt({ x: 0, y: 0 });
   }, []);
 
   const screen = screens[active];
@@ -184,9 +199,18 @@ const AppPreview = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.5 }}
       className="mt-6 w-full max-w-[280px] mx-auto"
+      style={{ perspective: 600 }}
     >
       {/* Phone frame */}
-      <div className="relative rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm shadow-lg overflow-hidden">
+      <motion.div
+        ref={frameRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        animate={{ rotateX: tilt.x, rotateY: tilt.y }}
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        className="relative rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm shadow-lg overflow-hidden"
+        style={{ transformStyle: "preserve-3d" }}
+      >
         {/* Status bar */}
         <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/30">
           <div className="flex items-center gap-1">
@@ -239,7 +263,7 @@ const AppPreview = () => {
             );
           })}
         </div>
-      </div>
+      </motion.div>
 
       {/* Label + dots */}
       <div className="mt-3 flex items-center justify-center gap-1.5">
