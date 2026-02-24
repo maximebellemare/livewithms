@@ -524,12 +524,12 @@ const ProfilePage = () => {
           {/* Hints summary */}
           {(() => {
             const HINTS = [
-              { key: "lp_unpin_used", label: "Hold pill to unpin", page: "Today" },
-              { key: "hint_drag_reorder_used", label: "Drag to reorder pills", page: "Today" },
-              { key: "hint_coach_swipe_used", label: "Swipe to manage conversations", page: "Coach" },
-              { key: "hint_insights_stat_tap_used", label: "Tap stat card to isolate", page: "Insights" },
-              { key: "hint_meds_tap_used", label: "Tap med to log it", page: "Medications" },
-              { key: "hint_journal_swipe_used", label: "Swipe entry to edit/delete", page: "Journal" },
+              { key: "lp_unpin_used", label: "Hold pill to unpin", page: "Today", path: "/today" },
+              { key: "hint_drag_reorder_used", label: "Drag to reorder pills", page: "Today", path: "/today" },
+              { key: "hint_coach_swipe_used", label: "Swipe to manage conversations", page: "Coach", path: "/coach" },
+              { key: "hint_insights_stat_tap_used", label: "Tap stat card to isolate", page: "Insights", path: "/insights" },
+              { key: "hint_meds_tap_used", label: "Tap med to log it", page: "Medications", path: "/medications" },
+              { key: "hint_journal_swipe_used", label: "Swipe entry to edit/delete", page: "Journal", path: "/journal" },
             ];
             const active = HINTS.filter((h) => !localStorage.getItem(h.key));
             const dismissed = HINTS.filter((h) => localStorage.getItem(h.key));
@@ -539,13 +539,13 @@ const ProfilePage = () => {
                 {HINTS.map((h) => {
                   const isActive = !localStorage.getItem(h.key);
                   return (
-                    <div key={h.key} className="flex items-center justify-between text-xs">
-                      <span className="text-foreground">{h.label}</span>
+                    <Link key={h.key} to={h.path} className="flex items-center justify-between text-xs group">
+                      <span className="text-foreground group-hover:text-primary transition-colors">{h.label} <span className="text-[9px] text-muted-foreground/50">· {h.page}</span></span>
                       <span className={`flex items-center gap-1 text-[10px] font-medium ${isActive ? "text-brand-green" : "text-muted-foreground/50"}`}>
                         <span className={`inline-block h-1.5 w-1.5 rounded-full ${isActive ? "bg-brand-green" : "bg-muted-foreground/30"}`} />
                         {isActive ? "Active" : "Seen"}
                       </span>
-                    </div>
+                    </Link>
                   );
                 })}
                 <div className="flex items-center justify-between pt-1">
