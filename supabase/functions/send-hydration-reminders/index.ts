@@ -84,11 +84,14 @@ Deno.serve(async (req) => {
 
     const today = new Date().toISOString().slice(0, 10);
 
-    // Get all users with push enabled and their hydration goal
+    const currentUtcHour = new Date().getUTCHours();
+
+    // Get all users with push enabled whose hydration reminder hour matches now
     const { data: profiles, error: profErr } = await supabase
       .from("profiles")
-      .select("user_id, hydration_goal, notify_push_enabled")
-      .eq("notify_push_enabled", true);
+      .select("user_id, hydration_goal, notify_push_enabled, hydration_reminder_hour")
+      .eq("notify_push_enabled", true)
+      .eq("hydration_reminder_hour", currentUtcHour);
 
     if (profErr) throw profErr;
     if (!profiles || profiles.length === 0) {

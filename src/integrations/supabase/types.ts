@@ -1124,6 +1124,7 @@ export type Database = {
           goals: string[] | null
           grounding_weekly_goal: number
           hydration_goal: number
+          hydration_reminder_hour: number
           id: string
           is_premium: boolean
           last_digest_sent_at: string | null
@@ -1166,6 +1167,7 @@ export type Database = {
           goals?: string[] | null
           grounding_weekly_goal?: number
           hydration_goal?: number
+          hydration_reminder_hour?: number
           id?: string
           is_premium?: boolean
           last_digest_sent_at?: string | null
@@ -1208,6 +1210,7 @@ export type Database = {
           goals?: string[] | null
           grounding_weekly_goal?: number
           hydration_goal?: number
+          hydration_reminder_hour?: number
           id?: string
           is_premium?: boolean
           last_digest_sent_at?: string | null

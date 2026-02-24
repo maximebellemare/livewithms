@@ -4,7 +4,7 @@ import SEOHead from "@/components/SEOHead";
 import DigestPreviewCard from "@/components/DigestPreviewCard";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope, Monitor, RotateCcw, Snowflake, MessageSquare, Thermometer } from "lucide-react";
+import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope, Monitor, RotateCcw, Snowflake, MessageSquare, Thermometer, Droplets } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
@@ -1023,6 +1023,50 @@ const ProfilePage = () => {
                       {h}h
                     </button>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Hydration reminder time */}
+          {profile && (
+            <div className="flex items-center gap-3 rounded-xl px-3 py-3">
+              <Droplets className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">Hydration Reminder Time</p>
+                <p className="text-xs text-muted-foreground mb-1.5">When to nudge you if water intake is low</p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[
+                    { label: "12 PM", h: 12 },
+                    { label: "1 PM", h: 13 },
+                    { label: "2 PM", h: 14 },
+                    { label: "3 PM", h: 15 },
+                    { label: "4 PM", h: 16 },
+                    { label: "5 PM", h: 17 },
+                    { label: "6 PM", h: 18 },
+                  ].map(({ label, h }) => {
+                    // Convert local hour to UTC for storage
+                    const d = new Date();
+                    d.setHours(h, 0, 0, 0);
+                    const utcH = d.getUTCHours();
+                    return (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={() => {
+                          updateProfile.mutate({ hydration_reminder_hour: utcH } as any);
+                          toast.success(`Hydration reminder set for ${label}`);
+                        }}
+                        className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors border ${
+                          (profile as any).hydration_reminder_hour === utcH
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-transparent text-muted-foreground border-border hover:border-primary/50"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
