@@ -523,7 +523,7 @@ const ProfilePage = () => {
           </button>
           <button
             onClick={() => {
-              ["lp_unpin_used", "hint_drag_reorder_used", "hint_coach_swipe_used", "hint_insights_stat_tap_used", "hint_meds_tap_used"].forEach((k) => localStorage.removeItem(k));
+              ["lp_unpin_used", "hint_drag_reorder_used", "hint_coach_swipe_used", "hint_insights_stat_tap_used", "hint_meds_tap_used", "hint_journal_swipe_used"].forEach((k) => localStorage.removeItem(k));
               toast.success("Interaction hints reset! They'll reappear as you use the app 💡");
             }}
             className="mt-2 flex w-full items-center justify-between rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground transition-colors hover:bg-muted"

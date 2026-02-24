@@ -306,9 +306,16 @@ const JournalPage = () => {
             </p>
             <div className="space-y-2">
               {pastEntries.map((entry) => (
-                <PastEntry key={entry.id} entry={entry} />
+                <div key={entry.id} onClick={() => localStorage.setItem("hint_journal_swipe_used", "1")}>
+                  <PastEntry entry={entry} />
+                </div>
               ))}
             </div>
+            {!localStorage.getItem("hint_journal_swipe_used") && (
+              <p className="text-[10px] text-muted-foreground/50 text-center mt-2 animate-fade-in">
+                Swipe an entry to edit or delete it
+              </p>
+            )}
           </section>
           </StaggerItem>
         )}
