@@ -5,7 +5,8 @@ import SEOHead from "@/components/SEOHead";
 import DigestPreviewCard from "@/components/DigestPreviewCard";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope, Monitor, RotateCcw, Snowflake, MessageSquare, Thermometer, Droplets } from "lucide-react";
+import { ChevronRight, ChevronDown, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope, Monitor, RotateCcw, Snowflake, MessageSquare, Thermometer, Droplets } from "lucide-react";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
@@ -543,23 +544,36 @@ const ProfilePage = () => {
                     (groups[h.page] ??= []).push(h);
                     return groups;
                   }, {})
-                ).map(([page, hints]) => (
-                  <div key={page} className="space-y-1">
-                    <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50 pt-1">{page}</p>
-                    {hints.map((h) => {
-                      const isActive = !localStorage.getItem(h.key);
-                      return (
-                        <Link key={h.key} to={h.path} className="flex items-center justify-between text-xs group pl-2">
-                          <span className="text-foreground group-hover:text-primary transition-colors">{h.label}</span>
-                          <span key={hintsResetKey} className={`flex items-center gap-1 text-[10px] font-medium ${isActive ? "text-brand-green" : "text-muted-foreground/50"} ${hintsResetKey > 0 && isActive ? "animate-scale-in" : ""}`}>
-                            <span className={`inline-block h-1.5 w-1.5 rounded-full transition-colors duration-500 ${isActive ? "bg-brand-green" : "bg-muted-foreground/30"}`} />
-                            {isActive ? "Active" : "Seen"}
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                ))}
+                ).map(([page, hints]) => {
+                  const seenCount = hints.filter((h) => localStorage.getItem(h.key)).length;
+                  return (
+                    <Collapsible key={page} defaultOpen>
+                      <CollapsibleTrigger className="flex w-full items-center justify-between pt-1 group/trigger">
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50 group-hover/trigger:text-muted-foreground transition-colors">
+                          {page}
+                          {seenCount > 0 && <span className="ml-1 text-muted-foreground/30">({seenCount}/{hints.length})</span>}
+                        </span>
+                        <ChevronDown className="h-3 w-3 text-muted-foreground/30 transition-transform duration-200 group-data-[state=closed]/trigger:rotate-[-90deg]" />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="overflow-hidden transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                        <div className="space-y-1 pt-1">
+                          {hints.map((h) => {
+                            const isActive = !localStorage.getItem(h.key);
+                            return (
+                              <Link key={h.key} to={h.path} className="flex items-center justify-between text-xs group pl-2">
+                                <span className="text-foreground group-hover:text-primary transition-colors">{h.label}</span>
+                                <span key={hintsResetKey} className={`flex items-center gap-1 text-[10px] font-medium ${isActive ? "text-brand-green" : "text-muted-foreground/50"} ${hintsResetKey > 0 && isActive ? "animate-scale-in" : ""}`}>
+                                  <span className={`inline-block h-1.5 w-1.5 rounded-full transition-colors duration-500 ${isActive ? "bg-brand-green" : "bg-muted-foreground/30"}`} />
+                                  {isActive ? "Active" : "Seen"}
+                                </span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  );
+                })}
                 <div className="flex items-center justify-between pt-1">
                   <p className="text-[10px] text-muted-foreground">
                     {active.length === HINTS.length ? "All hints active — explore the app!" : `${dismissed.length}/${HINTS.length} hints seen`}
