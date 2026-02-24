@@ -870,16 +870,18 @@ const TodayPage = () => {
               <RelapseRiskIndicator />
               <RelapseFreeStreakCompact />
               <Collapsible>
-                <CollapsibleTrigger className="flex w-full items-center justify-between card-base text-left group">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-lg">✨</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground">Exercises</p>
-                      <p className="text-xs text-muted-foreground">Breathing, grounding & relaxation</p>
+                <CollapsibleTrigger asChild>
+                  <button className="flex w-full items-center justify-between card-base text-left group" type="button">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-lg">✨</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground">Exercises</p>
+                        <p className="text-xs text-muted-foreground">Breathing, grounding & relaxation</p>
+                      </div>
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold text-primary">10</span>
                     </div>
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold text-primary">10</span>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180 flex-shrink-0 ml-2" />
+                  </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-2 mt-2">
                   <QuickCard emoji="🧘" title="Regulation Center" subtitle="Breathing, grounding & vagal tone" onClick={() => navigate("/nervous-system")} />
