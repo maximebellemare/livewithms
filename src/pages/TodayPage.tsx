@@ -406,6 +406,11 @@ const TodayPage = () => {
                     ))}
                 </div>
               </div>
+              {pinnedMetrics.length === 0 && (
+                <p className="text-[10px] text-muted-foreground/40 text-center pt-1 animate-pulse">
+                  Long-press any card to pin it to the front
+                </p>
+              )}
               <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />
             </div>
           </StaggerItem>
