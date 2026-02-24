@@ -659,6 +659,7 @@ const ProfilePage = () => {
                     <button
                       onClick={() => {
                         HINTS.forEach((h) => localStorage.removeItem(h.key));
+                        sessionStorage.removeItem("hint_prev_count");
                         setHintsResetKey((k) => k + 1);
                         toast.success("Interaction hints reset! They'll reappear as you use the app 💡");
                         confetti({ particleCount: 60, spread: 55, origin: { y: 0.7 }, colors: ["#22c55e", "#f59e0b", "#3b82f6"] });
@@ -676,6 +677,7 @@ const ProfilePage = () => {
           <button
             onClick={() => {
               ["lp_unpin_used", "hint_drag_reorder_used", "hint_coach_swipe_used", "hint_insights_stat_tap_used", "hint_meds_tap_used", "hint_journal_swipe_used"].forEach((k) => localStorage.removeItem(k));
+              sessionStorage.removeItem("hint_prev_count");
               setHintsResetKey((k) => k + 1);
               toast.success("Interaction hints reset! They'll reappear as you use the app 💡");
               confetti({ particleCount: 60, spread: 55, origin: { y: 0.7 }, colors: ["#22c55e", "#f59e0b", "#3b82f6"] });
