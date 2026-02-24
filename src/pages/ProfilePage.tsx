@@ -552,6 +552,13 @@ const ProfilePage = () => {
             };
             const pct = Math.round((dismissed.length / HINTS.length) * 100);
             const barColor = pct >= 80 ? "bg-brand-green" : pct >= 40 ? "bg-amber-500" : "bg-destructive";
+            const confettiKey = `hint_completion_confetti_${HINTS.length}`;
+            useEffect(() => {
+              if (pct === 100 && !sessionStorage.getItem(confettiKey)) {
+                sessionStorage.setItem(confettiKey, "1");
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ["#22c55e", "#f59e0b", "#3b82f6", "#a855f7"] });
+              }
+            }, [pct, confettiKey]);
             return (
               <div className="mt-3 rounded-xl bg-card border border-border p-3 space-y-2">
                 <div className="space-y-1.5">
