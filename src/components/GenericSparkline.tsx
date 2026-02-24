@@ -65,10 +65,11 @@ export default function GenericSparkline({
   if (!hasAnyData && isCard) {
     const Tag = interactive ? "button" : "div";
     return (
-      <Tag
-        {...(interactive ? pressHandlers : {})}
-        className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full border border-dashed border-border/60 overflow-hidden transition-all duration-200${interactive ? " cursor-pointer hover:bg-secondary/70 hover:border-primary/40 hover:shadow-card hover:-translate-y-0.5 active:scale-95" : ""}${saved ? " ring-2 ring-[hsl(145_45%_45%)] shadow-[0_0_12px_2px_hsl(145_45%_45%/0.35)]" : ""}`}
-      >
+    <Tag
+      {...(interactive ? pressHandlers : {})}
+      aria-label={`${label} – No data yet`}
+      className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full border border-dashed border-border/60 overflow-hidden transition-all duration-200${interactive ? " cursor-pointer hover:bg-secondary/70 hover:border-primary/40 hover:shadow-card hover:-translate-y-0.5 active:scale-95" : ""}${saved ? " ring-2 ring-[hsl(145_45%_45%)] shadow-[0_0_12px_2px_hsl(145_45%_45%/0.35)]" : ""}`}
+    >
         <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
           {emoji} {label}
         </p>
@@ -111,10 +112,11 @@ export default function GenericSparkline({
   if (isCard) {
     const Tag = interactive ? "button" : "div";
     return (
-      <Tag
-        {...(interactive ? pressHandlers : {})}
-        className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full overflow-hidden transition-all duration-200${interactive ? " cursor-pointer hover:bg-secondary/70 hover:shadow-card hover:-translate-y-0.5 active:scale-95" : ""}${saved ? " ring-2 ring-[hsl(145_50%_48%)] shadow-[0_0_16px_4px_hsl(145_50%_48%/0.4)]" : ""}`}
-      >
+    <Tag
+      {...(interactive ? pressHandlers : {})}
+      aria-label={`${label} – average ${avg !== null ? avg.toFixed(1) : "unknown"}${unit}, trend ${trend}`}
+      className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full overflow-hidden transition-all duration-200${interactive ? " cursor-pointer hover:bg-secondary/70 hover:shadow-card hover:-translate-y-0.5 active:scale-95" : ""}${saved ? " ring-2 ring-[hsl(145_50%_48%)] shadow-[0_0_16px_4px_hsl(145_50%_48%/0.4)]" : ""}`}
+    >
         <div className="flex items-center justify-between">
           <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
             {emoji} {label}
@@ -147,6 +149,7 @@ export default function GenericSparkline({
       onClick={() => navigate("/insights", { state: { heatmapMetric } })}
       role="button"
       tabIndex={0}
+      aria-label={`${label} 7-day average ${avg !== null ? avg.toFixed(1) : "unknown"}${unit}, trend ${trend} – view details`}
     >
       <div className="flex-shrink-0">
         <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-0.5">
