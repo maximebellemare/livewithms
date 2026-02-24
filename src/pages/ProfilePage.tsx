@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import confetti from "canvas-confetti";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import SEOHead from "@/components/SEOHead";
@@ -574,12 +575,21 @@ const ProfilePage = () => {
                       <span className="text-[10px] font-medium tabular-nums text-muted-foreground">{pct}%</span>
                     </div>
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden cursor-help">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        {dismissed.length} / {HINTS.length} hints seen
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   {pct < 100 && (
                     <div className="flex items-center gap-3 pt-0.5">
                       <span className="flex items-center gap-1 text-[9px] text-muted-foreground/50"><span className="inline-block h-1.5 w-1.5 rounded-full bg-destructive" />0–39%</span>
