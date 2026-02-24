@@ -2,6 +2,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { motion } from "framer-motion";
 import { useLongPress } from "./sparkline/useLongPress";
+import { toast } from "sonner";
 
 interface PillProps {
   id: string;
@@ -18,7 +19,11 @@ interface SortablePinnedPillProps extends PillProps {
 }
 
 function PillContent({ id, emoji, avg, colorFn, unit, onScrollTo, onUnpin }: PillProps) {
-  const lp = useLongPress(() => onScrollTo(id), () => onUnpin(id), 500);
+  const lp = useLongPress(
+    () => onScrollTo(id),
+    () => { onUnpin(id); toast(`${emoji} ${id.charAt(0).toUpperCase() + id.slice(1)} unpinned`, { duration: 2000 }); },
+    500,
+  );
   return (
     <button
       className={`flex items-center gap-1.5 active:scale-95 transition-all ${lp.isPressing ? "opacity-60 scale-95" : ""}`}
