@@ -465,10 +465,10 @@ const TodayPage = () => {
                   </AlertDialog>
                 </div>
                 {!localStorage.getItem("lp_unpin_used") && (
-                  <p className="text-[10px] text-muted-foreground/50 text-center mt-0.5">Hold pill to unpin</p>
+                  <p className="text-[10px] text-muted-foreground/50 text-center mt-0.5 animate-fade-in">Hold pill to unpin</p>
                 )}
                 {pinnedMetrics.length >= 2 && !localStorage.getItem("hint_drag_reorder_used") && (
-                  <p className="text-[10px] text-muted-foreground/50 text-center mt-0.5">Drag ⠿ to reorder pills</p>
+                  <p className="text-[10px] text-muted-foreground/50 text-center mt-0.5 animate-fade-in">Drag ⠿ to reorder pills</p>
                 )}
               </StaggerItem>
             </motion.div>
