@@ -382,7 +382,7 @@ const EnergyBudgetPage = () => {
           )}
 
           <div className="space-y-1.5">
-            {activities.map((activity) => (
+            {[...activities].sort((a, b) => Number(a.completed) - Number(b.completed)).map((activity) => (
               <motion.div
                 key={activity.id}
                 layout
