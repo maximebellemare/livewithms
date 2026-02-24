@@ -16,6 +16,9 @@ import { useWeekStreak } from "@/hooks/useWeekStreak";
 import MondayRecapCard from "@/components/MondayRecapCard";
 import StreakMilestoneBanner from "@/components/StreakMilestoneBanner";
 import SymptomSparkline from "@/components/SymptomSparkline";
+import MobilitySparkline from "@/components/MobilitySparkline";
+import SpasticitySparkline from "@/components/SpasticitySparkline";
+import StressSparkline from "@/components/StressSparkline";
 import InlineQuickLog from "@/components/InlineQuickLog";
 
 import { Link } from "react-router-dom";
@@ -439,15 +442,15 @@ const TodayPage = () => {
             saved={savedMetric === "brain_fog"}
             onClick={() => setOpenPanel((p) => p === "brain_fog" ? null : "brain_fog")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "brain_fog" } })} />
-          <SymptomSparkline entries={weekEntries} metric="mobility" label="Mobility" emoji="🚶" higherIsBetter
+          <MobilitySparkline entries={weekEntries} variant="card"
             saved={savedMetric === "mobility"}
             onClick={() => setOpenPanel((p) => p === "mobility" ? null : "mobility")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "mobility" } })} />
-          <SymptomSparkline entries={weekEntries} metric="spasticity" label="Spasticity" emoji="🦵"
+          <SpasticitySparkline entries={weekEntries} variant="card"
             saved={savedMetric === "spasticity"}
             onClick={() => setOpenPanel((p) => p === "spasticity" ? null : "spasticity")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "spasticity" } })} />
-          <SymptomSparkline entries={weekEntries} metric="stress" label="Stress" emoji="😰"
+          <StressSparkline entries={weekEntries} variant="card"
             saved={savedMetric === "stress"}
             onClick={() => setOpenPanel((p) => p === "stress" ? null : "stress")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "stress" } })} />
