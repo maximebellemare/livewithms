@@ -25,6 +25,7 @@ const METRICS = [
   { key: "spasticity", label: "Spasticity" },
   { key: "stress", label: "Stress" },
   { key: "sleep_hours", label: "Sleep" },
+  { key: "water_glasses", label: "Hydration" },
 ] as const;
 
 type MetricKey = typeof METRICS[number]["key"];
@@ -82,6 +83,9 @@ const AISymptomCorrelations = ({ entries, range }: AISymptomCorrelationsProps) =
       ["stress", "pain"],
       ["stress", "sleep_hours"],
       ["mood", "fatigue"],
+      ["water_glasses", "fatigue"],
+      ["water_glasses", "brain_fog"],
+      ["water_glasses", "mood"],
     ];
 
     for (const [aKey, bKey] of interestingLags) {

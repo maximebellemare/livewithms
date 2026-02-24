@@ -14,6 +14,7 @@ interface EntryData {
   mood: number | null;
   mobility: number | null;
   sleep_hours: number | null;
+  water_glasses: number | null;
 }
 
 interface RequestBody {
@@ -51,6 +52,7 @@ serve(async (req) => {
     const avgMood     = avg(entries.map((e) => e.mood));
     const avgMobility = avg(entries.map((e) => e.mobility));
     const avgSleep    = avg(entries.map((e) => e.sleep_hours));
+    const avgHydration = avg(entries.map((e) => e.water_glasses));
 
     const fmt = (v: number | null, unit = "/10") =>
       v !== null ? `${v.toFixed(1)}${unit}` : "not recorded";
@@ -63,6 +65,7 @@ Period: last ${range} days (${entries.length} entries logged)
 - Average mood:      ${fmt(avgMood)}
 - Average mobility:  ${fmt(avgMobility)}
 - Average sleep:     ${fmt(avgSleep, " hours")}
+- Average hydration: ${fmt(avgHydration, " glasses")}
     `.trim();
 
     const systemPrompt = `You are a compassionate health coach helping someone who lives with Multiple Sclerosis (MS). 
