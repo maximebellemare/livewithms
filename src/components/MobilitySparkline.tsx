@@ -8,6 +8,7 @@ function mobilityColor(value: number): string {
 
 const config: SparklineConfig = {
   label: "Mobility",
+  emoji: "🚶",
   dataKey: "mobility",
   unit: "/10",
   heatmapMetric: "mobility",
@@ -20,8 +21,12 @@ const config: SparklineConfig = {
 interface Props {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   entries: readonly { date: string; [key: string]: any }[];
+  variant?: "row" | "card";
+  onClick?: () => void;
+  onLongPress?: () => void;
+  saved?: boolean;
 }
 
-export default function MobilitySparkline({ entries }: Props) {
-  return <GenericSparkline entries={entries} config={config} />;
+export default function MobilitySparkline({ entries, variant, onClick, onLongPress, saved }: Props) {
+  return <GenericSparkline entries={entries} config={config} variant={variant} onClick={onClick} onLongPress={onLongPress} saved={saved} />;
 }
