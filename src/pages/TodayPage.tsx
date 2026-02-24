@@ -346,12 +346,15 @@ const TodayPage = () => {
         {/* Weekly mood trend mini-chart */}
         {weekEntries.length > 0 && (
           <StaggerItem>
-            <div ref={sparklineScrollRef} className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-hide sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible sm:pb-0">
-              <div className="min-w-[75vw] snap-start sm:min-w-0"><MoodSparkline entries={weekEntries} /></div>
-              <div className="min-w-[75vw] snap-start sm:min-w-0"><SleepSparkline entries={weekEntries} goal={profile?.sleep_goal ?? 8} /></div>
-              <div className="min-w-[75vw] snap-start sm:min-w-0"><FatigueSparkline entries={weekEntries} /></div>
-              <div className="min-w-[75vw] snap-start sm:min-w-0"><PainSparkline entries={weekEntries} /></div>
-              <div className="min-w-[75vw] snap-start sm:min-w-0"><BrainFogSparkline entries={weekEntries} /></div>
+            <div className="relative sm:contents">
+              <div ref={sparklineScrollRef} className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-hide sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible sm:pb-0">
+                <div className="min-w-[75vw] snap-start sm:min-w-0"><MoodSparkline entries={weekEntries} /></div>
+                <div className="min-w-[75vw] snap-start sm:min-w-0"><SleepSparkline entries={weekEntries} goal={profile?.sleep_goal ?? 8} /></div>
+                <div className="min-w-[75vw] snap-start sm:min-w-0"><FatigueSparkline entries={weekEntries} /></div>
+                <div className="min-w-[75vw] snap-start sm:min-w-0"><PainSparkline entries={weekEntries} /></div>
+                <div className="min-w-[75vw] snap-start sm:min-w-0"><BrainFogSparkline entries={weekEntries} /></div>
+              </div>
+              <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />
             </div>
             <ScrollDots containerRef={sparklineScrollRef} count={5} />
           </StaggerItem>
