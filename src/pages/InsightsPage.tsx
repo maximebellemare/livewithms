@@ -43,7 +43,7 @@ import { InsightsSkeleton } from "@/components/PageSkeleton";
 import { useNavigate, useLocation } from "react-router-dom";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { SPARKLINE_CONFIGS, makeSleepConfig } from "@/components/sparkline/configs";
+import { SPARKLINE_CONFIGS, makeSleepConfig, makeHydrationConfig } from "@/components/sparkline/configs";
 
 const MOOD_TAG_META: Record<string, string> = {
   Happy: "😊", Calm: "😌", Frustrated: "😤", Sad: "😔",
@@ -59,7 +59,8 @@ const MOOD_TAG_SENTIMENT: Record<string, "positive" | "negative" | "neutral"> = 
 
 /* ── colour palette (derived from sparkline configs) ──────── */
 const _sleepCfg = makeSleepConfig();
-const ALL_CONFIGS = { ...SPARKLINE_CONFIGS, sleep_hours: _sleepCfg } as const;
+const _hydrationCfg = makeHydrationConfig();
+const ALL_CONFIGS = { ...SPARKLINE_CONFIGS, sleep_hours: _sleepCfg, water_glasses: _hydrationCfg } as const;
 
 const COLORS = Object.fromEntries(
   Object.entries(ALL_CONFIGS).map(([key, cfg]) => [
@@ -110,10 +111,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       <p className="mb-1 font-semibold text-foreground">{label}</p>
       {payload.map((p: any) => {
         const isSleep = p.dataKey === "sleep_hours";
-        // Find raw sleep value from the data point
+        const isHydration = p.dataKey === "water_glasses";
+        // Find raw value from the data point for normalized metrics
         const rawSleep = isSleep && p.payload ? p.payload.sleep_hours_raw : null;
+        const rawWater = isHydration && p.payload ? p.payload.water_glasses_raw : null;
         const displayVal = isSleep
           ? (rawSleep !== null ? `${rawSleep.toFixed(1)} hrs` : "—")
+          : isHydration
+          ? (rawWater !== null ? `${rawWater} glasses` : "—")
           : (p.value != null ? p.value.toFixed(1) : "—");
         return (
           <p key={p.dataKey} style={{ color: p.stroke }} className="flex items-center gap-1">
@@ -164,6 +169,8 @@ const InsightsPage = () => {
       const entry = byDate[key];
       // Normalize sleep_hours (0–12) to 0–10 scale for the combined chart
       const rawSleep = entry?.sleep_hours ?? null;
+      // Normalize water_glasses (0–16) to 0–10 scale for the combined chart
+      const rawWater = entry?.water_glasses ?? null;
       return {
         date: format(d, range === 7 ? "EEE" : "MMM d"),
         fullDate: key,
@@ -176,6 +183,8 @@ const InsightsPage = () => {
         stress:      entry?.stress    ?? null,
         sleep_hours: rawSleep !== null ? parseFloat(((rawSleep / 12) * 10).toFixed(2)) : null,
         sleep_hours_raw: rawSleep,
+        water_glasses: rawWater !== null ? parseFloat(((rawWater / 16) * 10).toFixed(2)) : null,
+        water_glasses_raw: rawWater,
       };
     });
   }, [allEntries, range]);
@@ -689,7 +698,7 @@ const InsightsPage = () => {
                         name={label}
                         stroke={COLORS[key].stroke}
                         strokeWidth={activeSymptom === "all" ? 2 : 2.5}
-                        strokeDasharray={key === "sleep_hours" ? "5 3" : undefined}
+                        strokeDasharray={key === "sleep_hours" || key === "water_glasses" ? "5 3" : undefined}
                         dot={false}
                         connectNulls={false}
                         activeDot={{ r: 4, strokeWidth: 0 }}
