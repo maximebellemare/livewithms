@@ -615,14 +615,29 @@ const ProfilePage = () => {
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className={`h-1.5 w-full rounded-full bg-secondary overflow-hidden cursor-help transition-shadow duration-500 ${barGlow ? "shadow-[0_0_8px_2px_hsl(var(--primary)/0.4)]" : ""}`}>
+                        <motion.div
+                          className="h-1.5 w-full rounded-full bg-secondary overflow-hidden cursor-help"
+                          animate={barGlow ? {
+                            boxShadow: [
+                              "0 0 8px 2px hsl(var(--primary) / 0.4)",
+                              "0 0 14px 4px hsl(var(--primary) / 0.6)",
+                              "0 0 8px 2px hsl(var(--primary) / 0.4)",
+                              "0 0 14px 4px hsl(var(--primary) / 0.6)",
+                              "0 0 8px 2px hsl(var(--primary) / 0.4)",
+                              "0 0 14px 4px hsl(var(--primary) / 0.6)",
+                              "0 0 8px 2px hsl(var(--primary) / 0.4)",
+                              "0 0 0px 0px hsl(var(--primary) / 0)",
+                            ],
+                          } : { boxShadow: "0 0 0px 0px hsl(var(--primary) / 0)" }}
+                          transition={{ boxShadow: { times: [0, 0.18, 0.36, 0.5, 0.64, 0.78, 0.9, 1], duration: 2.2, delay: 0.2 } }}
+                        >
                           <motion.div
                             className={`h-full rounded-full ${barColor}`}
                             initial={{ width: 0 }}
                             animate={{ width: `${pct}%` }}
                             transition={{ type: "spring", stiffness: 120, damping: 20, mass: 0.8 }}
                           />
-                        </div>
+                        </motion.div>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="text-xs">
                         {dismissed.length} / {HINTS.length} hints seen
