@@ -40,6 +40,7 @@ import { useRecordBadgeEvent } from "@/hooks/useBadgeEvents";
 import GoalTrackingDashboard from "@/components/GoalTrackingDashboard";
 import SuggestedNextCards from "@/components/SuggestedNextCards";
 import HeatAlertCard from "@/components/HeatAlertCard";
+import MoodSparkline from "@/components/MoodSparkline";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
@@ -336,6 +337,13 @@ const TodayPage = () => {
         }
       />
       <StaggerContainer className="mx-auto max-w-lg space-y-3 px-4 py-3">
+        {/* Weekly mood trend mini-chart */}
+        {weekEntries.length > 0 && (
+          <StaggerItem>
+            <MoodSparkline entries={weekEntries} />
+          </StaggerItem>
+        )}
+
         {todayLoading ? (
           <div className="space-y-3 animate-fade-in">
             <Skeleton className="h-14 w-full rounded-xl" />
