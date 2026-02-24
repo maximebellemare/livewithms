@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, subDays } from "date-fns";
 import { ChevronRight } from "lucide-react";
@@ -59,8 +59,12 @@ export default function GenericSparkline({
 
   const hasAnyData = points.some((p) => p.value !== null);
   const isCard = variant === "card";
-  const interactive = !!(onClick || onLongPress);
-  const { isPressing, ...pressHandlers } = useLongPress(onClick, onLongPress);
+  const defaultRowClick = useCallback(() => {
+    navigate("/insights", { state: { heatmapMetric } });
+  }, [navigate, heatmapMetric]);
+  const effectiveClick = isCard ? onClick : (onClick ?? defaultRowClick);
+  const interactive = !!(effectiveClick || onLongPress);
+  const { isPressing, ...pressHandlers } = useLongPress(effectiveClick, onLongPress);
 
   // Card variant: empty state
   if (!hasAnyData && isCard) {
@@ -151,10 +155,7 @@ export default function GenericSparkline({
     <div
       className={`relative rounded-xl bg-card shadow-soft px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors hover:bg-accent/50 active:scale-[0.98] overflow-hidden${saved ? " ring-2 ring-[hsl(145_50%_48%)] shadow-[0_0_16px_4px_hsl(145_50%_48%/0.4)]" : ""}`}
       {...rowPressHandlers}
-      onClick={(e) => {
-        if (isPressing) return;
-        navigate("/insights", { state: { heatmapMetric } });
-      }}
+      onClick={!rowHasLongPress ? defaultRowClick : undefined}
       role="button"
       tabIndex={0}
       aria-label={`${label} 7-day average ${avg !== null ? avg.toFixed(1) : "unknown"}${unit}, trend ${trend} – view details${saved ? " (pinned)" : ""}`}
