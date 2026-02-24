@@ -16,7 +16,7 @@ import { useWeekStreak } from "@/hooks/useWeekStreak";
 import MondayRecapCard from "@/components/MondayRecapCard";
 import StreakMilestoneBanner from "@/components/StreakMilestoneBanner";
 import GenericSparkline from "@/components/GenericSparkline";
-import { SPARKLINE_CONFIGS, makeSleepConfig } from "@/components/sparkline/configs";
+import { SPARKLINE_CONFIGS, makeSleepConfig, makeHydrationConfig } from "@/components/sparkline/configs";
 import InlineQuickLog from "@/components/InlineQuickLog";
 
 import { Link } from "react-router-dom";
@@ -349,10 +349,11 @@ const TodayPage = () => {
                 <div className="min-w-[75vw] snap-start sm:min-w-0"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.fatigue} /></div>
                 <div className="min-w-[75vw] snap-start sm:min-w-0"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.pain} /></div>
                 <div className="min-w-[75vw] snap-start sm:min-w-0"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.brain_fog} /></div>
+                <div className="min-w-[75vw] snap-start sm:min-w-0"><GenericSparkline entries={weekEntries} config={makeHydrationConfig(profile?.hydration_goal ?? 8)} /></div>
               </div>
               <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />
             </div>
-            <ScrollDots containerRef={sparklineScrollRef} count={5} />
+            <ScrollDots containerRef={sparklineScrollRef} count={6} />
           </StaggerItem>
         )}
 
@@ -446,6 +447,9 @@ const TodayPage = () => {
             saved={savedMetric === "stress"}
             onClick={() => setOpenPanel((p) => p === "stress" ? null : "stress")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "stress" } })} />
+          <GenericSparkline entries={weekEntries} config={makeHydrationConfig(profile?.hydration_goal ?? 8)} variant="card"
+            onClick={() => navigate("/lifestyle")}
+            onLongPress={() => navigate("/lifestyle")} />
         </div>
         </StaggerItem>
 
