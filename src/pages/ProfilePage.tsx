@@ -589,7 +589,19 @@ const ProfilePage = () => {
                       >
                         {allOpen ? "Collapse all" : "Expand all"}
                       </button>
-                      <span className="text-[10px] font-medium tabular-nums text-muted-foreground">{pct}%{barGlow && " ✨"}</span>
+                      <span className="text-[10px] font-medium tabular-nums text-muted-foreground">
+                        {pct}%
+                        {barGlow && (
+                          <motion.span
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: [0, 1.5, 0.9, 1.2, 1], opacity: 1 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 15, delay: 0.2 }}
+                            className="inline-block ml-0.5"
+                          >
+                            ✨
+                          </motion.span>
+                        )}
+                      </span>
                     </div>
                   </div>
                   <TooltipProvider delayDuration={200}>
