@@ -61,10 +61,11 @@ interface CorrelationResult {
   pairCount: number;
 }
 
-const METRIC_KEYS = ["fatigue", "pain", "brain_fog", "mood", "mobility", "spasticity", "stress", "sleep_hours"] as const;
+const METRIC_KEYS = ["fatigue", "pain", "brain_fog", "mood", "mobility", "spasticity", "stress", "sleep_hours", "water_glasses"] as const;
 const METRIC_LABELS: Record<string, string> = {
   fatigue: "Fatigue", pain: "Pain", brain_fog: "Brain Fog", mood: "Mood",
   mobility: "Mobility", spasticity: "Spasticity", stress: "Stress", sleep_hours: "Sleep",
+  water_glasses: "Hydration",
 };
 
 const NEXT_DAY_PAIRS: [string, string][] = [
@@ -482,7 +483,7 @@ serve(async (req) => {
       } catch { /* no body */ }
     }
 
-    let profiles: { user_id: string; weekly_log_goal: number }[];
+    let profiles: { user_id: string; weekly_log_goal: number; hydration_goal: number }[];
 
     if (testEmail) {
       // Find the user by email via admin API
@@ -495,18 +496,18 @@ serve(async (req) => {
           { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      // Fetch their profile to get weekly_log_goal
+      // Fetch their profile to get weekly_log_goal and hydration_goal
       const { data: profData } = await supabase
         .from("profiles")
-        .select("user_id, weekly_log_goal")
+        .select("user_id, weekly_log_goal, hydration_goal")
         .eq("user_id", match.id)
         .single();
-      profiles = [{ user_id: match.id, weekly_log_goal: profData?.weekly_log_goal ?? 7 }];
+      profiles = [{ user_id: match.id, weekly_log_goal: profData?.weekly_log_goal ?? 7, hydration_goal: profData?.hydration_goal ?? 8 }];
     } else {
       // Fetch all opted-in profiles
       const { data, error: profErr } = await supabase
         .from("profiles")
-        .select("user_id, weekly_log_goal")
+        .select("user_id, weekly_log_goal, hydration_goal")
         .eq("weekly_digest_enabled", true);
 
       if (profErr) throw profErr;
@@ -516,7 +517,7 @@ serve(async (req) => {
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      profiles = data.map((p) => ({ user_id: p.user_id, weekly_log_goal: p.weekly_log_goal ?? 7 }));
+      profiles = data.map((p) => ({ user_id: p.user_id, weekly_log_goal: p.weekly_log_goal ?? 7, hydration_goal: p.hydration_goal ?? 8 }));
     }
 
     const now = new Date();
@@ -542,7 +543,7 @@ serve(async (req) => {
         // Fetch last 7 days of entries (include all metrics for correlations)
         const { data: entries, error: entErr } = await supabase
           .from("daily_entries")
-          .select("date, fatigue, pain, brain_fog, mood, mobility, sleep_hours, spasticity, stress")
+          .select("date, fatigue, pain, brain_fog, mood, mobility, sleep_hours, spasticity, stress, water_glasses")
           .eq("user_id", profile.user_id)
           .gte("date", weekStart)
           .lte("date", weekEnd);
@@ -559,6 +560,7 @@ serve(async (req) => {
         const avgMood = avg(entries.map((e) => e.mood));
         const avgMobility = avg(entries.map((e) => e.mobility));
         const avgSleep = avg(entries.map((e) => e.sleep_hours));
+        const avgHydration = avg(entries.map((e) => e.water_glasses));
 
         const goalAchieved = entries.length >= profile.weekly_log_goal;
 
@@ -584,7 +586,7 @@ serve(async (req) => {
         const fortyTwoDaysAgo = new Date(now.getTime() - 42 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         const { data: allEntries } = await supabase
           .from("daily_entries")
-          .select("date, fatigue, pain, brain_fog, mood, mobility, sleep_hours, spasticity, stress")
+          .select("date, fatigue, pain, brain_fog, mood, mobility, sleep_hours, spasticity, stress, water_glasses")
           .eq("user_id", profile.user_id)
           .gte("date", fortyTwoDaysAgo)
           .lte("date", weekEnd)
@@ -697,6 +699,17 @@ serve(async (req) => {
                 avg_mood_label: fmt(avgMood),
                 avg_mobility_label: fmt(avgMobility),
                 avg_sleep_label: fmt(avgSleep, " hrs"),
+                // Hydration
+                avg_hydration: avgHydration !== null ? +avgHydration.toFixed(1) : null,
+                avg_hydration_label: avgHydration !== null ? `${avgHydration.toFixed(1)} glasses` : "not recorded",
+                hydration_goal: profile.hydration_goal,
+                hydration_goal_met: avgHydration !== null && avgHydration >= profile.hydration_goal,
+                hydration_days_at_goal: entries.filter((e) => (e.water_glasses ?? 0) >= profile.hydration_goal).length,
+                hydration_summary: avgHydration !== null
+                  ? avgHydration >= profile.hydration_goal
+                    ? `Great hydration — averaging ${avgHydration.toFixed(1)} glasses/day 💧`
+                    : `Averaging ${avgHydration.toFixed(1)} of ${profile.hydration_goal} glasses/day — try to drink more 💧`
+                  : "No hydration data recorded this week",
                 weekly_log_goal: profile.weekly_log_goal,
                 goal_achieved: goalAchieved,
                 goal_summary: goalAchieved
