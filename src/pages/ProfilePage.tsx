@@ -560,7 +560,9 @@ const ProfilePage = () => {
             const prevCountRef = useRef(storedPrev);
             const [barGlow, setBarGlow] = useState(false);
             const halfwayKey = "hint_halfway_celebrated";
+            const threeQuarterKey = "hint_75_celebrated";
             const [showHalfwayBanner, setShowHalfwayBanner] = useState(false);
+            const [showThreeQuarterBanner, setShowThreeQuarterBanner] = useState(false);
             useEffect(() => {
               if (pct === 100 && !sessionStorage.getItem(confettiKey)) {
                 sessionStorage.setItem(confettiKey, "1");
@@ -568,9 +570,17 @@ const ProfilePage = () => {
               }
             }, [pct, confettiKey]);
             useEffect(() => {
-              if (pct >= 50 && !sessionStorage.getItem(halfwayKey) && pct < 100) {
+              if (pct >= 75 && !sessionStorage.getItem(threeQuarterKey) && pct < 100) {
+                sessionStorage.setItem(threeQuarterKey, "1");
+                confetti({ particleCount: 50, angle: 90, spread: 80, origin: { y: 0.55 }, colors: ["#a855f7", "#ec4899", "#22c55e"] });
+                if (navigator.vibrate) navigator.vibrate([40, 60, 40, 60, 40]);
+                setBarGlow(true);
+                setShowThreeQuarterBanner(true);
+                const t1 = setTimeout(() => setBarGlow(false), 2500);
+                const t2 = setTimeout(() => setShowThreeQuarterBanner(false), 8000);
+                return () => { clearTimeout(t1); clearTimeout(t2); };
+              } else if (pct >= 50 && !sessionStorage.getItem(halfwayKey) && pct < 100) {
                 sessionStorage.setItem(halfwayKey, "1");
-                // Double burst from left and right
                 confetti({ particleCount: 40, angle: 60, spread: 55, origin: { x: 0, y: 0.6 }, colors: ["#f59e0b", "#22c55e", "#3b82f6"] });
                 confetti({ particleCount: 40, angle: 120, spread: 55, origin: { x: 1, y: 0.6 }, colors: ["#f59e0b", "#22c55e", "#3b82f6"] });
                 if (navigator.vibrate) navigator.vibrate([50, 80, 50]);
@@ -622,6 +632,40 @@ const ProfilePage = () => {
                         </div>
                         <motion.div
                           className="h-0.5 bg-primary/40 origin-left"
+                          initial={{ scaleX: 1 }}
+                          animate={{ scaleX: 0 }}
+                          transition={{ duration: 8, ease: "linear" }}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <AnimatePresence>
+                  {showThreeQuarterBanner && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.4, ease: "easeOut" }}
+                      className="overflow-hidden"
+                    >
+                      <div className="rounded-lg border border-accent/50 bg-accent/10 mb-1 overflow-hidden">
+                        <div className="flex items-start gap-3 px-3 py-2.5">
+                          <span className="text-lg leading-none mt-0.5">🔥</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-foreground">Almost there!</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">75% discovered — you're on fire! Just a few more hidden interactions to find.</p>
+                          </div>
+                          <button
+                            onClick={() => setShowThreeQuarterBanner(false)}
+                            className="rounded-md p-1 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                            aria-label="Dismiss"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <motion.div
+                          className="h-0.5 bg-accent/40 origin-left"
                           initial={{ scaleX: 1 }}
                           animate={{ scaleX: 0 }}
                           transition={{ duration: 8, ease: "linear" }}
