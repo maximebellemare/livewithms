@@ -593,13 +593,15 @@ const ProfilePage = () => {
                         {pct}%
                         {barGlow && (
                           <motion.span
-                            initial={{ scale: 0, opacity: 0 }}
+                            initial={{ scale: 0, opacity: 0, rotate: 0 }}
                             animate={{
                               scale: [0, 1.5, 0.9, 1.2, 1, 1.15, 1, 1.15, 1, 1.15, 1],
+                              rotate: [0, -20, 15, -10, 0, 12, 0, -12, 0, 12, 0],
                               opacity: 1,
                             }}
                             transition={{
                               scale: { times: [0, 0.15, 0.25, 0.35, 0.45, 0.55, 0.62, 0.72, 0.79, 0.89, 1], duration: 2.2, ease: "easeOut", delay: 0.2 },
+                              rotate: { times: [0, 0.15, 0.25, 0.35, 0.45, 0.55, 0.62, 0.72, 0.79, 0.89, 1], duration: 2.2, ease: "easeOut", delay: 0.2 },
                               opacity: { duration: 0.15, delay: 0.2 },
                             }}
                             className="inline-block ml-0.5"
