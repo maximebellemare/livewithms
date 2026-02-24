@@ -43,6 +43,7 @@ import { InsightsSkeleton } from "@/components/PageSkeleton";
 import { useNavigate, useLocation } from "react-router-dom";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { SPARKLINE_CONFIGS, makeSleepConfig } from "@/components/sparkline/configs";
 
 const MOOD_TAG_META: Record<string, string> = {
   Happy: "😊", Calm: "😌", Frustrated: "😤", Sad: "😔",
@@ -56,30 +57,24 @@ const MOOD_TAG_SENTIMENT: Record<string, "positive" | "negative" | "neutral"> = 
   Tired: "neutral",
 };
 
-/* ── colour palette (matches design tokens) ───────────────── */
-const COLORS = {
-  fatigue:     { stroke: "hsl(25 85% 50%)",  fill: "hsl(25 85% 50% / 0.12)"  },
-  pain:        { stroke: "hsl(0 72% 51%)",   fill: "hsl(0 72% 51% / 0.10)"   },
-  brain_fog:   { stroke: "hsl(210 60% 50%)", fill: "hsl(210 60% 50% / 0.10)" },
-  mood:        { stroke: "hsl(145 45% 45%)", fill: "hsl(145 45% 45% / 0.10)" },
-  mobility:    { stroke: "hsl(270 50% 55%)", fill: "hsl(270 50% 55% / 0.10)" },
-  spasticity:  { stroke: "hsl(35 80% 50%)",  fill: "hsl(35 80% 50% / 0.10)"  },
-  stress:      { stroke: "hsl(350 65% 55%)", fill: "hsl(350 65% 55% / 0.10)" },
-  sleep_hours: { stroke: "hsl(220 70% 60%)", fill: "hsl(220 70% 60% / 0.10)" },
-};
+/* ── colour palette (derived from sparkline configs) ──────── */
+const _sleepCfg = makeSleepConfig();
+const ALL_CONFIGS = { ...SPARKLINE_CONFIGS, sleep_hours: _sleepCfg } as const;
 
-const SYMPTOMS = [
-  { key: "fatigue",     label: "Fatigue",     emoji: "🔋" },
-  { key: "pain",        label: "Pain",        emoji: "⚡" },
-  { key: "brain_fog",   label: "Brain Fog",   emoji: "🌫️" },
-  { key: "mood",        label: "Mood",        emoji: "😊" },
-  { key: "mobility",    label: "Mobility",    emoji: "🚶" },
-  { key: "spasticity",  label: "Spasticity",  emoji: "🦵" },
-  { key: "stress",      label: "Stress",      emoji: "😰" },
-  { key: "sleep_hours", label: "Sleep",       emoji: "🌙" },
-] as const;
+const COLORS = Object.fromEntries(
+  Object.entries(ALL_CONFIGS).map(([key, cfg]) => [
+    key,
+    { stroke: cfg.lineColor, fill: cfg.fillColor },
+  ]),
+) as Record<string, { stroke: string; fill: string }>;
 
-type SymptomKey = typeof SYMPTOMS[number]["key"];
+const SYMPTOMS = Object.entries(ALL_CONFIGS).map(([key, cfg]) => ({
+  key,
+  label: cfg.label,
+  emoji: cfg.emoji ?? "",
+})) as readonly { key: string; label: string; emoji: string }[];
+
+type SymptomKey = string;
 
 /* ── helpers ────────────────────────────────────────────────── */
 function avg(vals: (number | null)[]): number | null {
