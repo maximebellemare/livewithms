@@ -510,14 +510,27 @@ const ProfilePage = () => {
           </Link>
           <button
             onClick={() => {
-              ["onboarding_tour_v1", "onboarding_tour_track_v1", "onboarding_tour_insights_v2", "onboarding_tour_community_v1", "onboarding_tour_journal_v3", "onboarding_tour_learn_v2", "onboarding_tour_relapses_v2", "onboarding_tour_medications_v1", "onboarding_tour_appointments_v1", "onboarding_tour_reports_v1", "onboarding_tour_profile_v1", "lp_unpin_used"].forEach((k) => localStorage.removeItem(k));
-              toast.success("All tours & hints reset! Visit each page to see them again 🗺️");
+              ["onboarding_tour_v1", "onboarding_tour_track_v1", "onboarding_tour_insights_v2", "onboarding_tour_community_v1", "onboarding_tour_journal_v3", "onboarding_tour_learn_v2", "onboarding_tour_relapses_v2", "onboarding_tour_medications_v1", "onboarding_tour_appointments_v1", "onboarding_tour_reports_v1", "onboarding_tour_profile_v1"].forEach((k) => localStorage.removeItem(k));
+              toast.success("All page tours reset! Visit each page to see the guides again 🗺️");
             }}
             className="mt-2 flex w-full items-center justify-between rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground transition-colors hover:bg-muted"
           >
             <span className="flex items-center gap-2">
               <RotateCcw className="h-3.5 w-3.5" />
-              Reset App Tour
+              Reset Page Tours
+            </span>
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => {
+              ["lp_unpin_used"].forEach((k) => localStorage.removeItem(k));
+              toast.success("Interaction hints reset! They'll reappear as you use the app 💡");
+            }}
+            className="mt-2 flex w-full items-center justify-between rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground transition-colors hover:bg-muted"
+          >
+            <span className="flex items-center gap-2">
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset Hints
             </span>
             <ChevronRight className="h-4 w-4" />
           </button>
