@@ -218,6 +218,7 @@ const TodayPage = () => {
     if (oldIndex === -1 || newIndex === -1) return;
     const reordered = arrayMove(pinnedMetrics, oldIndex, newIndex);
     updateProfile.mutate({ pinned_metrics: reordered } as any);
+    toast("Order saved ✓", { duration: 1200 });
   }, [pinnedMetrics, updateProfile]);
 
   const [downloadingReport, setDownloadingReport] = useState(false);
