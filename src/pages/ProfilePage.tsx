@@ -580,11 +580,13 @@ const ProfilePage = () => {
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <div className="flex items-center gap-3 pt-0.5">
-                    <span className="flex items-center gap-1 text-[9px] text-muted-foreground/50"><span className="inline-block h-1.5 w-1.5 rounded-full bg-destructive" />0–39%</span>
-                    <span className="flex items-center gap-1 text-[9px] text-muted-foreground/50"><span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />40–79%</span>
-                    <span className="flex items-center gap-1 text-[9px] text-muted-foreground/50"><span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-green" />80–100%</span>
-                  </div>
+                  {pct < 100 && (
+                    <div className="flex items-center gap-3 pt-0.5">
+                      <span className="flex items-center gap-1 text-[9px] text-muted-foreground/50"><span className="inline-block h-1.5 w-1.5 rounded-full bg-destructive" />0–39%</span>
+                      <span className="flex items-center gap-1 text-[9px] text-muted-foreground/50"><span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />40–79%</span>
+                      <span className="flex items-center gap-1 text-[9px] text-muted-foreground/50"><span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-green" />80–100%</span>
+                    </div>
+                  )}
                 </div>
                 {hintGroups.map(([page, hints]) => {
                   const seenCount = hints.filter((h) => localStorage.getItem(h.key)).length;
