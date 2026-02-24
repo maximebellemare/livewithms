@@ -43,7 +43,7 @@ import SuggestedNextCards from "@/components/SuggestedNextCards";
 import HeatAlertCard from "@/components/HeatAlertCard";
 import ScrollDots from "@/components/ScrollDots";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
-import { useProfile } from "@/hooks/useProfile";
+import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
 import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
 import { useDbAppointments } from "@/hooks/useAppointments";
 import { useRelapses } from "@/hooks/useRelapses";
@@ -177,6 +177,18 @@ const TodayPage = () => {
   const { data: weekEntries = [] } = useEntriesInRange(weekStart, weekEnd);
 
   const { data: profile } = useProfile();
+  const updateProfile = useUpdateProfile();
+  const pinnedMetrics = useMemo(() => profile?.pinned_metrics ?? [], [profile]);
+
+  const togglePin = useCallback((metricKey: string) => {
+    const current = pinnedMetrics;
+    const next = current.includes(metricKey)
+      ? current.filter((k) => k !== metricKey)
+      : [...current, metricKey];
+    updateProfile.mutate({ pinned_metrics: next } as any);
+    toast(next.includes(metricKey) ? `📌 ${metricKey} pinned` : `Unpinned ${metricKey}`, { duration: 1500 });
+  }, [pinnedMetrics, updateProfile]);
+
   const [downloadingReport, setDownloadingReport] = useState(false);
   const [showReportPreview, setShowReportPreview] = useState(false);
 
@@ -346,18 +358,52 @@ const TodayPage = () => {
               <div className="space-y-1.5 sm:space-y-2">
                 <p className="section-label text-[9px] tracking-widest text-muted-foreground/60 uppercase pl-1">↑ Higher is better</p>
                 <div ref={sparklineScrollRef} className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-hide sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible sm:pb-0">
-                  <div className="min-w-[75vw] snap-start sm:min-w-0"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.mood} /></div>
-                  <div className="min-w-[75vw] snap-start sm:min-w-0"><GenericSparkline entries={weekEntries} config={makeSleepConfig(profile?.sleep_goal ?? 8)} /></div>
-                  <div className="min-w-[75vw] snap-start sm:min-w-0"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.mobility} /></div>
-                  <div className="min-w-[75vw] snap-start sm:min-w-0"><GenericSparkline entries={weekEntries} config={makeHydrationConfig(profile?.hydration_goal ?? 8)} /></div>
+                  {[
+                    { key: "mood", config: SPARKLINE_CONFIGS.mood },
+                    { key: "sleep", config: makeSleepConfig(profile?.sleep_goal ?? 8) },
+                    { key: "mobility", config: SPARKLINE_CONFIGS.mobility },
+                    { key: "hydration", config: makeHydrationConfig(profile?.hydration_goal ?? 8) },
+                  ]
+                    .sort((a, b) => {
+                      const aPin = pinnedMetrics.includes(a.key) ? 0 : 1;
+                      const bPin = pinnedMetrics.includes(b.key) ? 0 : 1;
+                      return aPin - bPin;
+                    })
+                    .map(({ key, config }) => (
+                      <div key={key} className="min-w-[75vw] snap-start sm:min-w-0">
+                        <GenericSparkline
+                          entries={weekEntries}
+                          config={config}
+                          onLongPress={() => togglePin(key)}
+                          saved={pinnedMetrics.includes(key)}
+                        />
+                      </div>
+                    ))}
                 </div>
                 <p className="section-label text-[9px] tracking-widest text-muted-foreground/60 uppercase pl-1 pt-1">↓ Lower is better</p>
                 <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-hide sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible sm:pb-0">
-                  <div className="min-w-[75vw] snap-start sm:min-w-0"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.fatigue} /></div>
-                  <div className="min-w-[75vw] snap-start sm:min-w-0"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.pain} /></div>
-                  <div className="min-w-[75vw] snap-start sm:min-w-0"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.brain_fog} /></div>
-                  <div className="min-w-[75vw] snap-start sm:min-w-0"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.spasticity} /></div>
-                  <div className="min-w-[75vw] snap-start sm:min-w-0"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.stress} /></div>
+                  {[
+                    { key: "fatigue", config: SPARKLINE_CONFIGS.fatigue },
+                    { key: "pain", config: SPARKLINE_CONFIGS.pain },
+                    { key: "brain_fog", config: SPARKLINE_CONFIGS.brain_fog },
+                    { key: "spasticity", config: SPARKLINE_CONFIGS.spasticity },
+                    { key: "stress", config: SPARKLINE_CONFIGS.stress },
+                  ]
+                    .sort((a, b) => {
+                      const aPin = pinnedMetrics.includes(a.key) ? 0 : 1;
+                      const bPin = pinnedMetrics.includes(b.key) ? 0 : 1;
+                      return aPin - bPin;
+                    })
+                    .map(({ key, config }) => (
+                      <div key={key} className="min-w-[75vw] snap-start sm:min-w-0">
+                        <GenericSparkline
+                          entries={weekEntries}
+                          config={config}
+                          onLongPress={() => togglePin(key)}
+                          saved={pinnedMetrics.includes(key)}
+                        />
+                      </div>
+                    ))}
                 </div>
               </div>
               <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />

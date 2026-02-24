@@ -37,6 +37,7 @@ export interface Profile {
   monthly_reports_reset_at: string | null;
   grounding_weekly_goal: number;
   hydration_reminder_hour: number;
+  pinned_metrics: string[];
 }
 
 export const useProfile = () => {

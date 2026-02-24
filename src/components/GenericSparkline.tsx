@@ -144,14 +144,24 @@ export default function GenericSparkline({
   }
 
   // ── Row variant (default) ──
+  const rowHasLongPress = !!onLongPress;
+  const rowPressHandlers = rowHasLongPress ? pressHandlers : {};
+
   return (
     <div
-      className="rounded-xl bg-card shadow-soft px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors hover:bg-accent/50 active:scale-[0.98]"
-      onClick={() => navigate("/insights", { state: { heatmapMetric } })}
+      className={`relative rounded-xl bg-card shadow-soft px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors hover:bg-accent/50 active:scale-[0.98] overflow-hidden${saved ? " ring-2 ring-[hsl(145_50%_48%)] shadow-[0_0_16px_4px_hsl(145_50%_48%/0.4)]" : ""}`}
+      {...rowPressHandlers}
+      onClick={(e) => {
+        if (isPressing) return;
+        navigate("/insights", { state: { heatmapMetric } });
+      }}
       role="button"
       tabIndex={0}
-      aria-label={`${label} 7-day average ${avg !== null ? avg.toFixed(1) : "unknown"}${unit}, trend ${trend} – view details`}
+      aria-label={`${label} 7-day average ${avg !== null ? avg.toFixed(1) : "unknown"}${unit}, trend ${trend} – view details${saved ? " (pinned)" : ""}`}
     >
+      {saved && (
+        <span className="absolute top-1.5 right-1.5 text-[10px] opacity-70">📌</span>
+      )}
       <div className="flex-shrink-0">
         <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-0.5">
           {label} · 7-day
@@ -176,6 +186,7 @@ export default function GenericSparkline({
         </div>
       </div>
       <ChevronRight className="flex-shrink-0 w-4 h-4 text-muted-foreground/50" />
+      {rowHasLongPress && isPressing && <LongPressOverlay />}
     </div>
   );
 }
