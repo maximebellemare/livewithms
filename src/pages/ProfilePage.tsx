@@ -576,8 +576,9 @@ const ProfilePage = () => {
                 if (navigator.vibrate) navigator.vibrate([50, 80, 50]);
                 setBarGlow(true);
                 setShowHalfwayBanner(true);
-                const t = setTimeout(() => setBarGlow(false), 2500);
-                return () => clearTimeout(t);
+                const t1 = setTimeout(() => setBarGlow(false), 2500);
+                const t2 = setTimeout(() => setShowHalfwayBanner(false), 8000);
+                return () => { clearTimeout(t1); clearTimeout(t2); };
               }
             }, [pct]);
             useEffect(() => {
