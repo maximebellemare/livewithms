@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import confetti from "canvas-confetti";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import SEOHead from "@/components/SEOHead";
 import DigestPreviewCard from "@/components/DigestPreviewCard";
@@ -557,6 +558,7 @@ const ProfilePage = () => {
                       onClick={() => {
                         HINTS.forEach((h) => localStorage.removeItem(h.key));
                         toast.success("Interaction hints reset! They'll reappear as you use the app 💡");
+                        confetti({ particleCount: 60, spread: 55, origin: { y: 0.7 }, colors: ["#22c55e", "#f59e0b", "#3b82f6"] });
                       }}
                       className="flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[10px] font-medium text-secondary-foreground transition-colors hover:bg-muted"
                     >
@@ -572,6 +574,7 @@ const ProfilePage = () => {
             onClick={() => {
               ["lp_unpin_used", "hint_drag_reorder_used", "hint_coach_swipe_used", "hint_insights_stat_tap_used", "hint_meds_tap_used", "hint_journal_swipe_used"].forEach((k) => localStorage.removeItem(k));
               toast.success("Interaction hints reset! They'll reappear as you use the app 💡");
+              confetti({ particleCount: 60, spread: 55, origin: { y: 0.7 }, colors: ["#22c55e", "#f59e0b", "#3b82f6"] });
             }}
             className="mt-2 flex w-full items-center justify-between rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground transition-colors hover:bg-muted"
           >
