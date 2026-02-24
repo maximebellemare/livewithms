@@ -11,6 +11,7 @@ function moodColor(value: number): string {
 
 const config: SparklineConfig = {
   label: "Mood",
+  emoji: "😊",
   dataKey: "mood",
   unit: "/10",
   heatmapMetric: "mood",
@@ -23,8 +24,12 @@ const config: SparklineConfig = {
 interface Props {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   entries: readonly { date: string; [key: string]: any }[];
+  variant?: "row" | "card";
+  onClick?: () => void;
+  onLongPress?: () => void;
+  saved?: boolean;
 }
 
-export default function MoodSparkline({ entries }: Props) {
-  return <GenericSparkline entries={entries} config={config} />;
+export default function MoodSparkline({ entries, variant, onClick, onLongPress, saved }: Props) {
+  return <GenericSparkline entries={entries} config={config} variant={variant} onClick={onClick} onLongPress={onLongPress} saved={saved} />;
 }

@@ -15,7 +15,11 @@ import WeekStreakBadge from "@/components/WeekStreakBadge";
 import { useWeekStreak } from "@/hooks/useWeekStreak";
 import MondayRecapCard from "@/components/MondayRecapCard";
 import StreakMilestoneBanner from "@/components/StreakMilestoneBanner";
-import SymptomSparkline from "@/components/SymptomSparkline";
+import MoodSparkline from "@/components/MoodSparkline";
+import FatigueSparkline from "@/components/FatigueSparkline";
+import PainSparkline from "@/components/PainSparkline";
+import SleepSparkline from "@/components/SleepSparkline";
+import BrainFogSparkline from "@/components/BrainFogSparkline";
 import MobilitySparkline from "@/components/MobilitySparkline";
 import SpasticitySparkline from "@/components/SpasticitySparkline";
 import StressSparkline from "@/components/StressSparkline";
@@ -43,12 +47,7 @@ import { useRecordBadgeEvent } from "@/hooks/useBadgeEvents";
 import GoalTrackingDashboard from "@/components/GoalTrackingDashboard";
 import SuggestedNextCards from "@/components/SuggestedNextCards";
 import HeatAlertCard from "@/components/HeatAlertCard";
-import MoodSparkline from "@/components/MoodSparkline";
-import SleepSparkline from "@/components/SleepSparkline";
-import FatigueSparkline from "@/components/FatigueSparkline";
-import PainSparkline from "@/components/PainSparkline";
 import ScrollDots from "@/components/ScrollDots";
-import BrainFogSparkline from "@/components/BrainFogSparkline";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
@@ -421,24 +420,23 @@ const TodayPage = () => {
         {/* 7-day sparklines */}
         <StaggerItem>
         <div data-tour="sparklines" ref={gridRef} className={`grid grid-cols-2 gap-1.5${openPanel ? " pointer-events-none" : ""}`}>
-          <SymptomSparkline entries={weekEntries} metric="mood" label="Mood" emoji="😊" higherIsBetter
+          <MoodSparkline entries={weekEntries} variant="card"
             saved={savedMetric === "mood"}
             onClick={() => setOpenPanel((p) => p === "mood" ? null : "mood")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "mood" } })} />
-          <SymptomSparkline entries={weekEntries} metric="fatigue" label="Fatigue" emoji="🔋"
+          <FatigueSparkline entries={weekEntries} variant="card"
             saved={savedMetric === "fatigue"}
             onClick={() => setOpenPanel((p) => p === "fatigue" ? null : "fatigue")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "fatigue" } })} />
-          <SymptomSparkline entries={weekEntries} metric="pain" label="Pain" emoji="⚡"
+          <PainSparkline entries={weekEntries} variant="card"
             saved={savedMetric === "pain"}
             onClick={() => setOpenPanel((p) => p === "pain" ? null : "pain")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "pain" } })} />
-          <SymptomSparkline entries={weekEntries} metric="sleep_hours" label="Sleep" emoji="🌙"
+          <SleepSparkline entries={weekEntries} variant="card"
             saved={savedMetric === "sleep"}
-            higherIsBetter maxValue={12} unit=" hrs"
             onClick={() => setOpenPanel((p) => p === "sleep" ? null : "sleep")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "sleep_hours" } })} />
-          <SymptomSparkline entries={weekEntries} metric="brain_fog" label="Brain Fog" emoji="🌫️"
+          <BrainFogSparkline entries={weekEntries} variant="card"
             saved={savedMetric === "brain_fog"}
             onClick={() => setOpenPanel((p) => p === "brain_fog" ? null : "brain_fog")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "brain_fog" } })} />

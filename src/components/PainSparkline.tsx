@@ -8,6 +8,7 @@ function painColor(value: number): string {
 
 const config: SparklineConfig = {
   label: "Pain",
+  emoji: "⚡",
   dataKey: "pain",
   unit: "/10",
   heatmapMetric: "pain",
@@ -20,8 +21,12 @@ const config: SparklineConfig = {
 interface Props {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   entries: readonly { date: string; [key: string]: any }[];
+  variant?: "row" | "card";
+  onClick?: () => void;
+  onLongPress?: () => void;
+  saved?: boolean;
 }
 
-export default function PainSparkline({ entries }: Props) {
-  return <GenericSparkline entries={entries} config={config} />;
+export default function PainSparkline({ entries, variant, onClick, onLongPress, saved }: Props) {
+  return <GenericSparkline entries={entries} config={config} variant={variant} onClick={onClick} onLongPress={onLongPress} saved={saved} />;
 }

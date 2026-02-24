@@ -8,6 +8,7 @@ function fatigueColor(value: number): string {
 
 const config: SparklineConfig = {
   label: "Fatigue",
+  emoji: "🔋",
   dataKey: "fatigue",
   unit: "/10",
   heatmapMetric: "fatigue",
@@ -20,8 +21,12 @@ const config: SparklineConfig = {
 interface Props {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   entries: readonly { date: string; [key: string]: any }[];
+  variant?: "row" | "card";
+  onClick?: () => void;
+  onLongPress?: () => void;
+  saved?: boolean;
 }
 
-export default function FatigueSparkline({ entries }: Props) {
-  return <GenericSparkline entries={entries} config={config} />;
+export default function FatigueSparkline({ entries, variant, onClick, onLongPress, saved }: Props) {
+  return <GenericSparkline entries={entries} config={config} variant={variant} onClick={onClick} onLongPress={onLongPress} saved={saved} />;
 }

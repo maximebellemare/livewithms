@@ -12,11 +12,16 @@ interface Props {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   entries: readonly { date: string; [key: string]: any }[];
   goal?: number;
+  variant?: "row" | "card";
+  onClick?: () => void;
+  onLongPress?: () => void;
+  saved?: boolean;
 }
 
-export default function SleepSparkline({ entries, goal = 8 }: Props) {
+export default function SleepSparkline({ entries, goal = 8, variant, onClick, onLongPress, saved }: Props) {
   const config: SparklineConfig = {
     label: "Sleep",
+    emoji: "🌙",
     dataKey: "sleep_hours",
     unit: "hrs",
     heatmapMetric: "sleep_hours",
@@ -28,5 +33,5 @@ export default function SleepSparkline({ entries, goal = 8 }: Props) {
     trendThreshold: 0.5,
   };
 
-  return <GenericSparkline entries={entries} config={config} />;
+  return <GenericSparkline entries={entries} config={config} variant={variant} onClick={onClick} onLongPress={onLongPress} saved={saved} />;
 }
