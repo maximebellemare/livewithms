@@ -521,6 +521,39 @@ const ProfilePage = () => {
             </span>
             <ChevronRight className="h-4 w-4" />
           </button>
+          {/* Hints summary */}
+          {(() => {
+            const HINTS = [
+              { key: "lp_unpin_used", label: "Hold pill to unpin", page: "Today" },
+              { key: "hint_drag_reorder_used", label: "Drag to reorder pills", page: "Today" },
+              { key: "hint_coach_swipe_used", label: "Swipe to manage conversations", page: "Coach" },
+              { key: "hint_insights_stat_tap_used", label: "Tap stat card to isolate", page: "Insights" },
+              { key: "hint_meds_tap_used", label: "Tap med to log it", page: "Medications" },
+              { key: "hint_journal_swipe_used", label: "Swipe entry to edit/delete", page: "Journal" },
+            ];
+            const active = HINTS.filter((h) => !localStorage.getItem(h.key));
+            const dismissed = HINTS.filter((h) => localStorage.getItem(h.key));
+            return (
+              <div className="mt-3 rounded-xl bg-card border border-border p-3 space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">Hint Status</p>
+                {HINTS.map((h) => {
+                  const isActive = !localStorage.getItem(h.key);
+                  return (
+                    <div key={h.key} className="flex items-center justify-between text-xs">
+                      <span className="text-foreground">{h.label}</span>
+                      <span className={`flex items-center gap-1 text-[10px] font-medium ${isActive ? "text-brand-green" : "text-muted-foreground/50"}`}>
+                        <span className={`inline-block h-1.5 w-1.5 rounded-full ${isActive ? "bg-brand-green" : "bg-muted-foreground/30"}`} />
+                        {isActive ? "Active" : "Seen"}
+                      </span>
+                    </div>
+                  );
+                })}
+                <p className="text-[10px] text-muted-foreground pt-1">
+                  {active.length === HINTS.length ? "All hints active — explore the app!" : `${dismissed.length}/${HINTS.length} hints seen`}
+                </p>
+              </div>
+            );
+          })()}
           <button
             onClick={() => {
               ["lp_unpin_used", "hint_drag_reorder_used", "hint_coach_swipe_used", "hint_insights_stat_tap_used", "hint_meds_tap_used", "hint_journal_swipe_used"].forEach((k) => localStorage.removeItem(k));
