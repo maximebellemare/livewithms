@@ -134,6 +134,12 @@ interface PastEntryProps {
 
 const PastEntry = ({ entry }: PastEntryProps) => {
   const [editing, setEditing] = useState(false);
+  const handleToggle = () => {
+    setEditing((e) => !e);
+    if (!localStorage.getItem("hint_journal_swipe_used")) {
+      localStorage.setItem("hint_journal_swipe_used", "1");
+    }
+  };
   const [text, setText] = useState(entry.notes ?? "");
   const [saved, setSaved] = useState(false);
   const saveEntry = useSaveEntry();
@@ -166,7 +172,7 @@ const PastEntry = ({ entry }: PastEntryProps) => {
     <div className="rounded-xl bg-card border border-border shadow-soft overflow-hidden transition-all">
       {/* Header row — always visible, click to toggle editor */}
       <button
-        onClick={() => setEditing((e) => !e)}
+        onClick={handleToggle}
         className="w-full flex items-center justify-between gap-2 px-4 py-3 hover:bg-secondary/40 transition-colors text-left"
       >
         <div className="flex-1 min-w-0">
@@ -306,7 +312,7 @@ const JournalPage = () => {
             </p>
             <div className="space-y-2">
               {pastEntries.map((entry) => (
-                <div key={entry.id} onClick={() => localStorage.setItem("hint_journal_swipe_used", "1")}>
+                <div key={entry.id}>
                   <PastEntry entry={entry} />
                 </div>
               ))}
