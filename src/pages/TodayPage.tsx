@@ -375,12 +375,16 @@ const TodayPage = () => {
                       .filter((v: unknown): v is number => typeof v === "number");
                     const avg = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
                     return (
-                      <motion.div
+                      <motion.button
                         key={key}
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ type: "spring", stiffness: 400, damping: 20, delay: i * 0.06 }}
-                        className="flex items-center gap-1.5 rounded-full bg-secondary/60 px-3 py-1.5 flex-shrink-0"
+                        className="flex items-center gap-1.5 rounded-full bg-secondary/60 px-3 py-1.5 flex-shrink-0 active:scale-95 transition-transform"
+                        onClick={() => {
+                          const el = document.getElementById(`sparkline-${key}`);
+                          el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }}
                       >
                         <span className="text-xs">{cfg.emoji}</span>
                         <span
@@ -390,7 +394,7 @@ const TodayPage = () => {
                           {avg !== null ? avg.toFixed(1) : "—"}
                         </span>
                         <span className="text-[9px] text-muted-foreground">{cfg.unit}</span>
-                      </motion.div>
+                      </motion.button>
                     );
                   })}
                 </div>
@@ -522,41 +526,41 @@ const TodayPage = () => {
         {/* 7-day sparklines */}
         <StaggerItem>
         <div data-tour="sparklines" ref={gridRef} className={`grid grid-cols-2 gap-1.5${openPanel ? " pointer-events-none" : ""}`}>
-          <GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.mood} variant="card"
+           <div id="sparkline-mood"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.mood} variant="card"
             saved={savedMetric === "mood"}
             onClick={() => setOpenPanel((p) => p === "mood" ? null : "mood")}
-            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "mood" } })} />
-          <GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.fatigue} variant="card"
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "mood" } })} /></div>
+          <div id="sparkline-fatigue"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.fatigue} variant="card"
             saved={savedMetric === "fatigue"}
             onClick={() => setOpenPanel((p) => p === "fatigue" ? null : "fatigue")}
-            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "fatigue" } })} />
-          <GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.pain} variant="card"
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "fatigue" } })} /></div>
+          <div id="sparkline-pain"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.pain} variant="card"
             saved={savedMetric === "pain"}
             onClick={() => setOpenPanel((p) => p === "pain" ? null : "pain")}
-            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "pain" } })} />
-          <GenericSparkline entries={weekEntries} config={makeSleepConfig(profile?.sleep_goal ?? 8)} variant="card"
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "pain" } })} /></div>
+          <div id="sparkline-sleep"><GenericSparkline entries={weekEntries} config={makeSleepConfig(profile?.sleep_goal ?? 8)} variant="card"
             saved={savedMetric === "sleep"}
             onClick={() => setOpenPanel((p) => p === "sleep" ? null : "sleep")}
-            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "sleep_hours" } })} />
-          <GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.brain_fog} variant="card"
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "sleep_hours" } })} /></div>
+          <div id="sparkline-brain_fog"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.brain_fog} variant="card"
             saved={savedMetric === "brain_fog"}
             onClick={() => setOpenPanel((p) => p === "brain_fog" ? null : "brain_fog")}
-            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "brain_fog" } })} />
-          <GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.mobility} variant="card"
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "brain_fog" } })} /></div>
+          <div id="sparkline-mobility"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.mobility} variant="card"
             saved={savedMetric === "mobility"}
             onClick={() => setOpenPanel((p) => p === "mobility" ? null : "mobility")}
-            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "mobility" } })} />
-          <GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.spasticity} variant="card"
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "mobility" } })} /></div>
+          <div id="sparkline-spasticity"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.spasticity} variant="card"
             saved={savedMetric === "spasticity"}
             onClick={() => setOpenPanel((p) => p === "spasticity" ? null : "spasticity")}
-            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "spasticity" } })} />
-          <GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.stress} variant="card"
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "spasticity" } })} /></div>
+          <div id="sparkline-stress"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.stress} variant="card"
             saved={savedMetric === "stress"}
             onClick={() => setOpenPanel((p) => p === "stress" ? null : "stress")}
-            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "stress" } })} />
-          <GenericSparkline entries={weekEntries} config={makeHydrationConfig(profile?.hydration_goal ?? 8)} variant="card"
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "stress" } })} /></div>
+          <div id="sparkline-hydration"><GenericSparkline entries={weekEntries} config={makeHydrationConfig(profile?.hydration_goal ?? 8)} variant="card"
             onClick={() => navigate("/lifestyle")}
-            onLongPress={() => navigate("/lifestyle")} />
+            onLongPress={() => navigate("/lifestyle")} /></div>
         </div>
         </StaggerItem>
 
