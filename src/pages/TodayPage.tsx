@@ -43,6 +43,7 @@ import HeatAlertCard from "@/components/HeatAlertCard";
 import MoodSparkline from "@/components/MoodSparkline";
 import SleepSparkline from "@/components/SleepSparkline";
 import FatigueSparkline from "@/components/FatigueSparkline";
+import PainSparkline from "@/components/PainSparkline";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
@@ -342,10 +343,11 @@ const TodayPage = () => {
         {/* Weekly mood trend mini-chart */}
         {weekEntries.length > 0 && (
           <StaggerItem>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
               <MoodSparkline entries={weekEntries} />
               <SleepSparkline entries={weekEntries} goal={profile?.sleep_goal ?? 8} />
               <FatigueSparkline entries={weekEntries} />
+              <PainSparkline entries={weekEntries} />
             </div>
           </StaggerItem>
         )}
