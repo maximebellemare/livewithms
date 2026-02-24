@@ -351,6 +351,42 @@ const TodayPage = () => {
         }
       />
       <StaggerContainer className="mx-auto max-w-lg space-y-3 px-4 py-3">
+        {/* Pinned metrics compact summary */}
+        {pinnedMetrics.length > 0 && weekEntries.length > 0 && (
+          <StaggerItem>
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+              {pinnedMetrics.map((key) => {
+                const allConfigs: Record<string, any> = {
+                  ...SPARKLINE_CONFIGS,
+                  sleep: makeSleepConfig(profile?.sleep_goal ?? 8),
+                  hydration: makeHydrationConfig(profile?.hydration_goal ?? 8),
+                };
+                const cfg = allConfigs[key];
+                if (!cfg) return null;
+                const vals = weekEntries
+                  .map((e) => (e as any)[cfg.dataKey])
+                  .filter((v: unknown): v is number => typeof v === "number");
+                const avg = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
+                return (
+                  <div
+                    key={key}
+                    className="flex items-center gap-1.5 rounded-full bg-secondary/60 px-3 py-1.5 flex-shrink-0"
+                  >
+                    <span className="text-xs">{cfg.emoji}</span>
+                    <span
+                      className="text-sm font-bold leading-none"
+                      style={{ color: avg !== null ? cfg.colorFn(avg) : "hsl(var(--muted-foreground))" }}
+                    >
+                      {avg !== null ? avg.toFixed(1) : "—"}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground">{cfg.unit}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </StaggerItem>
+        )}
+
         {/* Weekly mood trend mini-chart */}
         {weekEntries.length > 0 && (
           <StaggerItem>
