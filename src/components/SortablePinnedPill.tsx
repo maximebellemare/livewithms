@@ -1,16 +1,39 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { motion } from "framer-motion";
+import { useLongPress } from "./sparkline/useLongPress";
 
-interface SortablePinnedPillProps {
+interface PillProps {
   id: string;
   emoji: string;
   avg: number | null;
   colorFn: (v: number) => string;
   unit: string;
-  index: number;
   onScrollTo: (key: string) => void;
   onUnpin: (key: string) => void;
+}
+
+interface SortablePinnedPillProps extends PillProps {
+  index: number;
+}
+
+function PillContent({ id, emoji, avg, colorFn, unit, onScrollTo, onUnpin }: PillProps) {
+  const lp = useLongPress(() => onScrollTo(id), () => onUnpin(id), 500);
+  return (
+    <button
+      className={`flex items-center gap-1.5 active:scale-95 transition-all ${lp.isPressing ? "opacity-60 scale-95" : ""}`}
+      {...lp}
+    >
+      <span className="text-xs">{emoji}</span>
+      <span
+        className="text-sm font-bold leading-none"
+        style={{ color: avg !== null ? colorFn(avg) : "hsl(var(--muted-foreground))" }}
+      >
+        {avg !== null ? avg.toFixed(1) : "—"}
+      </span>
+      <span className="text-[9px] text-muted-foreground">{unit}</span>
+    </button>
+  );
 }
 
 export default function SortablePinnedPill({
@@ -75,19 +98,7 @@ export default function SortablePinnedPill({
           <circle cx="7" cy="8" r="1" />
         </svg>
       </button>
-      <button
-        className="flex items-center gap-1.5 active:scale-95 transition-transform"
-        onClick={() => onScrollTo(id)}
-      >
-        <span className="text-xs">{emoji}</span>
-        <span
-          className="text-sm font-bold leading-none"
-          style={{ color: avg !== null ? colorFn(avg) : "hsl(var(--muted-foreground))" }}
-        >
-          {avg !== null ? avg.toFixed(1) : "—"}
-        </span>
-        <span className="text-[9px] text-muted-foreground">{unit}</span>
-      </button>
+      <PillContent id={id} emoji={emoji} avg={avg} colorFn={colorFn} unit={unit} onScrollTo={onScrollTo} onUnpin={onUnpin} />
       <button
         onClick={() => onUnpin(id)}
         className="ml-0.5 rounded-full hover:bg-muted/60 active:scale-90 transition-all p-0.5 text-muted-foreground/50 hover:text-foreground"
