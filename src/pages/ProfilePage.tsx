@@ -536,12 +536,34 @@ const ProfilePage = () => {
             ];
             const active = HINTS.filter((h) => !localStorage.getItem(h.key));
             const dismissed = HINTS.filter((h) => localStorage.getItem(h.key));
+            const hintGroups = Object.entries(
+              HINTS.reduce<Record<string, typeof HINTS>>((groups, h) => {
+                (groups[h.page] ??= []).push(h);
+                return groups;
+              }, {})
+            );
+            const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+            const allOpen = hintGroups.every(([page]) => openGroups[page]);
+            const toggleAll = () => {
+              const next = !allOpen;
+              const updated: Record<string, boolean> = {};
+              hintGroups.forEach(([page]) => { updated[page] = next; });
+              setOpenGroups(updated);
+            };
             return (
               <div className="mt-3 rounded-xl bg-card border border-border p-3 space-y-2">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">Hint Status</p>
-                    <span className="text-[10px] font-medium tabular-nums text-muted-foreground">{Math.round((dismissed.length / HINTS.length) * 100)}%</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={toggleAll}
+                        className="text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {allOpen ? "Collapse all" : "Expand all"}
+                      </button>
+                      <span className="text-[10px] font-medium tabular-nums text-muted-foreground">{Math.round((dismissed.length / HINTS.length) * 100)}%</span>
+                    </div>
                   </div>
                   <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
                     <div
@@ -550,15 +572,10 @@ const ProfilePage = () => {
                     />
                   </div>
                 </div>
-                {Object.entries(
-                  HINTS.reduce<Record<string, typeof HINTS>>((groups, h) => {
-                    (groups[h.page] ??= []).push(h);
-                    return groups;
-                  }, {})
-                ).map(([page, hints]) => {
+                {hintGroups.map(([page, hints]) => {
                   const seenCount = hints.filter((h) => localStorage.getItem(h.key)).length;
                   return (
-                    <Collapsible key={page}>
+                    <Collapsible key={page} open={!!openGroups[page]} onOpenChange={(v) => setOpenGroups((prev) => ({ ...prev, [page]: v }))}>
                       <CollapsibleTrigger className="flex w-full items-center justify-between pt-1 group/trigger">
                         <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50 group-hover/trigger:text-muted-foreground transition-colors">
                           {page}
