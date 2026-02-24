@@ -1,4 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, horizontalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import SortablePinnedPill from "@/components/SortablePinnedPill";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import SEOHead from "@/components/SEOHead";
@@ -196,6 +199,21 @@ const TodayPage = () => {
     toast(isUnpinning ? `Unpinned ${metricKey}` : `📌 ${metricKey} pinned`, { duration: 1500 });
   }, [pinnedMetrics, updateProfile]);
 
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = pinnedMetrics.indexOf(active.id as string);
+    const newIndex = pinnedMetrics.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(pinnedMetrics, oldIndex, newIndex);
+    updateProfile.mutate({ pinned_metrics: reordered } as any);
+  }, [pinnedMetrics, updateProfile]);
+
   const [downloadingReport, setDownloadingReport] = useState(false);
   const [showReportPreview, setShowReportPreview] = useState(false);
 
@@ -369,53 +387,39 @@ const TodayPage = () => {
             >
               <StaggerItem>
                 <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
-                  {pinnedMetrics.map((key, i) => {
-                    const allConfigs: Record<string, any> = {
-                      ...SPARKLINE_CONFIGS,
-                      sleep: makeSleepConfig(profile?.sleep_goal ?? 8),
-                      hydration: makeHydrationConfig(profile?.hydration_goal ?? 8),
-                    };
-                    const cfg = allConfigs[key];
-                    if (!cfg) return null;
-                    const vals = weekEntries
-                      .map((e) => (e as any)[cfg.dataKey])
-                      .filter((v: unknown): v is number => typeof v === "number");
-                    const avg = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
-                    return (
-                      <motion.div
-                        key={key}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.15 } }}
-                        transition={{ type: "spring", stiffness: 400, damping: 20, delay: i * 0.06 }}
-                        className="flex items-center gap-1.5 rounded-full bg-secondary/60 pl-3 pr-1.5 py-1.5 flex-shrink-0"
-                      >
-                        <button
-                          className="flex items-center gap-1.5 active:scale-95 transition-transform"
-                          onClick={() => {
-                            const el = document.getElementById(`sparkline-${key}`);
-                            el?.scrollIntoView({ behavior: "smooth", block: "center" });
-                          }}
-                        >
-                          <span className="text-xs">{cfg.emoji}</span>
-                          <span
-                            className="text-sm font-bold leading-none"
-                            style={{ color: avg !== null ? cfg.colorFn(avg) : "hsl(var(--muted-foreground))" }}
-                          >
-                            {avg !== null ? avg.toFixed(1) : "—"}
-                          </span>
-                          <span className="text-[9px] text-muted-foreground">{cfg.unit}</span>
-                        </button>
-                        <button
-                          onClick={() => togglePin(key)}
-                          className="ml-0.5 rounded-full hover:bg-muted/60 active:scale-90 transition-all p-0.5 text-muted-foreground/50 hover:text-foreground"
-                          aria-label={`Unpin ${key}`}
-                        >
-                          <span className="text-[10px] leading-none">✕</span>
-                        </button>
-                      </motion.div>
-                    );
-                  })}
+                  <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={pinnedMetrics} strategy={horizontalListSortingStrategy}>
+                      {pinnedMetrics.map((key, i) => {
+                        const allConfigs: Record<string, any> = {
+                          ...SPARKLINE_CONFIGS,
+                          sleep: makeSleepConfig(profile?.sleep_goal ?? 8),
+                          hydration: makeHydrationConfig(profile?.hydration_goal ?? 8),
+                        };
+                        const cfg = allConfigs[key];
+                        if (!cfg) return null;
+                        const vals = weekEntries
+                          .map((e) => (e as any)[cfg.dataKey])
+                          .filter((v: unknown): v is number => typeof v === "number");
+                        const avg = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
+                        return (
+                          <SortablePinnedPill
+                            key={key}
+                            id={key}
+                            emoji={cfg.emoji}
+                            avg={avg}
+                            colorFn={cfg.colorFn}
+                            unit={cfg.unit}
+                            index={i}
+                            onScrollTo={(k) => {
+                              const el = document.getElementById(`sparkline-${k}`);
+                              el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                            }}
+                            onUnpin={togglePin}
+                          />
+                        );
+                      })}
+                    </SortableContext>
+                  </DndContext>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <motion.button
