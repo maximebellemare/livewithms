@@ -1,62 +1,15 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { format, subDays, parseISO } from "date-fns";
-import { ChevronRight, CheckCircle2 } from "lucide-react";
+import { format, subDays } from "date-fns";
+import { ChevronRight } from "lucide-react";
+import type { SparklineConfig } from "./sparkline/types";
+import type { PlotPoint } from "./sparkline/types";
+import { useLongPress } from "./sparkline/useLongPress";
+import SparklineSvg from "./sparkline/SparklineSvg";
+import DayLabels from "./sparkline/DayLabels";
+import { LongPressOverlay, SavedOverlay } from "./sparkline/Overlays";
 
-export interface SparklineConfig {
-  /** Label shown above the value, e.g. "Mood" */
-  label: string;
-  /** Emoji prefix for card variant */
-  emoji?: string;
-  /** Key to read from the entry object */
-  dataKey: string;
-  /** Unit label shown after the value, e.g. "/10", "hrs" */
-  unit: string;
-  /** Route state value passed to /insights heatmap */
-  heatmapMetric: string;
-  /** If true, lower values = better (fatigue, pain, brain_fog). If false, higher = better (mood). */
-  lowerIsBetter: boolean;
-  /** Color function: value → hsl string */
-  colorFn: (value: number) => string;
-  /** Line stroke color for the sparkline */
-  lineColor: string;
-  /** Fill color (with alpha) for the area under the line */
-  fillColor: string;
-  /** Max Y value for scaling. Defaults to 10. */
-  maxY?: number;
-  /** Threshold for trend detection. Defaults to 0.8. */
-  trendThreshold?: number;
-}
-
-/** Pointer-event handlers that distinguish tap vs long-press. */
-function useLongPress(onClick?: () => void, onLongPress?: () => void, delay = 500) {
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fired = useRef(false);
-  const [isPressing, setIsPressing] = useState(false);
-
-  const start = () => {
-    fired.current = false;
-    setIsPressing(true);
-    timer.current = setTimeout(() => {
-      fired.current = true;
-      setIsPressing(false);
-      navigator.vibrate?.([30, 50, 30]);
-      onLongPress?.();
-    }, delay);
-  };
-
-  const cancel = () => {
-    if (timer.current) clearTimeout(timer.current);
-    setIsPressing(false);
-  };
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (fired.current) { e.preventDefault(); e.stopPropagation(); return; }
-    onClick?.();
-  };
-
-  return { isPressing, onPointerDown: start, onPointerUp: cancel, onPointerLeave: cancel, onPointerCancel: cancel, onClick: handleClick };
-}
+export type { SparklineConfig } from "./sparkline/types";
 
 interface GenericSparklineProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,11 +17,8 @@ interface GenericSparklineProps {
   config: SparklineConfig;
   /** "row" = horizontal layout for scroll area (default); "card" = vertical layout for grid */
   variant?: "row" | "card";
-  /** Tap handler (card variant) */
   onClick?: () => void;
-  /** Long-press handler (card variant) */
   onLongPress?: () => void;
-  /** Flash green saved overlay (card variant) */
   saved?: boolean;
 }
 
@@ -82,17 +32,8 @@ export default function GenericSparkline({
 }: GenericSparklineProps) {
   const navigate = useNavigate();
   const {
-    label,
-    emoji,
-    dataKey,
-    unit,
-    heatmapMetric,
-    lowerIsBetter,
-    colorFn,
-    lineColor,
-    fillColor,
-    maxY = 10,
-    trendThreshold = 0.8,
+    label, emoji, dataKey, unit, heatmapMetric, lowerIsBetter,
+    colorFn, lineColor, fillColor, maxY = 10, trendThreshold = 0.8,
   } = config;
 
   const days = useMemo(() => {
@@ -115,7 +56,6 @@ export default function GenericSparkline({
   });
 
   const hasAnyData = points.some((p) => p.value !== null);
-
   const isCard = variant === "card";
   const interactive = !!(onClick || onLongPress);
   const { isPressing, ...pressHandlers } = useLongPress(onClick, onLongPress);
@@ -145,23 +85,9 @@ export default function GenericSparkline({
   // Row variant: hide if no data
   if (!hasAnyData) return null;
 
-  const W = 200;
-  const H = 36;
-  const PAD = 4;
-
-  const plotPoints = points
+  const plotPoints: PlotPoint[] = points
     .map((p, i) => ({ ...p, x: i }))
-    .filter((p): p is { date: string; value: number; x: number } => p.value !== null);
-
-  const toSvgX = (i: number) => PAD + (i / 6) * (W - PAD * 2);
-  const toSvgY = (v: number) =>
-    lowerIsBetter
-      ? PAD + (v / maxY) * (H - PAD * 2)
-      : PAD + ((maxY - v) / maxY) * (H - PAD * 2);
-
-  const svgLinePoints = plotPoints
-    .map((p) => `${toSvgX(p.x)},${toSvgY(p.value)}`)
-    .join(" ");
+    .filter((p): p is PlotPoint => p.value !== null);
 
   const avg = plotPoints.length
     ? plotPoints.reduce((s, p) => s + p.value, 0) / plotPoints.length
@@ -170,7 +96,7 @@ export default function GenericSparkline({
   // Trend detection
   const firstHalf = plotPoints.filter((p) => p.x <= 3);
   const secondHalf = plotPoints.filter((p) => p.x > 3);
-  const avgHalf = (arr: typeof plotPoints) =>
+  const avgHalf = (arr: PlotPoint[]) =>
     arr.length ? arr.reduce((s, p) => s + p.value, 0) / arr.length : null;
   const f = avgHalf(firstHalf);
   const s = avgHalf(secondHalf);
@@ -195,70 +121,7 @@ export default function GenericSparkline({
       ? "hsl(0 65% 42%)"
       : "hsl(var(--muted-foreground))";
 
-  const midY = maxY / 2;
-
-  const sparklineSvg = (height: number) => (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="w-full"
-      style={{ height }}
-      preserveAspectRatio="none"
-    >
-      <line
-        x1={PAD} y1={toSvgY(midY)} x2={W - PAD} y2={toSvgY(midY)}
-        stroke="hsl(var(--border))" strokeWidth="0.8" strokeDasharray="3 3"
-      />
-      {plotPoints.length >= 2 && (
-        <polyline
-          points={[
-            `${toSvgX(plotPoints[0].x)},${H - PAD}`,
-            ...plotPoints.map((p) => `${toSvgX(p.x)},${toSvgY(p.value)}`),
-            `${toSvgX(plotPoints[plotPoints.length - 1].x)},${H - PAD}`,
-          ].join(" ")}
-          fill={fillColor}
-          stroke="none"
-        />
-      )}
-      {plotPoints.length >= 2 && (
-        <polyline
-          points={svgLinePoints}
-          fill="none"
-          stroke={lineColor}
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      )}
-      {plotPoints.map((p) => (
-        <circle
-          key={p.date}
-          cx={toSvgX(p.x)}
-          cy={toSvgY(p.value)}
-          r="2.5"
-          fill={colorFn(p.value)}
-          stroke="hsl(var(--card))"
-          strokeWidth="1"
-        />
-      ))}
-    </svg>
-  );
-
-  const dayLabels = (
-    <div className="flex justify-between px-0.5">
-      {days.map((date) => {
-        const hasData = byDate[date]?.[dataKey] != null;
-        return (
-          <span
-            key={date}
-            className="text-[8px] leading-none"
-            style={{ color: hasData ? "hsl(var(--muted-foreground))" : "hsl(var(--muted-foreground) / 0.4)" }}
-          >
-            {format(parseISO(date), "EEE")[0]}
-          </span>
-        );
-      })}
-    </div>
-  );
+  const svgProps = { plotPoints, maxY, lowerIsBetter, lineColor, fillColor, colorFn };
 
   // ── Card variant ──
   if (isCard) {
@@ -285,10 +148,8 @@ export default function GenericSparkline({
             </span>
           </div>
         </div>
-
-        {sparklineSvg(32)}
-        {dayLabels}
-
+        <SparklineSvg {...svgProps} height={32} />
+        <DayLabels days={days} dataKey={dataKey} byDate={byDate} />
         {onLongPress && isPressing && <LongPressOverlay />}
         {saved && <SavedOverlay />}
       </Tag>
@@ -320,53 +181,13 @@ export default function GenericSparkline({
           </span>
         </div>
       </div>
-
       <div className="flex-1 min-w-0">
-        {sparklineSvg(36)}
-        <div className="flex justify-between mt-0.5 px-0.5">
-          {days.map((date) => {
-            const hasData = byDate[date]?.[dataKey] != null;
-            return (
-              <span
-                key={date}
-                className="text-[8px] leading-none"
-                style={{ color: hasData ? "hsl(var(--muted-foreground))" : "hsl(var(--muted-foreground) / 0.4)" }}
-              >
-                {format(parseISO(date), "EEE")[0]}
-              </span>
-            );
-          })}
+        <SparklineSvg {...svgProps} height={36} />
+        <div className="mt-0.5">
+          <DayLabels days={days} dataKey={dataKey} byDate={byDate} />
         </div>
       </div>
       <ChevronRight className="flex-shrink-0 w-4 h-4 text-muted-foreground/50" />
-    </div>
-  );
-}
-
-function LongPressOverlay() {
-  return (
-    <div className="absolute inset-0 pointer-events-none rounded-xl overflow-hidden animate-fade-in flex items-center justify-center">
-      <div className="absolute inset-0 bg-primary/8" />
-      <svg width="44" height="44" viewBox="0 0 44 44" style={{ transform: "rotate(-90deg)" }}>
-        <circle cx="22" cy="22" r="18" fill="none" stroke="hsl(var(--primary) / 0.15)" strokeWidth="3" />
-        <circle
-          cx="22" cy="22" r="18" fill="none"
-          stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round"
-          strokeDasharray="113.1"
-          style={{ animation: "ring-fill 0.5s linear forwards" }}
-        />
-      </svg>
-      <span className="absolute bottom-1.5 text-[8px] font-semibold tracking-wide text-primary/80 bg-primary/15 px-2 py-0.5 rounded-full">
-        insights →
-      </span>
-    </div>
-  );
-}
-
-function SavedOverlay() {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center bg-[hsl(145_45%_45%/0.12)] animate-fade-in pointer-events-none rounded-xl">
-      <CheckCircle2 className="h-7 w-7 text-[hsl(145_45%_38%)] drop-shadow" />
     </div>
   );
 }
