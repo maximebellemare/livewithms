@@ -21,7 +21,11 @@ interface SortablePinnedPillProps extends PillProps {
 function PillContent({ id, emoji, avg, colorFn, unit, onScrollTo, onUnpin }: PillProps) {
   const lp = useLongPress(
     () => onScrollTo(id),
-    () => { onUnpin(id); toast(`${emoji} ${id.charAt(0).toUpperCase() + id.slice(1)} unpinned`, { duration: 2000 }); },
+    () => {
+      onUnpin(id);
+      localStorage.setItem("lp_unpin_used", "1");
+      toast(`${emoji} ${id.charAt(0).toUpperCase() + id.slice(1)} unpinned`, { duration: 2000 });
+    },
     500,
   );
   return (

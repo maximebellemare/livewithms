@@ -460,7 +460,9 @@ const TodayPage = () => {
                     </AlertDialogContent>
                   </AlertDialog>
                 </div>
-                <p className="text-[10px] text-muted-foreground/50 text-center mt-0.5">Hold pill to unpin</p>
+                {!localStorage.getItem("lp_unpin_used") && (
+                  <p className="text-[10px] text-muted-foreground/50 text-center mt-0.5">Hold pill to unpin</p>
+                )}
               </StaggerItem>
             </motion.div>
           )}
