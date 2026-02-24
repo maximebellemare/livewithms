@@ -69,9 +69,9 @@ const EnergyBudgetPage = () => {
     [activities]
   );
   const totalSpoons = budget?.total_spoons ?? 12;
-  const remaining = totalSpoons - usedSpoons;
+  const remaining = totalSpoons - plannedSpoons;
   const overBudget = remaining < 0;
-  const pct = Math.min((usedSpoons / totalSpoons) * 100, 100);
+  const pct = Math.min((plannedSpoons / totalSpoons) * 100, 100);
 
   const handleCreateBudget = async () => {
     try {
@@ -238,7 +238,7 @@ const EnergyBudgetPage = () => {
                 {remaining} spoon{remaining !== 1 ? "s" : ""} remaining
               </span>
             </div>
-            <span className="text-sm text-muted-foreground">{usedSpoons}/{totalSpoons} used</span>
+            <span className="text-sm text-muted-foreground">{plannedSpoons}/{totalSpoons} planned</span>
           </div>
 
           {/* Progress bar */}
@@ -254,7 +254,7 @@ const EnergyBudgetPage = () => {
           {/* Visual spoons */}
           <div className="flex flex-wrap gap-1">
             {Array.from({ length: totalSpoons }).map((_, i) => (
-              <span key={i} className={`text-base transition-opacity ${i < usedSpoons ? "opacity-30" : "opacity-100"}`}>
+              <span key={i} className={`text-base transition-opacity ${i < plannedSpoons ? "opacity-30" : "opacity-100"}`}>
                 🥄
               </span>
             ))}
