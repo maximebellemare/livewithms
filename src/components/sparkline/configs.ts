@@ -154,5 +154,6 @@ export function makeHydrationConfig(goal = 8): SparklineConfig {
     fillColor: "hsl(195 80% 42% / 0.10)",
     maxY: Math.max(16, goal + 4),
     trendThreshold: 0.5,
+    goalValue: goal,
   };
 }

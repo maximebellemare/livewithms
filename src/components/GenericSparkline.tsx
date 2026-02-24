@@ -35,6 +35,7 @@ export default function GenericSparkline({
   const {
     label, emoji, dataKey, unit, heatmapMetric, lowerIsBetter,
     colorFn, lineColor, fillColor, maxY = 10, trendThreshold = 0.8,
+    goalValue,
   } = config;
 
   const days = useMemo(() => {
@@ -106,7 +107,7 @@ export default function GenericSparkline({
       ? "hsl(0 65% 42%)"
       : "hsl(var(--muted-foreground))";
 
-  const svgProps = { plotPoints, maxY, lowerIsBetter, lineColor, fillColor, colorFn };
+  const svgProps = { plotPoints, maxY, lowerIsBetter, lineColor, fillColor, colorFn, goalY: goalValue };
 
   // ── Card variant ──
   if (isCard) {

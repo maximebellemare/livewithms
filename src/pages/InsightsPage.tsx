@@ -704,6 +704,16 @@ const InsightsPage = () => {
                         activeDot={{ r: 4, strokeWidth: 0 }}
                       />
                     ))}
+                    {/* Hydration goal line (normalized to 0–10 scale) */}
+                    {(activeSymptom === "all" || activeSymptom === "water_glasses") && (
+                      <ReferenceLine
+                        y={parseFloat(((_hydrationCfg.goalValue ?? 8) / 16 * 10).toFixed(1))}
+                        stroke="hsl(145 50% 42%)"
+                        strokeDasharray="6 3"
+                        strokeOpacity={0.5}
+                        strokeWidth={1}
+                      />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -747,15 +757,17 @@ const InsightsPage = () => {
             <div className="grid grid-cols-1 gap-3">
               {SYMPTOMS.map(({ key, label, emoji }) => {
                 const isSleep = key === "sleep_hours";
+                const isHydration = key === "water_glasses";
                 const vals = windowEntries.map((e) => e[key as keyof typeof e] as number | null);
                 const curAvg = avg(vals);
                 const validVals = vals.filter((v): v is number => v !== null);
                 const minVal = validVals.length ? Math.min(...validVals) : null;
                 const maxVal = validVals.length ? Math.max(...validVals) : null;
-                const domainMax = isSleep ? 12 : 10;
-                const unit = isSleep ? "hrs avg" : "/ 10 avg";
-                const dataKey = isSleep ? "sleep_hours_raw" : key;
-                const tooltipName = isSleep ? "Sleep (hrs)" : label;
+                const domainMax = isSleep ? 12 : isHydration ? 16 : 10;
+                const unit = isSleep ? "hrs avg" : isHydration ? "glasses avg" : "/ 10 avg";
+                const dataKey = isSleep ? "sleep_hours_raw" : isHydration ? "water_glasses_raw" : key;
+                const tooltipName = isSleep ? "Sleep (hrs)" : isHydration ? "Hydration (glasses)" : label;
+                const goalLine = isHydration ? (_hydrationCfg.goalValue ?? 8) : null;
                 return (
                   <div key={key} className="rounded-xl bg-card p-4 shadow-soft">
                     <div className="flex items-center justify-between mb-2">
@@ -789,6 +801,16 @@ const InsightsPage = () => {
                               strokeDasharray="4 3"
                               strokeOpacity={0.5}
                               strokeWidth={1}
+                            />
+                          )}
+                          {goalLine !== null && (
+                            <ReferenceLine
+                              y={goalLine}
+                              stroke="hsl(145 50% 42%)"
+                              strokeDasharray="6 3"
+                              strokeOpacity={0.7}
+                              strokeWidth={1.2}
+                              label={{ value: `Goal: ${goalLine}`, position: "left", fontSize: 9, fill: "hsl(145 50% 42%)" }}
                             />
                           )}
                           <Area
