@@ -21,6 +21,8 @@ export interface SparklineConfig {
   maxY?: number;
   /** Threshold for trend detection. Defaults to 0.8. */
   trendThreshold?: number;
+  /** Optional goal value to draw a target reference line */
+  goalValue?: number;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

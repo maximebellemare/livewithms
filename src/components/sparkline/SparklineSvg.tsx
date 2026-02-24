@@ -12,6 +12,7 @@ interface SparklineSvgProps {
   lineColor: string;
   fillColor: string;
   colorFn: (value: number) => string;
+  goalY?: number;
 }
 
 export default function SparklineSvg({
@@ -22,6 +23,7 @@ export default function SparklineSvg({
   lineColor,
   fillColor,
   colorFn,
+  goalY,
 }: SparklineSvgProps) {
   const toSvgX = (i: number) => PAD + (i / 6) * (W - PAD * 2);
   const toSvgY = (v: number) =>
@@ -42,10 +44,19 @@ export default function SparklineSvg({
       style={{ height }}
       preserveAspectRatio="none"
     >
+      {/* Mid-point reference line */}
       <line
         x1={PAD} y1={toSvgY(midY)} x2={W - PAD} y2={toSvgY(midY)}
         stroke="hsl(var(--border))" strokeWidth="0.8" strokeDasharray="3 3"
       />
+      {/* Goal reference line */}
+      {goalY != null && goalY > 0 && goalY <= maxY && (
+        <line
+          x1={PAD} y1={toSvgY(goalY)} x2={W - PAD} y2={toSvgY(goalY)}
+          stroke="hsl(145 50% 42%)" strokeWidth="1" strokeDasharray="4 2"
+          opacity={0.7}
+        />
+      )}
       {plotPoints.length >= 2 && (
         <polyline
           points={[
