@@ -181,13 +181,19 @@ const TodayPage = () => {
   const updateProfile = useUpdateProfile();
   const pinnedMetrics = useMemo(() => profile?.pinned_metrics ?? [], [profile]);
 
+  const MAX_PINNED = 4;
   const togglePin = useCallback((metricKey: string) => {
     const current = pinnedMetrics;
-    const next = current.includes(metricKey)
+    const isUnpinning = current.includes(metricKey);
+    if (!isUnpinning && current.length >= MAX_PINNED) {
+      toast(`You can pin up to ${MAX_PINNED} metrics`, { duration: 2000 });
+      return;
+    }
+    const next = isUnpinning
       ? current.filter((k) => k !== metricKey)
       : [...current, metricKey];
     updateProfile.mutate({ pinned_metrics: next } as any);
-    toast(next.includes(metricKey) ? `📌 ${metricKey} pinned` : `Unpinned ${metricKey}`, { duration: 1500 });
+    toast(isUnpinning ? `Unpinned ${metricKey}` : `📌 ${metricKey} pinned`, { duration: 1500 });
   }, [pinnedMetrics, updateProfile]);
 
   const [downloadingReport, setDownloadingReport] = useState(false);
