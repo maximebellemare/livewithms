@@ -548,9 +548,23 @@ const ProfilePage = () => {
                     </div>
                   );
                 })}
-                <p className="text-[10px] text-muted-foreground pt-1">
-                  {active.length === HINTS.length ? "All hints active — explore the app!" : `${dismissed.length}/${HINTS.length} hints seen`}
-                </p>
+                <div className="flex items-center justify-between pt-1">
+                  <p className="text-[10px] text-muted-foreground">
+                    {active.length === HINTS.length ? "All hints active — explore the app!" : `${dismissed.length}/${HINTS.length} hints seen`}
+                  </p>
+                  {dismissed.length > 0 && (
+                    <button
+                      onClick={() => {
+                        HINTS.forEach((h) => localStorage.removeItem(h.key));
+                        toast.success("Interaction hints reset! They'll reappear as you use the app 💡");
+                      }}
+                      className="flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[10px] font-medium text-secondary-foreground transition-colors hover:bg-muted"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Reset
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })()}
