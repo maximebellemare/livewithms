@@ -222,6 +222,7 @@ const TodayPage = () => {
     const reordered = arrayMove(pinnedMetrics, oldIndex, newIndex);
     updateProfile.mutate({ pinned_metrics: reordered } as any);
     toast("Order saved ✓", { duration: 1200 });
+    localStorage.setItem("hint_drag_reorder_used", "1");
   }, [pinnedMetrics, updateProfile]);
 
   const [downloadingReport, setDownloadingReport] = useState(false);
@@ -465,6 +466,9 @@ const TodayPage = () => {
                 </div>
                 {!localStorage.getItem("lp_unpin_used") && (
                   <p className="text-[10px] text-muted-foreground/50 text-center mt-0.5">Hold pill to unpin</p>
+                )}
+                {pinnedMetrics.length >= 2 && !localStorage.getItem("hint_drag_reorder_used") && (
+                  <p className="text-[10px] text-muted-foreground/50 text-center mt-0.5">Drag ⠿ to reorder pills</p>
                 )}
               </StaggerItem>
             </motion.div>

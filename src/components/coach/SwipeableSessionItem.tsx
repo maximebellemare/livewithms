@@ -77,6 +77,7 @@ const SwipeableSessionItem = ({
         triggerHaptic();
         animate(x, -ACTION_WIDTH, { type: "spring", stiffness: 300, damping: 30 });
         setSwiped(true);
+        localStorage.setItem("hint_coach_swipe_used", "1");
       }
     }, 500);
   };
@@ -98,6 +99,7 @@ const SwipeableSessionItem = ({
       triggerHaptic();
       animate(x, -ACTION_WIDTH, { type: "spring", stiffness: 300, damping: 30 });
       setSwiped(true);
+      localStorage.setItem("hint_coach_swipe_used", "1");
     } else {
       animate(x, 0, { type: "spring", stiffness: 300, damping: 30 });
       setSwiped(false);

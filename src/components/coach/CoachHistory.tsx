@@ -209,6 +209,11 @@ const CoachHistory = ({ onSelectSession }: CoachHistoryProps) => {
           />
         ))
       )}
+      {filteredSessions.length > 0 && !localStorage.getItem("hint_coach_swipe_used") && (
+        <p className="text-[10px] text-muted-foreground/40 text-center pt-1 animate-pulse">
+          Swipe left or hold to manage conversations
+        </p>
+      )}
 
       {/* Clear All */}
       {confirmClearAll ? (
