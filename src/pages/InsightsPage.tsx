@@ -340,8 +340,7 @@ const InsightsPage = () => {
                 const prevAvg = avg(prevWindowEntries.map((e) => e[key as keyof typeof e] as number | null));
                 if (curAvg === null) return null;
                 const diff = prevAvg !== null ? curAvg - prevAvg : null;
-                // For fatigue/pain/brain_fog lower is better; for mood/mobility higher is better
-                const lowerIsBetter = key === "fatigue" || key === "pain" || key === "brain_fog";
+                const lowerIsBetter = ALL_CONFIGS[key as keyof typeof ALL_CONFIGS]?.lowerIsBetter ?? false;
                 const improved = diff !== null && (lowerIsBetter ? diff < -0.4 : diff > 0.4);
                 const worsened = diff !== null && (lowerIsBetter ? diff > 0.4 : diff < -0.4);
 
