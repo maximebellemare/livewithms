@@ -2,7 +2,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { motion } from "framer-motion";
 import { useLongPress } from "./sparkline/useLongPress";
-import { toast } from "sonner";
+
 
 interface PillProps {
   id: string;
@@ -24,7 +24,6 @@ function PillContent({ id, emoji, avg, colorFn, unit, onScrollTo, onUnpin }: Pil
     () => {
       onUnpin(id);
       localStorage.setItem("lp_unpin_used", "1");
-      toast(`${emoji} ${id.charAt(0).toUpperCase() + id.slice(1)} unpinned`, { duration: 2000 });
     },
     500,
   );
