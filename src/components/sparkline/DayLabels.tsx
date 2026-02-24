@@ -9,7 +9,7 @@ interface DayLabelsProps {
 
 export default function DayLabels({ days, dataKey, byDate }: DayLabelsProps) {
   return (
-    <div className="flex justify-between px-0.5">
+    <div className="flex justify-between px-1">
       {days.map((date) => {
         const hasData = byDate[date]?.[dataKey] != null;
         return (

@@ -165,7 +165,7 @@ export default function GenericSparkline({
       )}
       <div className="flex-shrink-0">
         <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mb-0.5 whitespace-nowrap">
-          {label} · 7-day
+          {label}
         </p>
         <div className="flex items-baseline gap-1">
           <span
