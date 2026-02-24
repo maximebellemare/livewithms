@@ -274,7 +274,7 @@ const InsightsPage = () => {
             <StaggerItem>
             <div data-tour="insights-stats" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {SYMPTOMS.slice(0, 6).map(({ key, label, emoji }) => {
-                const higherIsBetter = key === "mood" || key === "mobility" || key === "sleep_hours";
+                const higherIsBetter = !(ALL_CONFIGS[key as keyof typeof ALL_CONFIGS]?.lowerIsBetter ?? false);
                 const isSleep = key === "sleep_hours";
                 const cur = avg(windowEntries.map((e) => e[key as keyof typeof e] as number | null));
                 const t = trend(
