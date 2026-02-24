@@ -23,6 +23,14 @@ function mobilityColor(value: number): string {
   return "hsl(0 72% 51%)";
 }
 
+function hydrationColor(value: number, goal: number): string {
+  const ratio = value / goal;
+  if (ratio >= 1) return "hsl(195 80% 42%)";
+  if (ratio >= 0.7) return "hsl(195 60% 50%)";
+  if (ratio >= 0.4) return "hsl(45 90% 52%)";
+  return "hsl(0 72% 51%)";
+}
+
 function sleepColor(value: number, goal: number): string {
   const ratio = value / goal;
   if (ratio >= 0.9) return "hsl(220 60% 50%)";
@@ -30,8 +38,6 @@ function sleepColor(value: number, goal: number): string {
   if (ratio >= 0.5) return "hsl(45 90% 52%)";
   return "hsl(0 72% 51%)";
 }
-
-// ── Static configs (no runtime params) ──
 
 export const SPARKLINE_CONFIGS = {
   mood: {
@@ -129,6 +135,24 @@ export function makeSleepConfig(goal = 8): SparklineConfig {
     lineColor: "hsl(220 60% 50%)",
     fillColor: "hsl(220 60% 50% / 0.10)",
     maxY: Math.max(12, goal + 2),
+    trendThreshold: 0.5,
+  };
+}
+
+// ── Hydration config factory (needs goal param) ──
+
+export function makeHydrationConfig(goal = 8): SparklineConfig {
+  return {
+    label: "Hydration",
+    emoji: "💧",
+    dataKey: "water_glasses",
+    unit: "glasses",
+    heatmapMetric: "water_glasses",
+    lowerIsBetter: false,
+    colorFn: (v) => hydrationColor(v, goal),
+    lineColor: "hsl(195 80% 42%)",
+    fillColor: "hsl(195 80% 42% / 0.10)",
+    maxY: Math.max(16, goal + 4),
     trendThreshold: 0.5,
   };
 }
