@@ -555,7 +555,9 @@ const ProfilePage = () => {
             const pct = Math.round((dismissed.length / HINTS.length) * 100);
             const barColor = pct >= 80 ? "bg-brand-green" : pct >= 40 ? "bg-amber-500" : "bg-destructive";
             const confettiKey = `hint_completion_confetti_${HINTS.length}`;
-            const prevCountRef = useRef(dismissed.length);
+            const prevCountSessionKey = "hint_prev_count";
+            const storedPrev = Number(sessionStorage.getItem(prevCountSessionKey) ?? dismissed.length);
+            const prevCountRef = useRef(storedPrev);
             const [barGlow, setBarGlow] = useState(false);
             useEffect(() => {
               if (pct === 100 && !sessionStorage.getItem(confettiKey)) {
@@ -568,9 +570,12 @@ const ProfilePage = () => {
                 confetti({ particleCount: 30, spread: 50, startVelocity: 20, gravity: 0.8, origin: { y: 0.5 }, scalar: 0.7, colors: ["#f59e0b", "#22c55e", "#3b82f6"] });
                 setBarGlow(true);
                 const t = setTimeout(() => setBarGlow(false), 1200);
+                prevCountRef.current = dismissed.length;
+                sessionStorage.setItem(prevCountSessionKey, String(dismissed.length));
                 return () => clearTimeout(t);
               }
               prevCountRef.current = dismissed.length;
+              sessionStorage.setItem(prevCountSessionKey, String(dismissed.length));
             }, [dismissed.length, pct]);
             return (
               <div className="mt-3 rounded-xl bg-card border border-border p-3 space-y-2">
