@@ -605,19 +605,27 @@ const ProfilePage = () => {
                       transition={{ duration: 0.4, ease: "easeOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 mb-1">
-                        <span className="text-lg leading-none mt-0.5">🎯</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-foreground">Halfway there!</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">You've discovered half the hidden interactions. Keep exploring to find them all!</p>
+                      <div className="rounded-lg border border-primary/30 bg-primary/5 mb-1 overflow-hidden">
+                        <div className="flex items-start gap-3 px-3 py-2.5">
+                          <span className="text-lg leading-none mt-0.5">🎯</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-foreground">Halfway there!</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">You've discovered half the hidden interactions. Keep exploring to find them all!</p>
+                          </div>
+                          <button
+                            onClick={() => setShowHalfwayBanner(false)}
+                            className="rounded-md p-1 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                            aria-label="Dismiss"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => setShowHalfwayBanner(false)}
-                          className="rounded-md p-1 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                          aria-label="Dismiss"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
+                        <motion.div
+                          className="h-0.5 bg-primary/40 origin-left"
+                          initial={{ scaleX: 1 }}
+                          animate={{ scaleX: 0 }}
+                          transition={{ duration: 8, ease: "linear" }}
+                        />
                       </div>
                     </motion.div>
                   )}
