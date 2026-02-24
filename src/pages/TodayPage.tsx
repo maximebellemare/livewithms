@@ -45,6 +45,7 @@ import SleepSparkline from "@/components/SleepSparkline";
 import FatigueSparkline from "@/components/FatigueSparkline";
 import PainSparkline from "@/components/PainSparkline";
 import ScrollDots from "@/components/ScrollDots";
+import BrainFogSparkline from "@/components/BrainFogSparkline";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
@@ -350,8 +351,9 @@ const TodayPage = () => {
               <div className="min-w-[75vw] snap-start sm:min-w-0"><SleepSparkline entries={weekEntries} goal={profile?.sleep_goal ?? 8} /></div>
               <div className="min-w-[75vw] snap-start sm:min-w-0"><FatigueSparkline entries={weekEntries} /></div>
               <div className="min-w-[75vw] snap-start sm:min-w-0"><PainSparkline entries={weekEntries} /></div>
+              <div className="min-w-[75vw] snap-start sm:min-w-0"><BrainFogSparkline entries={weekEntries} /></div>
             </div>
-            <ScrollDots containerRef={sparklineScrollRef} count={4} />
+            <ScrollDots containerRef={sparklineScrollRef} count={5} />
           </StaggerItem>
         )}
 
