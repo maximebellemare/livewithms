@@ -559,12 +559,25 @@ const ProfilePage = () => {
             const storedPrev = Number(sessionStorage.getItem(prevCountSessionKey) ?? dismissed.length);
             const prevCountRef = useRef(storedPrev);
             const [barGlow, setBarGlow] = useState(false);
+            const halfwayKey = "hint_halfway_celebrated";
             useEffect(() => {
               if (pct === 100 && !sessionStorage.getItem(confettiKey)) {
                 sessionStorage.setItem(confettiKey, "1");
                 confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ["#22c55e", "#f59e0b", "#3b82f6", "#a855f7"] });
               }
             }, [pct, confettiKey]);
+            useEffect(() => {
+              if (pct >= 50 && !sessionStorage.getItem(halfwayKey) && pct < 100) {
+                sessionStorage.setItem(halfwayKey, "1");
+                // Double burst from left and right
+                confetti({ particleCount: 40, angle: 60, spread: 55, origin: { x: 0, y: 0.6 }, colors: ["#f59e0b", "#22c55e", "#3b82f6"] });
+                confetti({ particleCount: 40, angle: 120, spread: 55, origin: { x: 1, y: 0.6 }, colors: ["#f59e0b", "#22c55e", "#3b82f6"] });
+                if (navigator.vibrate) navigator.vibrate([50, 80, 50]);
+                setBarGlow(true);
+                const t = setTimeout(() => setBarGlow(false), 2500);
+                return () => clearTimeout(t);
+              }
+            }, [pct]);
             useEffect(() => {
               if (dismissed.length > prevCountRef.current && pct < 100) {
                 confetti({ particleCount: 30, spread: 50, startVelocity: 20, gravity: 0.8, origin: { y: 0.5 }, scalar: 0.7, colors: ["#f59e0b", "#22c55e", "#3b82f6"] });
