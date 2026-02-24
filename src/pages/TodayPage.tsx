@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import SEOHead from "@/components/SEOHead";
 import { useNavigate } from "react-router-dom";
@@ -44,6 +44,7 @@ import MoodSparkline from "@/components/MoodSparkline";
 import SleepSparkline from "@/components/SleepSparkline";
 import FatigueSparkline from "@/components/FatigueSparkline";
 import PainSparkline from "@/components/PainSparkline";
+import ScrollDots from "@/components/ScrollDots";
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile } from "@/hooks/useProfile";
 import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
@@ -95,6 +96,7 @@ const TodayPage = () => {
   const [celebratedStreak, setCelebratedStreak] = useState<number | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const sparklineScrollRef = useRef<HTMLDivElement>(null);
   const [showFab, setShowFab] = useState(true);
   const [formInitialized, setFormInitialized] = useState(false);
   const notesRef = useRef<HTMLTextAreaElement>(null);
@@ -343,12 +345,13 @@ const TodayPage = () => {
         {/* Weekly mood trend mini-chart */}
         {weekEntries.length > 0 && (
           <StaggerItem>
-            <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-hide sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible sm:pb-0">
+            <div ref={sparklineScrollRef} className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-hide sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible sm:pb-0">
               <div className="min-w-[75vw] snap-start sm:min-w-0"><MoodSparkline entries={weekEntries} /></div>
               <div className="min-w-[75vw] snap-start sm:min-w-0"><SleepSparkline entries={weekEntries} goal={profile?.sleep_goal ?? 8} /></div>
               <div className="min-w-[75vw] snap-start sm:min-w-0"><FatigueSparkline entries={weekEntries} /></div>
               <div className="min-w-[75vw] snap-start sm:min-w-0"><PainSparkline entries={weekEntries} /></div>
             </div>
+            <ScrollDots containerRef={sparklineScrollRef} count={4} />
           </StaggerItem>
         )}
 
