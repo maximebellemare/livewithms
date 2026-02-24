@@ -550,6 +550,8 @@ const ProfilePage = () => {
               hintGroups.forEach(([page]) => { updated[page] = next; });
               setOpenGroups(updated);
             };
+            const pct = Math.round((dismissed.length / HINTS.length) * 100);
+            const barColor = pct >= 80 ? "bg-brand-green" : pct >= 40 ? "bg-amber-500" : "bg-destructive";
             return (
               <div className="mt-3 rounded-xl bg-card border border-border p-3 space-y-2">
                 <div className="space-y-1.5">
@@ -562,13 +564,13 @@ const ProfilePage = () => {
                       >
                         {allOpen ? "Collapse all" : "Expand all"}
                       </button>
-                      <span className="text-[10px] font-medium tabular-nums text-muted-foreground">{Math.round((dismissed.length / HINTS.length) * 100)}%</span>
+                      <span className="text-[10px] font-medium tabular-nums text-muted-foreground">{pct}%</span>
                     </div>
                   </div>
                   <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-brand-green transition-all duration-500"
-                      style={{ width: `${(dismissed.length / HINTS.length) * 100}%` }}
+                      className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                      style={{ width: `${pct}%` }}
                     />
                   </div>
                 </div>
