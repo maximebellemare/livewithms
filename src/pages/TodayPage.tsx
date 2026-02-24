@@ -204,6 +204,12 @@ const TodayPage = () => {
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
   );
 
+  const handleDragStart = useCallback(() => {
+    if (navigator.vibrate) {
+      navigator.vibrate(15);
+    }
+  }, []);
+
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -387,7 +393,7 @@ const TodayPage = () => {
             >
               <StaggerItem>
                 <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
-                  <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                     <SortableContext items={pinnedMetrics} strategy={horizontalListSortingStrategy}>
                       {pinnedMetrics.map((key, i) => {
                         const allConfigs: Record<string, any> = {
