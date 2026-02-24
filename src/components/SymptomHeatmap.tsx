@@ -12,6 +12,7 @@ interface DayEntry {
   spasticity?: number | null;
   stress?: number | null;
   sleep_hours?: number | null;
+  water_glasses?: number | null;
 }
 
 interface SymptomHeatmapProps {
@@ -31,7 +32,8 @@ const METRICS = [
   { key: "mobility",    label: "Mobility",    emoji: "🚶", higherIsBetter: true,  maxValue: 10 },
   { key: "spasticity",  label: "Spasticity",  emoji: "🦵", higherIsBetter: false, maxValue: 10 },
   { key: "stress",      label: "Stress",      emoji: "😰", higherIsBetter: false, maxValue: 10 },
-  { key: "sleep_hours", label: "Sleep",       emoji: "🌙", higherIsBetter: true,  maxValue: 12 },
+  { key: "sleep_hours",    label: "Sleep",       emoji: "🌙", higherIsBetter: true,  maxValue: 12 },
+  { key: "water_glasses",  label: "Hydration",   emoji: "💧", higherIsBetter: true,  maxValue: 16 },
 ] as const;
 
 export type MetricKey = typeof METRICS[number]["key"];

@@ -12,6 +12,7 @@ interface DayEntry {
   spasticity?: number | null;
   stress?: number | null;
   sleep_hours?: number | null;
+  water_glasses?: number | null;
 }
 
 interface Props {
@@ -28,7 +29,8 @@ const METRICS = [
   { key: "mobility"    as MetricKey, label: "Mobility",    higherIsBetter: true,  maxValue: 10 },
   { key: "spasticity"  as MetricKey, label: "Spasticity",  higherIsBetter: false, maxValue: 10 },
   { key: "stress"      as MetricKey, label: "Stress",      higherIsBetter: false, maxValue: 10 },
-  { key: "sleep_hours" as MetricKey, label: "Sleep",       higherIsBetter: true,  maxValue: 12 },
+  { key: "sleep_hours"    as MetricKey, label: "Sleep",       higherIsBetter: true,  maxValue: 12 },
+  { key: "water_glasses"  as MetricKey, label: "Hydration",   higherIsBetter: true,  maxValue: 16 },
 ];
 
 function avg(vals: (number | null)[]): number | null {
@@ -112,13 +114,13 @@ export default function HeatmapWithSummary({ entries, days, initialMetric }: Pro
             <span className="font-semibold" style={{ color: "hsl(145 45% 35%)" }}>🌟 Best {metric.label} week</span>
             {" "}was{" "}
             <span className="font-semibold text-foreground">{formatWeekRange(result.best.weekStart)}</span>
-            {" "}(avg {result.best.avg.toFixed(1)}{metric.maxValue === 12 ? " hrs" : "/10"}).
+            {" "}(avg {result.best.avg.toFixed(1)}{metric.maxValue === 12 ? " hrs" : metric.maxValue === 16 ? " glasses" : "/10"}).
           </p>
           <p className="text-[11px] text-foreground leading-snug">
             <span className="text-destructive font-semibold">💙 Toughest {metric.label} week</span>
             {" "}was{" "}
             <span className="font-semibold text-foreground">{formatWeekRange(result.worst.weekStart)}</span>
-            {" "}(avg {result.worst.avg.toFixed(1)}{metric.maxValue === 12 ? " hrs" : "/10"}).
+            {" "}(avg {result.worst.avg.toFixed(1)}{metric.maxValue === 12 ? " hrs" : metric.maxValue === 16 ? " glasses" : "/10"}).
           </p>
         </div>
       )}
