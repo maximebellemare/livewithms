@@ -75,7 +75,7 @@ export default function GenericSparkline({
       aria-label={`${label} – No data yet`}
       className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full border border-dashed border-border/60 overflow-hidden transition-all duration-200${interactive ? " cursor-pointer hover:bg-secondary/70 hover:border-primary/40 hover:shadow-card hover:-translate-y-0.5 active:scale-95" : ""}${saved ? " ring-2 ring-[hsl(145_45%_45%)] shadow-[0_0_12px_2px_hsl(145_45%_45%/0.35)]" : ""}`}
     >
-        <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground truncate">
           {emoji} {label}
         </p>
         <div className="flex flex-1 items-center justify-center py-3">
@@ -122,11 +122,11 @@ export default function GenericSparkline({
       aria-label={`${label} – average ${avg !== null ? avg.toFixed(1) : "unknown"}${unit}, trend ${trend}`}
       className={`relative rounded-xl bg-card shadow-soft px-3 py-3 flex flex-col gap-1.5 text-left w-full overflow-hidden transition-all duration-200${interactive ? " cursor-pointer hover:bg-secondary/70 hover:shadow-card hover:-translate-y-0.5 active:scale-95" : ""}${saved ? " ring-2 ring-[hsl(145_50%_48%)] shadow-[0_0_16px_4px_hsl(145_50%_48%/0.4)]" : ""}`}
     >
-        <div className="flex items-center justify-between">
-          <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="flex items-center justify-between gap-1">
+          <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground truncate min-w-0">
             {emoji} {label}
           </p>
-          <div className="flex items-baseline gap-0.5">
+          <div className="flex items-baseline gap-0.5 flex-shrink-0">
             <span
               className="text-base font-bold leading-none"
               style={{ color: avg !== null ? colorFn(avg) : "hsl(var(--muted-foreground))" }}
