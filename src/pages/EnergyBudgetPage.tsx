@@ -259,6 +259,9 @@ const EnergyBudgetPage = () => {
               </span>
             ))}
           </div>
+          <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
+            Each spoon = a unit of energy. Activities cost spoons — when they're gone, it's time to rest.
+          </p>
 
           {overBudget && (
             <p className="text-sm text-red-600 dark:text-red-400 font-medium">
