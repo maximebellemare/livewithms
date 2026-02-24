@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { format, subDays, parseISO } from "date-fns";
 
 interface Entry {
@@ -21,6 +22,7 @@ function moodColor(value: number): string {
 }
 
 export default function MoodSparkline({ entries }: MoodSparklineProps) {
+  const navigate = useNavigate();
   const days = useMemo(() => {
     const today = new Date();
     // Last 7 days ending yesterday (today's value is being entered now)
@@ -88,7 +90,12 @@ export default function MoodSparkline({ entries }: MoodSparklineProps) {
       : "hsl(var(--muted-foreground))";
 
   return (
-    <div className="rounded-xl bg-card shadow-soft px-4 py-3 flex items-center gap-3">
+    <div
+      className="rounded-xl bg-card shadow-soft px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors hover:bg-accent/50 active:scale-[0.98]"
+      onClick={() => navigate("/insights", { state: { heatmapMetric: "mood" } })}
+      role="button"
+      tabIndex={0}
+    >
       {/* Icon + label */}
       <div className="flex-shrink-0">
         <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-0.5">
