@@ -100,7 +100,7 @@ const StreakBadge = () => {
           : isMid ? "text-amber-700 dark:text-amber-300"
           : "text-foreground"
         }`}>
-          {streak} day{streak !== 1 ? "s" : ""} in a row
+          {streak} day{streak !== 1 ? "s" : ""} logged in a row
           {isHot ? " 🔥" : isMid ? " ⚡" : ""}
         </p>
         <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
