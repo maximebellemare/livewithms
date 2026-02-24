@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, subDays, parseISO } from "date-fns";
+import { ChevronRight } from "lucide-react";
 
 interface Entry {
   date: string;
@@ -175,6 +176,7 @@ export default function SleepSparkline({ entries, goal = 8 }: SleepSparklineProp
           })}
         </div>
       </div>
+      <ChevronRight className="flex-shrink-0 w-4 h-4 text-muted-foreground/50" />
     </div>
   );
 }
