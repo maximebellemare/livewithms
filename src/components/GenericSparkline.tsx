@@ -163,8 +163,8 @@ export default function GenericSparkline({
       {saved && (
         <span className="absolute top-1.5 right-1.5 text-[10px] opacity-70">📌</span>
       )}
-      <div className="flex-shrink-0">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-0.5">
+      <div className="flex-shrink-0 min-w-0">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-0.5 truncate">
           {label} · 7-day
         </p>
         <div className="flex items-baseline gap-1">
@@ -182,9 +182,6 @@ export default function GenericSparkline({
       </div>
       <div className="flex-1 min-w-0">
         <SparklineSvg {...svgProps} height={36} />
-        <div className="mt-0.5">
-          <DayLabels days={days} dataKey={dataKey} byDate={byDate} />
-        </div>
       </div>
       <ChevronRight className="flex-shrink-0 w-4 h-4 text-muted-foreground/50" />
       {rowHasLongPress && isPressing && <LongPressOverlay />}
