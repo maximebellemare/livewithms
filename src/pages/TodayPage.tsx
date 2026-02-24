@@ -472,8 +472,10 @@ const TodayPage = () => {
                     { key: "hydration", config: makeHydrationConfig(profile?.hydration_goal ?? 8) },
                   ]
                     .sort((a, b) => {
-                      const aPin = pinnedMetrics.includes(a.key) ? 0 : 1;
-                      const bPin = pinnedMetrics.includes(b.key) ? 0 : 1;
+                      const aIdx = pinnedMetrics.indexOf(a.key);
+                      const bIdx = pinnedMetrics.indexOf(b.key);
+                      const aPin = aIdx >= 0 ? aIdx : Infinity;
+                      const bPin = bIdx >= 0 ? bIdx : Infinity;
                       return aPin - bPin;
                     })
                     .map(({ key, config }) => (
@@ -497,8 +499,10 @@ const TodayPage = () => {
                     { key: "stress", config: SPARKLINE_CONFIGS.stress },
                   ]
                     .sort((a, b) => {
-                      const aPin = pinnedMetrics.includes(a.key) ? 0 : 1;
-                      const bPin = pinnedMetrics.includes(b.key) ? 0 : 1;
+                      const aIdx = pinnedMetrics.indexOf(a.key);
+                      const bIdx = pinnedMetrics.indexOf(b.key);
+                      const aPin = aIdx >= 0 ? aIdx : Infinity;
+                      const bPin = bIdx >= 0 ? bIdx : Infinity;
                       return aPin - bPin;
                     })
                     .map(({ key, config }) => (
