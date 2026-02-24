@@ -119,7 +119,7 @@ const StreakBadge = () => {
           <div className="flex items-center gap-1 mt-1">
             <Snowflake className={`h-3 w-3 ${freezesRemaining > 0 ? "text-sky-400" : "text-muted-foreground/50"}`} />
             <span className="text-[10px] text-muted-foreground">
-              {freezesRemaining > 0 ? "1 freeze available this week" : "Freeze used this week"}
+              {freezesRemaining > 0 ? "1 free pass if you miss a day this week" : "Free pass used this week"}
             </span>
           </div>
         )}
