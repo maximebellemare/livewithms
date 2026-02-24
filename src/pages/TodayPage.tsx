@@ -352,40 +352,52 @@ const TodayPage = () => {
       />
       <StaggerContainer className="mx-auto max-w-lg space-y-3 px-4 py-3">
         {/* Pinned metrics compact summary */}
-        {pinnedMetrics.length > 0 && weekEntries.length > 0 && (
-          <StaggerItem>
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
-              {pinnedMetrics.map((key) => {
-                const allConfigs: Record<string, any> = {
-                  ...SPARKLINE_CONFIGS,
-                  sleep: makeSleepConfig(profile?.sleep_goal ?? 8),
-                  hydration: makeHydrationConfig(profile?.hydration_goal ?? 8),
-                };
-                const cfg = allConfigs[key];
-                if (!cfg) return null;
-                const vals = weekEntries
-                  .map((e) => (e as any)[cfg.dataKey])
-                  .filter((v: unknown): v is number => typeof v === "number");
-                const avg = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
-                return (
-                  <div
-                    key={key}
-                    className="flex items-center gap-1.5 rounded-full bg-secondary/60 px-3 py-1.5 flex-shrink-0"
-                  >
-                    <span className="text-xs">{cfg.emoji}</span>
-                    <span
-                      className="text-sm font-bold leading-none"
-                      style={{ color: avg !== null ? cfg.colorFn(avg) : "hsl(var(--muted-foreground))" }}
-                    >
-                      {avg !== null ? avg.toFixed(1) : "—"}
-                    </span>
-                    <span className="text-[9px] text-muted-foreground">{cfg.unit}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </StaggerItem>
-        )}
+        <AnimatePresence>
+          {pinnedMetrics.length > 0 && weekEntries.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 300, damping: 24 }}
+            >
+              <StaggerItem>
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+                  {pinnedMetrics.map((key, i) => {
+                    const allConfigs: Record<string, any> = {
+                      ...SPARKLINE_CONFIGS,
+                      sleep: makeSleepConfig(profile?.sleep_goal ?? 8),
+                      hydration: makeHydrationConfig(profile?.hydration_goal ?? 8),
+                    };
+                    const cfg = allConfigs[key];
+                    if (!cfg) return null;
+                    const vals = weekEntries
+                      .map((e) => (e as any)[cfg.dataKey])
+                      .filter((v: unknown): v is number => typeof v === "number");
+                    const avg = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
+                    return (
+                      <motion.div
+                        key={key}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 20, delay: i * 0.06 }}
+                        className="flex items-center gap-1.5 rounded-full bg-secondary/60 px-3 py-1.5 flex-shrink-0"
+                      >
+                        <span className="text-xs">{cfg.emoji}</span>
+                        <span
+                          className="text-sm font-bold leading-none"
+                          style={{ color: avg !== null ? cfg.colorFn(avg) : "hsl(var(--muted-foreground))" }}
+                        >
+                          {avg !== null ? avg.toFixed(1) : "—"}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground">{cfg.unit}</span>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </StaggerItem>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Weekly mood trend mini-chart */}
         {weekEntries.length > 0 && (
