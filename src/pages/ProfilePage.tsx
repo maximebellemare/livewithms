@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import confetti from "canvas-confetti";
@@ -555,12 +555,23 @@ const ProfilePage = () => {
             const pct = Math.round((dismissed.length / HINTS.length) * 100);
             const barColor = pct >= 80 ? "bg-brand-green" : pct >= 40 ? "bg-amber-500" : "bg-destructive";
             const confettiKey = `hint_completion_confetti_${HINTS.length}`;
+            const prevCountRef = useRef(dismissed.length);
+            const [barGlow, setBarGlow] = useState(false);
             useEffect(() => {
               if (pct === 100 && !sessionStorage.getItem(confettiKey)) {
                 sessionStorage.setItem(confettiKey, "1");
                 confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ["#22c55e", "#f59e0b", "#3b82f6", "#a855f7"] });
               }
             }, [pct, confettiKey]);
+            useEffect(() => {
+              if (dismissed.length > prevCountRef.current && pct < 100) {
+                confetti({ particleCount: 30, spread: 50, startVelocity: 20, gravity: 0.8, origin: { y: 0.5 }, scalar: 0.7, colors: ["#f59e0b", "#22c55e", "#3b82f6"] });
+                setBarGlow(true);
+                const t = setTimeout(() => setBarGlow(false), 1200);
+                return () => clearTimeout(t);
+              }
+              prevCountRef.current = dismissed.length;
+            }, [dismissed.length, pct]);
             return (
               <div className="mt-3 rounded-xl bg-card border border-border p-3 space-y-2">
                 <div className="space-y-1.5">
@@ -579,7 +590,7 @@ const ProfilePage = () => {
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden cursor-help">
+                        <div className={`h-1.5 w-full rounded-full bg-secondary overflow-hidden cursor-help transition-shadow duration-500 ${barGlow ? "shadow-[0_0_8px_2px_hsl(var(--primary)/0.4)]" : ""}`}>
                           <motion.div
                             className={`h-full rounded-full ${barColor}`}
                             initial={{ width: 0 }}
