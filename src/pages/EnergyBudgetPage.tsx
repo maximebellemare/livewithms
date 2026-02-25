@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus, Check, Trash2, Zap, Battery, BatteryLow, BatteryWarning, ChevronDown, ChevronUp, Info, ExternalLink, Star } from "lucide-react";
+import { Plus, Minus, Check, Trash2, Zap, Battery, BatteryLow, BatteryWarning, ChevronDown, ChevronUp, Info, ExternalLink, Star, Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -50,6 +50,7 @@ const EnergyBudgetPage = () => {
   const [newName, setNewName] = useState("");
   const [newCost, setNewCost] = useState(1);
   const [showSpoonDialog, setShowSpoonDialog] = useState(false);
+  const [editingSpoons, setEditingSpoons] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -238,7 +239,45 @@ const EnergyBudgetPage = () => {
                 {remaining} spoon{remaining !== 1 ? "s" : ""} remaining
               </span>
             </div>
-            <span className="text-sm text-muted-foreground">{plannedSpoons}/{totalSpoons} planned</span>
+            {editingSpoons ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    const next = Math.max(1, totalSpoons - 1);
+                    updateBudget.mutate({ id: budget.id, total_spoons: next });
+                    localStorage.setItem(SPOON_KEY, String(next));
+                  }}
+                  className="rounded-full bg-secondary p-1 hover:bg-muted active:scale-95 transition-all"
+                >
+                  <Minus className="h-3 w-3" />
+                </button>
+                <span className="text-sm font-semibold text-foreground min-w-[2ch] text-center">{totalSpoons}</span>
+                <button
+                  onClick={() => {
+                    const next = Math.min(20, totalSpoons + 1);
+                    updateBudget.mutate({ id: budget.id, total_spoons: next });
+                    localStorage.setItem(SPOON_KEY, String(next));
+                  }}
+                  className="rounded-full bg-secondary p-1 hover:bg-muted active:scale-95 transition-all"
+                >
+                  <Plus className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() => setEditingSpoons(false)}
+                  className="rounded-full bg-primary p-1 text-primary-foreground ml-1 active:scale-95 transition-all"
+                >
+                  <Check className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditingSpoons(true)}
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {plannedSpoons}/{totalSpoons} planned
+                <Pencil className="h-3 w-3" />
+              </button>
+            )}
           </div>
 
           {/* Progress bar */}
