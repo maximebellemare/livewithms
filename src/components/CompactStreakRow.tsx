@@ -5,8 +5,10 @@ import { Trophy } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import confetti from "canvas-confetti";
+import { toast } from "@/hooks/use-toast";
 
 const MILESTONES = [7, 14, 30, 50, 100, 200, 365];
+const STREAK_NAMES = ["Daily logging", "Weekly goal", "Medication", "Relapse-free", "Cognitive"];
 
 interface CompactStreakRowProps {
   logStreak: number;
@@ -71,15 +73,22 @@ const CompactStreakRow = ({
     const prev = prevStreaks.current;
 
     if (prev.length > 0) {
-      const hitMilestone = current.some(
-        (val, i) => val !== prev[i] && MILESTONES.includes(val)
-      );
-      if (hitMilestone) {
+      const milestoneHits: string[] = [];
+      current.forEach((val, i) => {
+        if (val !== prev[i] && MILESTONES.includes(val)) {
+          milestoneHits.push(`${STREAK_NAMES[i]}: ${val} ${val === 1 ? "day" : i === 1 ? "weeks" : "days"}!`);
+        }
+      });
+      if (milestoneHits.length > 0) {
         confetti({
           particleCount: 80,
           spread: 70,
           origin: { y: 0.6 },
           colors: ["#f97316", "#facc15", "#fb923c", "#fbbf24"],
+        });
+        toast({
+          title: "🎉 Streak milestone!",
+          description: milestoneHits.join(" · "),
         });
       }
     }
