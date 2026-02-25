@@ -1,10 +1,12 @@
 import { ArrowLeft, Bell, BellRing, Heart, MessageCircle, Bookmark, MessageSquare, Smartphone, Mails, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "@/components/PageHeader";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 // Hour options in user-friendly local time labels
 function buildHourOptions() {
@@ -62,6 +64,8 @@ const NotificationSettingsPage = () => {
   const navigate = useNavigate();
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
+  const queryClient = useQueryClient();
+  const handleRefresh = useCallback(async () => { await queryClient.invalidateQueries({ queryKey: ["profile"] }); }, [queryClient]);
   const {
     state, isSubscribed, subscribe, unsubscribe, supported,
     reminderHour, updateReminderHour,
@@ -100,7 +104,7 @@ const NotificationSettingsPage = () => {
   return (
     <>
       <PageHeader title="Notifications" subtitle="Manage all your notification preferences" showBack />
-      <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
+      <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
 
         {/* Community notifications */}
         <div className="rounded-xl bg-card p-1 shadow-soft space-y-0.5">
@@ -232,7 +236,7 @@ const NotificationSettingsPage = () => {
             />
           )}
         </div>
-      </div>
+      </PullToRefresh>
     </>
   );
 };

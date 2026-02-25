@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Wind, Leaf, Heart } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import BreathingExercise from "@/components/nervous-system/BreathingExercise";
 import GroundingExercise from "@/components/nervous-system/GroundingExercise";
@@ -17,6 +19,8 @@ type TabId = (typeof tabs)[number]["id"];
 
 const NervousSystemPage = () => {
   const [activeTab, setActiveTab] = useState<TabId>("breathing");
+  const queryClient = useQueryClient();
+  const handleRefresh = useCallback(async () => { await queryClient.invalidateQueries({ queryKey: ["grounding-sessions"] }); }, [queryClient]);
 
   return (
     <>
@@ -30,7 +34,7 @@ const NervousSystemPage = () => {
         showBack
       />
 
-      <div className="mx-auto max-w-lg px-4 py-4 pb-56">
+      <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg px-4 py-4 pb-56">
         <StaggerContainer className="space-y-5">
           {/* Hero card */}
           <StaggerItem>
@@ -68,7 +72,7 @@ const NervousSystemPage = () => {
             {activeTab === "vagal" && <VagalToneExercises />}
           </StaggerItem>
         </StaggerContainer>
-      </div>
+      </PullToRefresh>
     </>
   );
 };

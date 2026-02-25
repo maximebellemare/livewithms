@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Crown, Sparkles, Brain, Stethoscope, Zap, BarChart3, BookOpen, Check, Star, CreditCard, Loader2 } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import { usePremium, STRIPE_PRICES } from "@/hooks/usePremium";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +26,8 @@ const PremiumPage = () => {
   const [loading, setLoading] = useState(false);
   const [managingPortal, setManagingPortal] = useState(false);
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const handleRefresh = useCallback(async () => { await queryClient.invalidateQueries({ queryKey: ["premium"] }); checkSubscription(); }, [queryClient, checkSubscription]);
 
   // Handle checkout return
   useEffect(() => {
@@ -75,7 +79,7 @@ const PremiumPage = () => {
       <SEOHead title="Premium — LiveWithMS" description="Upgrade to Premium for AI-powered insights, clinical tools, and personalized programs." />
       <PageHeader title="Premium" subtitle="Your MS Intelligence System" showBack />
 
-      <div className="mx-auto max-w-lg px-4 py-4 pb-24">
+      <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg px-4 py-4 pb-24">
         <StaggerContainer className="space-y-5">
           {/* Hero */}
           <StaggerItem>
@@ -233,7 +237,7 @@ const PremiumPage = () => {
             </StaggerItem>
           )}
         </StaggerContainer>
-      </div>
+      </PullToRefresh>
     </>
   );
 };
