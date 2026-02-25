@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import SEOHead from "@/components/SEOHead";
 import { ChevronDown } from "lucide-react";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
@@ -40,6 +40,8 @@ import {
   ScatterChart, Scatter, ZAxis,
 } from "recharts";
 import { useEntries } from "@/hooks/useEntries";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import { InsightsSkeleton } from "@/components/PageSkeleton";
 import { useNavigate, useLocation } from "react-router-dom";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
@@ -135,6 +137,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 /* ── main component ─────────────────────────────────────────── */
 const InsightsPage = () => {
   const { data: allEntries = [], isLoading } = useEntries();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
   const initialHeatmapMetric = (location.state as { heatmapMetric?: string } | null)?.heatmapMetric;
@@ -240,11 +243,15 @@ const InsightsPage = () => {
     return { text: "No clear link found yet", emoji: "➖", positive: null };
   })() : null;
 
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["entries"] });
+  }, [queryClient]);
+
   return (
     <>
       <SEOHead title="Insights" description="Visualize MS symptom trends, correlations and relapse patterns over time." />
       <PageHeader title="Insights" subtitle="Your health at a glance" showBack />
-      <div className="mx-auto max-w-lg px-4 py-4 pb-8">
+      <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg px-4 py-4 pb-8">
 
         {/* Range toggle */}
         <div data-tour="insights-range" className="mb-4 flex gap-2">
@@ -1096,7 +1103,7 @@ const InsightsPage = () => {
             </p>
           </StaggerContainer>
         )}
-      </div>
+      </PullToRefresh>
     </>
   );
 };
