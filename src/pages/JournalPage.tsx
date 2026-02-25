@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import SEOHead from "@/components/SEOHead";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import { format, isToday, isYesterday, startOfWeek, addDays, isFuture } from "date-fns";
@@ -25,7 +25,8 @@ import ThisWeekInReflection from "@/components/ThisWeekInReflection";
 import WeeklyReflectionSummary from "@/components/journal/WeeklyReflectionSummary";
 import MoodPatternNudge from "@/components/journal/MoodPatternNudge";
 import SmallWinField from "@/components/journal/SmallWinField";
-
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 
 
 /* ── Parse a yyyy-MM-dd string as local date (avoids UTC midnight shift) ── */
@@ -307,7 +308,12 @@ PastEntry.displayName = "PastEntry";
 /* ── Main page ─────────────────────────────────────────────── */
 const JournalPage = () => {
   const { data: entries = [], isLoading } = useEntries();
+  const queryClient = useQueryClient();
   const today = format(new Date(), "yyyy-MM-dd");
+
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["entries"] });
+  }, [queryClient]);
 
   const entriesByDate = useMemo(
     () => Object.fromEntries(entries.map((e) => [e.date, e])),
@@ -342,7 +348,7 @@ const JournalPage = () => {
       <SEOHead title="Journal" description="Write daily reflections and track your emotional well-being with MS." />
       <PageHeader title="Journal" subtitle="Your daily thoughts & feelings" />
 
-      <StaggerContainer className="mx-auto max-w-lg px-4 py-4 space-y-6 pb-10">
+      <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg px-4 py-4 space-y-6 pb-10">
         {/* Today's editor */}
         <StaggerItem>
         <section data-tour="journal-editor" className="space-y-2">
@@ -425,7 +431,7 @@ const JournalPage = () => {
           </div>
           </StaggerItem>
         )}
-      </StaggerContainer>
+      </PullToRefresh>
     </>
   );
 };
