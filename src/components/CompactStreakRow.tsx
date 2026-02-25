@@ -21,7 +21,7 @@ const StreakPill = ({ emoji, value, label, labelPlural, zeroTip }: { emoji: stri
     <div className={`flex items-center gap-1.5 min-w-0 ${value === 0 ? "opacity-40 cursor-help" : ""}`}>
       <span className="text-base">{emoji}</span>
       <div className="flex flex-col leading-tight">
-        <span className="text-base font-extrabold text-foreground tabular-nums">{value}</span>
+        <span className={`text-base font-extrabold tabular-nums ${value > 0 ? "text-primary" : "text-foreground"}`}>{value}</span>
         <span className="text-[10px] text-muted-foreground whitespace-nowrap">{plural(value, label, labelPlural)}</span>
       </div>
     </div>
