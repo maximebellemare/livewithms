@@ -96,6 +96,17 @@
   * {
     @apply border-border;
   }
+  input[type="time"],
+  input[type="date"],
+  input[type="datetime-local"] {
+    accent-color: hsl(25 85% 55%);
+    color-scheme: dark;
+  }
+  input[type="time"]::-webkit-calendar-picker-indicator,
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.6) sepia(1) saturate(5) hue-rotate(350deg);
+  }
   html {
     transition: background-color 0.3s ease, color 0.3s ease;
   }
