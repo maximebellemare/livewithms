@@ -66,7 +66,7 @@ const CompactStreakRow = ({
                 </div>
                 <span className="text-[11px] font-bold text-primary tabular-nums flex-shrink-0">{nearBadge.pct}%</span>
               </div>
-              <Progress value={nearBadge.pct} className="h-1.5" />
+              <Progress value={nearBadge.pct} className={`h-1.5 ${nearBadge.pct >= 75 ? "[&>div]:animate-badge-shimmer [&>div]:bg-[length:200%_100%] [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:via-primary/50 [&>div]:to-primary" : ""}`} />
               <span className="text-[10px] text-muted-foreground truncate">
                 {nearBadge.remaining} {nearBadge.unit} to go
               </span>
