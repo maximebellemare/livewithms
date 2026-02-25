@@ -8,7 +8,7 @@ import { useEntries, useSaveEntry, DailyEntry } from "@/hooks/useEntries";
 import { JournalEditorSkeleton } from "@/components/PageSkeleton";
 import { PenLine, ChevronDown, ChevronUp, CheckCircle2, X } from "lucide-react";
 import { toast } from "sonner";
-import JournalPromptSuggestions from "@/components/JournalPromptSuggestions";
+
 import DailyPromptCard from "@/components/DailyPromptCard";
 import ThisWeekInReflection from "@/components/ThisWeekInReflection";
 import WeeklyReflectionSummary from "@/components/journal/WeeklyReflectionSummary";
@@ -103,12 +103,6 @@ const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: Edit
         />
       </div>
 
-      {/* AI prompt suggestions */}
-      <JournalPromptSuggestions
-        entry={entry}
-        recentEntries={recentEntries}
-        onSelectPrompt={(prompt) => appendText(prompt)}
-      />
 
       {/* Small win / gratitude field */}
       <SmallWinField
