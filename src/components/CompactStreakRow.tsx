@@ -18,7 +18,7 @@ interface CompactStreakRowProps {
   cogStreak: number;
   frozeToday?: boolean;
   freezesRemaining?: number;
-  nearBadge?: { emoji: string; name: string; pct: number; remaining: number; unit: string } | null;
+  nearBadge?: { emoji: string; name: string; pct: number; remaining: number; unit: string; hint: string } | null;
 }
 
 const plural = (n: number, singular: string, pluralForm?: string) =>
@@ -152,7 +152,7 @@ const CompactStreakRow = ({
               </div>
               <Progress value={nearBadge.pct} className={`h-1.5 ${nearBadge.pct >= 75 ? "[&>div]:animate-badge-shimmer [&>div]:bg-[length:200%_100%] [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:via-primary/50 [&>div]:to-primary" : ""}`} />
               <span className="text-[10px] text-muted-foreground truncate">
-                {nearBadge.remaining} {nearBadge.unit} to go
+                {nearBadge.hint} — {nearBadge.remaining} {nearBadge.unit} to go
               </span>
             </div>
           </button>

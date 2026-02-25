@@ -490,7 +490,7 @@ const TodayPage = () => {
             nearBadge={(() => {
               const b = findClosestBadge({ logStreak: streak, weekStreak, medStreak, relapseStreak, cogStreak });
               if (!b) return null;
-              return { emoji: b.emoji, name: b.name, pct: Math.round((b.current / b.target) * 100), remaining: b.target - b.current, unit: b.unit };
+              return { emoji: b.emoji, name: b.name, pct: Math.round((b.current / b.target) * 100), remaining: b.target - b.current, unit: b.unit, hint: b.hint };
             })()}
           />
         </StaggerItem>
