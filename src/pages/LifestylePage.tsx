@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { format } from "date-fns";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Check, Trash2, Dumbbell, Pill, Salad, Scale, Minus } from "lucide-react";
 import { toast } from "sonner";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import {
   useExerciseLogs, useAddExercise, useDeleteExercise,
@@ -23,12 +25,20 @@ const today = format(new Date(), "yyyy-MM-dd");
 
 const LifestylePage = () => {
   const [activeTab, setActiveTab] = useState("exercise");
+  const queryClient = useQueryClient();
+
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["exercise-logs"] });
+    await queryClient.invalidateQueries({ queryKey: ["supplement-logs"] });
+    await queryClient.invalidateQueries({ queryKey: ["diet-goals"] });
+    await queryClient.invalidateQueries({ queryKey: ["weight-logs"] });
+  }, [queryClient]);
 
   return (
     <>
       <SEOHead title="Lifestyle" description="Track exercise, supplements, diet goals, and weight." />
       <PageHeader title="Lifestyle" subtitle="Track your daily wellness habits 🏋️" showBack />
-      <div className="mx-auto max-w-lg px-4 py-4 animate-fade-in">
+      <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg px-4 py-4 animate-fade-in">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="exercise" className="text-xs"><Dumbbell className="h-3.5 w-3.5 mr-1" />Exercise</TabsTrigger>
@@ -42,7 +52,7 @@ const LifestylePage = () => {
           <TabsContent value="diet" className="mt-4 space-y-4"><DietTab /></TabsContent>
           <TabsContent value="weight" className="mt-4 space-y-4"><WeightTab /></TabsContent>
         </Tabs>
-      </div>
+      </PullToRefresh>
     </>
   );
 };
