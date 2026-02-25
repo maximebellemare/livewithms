@@ -124,7 +124,7 @@ const AppointmentsPage = () => {
               </PopoverContent>
             </Popover>
             <label className="block text-sm font-medium text-foreground">Time (optional)</label>
-            <input type="time" value={editing.time || ""} onChange={(e) => setEditing({ ...editing, time: e.target.value })} className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm" />
+            <input type="time" value={editing.time || ""} onChange={(e) => setEditing({ ...editing, time: e.target.value })} className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm accent-primary" />
           </div>
 
           <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
