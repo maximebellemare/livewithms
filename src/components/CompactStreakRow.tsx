@@ -13,13 +13,16 @@ interface CompactStreakRowProps {
   nearBadge?: { emoji: string; name: string; pct: number; remaining: number; unit: string } | null;
 }
 
-const StreakPill = ({ emoji, value, label, zeroTip }: { emoji: string; value: number; label: string; zeroTip?: string }) => {
+const plural = (n: number, singular: string, pluralForm?: string) =>
+  n === 1 ? singular : (pluralForm ?? singular + "s");
+
+const StreakPill = ({ emoji, value, label, labelPlural, zeroTip }: { emoji: string; value: number; label: string; labelPlural?: string; zeroTip?: string }) => {
   const content = (
     <div className={`flex items-center gap-1.5 min-w-0 ${value === 0 ? "opacity-40 cursor-help" : ""}`}>
       <span className="text-base">{emoji}</span>
       <div className="flex flex-col leading-tight">
         <span className="text-sm font-bold text-foreground tabular-nums">{value}</span>
-        <span className="text-[10px] text-muted-foreground whitespace-nowrap">{label}</span>
+        <span className="text-[10px] text-muted-foreground whitespace-nowrap">{plural(value, label, labelPlural)}</span>
       </div>
     </div>
   );
@@ -55,13 +58,13 @@ const CompactStreakRow = ({
     >
       {/* Streak pills row */}
       <div className="flex items-center gap-3">
-        <StreakPill emoji="🔥" value={logStreak} label="days" />
+        <StreakPill emoji="🔥" value={logStreak} label="day" />
         <div className="h-7 w-px bg-border flex-shrink-0" />
-        <StreakPill emoji="📊" value={weekStreak} label="weeks" zeroTip="Log every day for a full week to start your week streak!" />
+        <StreakPill emoji="📊" value={weekStreak} label="week" zeroTip="Log every day for a full week to start your week streak!" />
         <div className="h-7 w-px bg-border flex-shrink-0" />
-        <StreakPill emoji="💊" value={medStreak} label="med" zeroTip="Mark your medications as taken to build a med streak!" />
+        <StreakPill emoji="💊" value={medStreak} label="day" zeroTip="Mark your medications as taken to build a med streak!" />
         <div className="h-7 w-px bg-border flex-shrink-0" />
-        <StreakPill emoji="🛡️" value={relapseStreak} label="relapse-free" zeroTip="Days since your last relapse — stay strong!" />
+        <StreakPill emoji="🛡️" value={relapseStreak} label="day" zeroTip="Days since your last relapse — stay strong!" />
       </div>
 
       {/* Badge nudge */}
