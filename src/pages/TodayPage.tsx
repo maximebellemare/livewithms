@@ -12,7 +12,7 @@ import { subDays, format, startOfWeek } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import SymptomSlider from "@/components/SymptomSlider";
 import MoodSelector from "@/components/MoodSelector";
-import QuickCard from "@/components/QuickCard";
+
 import WeeklySummaryBanner from "@/components/WeeklySummaryBanner";
 import StreakBadge, { useStreak } from "@/components/StreakBadge";
 import WeekStreakBadge from "@/components/WeekStreakBadge";
@@ -25,36 +25,28 @@ import InlineQuickLog from "@/components/InlineQuickLog";
 
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Settings, CheckCircle2, PenLine, FileDown, ChevronDown } from "lucide-react";
+import { Settings, CheckCircle2, PenLine, ChevronDown } from "lucide-react";
 import MedicationChecklist from "@/components/MedicationChecklist";
-import UpcomingAppointments from "@/components/UpcomingAppointments";
 import DailyPromptCard from "@/components/DailyPromptCard";
-import HydrationCard from "@/components/HydrationCard";
-import RelapseFreeStreakCompact from "@/components/RelapseFreeStreakCompact";
-import RelapseRiskIndicator from "@/components/RelapseRiskIndicator";
 import RiskScoreSummaryCard from "@/components/RiskScoreSummaryCard";
 import RiskAlertBanner from "@/components/RiskAlertBanner";
-import BadgeNudgeCard from "@/components/badges/BadgeNudgeCard";
+
 import CompactStreakRow from "@/components/CompactStreakRow";
 import { findClosestBadge } from "@/lib/badgeProximity";
 import DiagnosisAnniversaryCard from "@/components/DiagnosisAnniversaryCard";
 import { useMedStreak } from "@/hooks/useMedStreak";
 import { useCognitiveStreak } from "@/hooks/useCognitiveStreak";
 import { useRelapseFreeStreak } from "@/hooks/useRelapseFreeStreak";
-import { useGroundingStreak } from "@/hooks/useGroundingStreak";
+
 import { useBadgeProximityAlert } from "@/hooks/useBadgeProximityAlert";
 import { useRecordBadgeEvent } from "@/hooks/useBadgeEvents";
-import GoalTrackingDashboard from "@/components/GoalTrackingDashboard";
+
 import SuggestedNextCards from "@/components/SuggestedNextCards";
 import HeatAlertCard from "@/components/HeatAlertCard";
-import ScrollDots from "@/components/ScrollDots";
+
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
 import { useDbMedications, useDbMedicationLogs } from "@/hooks/useMedications";
-import { useDbAppointments } from "@/hooks/useAppointments";
-import { useRelapses } from "@/hooks/useRelapses";
-import { generateReportFromData } from "@/lib/report-generator-db";
-import ReportPreviewDialog from "@/components/ReportPreviewDialog";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 
@@ -145,7 +137,7 @@ const TodayPage = () => {
   const relapseStreak = useRelapseFreeStreak();
   const { weekStreak } = useWeekStreak();
   const { streak: cogStreak } = useCognitiveStreak();
-  const { streak: groundStreak, totalSessions: groundTotal } = useGroundingStreak();
+  
   const recordBadge = useRecordBadgeEvent();
   useBadgeProximityAlert(
     { logStreak: streak, weekStreak, medStreak, relapseStreak, cogStreak },
@@ -228,41 +220,6 @@ const TodayPage = () => {
     localStorage.setItem("hint_drag_reorder_used", "1");
   }, [pinnedMetrics, updateProfile]);
 
-  const [downloadingReport, setDownloadingReport] = useState(false);
-  const [showReportPreview, setShowReportPreview] = useState(false);
-
-  // Report data (last 30 days)
-  const report30Start = format(subDays(today, 30), "yyyy-MM-dd");
-  const report30End = format(today, "yyyy-MM-dd");
-  const { data: report30Entries = [] } = useEntriesInRange(report30Start, report30End);
-  const { data: reportMeds = [] } = useDbMedications();
-  const { data: reportMedLogs = [] } = useDbMedicationLogs(report30Start, report30End);
-  const { data: reportAppts = [] } = useDbAppointments();
-  const { data: reportRelapses = [] } = useRelapses();
-
-  const handleDownloadReport = async () => {
-    setDownloadingReport(true);
-    try {
-      const filteredAppts = reportAppts.filter((a) => a.date >= report30Start && a.date <= report30End);
-      const blob = generateReportFromData({
-        startDate: report30Start, endDate: report30End,
-        includeSymptoms: true, includeMedications: true, includeAppointments: true,
-        includeProfile: true, includeNotes: true, includeRelapses: true, includeHydration: true, includeRiskScore: true, includeTrendCharts: true, includeMoodTags: true, includePeriodComparison: true, includeTriggerAnalysis: true,
-        entries: report30Entries, profile: profile || null,
-        medications: reportMeds, medLogs: reportMedLogs, appointments: filteredAppts,
-        relapses: reportRelapses,
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `LiveWithMS-Report-${format(today, "yyyy-MM-dd")}.pdf`; a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Report downloaded ✓");
-    } catch (err: any) {
-      toast.error("Failed to generate report: " + err.message);
-    } finally {
-      setDownloadingReport(false);
-    }
-  };
 
   const thisWeekMonday = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
   const { data: thisWeekEntries = [] } = useEntriesInRange(thisWeekMonday, format(today, "yyyy-MM-dd"));
@@ -808,11 +765,11 @@ const TodayPage = () => {
 
         {!alreadyLogged && <StaggerItem><SuggestedNextCards /></StaggerItem>}
 
-        {/* Section: Full Symptom Log — collapsed by default when already logged */}
+        {/* Section: Full Check-In — merged symptoms + mood/sleep/notes */}
         <StaggerItem>
           <Collapsible defaultOpen={!alreadyLogged}>
             <CollapsibleTrigger className="flex w-full items-center justify-between card-base text-left group">
-              <p className="section-label">✏️ Full Symptom Log</p>
+              <p className="section-label">✏️ Full Check-In</p>
               <div className="flex items-center gap-2">
                 <span className="text-[9px] text-muted-foreground/50 bg-muted rounded-full px-2 py-0.5">
                   Slide to rate
@@ -820,8 +777,8 @@ const TodayPage = () => {
                 <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
               </div>
             </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div data-tour="quick-log" ref={logRef} className="card-base space-y-2.5 mt-2">
+            <CollapsibleContent className="space-y-3 mt-2">
+              <div data-tour="quick-log" ref={logRef} className="card-base space-y-2.5">
                 <SymptomSlider label="Fatigue" emoji="🔋" value={fatigue} onChange={setFatigue} weekAvg={weekAvgs.fatigue} />
                 <SymptomSlider label="Pain" emoji="⚡" value={pain} onChange={setPain} weekAvg={weekAvgs.pain} />
                 <SymptomSlider label="Brain Fog" emoji="🌫️" value={brainFog} onChange={setBrainFog} weekAvg={weekAvgs.brain_fog} />
@@ -830,36 +787,14 @@ const TodayPage = () => {
                 <SymptomSlider label="Spasticity" emoji="🦵" value={spasticity} onChange={setSpasticity} weekAvg={weekAvgs.spasticity} />
                 <SymptomSlider label="Stress" emoji="😰" value={stress} onChange={setStress} weekAvg={weekAvgs.stress} />
               </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </StaggerItem>
 
-        {/* Mood tags + Sleep & Notes — inside same collapsible flow */}
-        <StaggerItem>
-          <Collapsible defaultOpen={!alreadyLogged}>
-            <CollapsibleTrigger className="flex w-full items-center justify-between card-base text-left group">
-              <p className="section-label">🏷️ Mood, Sleep & Notes</p>
-              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-3 mt-2">
               <div data-tour="mood-tags">
                 <MoodSelector selected={moodTags} onToggle={toggleMoodTag} />
               </div>
 
               <div className="card-base">
-                <label className="mb-2 block text-sm font-medium text-foreground">
-                  💤 Hours of sleep
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  max={24}
-                  step={0.5}
-                  placeholder="e.g. 7.5"
-                  value={sleepHours}
-                  onChange={(e) => setSleepHours(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
+                <label className="mb-2 block text-sm font-medium text-foreground">💤 Hours of sleep</label>
+                <input type="number" min={0} max={24} step={0.5} placeholder="e.g. 7.5" value={sleepHours} onChange={(e) => setSleepHours(e.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
 
               <DailyPromptCard
@@ -874,134 +809,15 @@ const TodayPage = () => {
               />
 
               <div className="card-base">
-                <label className="mb-2 block text-sm font-medium text-foreground">
-                  📝 Notes
-                </label>
-                <textarea
-                  ref={notesRef}
-                  rows={3}
-                  placeholder="Anything else you want to remember..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
+                <label className="mb-2 block text-sm font-medium text-foreground">📝 Notes</label>
+                <textarea ref={notesRef} rows={3} placeholder="Anything else you want to remember..." value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
             </CollapsibleContent>
           </Collapsible>
         </StaggerItem>
 
-        {/* Section: Wellness — collapsed by default */}
-        <StaggerItem>
-          <Collapsible>
-            <CollapsibleTrigger className="flex w-full items-center justify-between card-base text-left group">
-              <p className="section-label">❤️ Wellness</p>
-              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2 mt-2">
-              <GoalTrackingDashboard />
-              <MedicationChecklist />
-              <UpcomingAppointments />
-              <HydrationCard />
-              <RelapseRiskIndicator />
-              <RelapseFreeStreakCompact />
-              <Collapsible>
-                <CollapsibleTrigger asChild>
-                  <button className="flex w-full items-center justify-between card-base text-left group" type="button">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-lg">✨</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground">Exercises</p>
-                        <p className="text-xs text-muted-foreground">Breathing, grounding & relaxation</p>
-                      </div>
-                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold text-primary">10</span>
-                    </div>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180 flex-shrink-0 ml-2" />
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-2 mt-2">
-                  <QuickCard emoji="🧘" title="Regulation Center" subtitle="Breathing, grounding & vagal tone" onClick={() => navigate("/nervous-system")} />
-                  <QuickCard emoji="💪" title="Muscle Relaxation" subtitle="Progressive muscle relaxation exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try progressive muscle relaxation" } })} />
-                  <QuickCard emoji="🌬️" title="Box Breathing" subtitle="Calming 4-4-4-4 breathing exercise" onClick={() => navigate("/coach", { state: { autoSend: "Guide me through box breathing" } })} />
-                  <QuickCard emoji="🖐️" title="Grounding Exercise" subtitle="5-4-3-2-1 sensory grounding" onClick={() => navigate("/coach", { state: { autoSend: "I'd like a 5-4-3-2-1 grounding exercise" } })} />
-                  <QuickCard emoji="💛" title="Self-Compassion" subtitle="Guided self-compassion exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try a self-compassion exercise with me" } })} />
-                  <QuickCard emoji="🔄" title="Thought Reframing" subtitle="Reframe a negative thought" onClick={() => navigate("/coach", { state: { autoSend: "Help me reframe a negative thought" } })} />
-                  <QuickCard emoji="🧠" title="Body Scan" subtitle="Guided body scan meditation" onClick={() => navigate("/coach", { state: { autoSend: "Guide me through a body scan meditation" } })} />
-                  <QuickCard emoji="🌄" title="Visualization" subtitle="Guided visualization exercise" onClick={() => navigate("/coach", { state: { autoSend: "Try a visualization exercise with me" } })} />
-                  <QuickCard emoji="🎧" title="Guided Meditation" subtitle="Calming guided meditation session" onClick={() => navigate("/coach", { state: { autoSend: "Try a guided meditation with me" } })} />
-                  <QuickCard emoji="🤸" title="Stretching Routine" subtitle="Gentle stretching for flexibility" onClick={() => navigate("/coach", { state: { autoSend: "Try a gentle stretching routine" } })} />
-                </CollapsibleContent>
-              </Collapsible>
-              {groundTotal > 0 && (
-                <div
-                  onClick={() => navigate("/nervous-system")}
-                  className="flex items-center gap-3 card-base cursor-pointer transition-all hover:bg-secondary/50 active:scale-[0.98]"
-                >
-                  <span className="text-xl">🌿</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground">Grounding Streak</p>
-                    <p className="text-xs text-muted-foreground">
-                      {groundStreak > 0
-                        ? `${groundStreak} day${groundStreak !== 1 ? "s" : ""} in a row · ${groundTotal} total`
-                        : `${groundTotal} session${groundTotal !== 1 ? "s" : ""} completed`}
-                    </p>
-                  </div>
-                  <span className="text-xs font-medium text-primary">
-                    {groundStreak > 0 ? `🔥 ${groundStreak}` : "Start today"}
-                  </span>
-                </div>
-              )}
-            </CollapsibleContent>
-          </Collapsible>
-        </StaggerItem>
-
-        {/* Section: Quick Actions — collapsed by default */}
-        <StaggerItem>
-          <Collapsible>
-            <CollapsibleTrigger className="flex w-full items-center justify-between card-base text-left group">
-              <p className="section-label">⚡ Quick Actions</p>
-              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2 mt-2">
-              <div data-tour="reminders" className="space-y-2">
-                <QuickCard emoji="💊" title="Medications" subtitle="Manage your medications" onClick={() => navigate("/medications")} />
-                <QuickCard emoji="📅" title="Appointments" subtitle="View & manage appointments" onClick={() => navigate("/appointments")} />
-                <button
-                  onClick={() => setShowReportPreview(true)}
-                  disabled={downloadingReport}
-                  className="flex w-full items-center gap-3 card-base text-left transition-all hover:bg-secondary/50 active:scale-[0.98] disabled:opacity-60"
-                >
-                  <span className="text-base">📄</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground">Download Report</p>
-                    <p className="text-xs text-muted-foreground">{downloadingReport ? "Generating…" : "Last 30 days · PDF"}</p>
-                  </div>
-                  <FileDown className="h-4 w-4 text-muted-foreground" />
-                </button>
-                <ReportPreviewDialog
-                  open={showReportPreview}
-                  onOpenChange={setShowReportPreview}
-                  onConfirm={() => { setShowReportPreview(false); handleDownloadReport(); }}
-                  generating={downloadingReport}
-                  startDate={report30Start}
-                  endDate={report30End}
-                  entries={report30Entries}
-                  profile={profile || null}
-                  medications={reportMeds}
-                  medLogs={reportMedLogs}
-                  appointments={reportAppts.filter((a) => a.date >= report30Start && a.date <= report30End)}
-                  relapses={reportRelapses}
-                  sections={{
-                    includeProfile: true, includeSymptoms: true, includeMedications: true,
-                    includeAppointments: true, includeNotes: true, includeRelapses: true,
-                    includeHydration: true, includeRiskScore: true, includeTrendCharts: true,
-                    includeMoodTags: true, includePeriodComparison: true, includeTriggerAnalysis: true,
-                    includeAiInsight: false,
-                  }}
-                />
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </StaggerItem>
+        {/* Medication checklist */}
+        <StaggerItem><MedicationChecklist /></StaggerItem>
 
         {/* Log button */}
         <StaggerItem>
