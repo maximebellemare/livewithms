@@ -35,9 +35,10 @@ const BadgeNudgeCard = ({ streakData }: { streakData: StreakData }) => {
             <span className="text-xs font-semibold text-primary ml-2 flex-shrink-0">{pct}%</span>
           </div>
           <Progress value={pct} className="h-1.5" />
-          <p className="text-[10px] text-muted-foreground">
-            {almostThere ? "Almost there! " : ""}{remaining} more {nudge.unit} to go{almostThere ? " 🔥" : " — keep it up! 🧡"}
-          </p>
+          <div className="flex flex-col gap-0.5">
+            <p className="text-[10px] text-muted-foreground">{nudge.hint}</p>
+            <p className="text-[10px] font-medium text-primary">{remaining} more {nudge.unit} to go{almostThere ? " 🔥" : ""}</p>
+          </div>
         </div>
       </div>
     </motion.button>
