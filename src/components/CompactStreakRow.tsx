@@ -13,9 +13,35 @@ interface CompactStreakRowProps {
   nearBadge?: { emoji: string; name: string; pct: number; remaining: number; unit: string } | null;
 }
 
+const StreakPill = ({ emoji, value, label, zeroTip }: { emoji: string; value: number; label: string; zeroTip?: string }) => {
+  const content = (
+    <div className={`flex items-center gap-1.5 min-w-0 ${value === 0 ? "opacity-40 cursor-help" : ""}`}>
+      <span className="text-base">{emoji}</span>
+      <div className="flex flex-col leading-tight">
+        <span className="text-sm font-bold text-foreground tabular-nums">{value}</span>
+        <span className="text-[10px] text-muted-foreground whitespace-nowrap">{label}</span>
+      </div>
+    </div>
+  );
+
+  if (value === 0 && zeroTip) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{content}</TooltipTrigger>
+        <TooltipContent side="bottom" align="start" className="max-w-[240px]">
+          <p className="text-xs">{zeroTip}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+  return content;
+};
+
 const CompactStreakRow = ({
   logStreak,
   weekStreak,
+  medStreak,
+  relapseStreak,
   nearBadge,
 }: CompactStreakRowProps) => {
   const navigate = useNavigate();
@@ -25,53 +51,26 @@ const CompactStreakRow = ({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 24 }}
-      className="rounded-xl bg-card p-3 shadow-soft flex items-center gap-3"
+      className="rounded-xl bg-card shadow-soft flex flex-col gap-2 p-3"
     >
-      {/* Daily streak */}
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="text-lg">🔥</span>
-        <div className="flex flex-col leading-tight">
-          <span className="text-sm font-bold text-foreground tabular-nums">{logStreak}</span>
-          <span className="text-[10px] text-muted-foreground">day streak</span>
-        </div>
+      {/* Streak pills row */}
+      <div className="flex items-center gap-3">
+        <StreakPill emoji="🔥" value={logStreak} label="days" />
+        <div className="h-7 w-px bg-border flex-shrink-0" />
+        <StreakPill emoji="📊" value={weekStreak} label="weeks" zeroTip="Log every day for a full week to start your week streak!" />
+        <div className="h-7 w-px bg-border flex-shrink-0" />
+        <StreakPill emoji="💊" value={medStreak} label="med" zeroTip="Mark your medications as taken to build a med streak!" />
+        <div className="h-7 w-px bg-border flex-shrink-0" />
+        <StreakPill emoji="🛡️" value={relapseStreak} label="relapse-free" zeroTip="Days since your last relapse — stay strong!" />
       </div>
-
-      {/* Divider */}
-      <div className="h-8 w-px bg-border flex-shrink-0" />
-
-      {/* Week streak */}
-      {weekStreak === 0 ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center gap-2 min-w-0 opacity-40 cursor-help">
-              <span className="text-lg">📊</span>
-              <div className="flex flex-col leading-tight">
-                <span className="text-sm font-bold text-foreground tabular-nums">0</span>
-                <span className="text-[10px] text-muted-foreground">week streak</span>
-              </div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="start" className="max-w-[240px]">
-            <p className="text-xs">Log every day for a full week to start your week streak!</p>
-          </TooltipContent>
-        </Tooltip>
-      ) : (
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-lg">📊</span>
-          <div className="flex flex-col leading-tight">
-            <span className="text-sm font-bold text-foreground tabular-nums">{weekStreak}</span>
-            <span className="text-[10px] text-muted-foreground">week streak</span>
-          </div>
-        </div>
-      )}
 
       {/* Badge nudge */}
       {nearBadge && (
         <>
-          <div className="h-8 w-px bg-border flex-shrink-0" />
+          <div className="h-px w-full bg-border" />
           <button
             onClick={() => navigate("/badges")}
-            className="flex items-center gap-2.5 min-w-0 flex-1 transition-colors hover:bg-accent/50 -m-1.5 p-1.5 rounded-lg active:scale-[0.97]"
+            className="flex items-center gap-2.5 min-w-0 w-full transition-colors hover:bg-accent/50 -m-1 p-1 rounded-lg active:scale-[0.98]"
           >
             <span className="text-lg flex-shrink-0">{nearBadge.emoji}</span>
             <div className="flex flex-col gap-1 leading-tight min-w-0 flex-1">
@@ -93,5 +92,4 @@ const CompactStreakRow = ({
     </motion.div>
   );
 };
-
 export default CompactStreakRow;
