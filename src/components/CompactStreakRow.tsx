@@ -51,7 +51,7 @@ const CompactStreakRow = ({
               </div>
             </div>
           </TooltipTrigger>
-          <TooltipContent side="bottom" className="max-w-[200px] text-center">
+          <TooltipContent side="bottom" align="start" className="max-w-[240px]">
             <p className="text-xs">Log every day for a full week to start your week streak!</p>
           </TooltipContent>
         </Tooltip>
