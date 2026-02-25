@@ -21,6 +21,7 @@ const PullToRefresh = forwardRef<HTMLDivElement, PullToRefreshProps>(({ onRefres
   const indicatorOpacity = useTransform(y, [0, PULL_THRESHOLD * 0.5, PULL_THRESHOLD], [0, 0.5, 1]);
   const indicatorScale = useTransform(y, [0, PULL_THRESHOLD], [0.6, 1]);
   const indicatorRotate = useTransform(y, [0, MAX_PULL], [0, 180]);
+  const thresholdReached = useRef(false);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (refreshing) return;
@@ -34,14 +35,23 @@ const PullToRefresh = forwardRef<HTMLDivElement, PullToRefreshProps>(({ onRefres
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!pulling.current || refreshing) return;
     const delta = Math.max(0, e.touches[0].clientY - startY.current);
-    // Rubber-band effect
     const dampened = Math.min(MAX_PULL, delta * 0.45);
     y.set(dampened);
+
+    // Haptic-style bounce when crossing threshold
+    if (dampened >= PULL_THRESHOLD && !thresholdReached.current) {
+      thresholdReached.current = true;
+      animate(y, dampened + 6, { type: "spring", stiffness: 600, damping: 12, mass: 0.3 });
+      navigator.vibrate?.(10);
+    } else if (dampened < PULL_THRESHOLD * 0.8) {
+      thresholdReached.current = false;
+    }
   }, [refreshing, y]);
 
   const handleTouchEnd = useCallback(async () => {
     if (!pulling.current || refreshing) return;
     pulling.current = false;
+    thresholdReached.current = false;
 
     if (y.get() >= PULL_THRESHOLD) {
       setRefreshing(true);
