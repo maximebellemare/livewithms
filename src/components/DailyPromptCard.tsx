@@ -1,19 +1,78 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { PenLine, RefreshCw } from "lucide-react";
 import { PROMPTS, getDailyPrompt } from "@/lib/dailyPrompts";
+import { DailyEntry } from "@/hooks/useEntries";
+
+/** Symptom-aware prompts that replace generic ones when data exists */
+const SYMPTOM_PROMPTS: Record<string, { threshold: number; direction: "high" | "low"; prompts: string[] }> = {
+  fatigue: {
+    threshold: 6, direction: "high",
+    prompts: [
+      "Fatigue is heavy today — what's one thing you can let go of?",
+      "When your energy is low, what brings you even a small spark of comfort?",
+      "What would 'good enough' look like for today?",
+    ],
+  },
+  pain: {
+    threshold: 6, direction: "high",
+    prompts: [
+      "Pain can be isolating — is there someone who understands what you're going through?",
+      "What does your body need most from you right now?",
+      "Despite the pain, what's one thing you still managed today?",
+    ],
+  },
+  mood: {
+    threshold: 4, direction: "low",
+    prompts: [
+      "Your mood has been low — what usually helps you feel a little brighter?",
+      "What's one kind thing you could do for yourself today?",
+      "Is there something weighing on you that you'd like to put into words?",
+    ],
+  },
+  brain_fog: {
+    threshold: 6, direction: "high",
+    prompts: [
+      "Brain fog days are tough — what's one thing you did that took real effort?",
+      "When thinking feels cloudy, what grounds you?",
+      "What would you tell a friend having a foggy day like yours?",
+    ],
+  },
+};
 
 interface DailyPromptCardProps {
   onUsePrompt: (prompt: string) => void;
+  entry?: DailyEntry | null;
 }
 
-const DailyPromptCard = ({ onUsePrompt }: DailyPromptCardProps) => {
+const DailyPromptCard = ({ onUsePrompt, entry }: DailyPromptCardProps) => {
   const daily = getDailyPrompt();
   const [currentIndex, setCurrentIndex] = useState(daily.index);
   const [animating, setAnimating] = useState(false);
+  const [useSymptom, setUseSymptom] = useState(true);
 
-  const currentPrompt = PROMPTS[currentIndex];
+  // Find the first matching symptom-linked prompt
+  const symptomPrompt = useMemo(() => {
+    if (!entry) return null;
+    for (const [key, config] of Object.entries(SYMPTOM_PROMPTS)) {
+      const value = (entry as any)[key] as number | null;
+      if (value === null) continue;
+      const triggered = config.direction === "high" ? value >= config.threshold : value <= config.threshold;
+      if (triggered) {
+        const idx = Math.floor(Math.random() * config.prompts.length);
+        return { key, prompt: config.prompts[idx], label: key.replace("_", " ") };
+      }
+    }
+    return null;
+  }, [entry]);
+
+  const showSymptomPrompt = symptomPrompt && useSymptom;
+  const currentPrompt = showSymptomPrompt ? symptomPrompt.prompt : PROMPTS[currentIndex];
 
   const shuffle = () => {
+    if (showSymptomPrompt) {
+      setUseSymptom(false);
+      return;
+    }
     setAnimating(true);
     setTimeout(() => {
       setCurrentIndex((prev) => (prev + 1) % PROMPTS.length);
@@ -23,11 +82,12 @@ const DailyPromptCard = ({ onUsePrompt }: DailyPromptCardProps) => {
 
   return (
     <div className="rounded-xl border border-primary/15 bg-primary/5 p-4 space-y-3 animate-fade-in">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <span className="text-base">💭</span>
-          <span className="text-xs font-semibold text-foreground">Today's prompt</span>
+          <span className="text-base">{showSymptomPrompt ? "🎯" : "💭"}</span>
+          <span className="text-xs font-semibold text-foreground">
+            {showSymptomPrompt ? `Prompt for your ${symptomPrompt.label}` : "Today's prompt"}
+          </span>
         </div>
         <button
           onClick={shuffle}
@@ -40,7 +100,6 @@ const DailyPromptCard = ({ onUsePrompt }: DailyPromptCardProps) => {
         </button>
       </div>
 
-      {/* Prompt text */}
       <p
         className={`text-sm font-medium text-foreground leading-relaxed transition-opacity duration-150 ${
           animating ? "opacity-0" : "opacity-100"
@@ -49,7 +108,6 @@ const DailyPromptCard = ({ onUsePrompt }: DailyPromptCardProps) => {
         {currentPrompt}
       </p>
 
-      {/* CTA */}
       <span className="relative inline-flex">
         <span className="absolute inset-0 rounded-lg bg-primary/20 pulse" />
         <button
