@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import SEOHead from "@/components/SEOHead";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
@@ -6,6 +6,8 @@ import PageHeader from "@/components/PageHeader";
 import { useRelapses, useCreateRelapse, useUpdateRelapse, useDeleteRelapse, Relapse } from "@/hooks/useRelapses";
 import { RelapsesSkeleton } from "@/components/PageSkeleton";
 import { useAuth } from "@/hooks/useAuth";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -420,11 +422,16 @@ const RelapsesPage = () => {
   const createRelapse = useCreateRelapse();
   const updateRelapse = useUpdateRelapse();
   const deleteRelapse = useDeleteRelapse();
+  const queryClient = useQueryClient();
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const editingRelapse = relapses?.find((r) => r.id === editingId);
+
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["relapses"] });
+  }, [queryClient]);
 
   const handleCreate = async (data: any) => {
     try {
@@ -474,7 +481,7 @@ const RelapsesPage = () => {
     <>
       <SEOHead title="Relapses" description="Log and monitor your MS relapses, triggers and recovery timeline." />
       <PageHeader title="Relapses" subtitle="Track your MS flare-ups" showBack />
-      <StaggerContainer className="mx-auto max-w-lg px-4 py-4 space-y-4 pb-28">
+      <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg px-4 py-4 space-y-4 pb-28">
         {/* Summary strip */}
         <StaggerItem>
         <div className="flex gap-3" data-tour="relapses-summary">
@@ -564,7 +571,7 @@ const RelapsesPage = () => {
             </StaggerItem>
           )
         )}
-      </StaggerContainer>
+      </PullToRefresh>
     </>
   );
 };

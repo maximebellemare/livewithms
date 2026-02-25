@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import SEOHead from "@/components/SEOHead";
+import PullToRefresh from "@/components/PullToRefresh";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import { Link } from "react-router-dom";
 import { Bookmark, Shield } from "lucide-react";
@@ -17,10 +18,11 @@ import { TrendingPosts } from "@/components/community/TrendingPosts";
 import { WeeklyHighlights } from "@/components/community/WeeklyHighlights";
 import { SavedPosts } from "@/components/community/SavedPosts";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 const CommunityPage = () => {
+  const queryClient = useQueryClient();
   const { data: channels = [], isLoading } = useChannels();
   const { data: roles = [] } = useUserRoles();
   const { data: communityRoles = {} } = useCommunityRoles();
@@ -44,6 +46,10 @@ const CommunityPage = () => {
     markCommunityVisited();
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["community"] });
+  }, [queryClient]);
+
   const savedAction = (
     <Button
       variant={showSaved ? "default" : "ghost"}
@@ -60,7 +66,7 @@ const CommunityPage = () => {
     <>
       <SEOHead title="Community" description="Connect with others living with MS — share, support, and learn together." />
       <PageHeader title="Community" subtitle="You're not alone" action={savedAction} />
-      <div className="mx-auto max-w-lg px-4 py-4">
+      <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg px-4 py-4">
         {isLoading ? (
           <div className="space-y-4 animate-fade-in">
             <Skeleton className="h-5 w-40 mb-2" />
@@ -129,7 +135,7 @@ const CommunityPage = () => {
             </StaggerItem>
           </StaggerContainer>
         )}
-      </div>
+      </PullToRefresh>
     </>
   );
 };

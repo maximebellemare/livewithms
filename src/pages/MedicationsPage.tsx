@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import SEOHead from "@/components/SEOHead";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
@@ -6,13 +6,20 @@ import PageHeader from "@/components/PageHeader";
 import { Plus, Pill, Trash2, Edit2, ArrowLeft, Bell, BellOff } from "lucide-react";
 import { useDbMedications, useSaveMedication, useDeleteMedication } from "@/hooks/useMedications";
 import { CardListSkeleton } from "@/components/PageSkeleton";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 
 const MedicationsPage = () => {
   const { data: meds = [], isLoading } = useDbMedications();
   const saveMutation = useSaveMedication();
   const deleteMutation = useDeleteMedication();
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["medications"] });
+  }, [queryClient]);
 
   const handleSave = async () => {
     if (!editing?.name) return;
@@ -205,7 +212,7 @@ const MedicationsPage = () => {
           </button>
         }
       />
-      <StaggerContainer className="mx-auto max-w-lg space-y-3 px-4 py-4">
+      <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg space-y-3 px-4 py-4">
         {isLoading ? (
           <CardListSkeleton count={3} />
         ) : meds.length === 0 ? (
@@ -270,7 +277,7 @@ const MedicationsPage = () => {
           )}
           </div>
         )}
-      </StaggerContainer>
+      </PullToRefresh>
     </>
   );
 };
