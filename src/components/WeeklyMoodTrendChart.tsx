@@ -278,8 +278,11 @@ const WeeklyMoodTrendChart = ({ entries }: Props) => {
 
           return (
             <div className="mt-4 pt-3 border-t border-border">
-              <p className="text-[10px] font-semibold tracking-wide text-muted-foreground mb-2.5">
+              <p className="text-[10px] font-semibold tracking-wide text-muted-foreground mb-0.5">
                 How your feelings affect mood
+              </p>
+              <p className="text-[9px] text-muted-foreground mb-2.5">
+                Based on {allMoods.length} logged {allMoods.length === 1 ? "day" : "days"}
               </p>
               <div className="space-y-2">
                 {tagCorrelations.map(({ tag, tagAvg, diff, count }) => {
