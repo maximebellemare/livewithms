@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Lock, Share2, Trophy, Clock, Grid3X3, Calendar, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import SEOHead from "@/components/SEOHead";
+import BadgeNudgeCard from "@/components/badges/BadgeNudgeCard";
 import BadgeDetailDialog from "@/components/badges/BadgeDetailDialog";
 import BadgeLeaderboard from "@/components/badges/BadgeLeaderboard";
 import ThisWeekMovers from "@/components/badges/ThisWeekMovers";
@@ -371,6 +372,9 @@ const BadgesPage = () => {
             </button>
           )}
         </div>
+
+        {/* Next badge nudge */}
+        <BadgeNudgeCard streakData={{ logStreak, weekStreak, medStreak, relapseStreak, cogStreak }} />
 
         {/* View toggle */}
         <div className="flex items-center gap-2 justify-center">
