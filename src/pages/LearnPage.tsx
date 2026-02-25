@@ -11,8 +11,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import ArticleBody from "@/components/learn/ArticleBody";
 import RecommendedArticles from "@/components/learn/RecommendedArticles";
 import { useLearnProgress } from "@/hooks/useLearnProgress";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 
 const LearnPage = () => {
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState("All");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showBookmarked, setShowBookmarked] = useState(false);
@@ -82,7 +85,7 @@ const LearnPage = () => {
     <>
       <SEOHead title="Learn" description="Evidence-based articles and resources about living with multiple sclerosis." />
       <PageHeader title="Learn" subtitle="Evidence-based MS education" showBack />
-      <div className="mx-auto max-w-lg px-4 py-4">
+      <PullToRefresh onRefresh={async () => { await queryClient.invalidateQueries({ queryKey: ["learn-articles"] }); }} className="mx-auto max-w-lg px-4 py-4">
         {/* Learning progress summary */}
         {!isLoading && totalCount > 0 && (
           <div data-tour="learn-progress" className={`mb-4 rounded-xl p-4 shadow-soft transition-all ${allCompleted ? "bg-primary/10 ring-1 ring-primary/30" : "bg-card"}`}>
@@ -381,8 +384,8 @@ const LearnPage = () => {
             );
           })}
         </AnimatedList>
-        </div>
       </div>
+      </PullToRefresh>
     </>
   );
 };

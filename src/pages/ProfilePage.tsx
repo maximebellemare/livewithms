@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import confetti from "canvas-confetti";
@@ -46,6 +48,7 @@ function getWeeklyMotivation(daysLogged: number, goal: number): string {
 }
 
 const ProfilePage = () => {
+  const queryClient = useQueryClient();
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
@@ -454,7 +457,7 @@ const ProfilePage = () => {
     <>
       <SEOHead title="Profile" description="Manage your LiveWithMS account, preferences and notification settings." />
       <PageHeader title="Profile" subtitle="Your MS companion settings" showBack />
-      <StaggerContainer className="mx-auto max-w-lg px-4 py-4 space-y-4">
+      <PullToRefresh onRefresh={async () => { await queryClient.invalidateQueries({ queryKey: ["profile"] }); }} className="mx-auto max-w-lg px-4 py-4 space-y-4">
         {/* User info */}
         <StaggerItem>
         <div className="card-base">
@@ -1639,7 +1642,7 @@ const ProfilePage = () => {
           LiveWithMS v1.0 · Not medical advice · © 2026
         </p>
         </StaggerItem>
-      </StaggerContainer>
+      </PullToRefresh>
     </>
   );
 };
