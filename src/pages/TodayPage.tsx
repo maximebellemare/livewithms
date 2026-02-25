@@ -516,8 +516,8 @@ const TodayPage = () => {
         )}
 
         <StaggerItem><MondayRecapCard /></StaggerItem>
-        <StaggerItem><WeeklySummaryBanner /></StaggerItem>
         <StaggerItem><StreakBadge /></StaggerItem>
+        <StaggerItem><WeeklySummaryBanner /></StaggerItem>
         <StaggerItem><WeekStreakBadge /></StaggerItem>
         <StaggerItem><BadgeNudgeCard streakData={{ logStreak: streak, weekStreak, medStreak, relapseStreak, cogStreak }} /></StaggerItem>
 
