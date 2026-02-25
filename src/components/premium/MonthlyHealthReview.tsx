@@ -99,10 +99,6 @@ const MonthlyHealthReview = () => {
             )}
           </div>
         )}
-
-        <p className="mt-3 text-[10px] text-muted-foreground">
-          Powered by Lovable AI · Based on {recentEntries.length} entries
-        </p>
       </div>
     </PremiumGate>
   );
