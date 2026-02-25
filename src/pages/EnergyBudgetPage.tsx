@@ -136,6 +136,15 @@ const EnergyBudgetPage = () => {
             <p className="text-xs text-muted-foreground mt-1">
               This planner helps you budget your energy so you can prioritize what matters most and avoid crashing.
             </p>
+            <div className="rounded-lg bg-secondary/60 p-3 text-left space-y-1.5">
+              <p className="text-xs font-semibold text-foreground">💡 How to choose your number</p>
+              <ul className="text-[11px] text-muted-foreground space-y-1 list-none">
+                <li><span className="font-medium text-foreground">Bad day / flare-up:</span> 4–6 spoons</li>
+                <li><span className="font-medium text-foreground">Average day:</span> 8–12 spoons</li>
+                <li><span className="font-medium text-foreground">Good day:</span> 12–16 spoons</li>
+              </ul>
+              <p className="text-[11px] text-muted-foreground">Start with how you feel <span className="italic">right now</span> — you can always adjust later.</p>
+            </div>
             <div className="flex items-center justify-center gap-4">
               <button
                 onClick={() => setSpoonCount(Math.max(1, spoonCount - 1))}
