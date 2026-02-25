@@ -37,6 +37,7 @@ import DiagnosisAnniversaryCard from "@/components/DiagnosisAnniversaryCard";
 import { useMedStreak } from "@/hooks/useMedStreak";
 import { useCognitiveStreak } from "@/hooks/useCognitiveStreak";
 import { useRelapseFreeStreak } from "@/hooks/useRelapseFreeStreak";
+import { useGroundingStreak } from "@/hooks/useGroundingStreak";
 
 import { useBadgeProximityAlert } from "@/hooks/useBadgeProximityAlert";
 import { useRecordBadgeEvent } from "@/hooks/useBadgeEvents";
@@ -137,10 +138,11 @@ const TodayPage = () => {
   const relapseStreak = useRelapseFreeStreak();
   const { weekStreak } = useWeekStreak();
   const { streak: cogStreak } = useCognitiveStreak();
+  const { totalSessions: groundingSessions } = useGroundingStreak();
   
   const recordBadge = useRecordBadgeEvent();
   useBadgeProximityAlert(
-    { logStreak: streak, weekStreak, medStreak, relapseStreak, cogStreak },
+    { logStreak: streak, weekStreak, medStreak, relapseStreak, cogStreak, groundingSessions },
     (badgeIds) => recordBadge.mutate(badgeIds)
   );
 
@@ -488,7 +490,7 @@ const TodayPage = () => {
             frozeToday={frozeToday}
             freezesRemaining={freezesRemaining}
             nearBadge={(() => {
-              const b = findClosestBadge({ logStreak: streak, weekStreak, medStreak, relapseStreak, cogStreak });
+              const b = findClosestBadge({ logStreak: streak, weekStreak, medStreak, relapseStreak, cogStreak, groundingSessions });
               if (!b) return null;
               return { emoji: b.emoji, name: b.name, pct: Math.round((b.current / b.target) * 100), remaining: b.target - b.current, unit: b.unit, hint: b.hint };
             })()}
