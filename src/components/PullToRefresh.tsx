@@ -14,6 +14,7 @@ const MAX_PULL = 100;
 const PullToRefresh = forwardRef<HTMLDivElement, PullToRefreshProps>(({ onRefresh, children, className }, _ref) => {
   const [refreshing, setRefreshing] = useState(false);
   const [flash, setFlash] = useState(false);
+  const [pastThreshold, setPastThreshold] = useState(false);
   const y = useMotionValue(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
@@ -42,12 +43,14 @@ const PullToRefresh = forwardRef<HTMLDivElement, PullToRefreshProps>(({ onRefres
     // Haptic-style bounce when crossing threshold
     if (dampened >= PULL_THRESHOLD && !thresholdReached.current) {
       thresholdReached.current = true;
+      setPastThreshold(true);
       animate(y, dampened + 6, { type: "spring", stiffness: 600, damping: 12, mass: 0.3 });
       navigator.vibrate?.(10);
       setFlash(true);
       setTimeout(() => setFlash(false), 300);
     } else if (dampened < PULL_THRESHOLD * 0.8) {
       thresholdReached.current = false;
+      setPastThreshold(false);
     }
   }, [refreshing, y]);
 
@@ -55,6 +58,7 @@ const PullToRefresh = forwardRef<HTMLDivElement, PullToRefreshProps>(({ onRefres
     if (!pulling.current || refreshing) return;
     pulling.current = false;
     thresholdReached.current = false;
+    setPastThreshold(false);
 
     if (y.get() >= PULL_THRESHOLD) {
       setRefreshing(true);
@@ -85,7 +89,7 @@ const PullToRefresh = forwardRef<HTMLDivElement, PullToRefreshProps>(({ onRefres
       >
         <motion.div
           style={{ opacity: indicatorOpacity, scale: indicatorScale }}
-          className="flex items-center justify-center"
+          className="flex flex-col items-center justify-center gap-1"
           animate={flash ? { backgroundColor: ["hsl(var(--primary) / 0.3)", "hsl(var(--primary) / 0)"] } : {}}
           transition={{ duration: 0.3 }}
         >
@@ -106,6 +110,18 @@ const PullToRefresh = forwardRef<HTMLDivElement, PullToRefreshProps>(({ onRefres
                 <line x1="12" y1="6" x2="12" y2="18" />
               </svg>
             </motion.div>
+          )}
+          {!refreshing && pastThreshold && (
+            <motion.span
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-[10px] font-medium text-primary"
+            >
+              Release to refresh
+            </motion.span>
+          )}
+          {refreshing && (
+            <span className="text-[10px] font-medium text-muted-foreground">Refreshing…</span>
           )}
         </motion.div>
       </motion.div>
