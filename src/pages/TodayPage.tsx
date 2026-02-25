@@ -567,8 +567,8 @@ const TodayPage = () => {
             onClick={() => setOpenPanel((p) => p === "stress" ? null : "stress")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "stress" } })} /></div>
           <div id="sparkline-hydration"><GenericSparkline entries={weekEntries} config={makeHydrationConfig(profile?.hydration_goal ?? 8)} variant="card"
-            onClick={() => navigate("/lifestyle")}
-            onLongPress={() => navigate("/lifestyle")} /></div>
+            onClick={() => navigate("/insights", { state: { heatmapMetric: "water_glasses" } })}
+            onLongPress={() => navigate("/insights", { state: { heatmapMetric: "water_glasses" } })} /></div>
         </div>
         </StaggerItem>
 
