@@ -28,6 +28,11 @@ const TAG_COLORS: Record<string, string> = {
   Low: "hsl(220 40% 50%)",
 };
 
+const TAG_EMOJI: Record<string, string> = {
+  Happy: "😊", Calm: "😌", Frustrated: "😤", Sad: "😔",
+  Anxious: "😰", Tired: "😴", Strong: "💪", Low: "🌧️",
+};
+
 const CustomTooltip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
@@ -273,45 +278,41 @@ const WeeklyMoodTrendChart = ({ entries }: Props) => {
 
           return (
             <div className="mt-4 pt-3 border-t border-border">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2.5">
                 How your feelings affect mood
-              </p>
-              <p className="text-[9px] text-muted-foreground mb-2.5">
-                Your average mood is {overallAvgMood.toFixed(1)}/10 — here's how each feeling compares
               </p>
               <div className="space-y-2">
                 {tagCorrelations.map(({ tag, tagAvg, diff, count }) => {
+                  const emoji = TAG_EMOJI[tag] ?? "🏷️";
                   const isPositive = diff > 0.2;
                   const isNegative = diff < -0.2;
-                  const color = TAG_COLORS[tag] ?? "hsl(var(--muted-foreground))";
 
-                  let description: string;
+                  let sentence: string;
                   if (isPositive) {
-                    description = diff >= 1
-                      ? `Your best mood days — ${tagAvg.toFixed(1)} avg`
-                      : `Tends to lift your mood — ${tagAvg.toFixed(1)} avg`;
+                    sentence = diff >= 1
+                      ? `${emoji} ${tag} days are your happiest — mood averages ${tagAvg.toFixed(1)}/10`
+                      : `${emoji} ${tag} days tend to lift your mood — averaging ${tagAvg.toFixed(1)}/10`;
                   } else if (isNegative) {
-                    description = diff <= -1
-                      ? `Tougher days — ${tagAvg.toFixed(1)} avg`
-                      : `Slightly lowers mood — ${tagAvg.toFixed(1)} avg`;
+                    sentence = diff <= -1
+                      ? `${emoji} ${tag} days are tougher — mood drops to ${tagAvg.toFixed(1)}/10`
+                      : `${emoji} ${tag} days slightly lower your mood — averaging ${tagAvg.toFixed(1)}/10`;
                   } else {
-                    description = `No clear effect — ${tagAvg.toFixed(1)} avg`;
+                    sentence = `${emoji} ${tag} days don't seem to shift your mood much — ${tagAvg.toFixed(1)}/10`;
                   }
 
                   return (
-                    <div key={tag} className="flex items-center gap-2.5">
-                      <span
-                        className="flex items-center justify-center h-5 w-5 rounded-full text-[10px] flex-shrink-0"
-                        style={{ backgroundColor: `${color}20`, color }}
-                      >
-                        {isPositive ? "↑" : isNegative ? "↓" : "–"}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-foreground leading-tight">{tag}</p>
-                        <p className="text-[10px] text-muted-foreground leading-tight">{description}</p>
-                      </div>
-                      <span className="text-[9px] text-muted-foreground flex-shrink-0">{count}×</span>
-                    </div>
+                    <p
+                      key={tag}
+                      className="text-xs leading-relaxed"
+                      style={{
+                        color: isPositive ? "hsl(145 45% 45%)" :
+                               isNegative ? "hsl(0 72% 51%)" :
+                               "hsl(var(--muted-foreground))",
+                      }}
+                    >
+                      {sentence}
+                      <span className="text-muted-foreground ml-1 text-[9px]">({count}×)</span>
+                    </p>
                   );
                 })}
               </div>
