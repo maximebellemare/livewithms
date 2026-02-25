@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import PageHeader from "@/components/PageHeader";
@@ -118,6 +120,7 @@ const MultiSelect = ({
 );
 
 const MyMSHistoryPage = () => {
+  const queryClient = useQueryClient();
   const { data: profile, isLoading: profileLoading } = useProfile();
   const { data: medications, isLoading: medsLoading } = useDbMedications();
   const updateProfile = useUpdateProfile();
@@ -205,7 +208,7 @@ const MyMSHistoryPage = () => {
   return (
     <>
       <PageHeader title="My MS History" subtitle="Your diagnosis at a glance" showBack />
-      <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in pb-28">
+      <PullToRefresh onRefresh={async () => { await queryClient.invalidateQueries({ queryKey: ["profile"] }); }} className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in pb-28">
         {/* Diagnosis Summary */}
         <Section
           icon={Stethoscope}
@@ -537,7 +540,7 @@ const MyMSHistoryPage = () => {
             </Link>
           </Section>
         )}
-      </div>
+      </PullToRefresh>
     </>
   );
 };

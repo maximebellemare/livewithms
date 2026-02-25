@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import confetti from "canvas-confetti";
 import SEOHead from "@/components/SEOHead";
 import { format, subDays } from "date-fns";
@@ -48,6 +50,7 @@ const blobToBase64 = (blob: Blob): Promise<string> =>
   });
 
 const ReportsPage = () => {
+  const queryClient = useQueryClient();
   const today = new Date();
   const [startDate, setStartDate] = useState<Date>(subDays(today, 30));
   const [endDate, setEndDate] = useState<Date>(today);
@@ -273,7 +276,7 @@ const ReportsPage = () => {
       </AlertDialog>
 
       <PageHeader title="Reports" subtitle="Doctor-ready summaries" showBack />
-      <div className="mx-auto max-w-lg space-y-4 px-4 py-4 pb-24 animate-fade-in" data-tour="reports-hero">
+      <PullToRefresh onRefresh={async () => { await queryClient.invalidateQueries({ queryKey: ["report-history"] }); }} className="mx-auto max-w-lg space-y-4 px-4 py-4 pb-24 animate-fade-in" data-tour="reports-hero">
         <div className="rounded-xl bg-gradient-to-br from-primary/10 to-accent p-5 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/15">
             <FileText className="h-7 w-7 text-primary" />
@@ -520,7 +523,7 @@ const ReportsPage = () => {
             )}
           </div>
         )}
-      </div>
+      </PullToRefresh>
 
     </>
   );

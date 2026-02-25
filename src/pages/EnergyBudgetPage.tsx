@@ -1,4 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
@@ -36,6 +38,7 @@ const PRESET_ACTIVITIES = [
 ];
 
 const EnergyBudgetPage = () => {
+  const queryClient = useQueryClient();
   const today = format(new Date(), "yyyy-MM-dd");
   const { data: budget, isLoading } = useTodayBudget();
   const { data: activities = [] } = useBudgetActivities(budget?.id);
@@ -231,7 +234,7 @@ const EnergyBudgetPage = () => {
           </Dialog>
         </span>
       } showBack />
-      <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
+      <PullToRefresh onRefresh={async () => { const qc = queryClient; await qc.invalidateQueries({ queryKey: ["energy-budget"] }); await qc.invalidateQueries({ queryKey: ["energy-activities"] }); }} className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
 
         {/* Spoon meter */}
         <div className="rounded-xl bg-card p-5 shadow-soft space-y-3">
@@ -533,7 +536,7 @@ const EnergyBudgetPage = () => {
             </div>
           </div>
         </div>
-      </div>
+      </PullToRefresh>
     </>
   );
 };

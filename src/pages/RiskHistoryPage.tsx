@@ -1,4 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import { format, subDays, subWeeks } from "date-fns";
 import { useRiskScores, RiskScore } from "@/hooks/useRiskScores";
 import { useEntriesInRange } from "@/hooks/useEntries";
@@ -27,6 +29,7 @@ function getLevelColor(level: RiskLevel | null): string {
 const WEEKS = 12;
 
 export default function RiskHistoryPage() {
+  const queryClient = useQueryClient();
   const { data: dbScores = [], isLoading: dbLoading } = useRiskScores(WEEKS);
 
   // Fallback: compute from entries if no DB scores yet
@@ -110,7 +113,7 @@ export default function RiskHistoryPage() {
     <div className="min-h-screen bg-background pb-24">
       <PageHeader title="Risk History" subtitle="12-week relapse risk trends" showBack />
 
-      <div className="mx-auto max-w-lg px-4 py-4 space-y-4">
+      <PullToRefresh onRefresh={async () => { await queryClient.invalidateQueries({ queryKey: ["risk-scores"] }); }} className="mx-auto max-w-lg px-4 py-4 space-y-4">
         {/* Current status card */}
         <section className={`rounded-xl border ${cfg.border} ${cfg.bg} p-4`}>
           <div className="flex items-center gap-2 mb-1">
@@ -230,7 +233,7 @@ export default function RiskHistoryPage() {
             Based on 14-day rolling symptom trends · not medical advice
           </p>
         )}
-      </div>
+      </PullToRefresh>
     </div>
   );
 }

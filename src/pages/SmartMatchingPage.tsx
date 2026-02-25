@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { motion } from "framer-motion";
@@ -12,6 +14,7 @@ import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const SmartMatchingPage = () => {
+  const queryClient = useQueryClient();
   const { data: matchProfile, isLoading: profileLoading } = useMyMatchProfile();
   const { data: profile } = useProfile();
   const { data: matches = [], isLoading: matchesLoading } = useSmartMatches();
@@ -67,7 +70,7 @@ const SmartMatchingPage = () => {
     <>
       <SEOHead title="Smart Matching" description="Connect with others who share your MS experience." />
       <PageHeader title="Smart Matching" subtitle="Find your MS community 🤝" showBack />
-      <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
+      <PullToRefresh onRefresh={async () => { await queryClient.invalidateQueries({ queryKey: ["smart-matches"] }); }} className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
 
         {/* Opt-in card */}
         <div className="rounded-xl bg-card p-5 shadow-soft space-y-4">
@@ -211,7 +214,7 @@ const SmartMatchingPage = () => {
             </div>
           )}
         </div>
-      </div>
+      </PullToRefresh>
     </>
   );
 };

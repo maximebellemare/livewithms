@@ -1,12 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import ConversationList from "@/components/messages/ConversationList";
 import MessageThread from "@/components/messages/MessageThread";
 import { useConversations } from "@/hooks/useMessages";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 
 const MessagesPage = () => {
+  const queryClient = useQueryClient();
   const { data: conversations = [], isLoading } = useConversations();
   const [searchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get("conversation"));
@@ -23,7 +26,7 @@ const MessagesPage = () => {
     <>
       <SEOHead title="Messages" description="Your direct messages with community members." />
       {!selectedConvo && <PageHeader title="Messages" subtitle="Your conversations" showBack />}
-      <div className="mx-auto max-w-lg" style={{ height: selectedConvo ? "calc(100vh - 80px)" : "auto" }}>
+      <PullToRefresh onRefresh={async () => { await queryClient.invalidateQueries({ queryKey: ["conversations"] }); }} className="mx-auto max-w-lg">
         {selectedConvo ? (
           <MessageThread
             conversation={selectedConvo}
@@ -48,7 +51,7 @@ const MessagesPage = () => {
             onSelect={setSelectedId}
           />
         )}
-      </div>
+      </PullToRefresh>
     </>
   );
 };

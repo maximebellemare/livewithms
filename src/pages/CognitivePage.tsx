@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -19,12 +21,14 @@ const GAMES = [
 
 const CognitivePage = () => {
   const { data: bestScores } = useBestScores();
+  const queryClient = useQueryClient();
+  const handleRefresh = useCallback(async () => { await queryClient.invalidateQueries({ queryKey: ["cognitive-sessions"] }); }, [queryClient]);
 
   return (
     <>
       <SEOHead title="Cognitive Games" description="Exercise your brain with fun mini-games and track cognitive trends." />
       <PageHeader title="Cognitive Games" subtitle="Train your brain 🧠" showBack />
-      <div className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
+      <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg px-4 py-4 space-y-4 animate-fade-in">
         <CognitiveStreakBadge />
         {/* Best scores summary */}
         {bestScores && Object.keys(bestScores).length > 0 && (
@@ -90,7 +94,7 @@ const CognitivePage = () => {
             <CognitiveTrends days={30} />
           </TabsContent>
         </Tabs>
-      </div>
+      </PullToRefresh>
     </>
   );
 };
