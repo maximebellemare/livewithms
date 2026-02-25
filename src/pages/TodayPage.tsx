@@ -76,7 +76,7 @@ const greetings = (displayName?: string | null) => {
 };
 
 // Which quick-log panel is open (null = none)
-type QuickLogMetric = "mood" | "fatigue" | "pain" | "brain_fog" | "sleep" | "mobility" | "spasticity" | "stress" | null;
+type QuickLogMetric = "mood" | "fatigue" | "pain" | "brain_fog" | "sleep" | "mobility" | "spasticity" | "stress" | "hydration" | null;
 
 const TodayPage = () => {
   const navigate = useNavigate();
@@ -567,7 +567,8 @@ const TodayPage = () => {
             onClick={() => setOpenPanel((p) => p === "stress" ? null : "stress")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "stress" } })} /></div>
           <div id="sparkline-hydration"><GenericSparkline entries={weekEntries} config={makeHydrationConfig(profile?.hydration_goal ?? 8)} variant="card"
-            onClick={() => navigate("/insights", { state: { heatmapMetric: "water_glasses" } })}
+            saved={savedMetric === "hydration"}
+            onClick={() => setOpenPanel((p) => p === "hydration" ? null : "hydration")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "water_glasses" } })} /></div>
         </div>
         </StaggerItem>
@@ -650,6 +651,63 @@ const TodayPage = () => {
             isSaving={saveEntry.isPending}
           />
         )}
+
+        {/* Hydration inline panel — +/- counter UI */}
+        {openPanel === "hydration" && (() => {
+          const goal = profile?.hydration_goal ?? 8;
+          const currentGlasses = todayEntry?.water_glasses ?? 0;
+          return (
+            <div onClick={(e) => e.stopPropagation()} className="rounded-xl bg-card shadow-soft px-4 py-3 animate-fade-in border border-primary/20">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-semibold text-foreground">💧 Glasses of water today</label>
+                <button
+                  onClick={() => setOpenPanel(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-0.5 rounded-md hover:bg-secondary"
+                >
+                  Done
+                </button>
+              </div>
+              <div className="flex items-center justify-center gap-4">
+                <button
+                  onClick={async () => {
+                    if (currentGlasses <= 0) return;
+                    const next = currentGlasses - 1;
+                    try {
+                      await saveEntry.mutateAsync({ ...entryPayload, water_glasses: next } as any);
+                      flashSaved("hydration");
+                      toast.success(`Water: ${next} glasses 💧`);
+                    } catch (err: any) { toast.error("Failed: " + err.message); }
+                  }}
+                  disabled={currentGlasses <= 0 || saveEntry.isPending}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-secondary-foreground transition-all active:scale-95 disabled:opacity-40"
+                >−</button>
+                <div className="text-center">
+                  <span className={`text-2xl font-bold tabular-nums ${currentGlasses >= goal ? "text-primary" : "text-foreground"}`}>
+                    {currentGlasses}
+                  </span>
+                  <span className="text-sm text-muted-foreground"> / {goal}</span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {currentGlasses >= goal ? "Goal reached! 🎉" : `${goal - currentGlasses} more to go`}
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (currentGlasses >= 20) return;
+                    const next = currentGlasses + 1;
+                    try {
+                      await saveEntry.mutateAsync({ ...entryPayload, water_glasses: next } as any);
+                      flashSaved("hydration");
+                      if (next >= goal && (next - 1) < goal) toast.success("Hydration goal reached! 💧🎉");
+                      else toast.success(`Water: ${next} glasses 💧`);
+                    } catch (err: any) { toast.error("Failed: " + err.message); }
+                  }}
+                  disabled={currentGlasses >= 20 || saveEntry.isPending}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all active:scale-95 disabled:opacity-40"
+                >+</button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Sleep inline panel — unique number-input UI */}
         {openPanel === "sleep" && (
