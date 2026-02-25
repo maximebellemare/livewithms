@@ -21,6 +21,9 @@ export type Database = {
           id: string
           location: string | null
           notes: string | null
+          reminder: string
+          reminder_day_sent: boolean
+          reminder_hour_sent: boolean
           time: string | null
           title: string
           type: string
@@ -33,6 +36,9 @@ export type Database = {
           id?: string
           location?: string | null
           notes?: string | null
+          reminder?: string
+          reminder_day_sent?: boolean
+          reminder_hour_sent?: boolean
           time?: string | null
           title: string
           type?: string
@@ -45,6 +51,9 @@ export type Database = {
           id?: string
           location?: string | null
           notes?: string | null
+          reminder?: string
+          reminder_day_sent?: boolean
+          reminder_hour_sent?: boolean
           time?: string | null
           title?: string
           type?: string

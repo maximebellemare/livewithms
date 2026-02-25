@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { format, isSameDay, parseISO } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, ArrowLeft, Trash2, Edit2, MapPin, Clock, CalendarIcon } from "lucide-react";
+import { Plus, ArrowLeft, Trash2, Edit2, MapPin, Clock, CalendarIcon, Bell, BellOff } from "lucide-react";
 import { APPOINTMENT_TYPES, getAppointmentTypeInfo, AppointmentType } from "@/lib/appointments";
 import { useDbAppointments, useSaveAppointment, useDeleteAppointment } from "@/hooks/useAppointments";
 import { CardListSkeleton } from "@/components/PageSkeleton";
@@ -44,6 +44,7 @@ const AppointmentsPage = () => {
       time: "",
       location: "",
       notes: "",
+      reminder: "none",
     });
     setShowForm(true);
   };
@@ -131,6 +132,34 @@ const AppointmentsPage = () => {
           <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
             <label className="block text-sm font-medium text-foreground">Location (optional)</label>
             <input value={editing.location || ""} onChange={(e) => setEditing({ ...editing, location: e.target.value })} placeholder="e.g. City Hospital" className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+          </div>
+
+          <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+            <label className="block text-sm font-medium text-foreground">Reminder</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "none", label: "None", icon: BellOff },
+                { value: "1h", label: "1 hour before", icon: Bell },
+                { value: "1d", label: "1 day before", icon: Bell },
+                { value: "both", label: "Both", icon: Bell },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setEditing({ ...editing, reminder: opt.value })}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                    (editing.reminder || "none") === opt.value
+                      ? "bg-primary text-primary-foreground shadow-soft"
+                      : "bg-secondary text-muted-foreground"
+                  }`}
+                >
+                  <opt.icon className="h-3.5 w-3.5" />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {editing.reminder !== "none" && !editing.time && (
+              <p className="text-xs text-muted-foreground">⚠️ Set a time above for hour-based reminders to work</p>
+            )}
           </div>
 
           <div className="rounded-xl bg-card p-4 shadow-soft">
