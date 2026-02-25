@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Trophy } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CompactStreakRowProps {
   logStreak: number;
@@ -39,13 +40,30 @@ const CompactStreakRow = ({
       <div className="h-8 w-px bg-border flex-shrink-0" />
 
       {/* Week streak */}
-      <div className={`flex items-center gap-2 min-w-0 ${weekStreak === 0 ? "opacity-40" : ""}`}>
-        <span className="text-lg">📊</span>
-        <div className="flex flex-col leading-tight">
-          <span className="text-sm font-bold text-foreground tabular-nums">{weekStreak}</span>
-          <span className="text-[10px] text-muted-foreground">week streak</span>
+      {weekStreak === 0 ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-2 min-w-0 opacity-40 cursor-help">
+              <span className="text-lg">📊</span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-sm font-bold text-foreground tabular-nums">0</span>
+                <span className="text-[10px] text-muted-foreground">week streak</span>
+              </div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-[200px] text-center">
+            <p className="text-xs">Log every day for a full week to start your week streak!</p>
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-lg">📊</span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm font-bold text-foreground tabular-nums">{weekStreak}</span>
+            <span className="text-[10px] text-muted-foreground">week streak</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Badge nudge */}
       {nearBadge && (
