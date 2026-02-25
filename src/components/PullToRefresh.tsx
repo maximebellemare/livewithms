@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback, forwardRef } from "react";
-import { motion, useMotionValue, useTransform, animate } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { useState, useRef, useCallback, useEffect, forwardRef } from "react";
+import { motion, useMotionValue, useTransform, animate, AnimatePresence } from "framer-motion";
+import { Loader2, ArrowDown } from "lucide-react";
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void>;
@@ -10,6 +10,7 @@ interface PullToRefreshProps {
 
 const PULL_THRESHOLD = 64;
 const MAX_PULL = 100;
+const HINT_KEY = "hint_pull_refresh_v1";
 
 const PullToRefresh = forwardRef<HTMLDivElement, PullToRefreshProps>(({ onRefresh, children, className }, _ref) => {
   const [refreshing, setRefreshing] = useState(false);
@@ -24,6 +25,17 @@ const PullToRefresh = forwardRef<HTMLDivElement, PullToRefreshProps>(({ onRefres
   const indicatorScale = useTransform(y, [0, PULL_THRESHOLD], [0.6, 1]);
   const indicatorRotate = useTransform(y, [0, MAX_PULL], [0, 180]);
   const thresholdReached = useRef(false);
+  const [showHint, setShowHint] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem(HINT_KEY)) return;
+    const showTimer = setTimeout(() => setShowHint(true), 600);
+    const hideTimer = setTimeout(() => {
+      setShowHint(false);
+      localStorage.setItem(HINT_KEY, "1");
+    }, 3200);
+    return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
+  }, []);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (refreshing) return;
@@ -125,6 +137,21 @@ const PullToRefresh = forwardRef<HTMLDivElement, PullToRefreshProps>(({ onRefres
           )}
         </motion.div>
       </motion.div>
+
+      <AnimatePresence>
+        {showHint && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+            className="flex items-center justify-center gap-1.5 py-1.5"
+          >
+            <ArrowDown className="h-3 w-3 text-muted-foreground animate-bounce" />
+            <span className="text-[11px] text-muted-foreground font-medium">Pull down to refresh</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {children}
     </div>
