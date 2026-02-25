@@ -36,18 +36,16 @@ const CompactStreakRow = ({
       </div>
 
       {/* Divider */}
-      {weekStreak > 0 && <div className="h-8 w-px bg-border flex-shrink-0" />}
+      <div className="h-8 w-px bg-border flex-shrink-0" />
 
       {/* Week streak */}
-      {weekStreak > 0 && (
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-lg">📊</span>
-          <div className="flex flex-col leading-tight">
-            <span className="text-sm font-bold text-foreground tabular-nums">{weekStreak}</span>
-            <span className="text-[10px] text-muted-foreground">week streak</span>
-          </div>
+      <div className={`flex items-center gap-2 min-w-0 ${weekStreak === 0 ? "opacity-40" : ""}`}>
+        <span className="text-lg">📊</span>
+        <div className="flex flex-col leading-tight">
+          <span className="text-sm font-bold text-foreground tabular-nums">{weekStreak}</span>
+          <span className="text-[10px] text-muted-foreground">week streak</span>
         </div>
-      )}
+      </div>
 
       {/* Badge nudge */}
       {nearBadge && (
