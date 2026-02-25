@@ -46,6 +46,8 @@ const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: Edit
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isDirty = text !== (entry?.notes ?? "");
+  const hasPromptContent = text.includes("?") && text.length > 20;
+  const hasWinContent = text.includes("🏆 Small win:");
 
   const handleSave = async () => {
     if (text.length > 2000) {
@@ -95,22 +97,25 @@ const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: Edit
         <p className="text-xs text-muted-foreground">{format(parseLocalDate(date), "MMM d, yyyy")}</p>
       </div>
 
-      {/* Daily rotating prompt (symptom-linked when data exists) */}
-      <div data-tour="journal-prompt">
-        <DailyPromptCard
-          entry={entry}
-          onUsePrompt={(prompt) => appendText(prompt)}
+      {/* Daily rotating prompt (symptom-linked when data exists) — hide if already used */}
+      {!hasPromptContent && (
+        <div data-tour="journal-prompt">
+          <DailyPromptCard
+            entry={entry}
+            onUsePrompt={(prompt) => appendText(prompt)}
+          />
+        </div>
+      )}
+
+      {/* Small win / gratitude field — hide if already added */}
+      {!hasWinContent && (
+        <SmallWinField
+          onSubmit={(win) => {
+            appendText(`🏆 Small win: ${win}`);
+            toast.success("Win captured! 🎉", { duration: 2000 });
+          }}
         />
-      </div>
-
-
-      {/* Small win / gratitude field */}
-      <SmallWinField
-        onSubmit={(win) => {
-          appendText(`🏆 Small win: ${win}`);
-          toast.success("Win captured! 🎉", { duration: 2000 });
-        }}
-      />
+      )}
 
       {/* Voice input + textarea */}
       <div className="flex items-center gap-2">
