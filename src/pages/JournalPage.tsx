@@ -40,8 +40,9 @@ interface EditorCardProps {
 }
 
 const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: EditorCardProps) => {
-  const [text, setText] = useState(entry?.notes ?? "");
+  const [text, setText] = useState("");
   const [saved, setSaved] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   const saveEntry = useSaveEntry();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -74,6 +75,7 @@ const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: Edit
     const prefix = text.trim() ? text + "\n\n" : "";
     setText(prefix + newText + " ");
     setSaved(false);
+    setShowEditor(true);
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
@@ -86,6 +88,7 @@ const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: Edit
     const prefix = text.trim() ? text + " " : "";
     setText(prefix + transcript);
     setSaved(false);
+    setShowEditor(true);
   };
 
   return (
@@ -117,7 +120,7 @@ const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: Edit
         <VoiceJournalButton onTranscript={handleVoiceTranscript} />
       </div>
 
-      {text.trim() && (
+      {showEditor && (
         <div className="space-y-2 animate-fade-in">
           <textarea
             ref={textareaRef}
