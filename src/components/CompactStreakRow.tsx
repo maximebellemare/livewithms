@@ -142,7 +142,7 @@ const CompactStreakRow = ({
             className="flex items-center gap-2.5 min-w-0 w-full transition-colors hover:bg-accent/50 -m-1 p-1 rounded-lg active:scale-[0.98]"
           >
             <span className="text-lg flex-shrink-0">{nearBadge.emoji}</span>
-            <div className="flex flex-col gap-1 leading-tight min-w-0 flex-1">
+            <div className="flex flex-col gap-1.5 leading-tight min-w-0 flex-1">
               <div className="flex items-center justify-between gap-1">
                 <div className="flex items-center gap-1 min-w-0">
                   <Trophy className="h-3 w-3 text-primary flex-shrink-0" />
@@ -151,9 +151,10 @@ const CompactStreakRow = ({
                 <span className="text-[11px] font-bold text-primary tabular-nums flex-shrink-0">{nearBadge.pct}%</span>
               </div>
               <Progress value={nearBadge.pct} className={`h-1.5 ${nearBadge.pct >= 75 ? "[&>div]:animate-badge-shimmer [&>div]:bg-[length:200%_100%] [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:via-primary/50 [&>div]:to-primary" : ""}`} />
-              <span className="text-[10px] text-muted-foreground truncate">
-                {nearBadge.hint} — {nearBadge.remaining} {nearBadge.unit} to go
-              </span>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] text-muted-foreground">{nearBadge.hint}</span>
+                <span className="text-[10px] font-medium text-primary">{nearBadge.remaining} {nearBadge.unit} to go</span>
+              </div>
             </div>
           </button>
         </>
