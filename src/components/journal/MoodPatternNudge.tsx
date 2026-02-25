@@ -73,7 +73,7 @@ const MoodPatternNudge = ({ entries }: Props) => {
       const tagStr = topTags.map(([t, c]) => `"${t}" (${c}×)`).join(" and ");
       nuggets.push({
         icon: <Minus className="h-3.5 w-3.5 text-muted-foreground" />,
-        text: `Recurring feelings this fortnight: ${tagStr}`,
+        text: `In the last 2 weeks, your most logged feelings: ${tagStr}.`,
       });
     }
 
