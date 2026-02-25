@@ -6,6 +6,7 @@ export interface StreakData {
   medStreak: number;
   relapseStreak: number;
   cogStreak: number;
+  groundingSessions?: number;
 }
 
 export interface NearBadge {
@@ -17,7 +18,7 @@ export interface NearBadge {
   hint: string;
 }
 
-const BADGE_TARGETS: { id: string; emoji: string; name: string; target: number; category: "logging" | "weekly" | "medication" | "relapse" | "cognitive"; hint: string }[] = [
+const BADGE_TARGETS: { id: string; emoji: string; name: string; target: number; category: "logging" | "weekly" | "medication" | "relapse" | "cognitive" | "grounding"; hint: string }[] = [
   { id: "log-3", emoji: "⚡", name: "3-Day Logger", target: 3, category: "logging", hint: "Log symptoms 3 days in a row" },
   { id: "log-7", emoji: "🔥", name: "Week Warrior", target: 7, category: "logging", hint: "Log symptoms every day for a week" },
   { id: "log-14", emoji: "⭐", name: "Fortnight Focus", target: 14, category: "logging", hint: "Log symptoms 14 days straight" },
@@ -36,6 +37,12 @@ const BADGE_TARGETS: { id: string; emoji: string; name: string; target: number; 
   { id: "cog-1", emoji: "🧩", name: "First Game", target: 1, category: "cognitive", hint: "Play your first cognitive game" },
   { id: "cog-7", emoji: "🧠", name: "Brain Trainer", target: 7, category: "cognitive", hint: "Play cognitive games 7 days in a row" },
   { id: "cog-30", emoji: "🎓", name: "Memory Master", target: 30, category: "cognitive", hint: "Play cognitive games for 30 days" },
+  { id: "ground-1", emoji: "🌱", name: "First Grounding", target: 1, category: "grounding", hint: "Complete your first grounding session" },
+  { id: "ground-5", emoji: "🌿", name: "Grounded Habit", target: 5, category: "grounding", hint: "Complete 5 grounding sessions" },
+  { id: "ground-10", emoji: "🌳", name: "Rooted", target: 10, category: "grounding", hint: "Complete 10 grounding sessions" },
+  { id: "ground-25", emoji: "🏕️", name: "Nature's Calm", target: 25, category: "grounding", hint: "Complete 25 grounding sessions" },
+  { id: "ground-50", emoji: "🏔️", name: "Mountain Still", target: 50, category: "grounding", hint: "Complete 50 grounding sessions" },
+  { id: "ground-100", emoji: "👑", name: "Grounding Master", target: 100, category: "grounding", hint: "Complete 100 grounding sessions" },
 ];
 
 const CATEGORY_UNITS: Record<string, string> = {
@@ -44,6 +51,7 @@ const CATEGORY_UNITS: Record<string, string> = {
   medication: "days",
   relapse: "days",
   cognitive: "days",
+  grounding: "sessions",
 };
 
 function streakFor(cat: string, data: StreakData): number {
@@ -53,6 +61,7 @@ function streakFor(cat: string, data: StreakData): number {
     case "medication": return data.medStreak;
     case "relapse": return data.relapseStreak;
     case "cognitive": return data.cogStreak;
+    case "grounding": return data.groundingSessions ?? 0;
     default: return 0;
   }
 }

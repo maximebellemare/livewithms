@@ -374,7 +374,7 @@ const BadgesPage = () => {
         </div>
 
         {/* Next badge nudge */}
-        <BadgeNudgeCard streakData={{ logStreak, weekStreak, medStreak, relapseStreak, cogStreak }} />
+        <BadgeNudgeCard streakData={{ logStreak, weekStreak, medStreak, relapseStreak, cogStreak, groundingSessions }} />
 
         {/* View toggle */}
         <div className="flex items-center gap-2 justify-center">
