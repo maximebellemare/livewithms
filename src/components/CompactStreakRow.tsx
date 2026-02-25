@@ -1,8 +1,12 @@
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import confetti from "canvas-confetti";
+
+const MILESTONES = [7, 14, 30, 50, 100, 200, 365];
 
 interface CompactStreakRowProps {
   logStreak: number;
@@ -60,6 +64,28 @@ const CompactStreakRow = ({
   nearBadge,
 }: CompactStreakRowProps) => {
   const navigate = useNavigate();
+  const prevStreaks = useRef<number[]>([]);
+
+  useEffect(() => {
+    const current = [logStreak, weekStreak, medStreak, relapseStreak, cogStreak];
+    const prev = prevStreaks.current;
+
+    if (prev.length > 0) {
+      const hitMilestone = current.some(
+        (val, i) => val !== prev[i] && MILESTONES.includes(val)
+      );
+      if (hitMilestone) {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ["#f97316", "#facc15", "#fb923c", "#fbbf24"],
+        });
+      }
+    }
+
+    prevStreaks.current = current;
+  }, [logStreak, weekStreak, medStreak, relapseStreak, cogStreak]);
 
   return (
     <motion.div
