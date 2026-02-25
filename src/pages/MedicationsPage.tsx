@@ -112,7 +112,7 @@ const MedicationsPage = () => {
               <div className="space-y-2">
                 <label className="block text-xs text-muted-foreground">Times per day</label>
                 <div className="flex gap-2">
-                  {[1, 2, 3].map((n) => (
+                  {[1, 2, 3, 4, 5].map((n) => (
                     <button
                       key={n}
                       onClick={() => setEditing({ ...editing, times_per_day: n })}
