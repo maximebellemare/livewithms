@@ -33,3 +33,6 @@ verify_jwt = false
 [functions.send-risk-alerts]
 verify_jwt = false
 
+[functions.journal-summary]
+verify_jwt = false
+

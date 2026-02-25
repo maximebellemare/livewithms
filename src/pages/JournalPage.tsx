@@ -11,6 +11,10 @@ import { toast } from "sonner";
 import JournalPromptSuggestions from "@/components/JournalPromptSuggestions";
 import DailyPromptCard from "@/components/DailyPromptCard";
 import ThisWeekInReflection from "@/components/ThisWeekInReflection";
+import WeeklyReflectionSummary from "@/components/journal/WeeklyReflectionSummary";
+import MoodPatternNudge from "@/components/journal/MoodPatternNudge";
+import SmallWinField from "@/components/journal/SmallWinField";
+import VoiceJournalButton from "@/components/journal/VoiceJournalButton";
 
 
 /* ── Parse a yyyy-MM-dd string as local date (avoids UTC midnight shift) ── */
@@ -65,6 +69,18 @@ const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: Edit
     if (isFirstNote) onFirstReflection?.();
   };
 
+  const appendText = (newText: string) => {
+    const prefix = text.trim() ? text + "\n\n" : "";
+    setText(prefix + newText + " ");
+    setSaved(false);
+  };
+
+  const handleVoiceTranscript = (transcript: string) => {
+    const prefix = text.trim() ? text + " " : "";
+    setText(prefix + transcript);
+    setSaved(false);
+  };
+
   return (
     <div className="rounded-2xl bg-card border border-border shadow-soft p-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -72,14 +88,11 @@ const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: Edit
         <p className="text-xs text-muted-foreground">{format(parseLocalDate(date), "MMM d, yyyy")}</p>
       </div>
 
-      {/* Daily rotating prompt */}
+      {/* Daily rotating prompt (symptom-linked when data exists) */}
       <div data-tour="journal-prompt">
         <DailyPromptCard
-          onUsePrompt={(prompt) => {
-            const prefix = text.trim() ? text + "\n\n" : "";
-            setText(prefix + prompt + " ");
-            setSaved(false);
-          }}
+          entry={entry}
+          onUsePrompt={(prompt) => appendText(prompt)}
         />
       </div>
 
@@ -87,12 +100,21 @@ const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: Edit
       <JournalPromptSuggestions
         entry={entry}
         recentEntries={recentEntries}
-        onSelectPrompt={(prompt) => {
-          const prefix = text.trim() ? text + "\n\n" : "";
-          setText(prefix + prompt + " ");
-          setSaved(false);
+        onSelectPrompt={(prompt) => appendText(prompt)}
+      />
+
+      {/* Small win / gratitude field */}
+      <SmallWinField
+        onSubmit={(win) => {
+          appendText(`🏆 Small win: ${win}`);
+          toast.success("Win captured! 🎉", { duration: 2000 });
         }}
       />
+
+      {/* Voice input + textarea */}
+      <div className="flex items-center gap-2">
+        <VoiceJournalButton onTranscript={handleVoiceTranscript} />
+      </div>
 
       <textarea
         value={text}
@@ -170,7 +192,6 @@ const PastEntry = ({ entry }: PastEntryProps) => {
 
   return (
     <div className="rounded-xl bg-card border border-border shadow-soft overflow-hidden transition-all">
-      {/* Header row — always visible, click to toggle editor */}
       <button
         onClick={handleToggle}
         className="w-full flex items-center justify-between gap-2 px-4 py-3 hover:bg-secondary/40 transition-colors text-left"
@@ -191,7 +212,6 @@ const PastEntry = ({ entry }: PastEntryProps) => {
         </div>
       </button>
 
-      {/* Inline editor — shown when editing */}
       {editing && (
         <div className="px-4 pb-4 space-y-3 border-t border-border animate-fade-in">
           <textarea
@@ -248,13 +268,11 @@ const JournalPage = () => {
 
   const todayEntry = entriesByDate[today] ?? null;
 
-  // All past entries (so users can add notes to days that had none too)
   const pastEntries = useMemo(
     () => entries.filter((e) => e.date !== today),
     [entries, today]
   );
 
-  // Is this the first reflection of the week? True if no other day this week has notes yet
   const isFirstThisWeek = useMemo(() => {
     const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
     const weekDates = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
@@ -295,6 +313,20 @@ const JournalPage = () => {
           )}
         </section>
         </StaggerItem>
+
+        {/* Mood pattern nudges */}
+        {!isLoading && entries.length >= 3 && (
+          <StaggerItem>
+            <MoodPatternNudge entries={entries} />
+          </StaggerItem>
+        )}
+
+        {/* AI weekly reflection summary */}
+        {!isLoading && entries.length >= 2 && (
+          <StaggerItem>
+            <WeeklyReflectionSummary entries={entries} />
+          </StaggerItem>
+        )}
 
         {/* This week in reflection */}
         <StaggerItem>
