@@ -417,6 +417,11 @@ const EnergyBudgetPage = () => {
               </motion.div>
             ))}
           </div>
+          {activities.length > 0 && (
+            <p className="text-xs text-muted-foreground text-center pt-1">
+              {activities.filter(a => a.completed).length} of {activities.length} done
+            </p>
+          )}
         </div>
 
         {/* 7-day history */}
