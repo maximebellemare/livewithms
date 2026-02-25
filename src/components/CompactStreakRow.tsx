@@ -57,16 +57,12 @@ const CompactStreakRow = ({
       transition={{ type: "spring", stiffness: 300, damping: 24 }}
       className="rounded-xl bg-card shadow-soft flex flex-col gap-2 p-3"
     >
-      {/* Streak pills row */}
-      <div className="flex items-center gap-2.5 flex-wrap">
+      {/* Streak grid: 3 on top, 2 on bottom */}
+      <div className="grid grid-cols-3 gap-y-2">
         <StreakPill emoji="🔥" value={logStreak} label="day" />
-        <div className="h-7 w-px bg-border flex-shrink-0" />
         <StreakPill emoji="📊" value={weekStreak} label="week" zeroTip="Log every day for a full week to start your week streak!" />
-        <div className="h-7 w-px bg-border flex-shrink-0" />
         <StreakPill emoji="💊" value={medStreak} label="day" zeroTip="Mark your medications as taken to build a med streak!" />
-        <div className="h-7 w-px bg-border flex-shrink-0" />
         <StreakPill emoji="🛡️" value={relapseStreak} label="day" zeroTip="Days since your last relapse — stay strong!" />
-        <div className="h-7 w-px bg-border flex-shrink-0" />
         <StreakPill emoji="🧠" value={cogStreak} label="day" zeroTip="Play a cognitive game to start your brain training streak!" />
       </div>
 
