@@ -13,6 +13,7 @@ const MAX_PULL = 100;
 
 const PullToRefresh = forwardRef<HTMLDivElement, PullToRefreshProps>(({ onRefresh, children, className }, _ref) => {
   const [refreshing, setRefreshing] = useState(false);
+  const [flash, setFlash] = useState(false);
   const y = useMotionValue(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
@@ -43,6 +44,8 @@ const PullToRefresh = forwardRef<HTMLDivElement, PullToRefreshProps>(({ onRefres
       thresholdReached.current = true;
       animate(y, dampened + 6, { type: "spring", stiffness: 600, damping: 12, mass: 0.3 });
       navigator.vibrate?.(10);
+      setFlash(true);
+      setTimeout(() => setFlash(false), 300);
     } else if (dampened < PULL_THRESHOLD * 0.8) {
       thresholdReached.current = false;
     }
@@ -83,6 +86,8 @@ const PullToRefresh = forwardRef<HTMLDivElement, PullToRefreshProps>(({ onRefres
         <motion.div
           style={{ opacity: indicatorOpacity, scale: indicatorScale }}
           className="flex items-center justify-center"
+          animate={flash ? { backgroundColor: ["hsl(var(--primary) / 0.3)", "hsl(var(--primary) / 0)"] } : {}}
+          transition={{ duration: 0.3 }}
         >
           {refreshing ? (
             <Loader2 className="h-5 w-5 text-primary animate-spin" />
