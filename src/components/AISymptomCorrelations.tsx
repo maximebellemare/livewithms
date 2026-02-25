@@ -226,10 +226,6 @@ const AISymptomCorrelations = ({ entries, range }: AISymptomCorrelationsProps) =
           Refreshing…
         </div>
       )}
-
-      <p className="mt-3 text-[10px] text-muted-foreground">
-        Powered by Lovable AI · {topCorrelations.length} correlation{topCorrelations.length !== 1 ? "s" : ""} analysed
-      </p>
     </div>
   );
 };
