@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import TimePicker from "@/components/TimePicker";
+import SwipeableAppointmentCard from "@/components/appointments/SwipeableAppointmentCard";
 
 const AppointmentsPage = () => {
   const { data: appointments = [], isLoading } = useDbAppointments();
@@ -244,42 +245,15 @@ const AppointmentsPage = () => {
               </button>
             </div>
           ) : (
-            filteredAppointments.map((appt) => {
-              const typeInfo = getAppointmentTypeInfo(appt.type as AppointmentType);
-              return (
-                <div key={appt.id} className="flex items-start gap-3 rounded-xl bg-card p-4 shadow-soft animate-fade-in">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-lg">{typeInfo.emoji}</div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">{appt.title}</p>
-                    <p className="text-xs text-muted-foreground">{typeInfo.label}</p>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
-                      {viewMode === "list" && <span className="flex items-center gap-1"><CalendarIcon className="h-3 w-3" />{format(parseISO(appt.date), "MMM d")}</span>}
-                      {appt.time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{appt.time}</span>}
-                      {appt.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{appt.location}</span>}
-                    </div>
-                    {appt.notes && <p className="mt-1 text-[11px] text-muted-foreground italic">{appt.notes}</p>}
-                  </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => openEdit(appt)} className="rounded-full p-2 text-muted-foreground hover:bg-secondary"><Edit2 className="h-4 w-4" /></button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button className="rounded-full p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete appointment?</AlertDialogTitle>
-                          <AlertDialogDescription>This will permanently remove "{appt.title}" from your calendar. This action cannot be undone.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(appt.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              );
-            })
+            filteredAppointments.map((appt) => (
+              <SwipeableAppointmentCard
+                key={appt.id}
+                appt={appt}
+                showDate={viewMode === "list"}
+                onEdit={() => openEdit(appt)}
+                onDelete={() => handleDelete(appt.id)}
+              />
+            ))
           )}
         </div>
       </div>
