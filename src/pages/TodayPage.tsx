@@ -35,6 +35,8 @@ import RelapseRiskIndicator from "@/components/RelapseRiskIndicator";
 import RiskScoreSummaryCard from "@/components/RiskScoreSummaryCard";
 import RiskAlertBanner from "@/components/RiskAlertBanner";
 import BadgeNudgeCard from "@/components/badges/BadgeNudgeCard";
+import CompactStreakRow from "@/components/CompactStreakRow";
+import { findClosestBadge } from "@/lib/badgeProximity";
 import DiagnosisAnniversaryCard from "@/components/DiagnosisAnniversaryCard";
 import { useMedStreak } from "@/hooks/useMedStreak";
 import { useCognitiveStreak } from "@/hooks/useCognitiveStreak";
@@ -517,23 +519,35 @@ const TodayPage = () => {
         )}
 
         <StaggerItem><MondayRecapCard /></StaggerItem>
-        <StaggerItem><StreakBadge /></StaggerItem>
-        <StaggerItem><WeeklySummaryBanner /></StaggerItem>
-        <StaggerItem><WeekStreakBadge /></StaggerItem>
-        <StaggerItem><BadgeNudgeCard streakData={{ logStreak: streak, weekStreak, medStreak, relapseStreak, cogStreak }} /></StaggerItem>
 
-        <StaggerItem><GoalTrackingDashboard /></StaggerItem>
-
+        {/* Compact streak + badge nudge row */}
         <StaggerItem>
-          <p className="section-label pt-1">
-            📊 Your Week at a Glance
-          </p>
+          <CompactStreakRow
+            logStreak={streak}
+            weekStreak={weekStreak}
+            medStreak={medStreak}
+            relapseStreak={relapseStreak}
+            cogStreak={cogStreak}
+            nearBadge={(() => {
+              const b = findClosestBadge({ logStreak: streak, weekStreak, medStreak, relapseStreak, cogStreak });
+              if (!b) return null;
+              return { emoji: b.emoji, name: b.name, pct: Math.round((b.current / b.target) * 100), remaining: b.target - b.current, unit: b.unit };
+            })()}
+          />
         </StaggerItem>
 
-        <StaggerItem><RiskScoreSummaryCard /></StaggerItem>
+        <StaggerItem><WeeklySummaryBanner /></StaggerItem>
+
+        <StaggerItem>
+          <Collapsible defaultOpen={!alreadyLogged}>
+            <CollapsibleTrigger className="flex w-full items-center justify-between text-left group">
+              <p className="section-label pt-1">📊 Your Week at a Glance</p>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-1.5 mt-1.5">
+        <RiskScoreSummaryCard />
 
         {/* 7-day sparklines */}
-        <StaggerItem>
         <div data-tour="sparklines" ref={gridRef} className={`grid grid-cols-2 gap-1.5${openPanel ? " pointer-events-none" : ""}`}>
            <div id="sparkline-mood"><GenericSparkline entries={weekEntries} config={SPARKLINE_CONFIGS.mood} variant="card"
             saved={savedMetric === "mood"}
@@ -572,6 +586,8 @@ const TodayPage = () => {
             onClick={() => setOpenPanel((p) => p === "hydration" ? null : "hydration")}
             onLongPress={() => navigate("/insights", { state: { heatmapMetric: "water_glasses" } })} /></div>
         </div>
+            </CollapsibleContent>
+          </Collapsible>
         </StaggerItem>
 
         {/* Inline quick-log panels */}
@@ -788,7 +804,7 @@ const TodayPage = () => {
           Tap to log · hold to see insights
         </p>
 
-        <StaggerItem><SuggestedNextCards /></StaggerItem>
+        {!alreadyLogged && <StaggerItem><SuggestedNextCards /></StaggerItem>}
 
         {/* Section: Full Symptom Log — collapsed by default when already logged */}
         <StaggerItem>
@@ -880,6 +896,7 @@ const TodayPage = () => {
               <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-2 mt-2">
+              <GoalTrackingDashboard />
               <MedicationChecklist />
               <UpcomingAppointments />
               <HydrationCard />
