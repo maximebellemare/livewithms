@@ -54,6 +54,7 @@ import { useRelapses } from "@/hooks/useRelapses";
 import { generateReportFromData } from "@/lib/report-generator-db";
 import ReportPreviewDialog from "@/components/ReportPreviewDialog";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
 
 const MILESTONE_DAYS = [7, 14, 30];
 
@@ -697,7 +698,7 @@ const TodayPage = () => {
                     try {
                       await saveEntry.mutateAsync({ ...entryPayload, water_glasses: next } as any);
                       flashSaved("hydration");
-                      if (next >= goal && (next - 1) < goal) toast.success("Hydration goal reached! 💧🎉");
+                      if (next >= goal && (next - 1) < goal) { confetti({ particleCount: 60, spread: 55, origin: { y: 0.7 }, colors: ["#38bdf8", "#06b6d4", "#22d3ee"] }); toast.success("Hydration goal reached! 💧🎉"); }
                       else toast.success(`Water: ${next} glasses 💧`);
                     } catch (err: any) { toast.error("Failed: " + err.message); }
                   }}
@@ -716,7 +717,7 @@ const TodayPage = () => {
                       try {
                         await saveEntry.mutateAsync({ ...entryPayload, water_glasses: next } as any);
                         flashSaved("hydration");
-                        if (next >= goal && currentGlasses < goal) toast.success("Hydration goal reached! 💧🎉");
+                        if (next >= goal && currentGlasses < goal) { confetti({ particleCount: 60, spread: 55, origin: { y: 0.7 }, colors: ["#38bdf8", "#06b6d4", "#22d3ee"] }); toast.success("Hydration goal reached! 💧🎉"); }
                         else toast.success(`Water: ${next} glasses 💧`);
                       } catch (err: any) { toast.error("Failed: " + err.message); }
                     }}
