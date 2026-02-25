@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { format, isSameDay, parseISO } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import { Calendar } from "@/components/ui/calendar";
@@ -13,11 +13,14 @@ import { cn } from "@/lib/utils";
 import TimePicker from "@/components/TimePicker";
 import SwipeableAppointmentCard from "@/components/appointments/SwipeableAppointmentCard";
 import { useIsMobile } from "@/hooks/use-mobile";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 
 const AppointmentsPage = () => {
   const { data: appointments = [], isLoading } = useDbAppointments();
   const saveMutation = useSaveAppointment();
   const deleteMutation = useDeleteAppointment();
+  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
   const [showForm, setShowForm] = useState(false);
@@ -25,6 +28,10 @@ const AppointmentsPage = () => {
   const [filterType, setFilterType] = useState<AppointmentType | "all">("all");
   const isMobile = useIsMobile();
   const [swipeHintDismissed, setSwipeHintDismissed] = useState(() => localStorage.getItem("hint_appt_swipe_used") === "1");
+
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["appointments"] });
+  }, [queryClient]);
 
   const appointmentDates = useMemo(() => {
     return appointments.map((a) => parseISO(a.date));
@@ -194,7 +201,7 @@ const AppointmentsPage = () => {
           </button>
         }
       />
-      <div className="mx-auto max-w-lg px-4 py-4 space-y-4">
+      <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg px-4 py-4 space-y-4">
         <div className="flex gap-2" data-tour="appts-view-toggle">
           {(["calendar", "list"] as const).map((mode) => (
             <button key={mode} onClick={() => setViewMode(mode)} className={`flex-1 rounded-lg py-2 text-xs font-medium capitalize transition-all ${viewMode === mode ? "bg-primary text-primary-foreground shadow-soft" : "bg-secondary text-muted-foreground"}`}>
@@ -271,7 +278,7 @@ const AppointmentsPage = () => {
             ))
           )}
         </div>
-      </div>
+      </PullToRefresh>
     </>
   );
 };
