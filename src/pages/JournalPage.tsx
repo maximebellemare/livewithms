@@ -6,7 +6,18 @@ import confetti from "canvas-confetti";
 import PageHeader from "@/components/PageHeader";
 import { useEntries, useSaveEntry, DailyEntry } from "@/hooks/useEntries";
 import { JournalEditorSkeleton } from "@/components/PageSkeleton";
-import { PenLine, ChevronDown, ChevronUp, CheckCircle2, X } from "lucide-react";
+import { PenLine, ChevronDown, ChevronUp, CheckCircle2, X, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 import DailyPromptCard from "@/components/DailyPromptCard";
@@ -189,6 +200,23 @@ const PastEntry = React.forwardRef<HTMLDivElement, PastEntryProps>(({ entry }, r
     toast.success("Entry updated 🧡");
   };
 
+  const handleDelete = async () => {
+    await saveEntry.mutateAsync({
+      date: entry.date,
+      notes: null,
+      fatigue: entry.fatigue ?? null,
+      pain: entry.pain ?? null,
+      brain_fog: entry.brain_fog ?? null,
+      mood: entry.mood ?? null,
+      mobility: entry.mobility ?? null,
+      sleep_hours: entry.sleep_hours ?? null,
+      mood_tags: entry.mood_tags ?? [],
+    });
+    setText("");
+    setEditing(false);
+    toast.success("Journal entry deleted");
+  };
+
   return (
     <div ref={ref} className="rounded-xl bg-card border border-border shadow-soft overflow-hidden transition-all">
       <button
@@ -221,9 +249,29 @@ const PastEntry = React.forwardRef<HTMLDivElement, PastEntryProps>(({ entry }, r
             autoFocus
             className="mt-3 w-full resize-none rounded-xl bg-secondary/60 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
           />
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground">{text.length}/2000</span>
-            <div className="flex items-center gap-2">
+           <div className="flex items-center justify-between">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button className="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors">
+                    <Trash2 className="h-3 w-3" /> Delete
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete journal entry?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently remove the reflection for {format(parseLocalDate(entry.date), "MMMM d, yyyy")}. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+             <div className="flex items-center gap-2">
               <button
                 onClick={() => { setText(entry.notes ?? ""); setEditing(false); }}
                 className="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors"
