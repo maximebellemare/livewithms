@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Trophy } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -21,7 +21,18 @@ const StreakPill = ({ emoji, value, label, labelPlural, zeroTip }: { emoji: stri
     <div className={`flex items-center gap-1.5 min-w-0 ${value === 0 ? "opacity-40 cursor-help" : ""}`}>
       <span className="text-base">{emoji}</span>
       <div className="flex flex-col leading-tight">
-        <span className={`text-base font-extrabold tabular-nums ${value > 0 ? "text-primary" : "text-foreground"}`}>{value}</span>
+        <AnimatePresence mode="popLayout">
+          <motion.span
+            key={value}
+            initial={{ scale: 1.3, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+            className={`text-base font-extrabold tabular-nums ${value > 0 ? "text-primary" : "text-foreground"}`}
+          >
+            {value}
+          </motion.span>
+        </AnimatePresence>
         <span className="text-[10px] text-muted-foreground whitespace-nowrap">{plural(value, label, labelPlural)}</span>
       </div>
     </div>
