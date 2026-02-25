@@ -535,6 +535,7 @@ const ProfilePage = () => {
               { key: "hint_insights_stat_tap_used", label: "Tap stat card to isolate", page: "Insights", path: "/insights" },
               { key: "hint_meds_tap_used", label: "Tap med to log it", page: "Medications", path: "/medications" },
               { key: "hint_journal_swipe_used", label: "Swipe entry to edit/delete", page: "Journal", path: "/journal" },
+              { key: "hint_pull_refresh_v1", label: "Pull down to refresh", page: "General", path: "/medications" },
             ];
             const active = HINTS.filter((h) => !localStorage.getItem(h.key));
             const dismissed = HINTS.filter((h) => localStorage.getItem(h.key));
