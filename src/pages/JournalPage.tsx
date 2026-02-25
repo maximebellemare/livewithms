@@ -117,35 +117,39 @@ const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: Edit
         <VoiceJournalButton onTranscript={handleVoiceTranscript} />
       </div>
 
-      <textarea
-        ref={textareaRef}
-        value={text}
-        onChange={(e) => { setText(e.target.value); setSaved(false); }}
-        placeholder="How are you feeling today? Write freely…"
-        maxLength={2000}
-        rows={4}
-        className="w-full resize-none rounded-xl bg-secondary/60 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-      />
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] text-muted-foreground">{text.length}/2000</span>
-        <button
-          onClick={handleSave}
-          disabled={!isDirty || saveEntry.isPending}
-          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all
-            ${saved
-              ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"
-              : isDirty
-                ? "bg-primary text-primary-foreground hover:opacity-90 active:scale-95"
-                : "bg-secondary text-muted-foreground cursor-not-allowed"
-            }`}
-        >
-          {saved ? (
-            <><CheckCircle2 className="h-3.5 w-3.5" /> Saved</>
-          ) : (
-            <><PenLine className="h-3.5 w-3.5" /> {saveEntry.isPending ? "Saving…" : "Save"}</>
-          )}
-        </button>
-      </div>
+      {text.trim() && (
+        <div className="space-y-2 animate-fade-in">
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={(e) => { setText(e.target.value); setSaved(false); }}
+            placeholder="How are you feeling today? Write freely…"
+            maxLength={2000}
+            rows={4}
+            className="w-full resize-none rounded-xl bg-secondary/60 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-muted-foreground">{text.length}/2000</span>
+            <button
+              onClick={handleSave}
+              disabled={!isDirty || saveEntry.isPending}
+              className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all
+                ${saved
+                  ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"
+                  : isDirty
+                    ? "bg-primary text-primary-foreground hover:opacity-90 active:scale-95"
+                    : "bg-secondary text-muted-foreground cursor-not-allowed"
+                }`}
+            >
+              {saved ? (
+                <><CheckCircle2 className="h-3.5 w-3.5" /> Saved</>
+              ) : (
+                <><PenLine className="h-3.5 w-3.5" /> {saveEntry.isPending ? "Saving…" : "Save"}</>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
