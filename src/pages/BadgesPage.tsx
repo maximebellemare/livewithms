@@ -18,6 +18,8 @@ import { useBadgeEvents, useRecordBadgeEvent } from "@/hooks/useBadgeEvents";
 import { useCognitiveStreak } from "@/hooks/useCognitiveStreak";
 import { useGroundingStreak } from "@/hooks/useGroundingStreak";
 import { differenceInDays, parseISO, format, subDays, eachDayOfInterval } from "date-fns";
+import PullToRefresh from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 
 /* ── Badge definition ───────────────────────────────────── */
 interface BadgeDef {
@@ -160,6 +162,7 @@ const BadgeCard = ({ badge, earned, earnedAt, index, onClick, currentStreak }: {
 
 /* ── Page ──────────────────────────────────────────────── */
 const BadgesPage = () => {
+  const queryClient = useQueryClient();
   const { streak: logStreak } = useStreak();
   const { weekStreak } = useWeekStreak();
   const medStreak = useMedStreak();
@@ -345,7 +348,7 @@ const BadgesPage = () => {
     <>
       <SEOHead title="Badges" description="View your earned streak milestones and achievements." />
       <PageHeader title="Badges" subtitle="Your achievement collection" showBack />
-      <div className="mx-auto max-w-lg px-4 py-4 space-y-6 animate-fade-in">
+      <PullToRefresh onRefresh={async () => { await queryClient.invalidateQueries({ queryKey: ["badge-events"] }); }} className="mx-auto max-w-lg px-4 py-4 space-y-6 animate-fade-in">
         {/* Summary */}
         <div className="rounded-2xl bg-card p-5 shadow-soft text-center space-y-2">
           <Trophy className="h-8 w-8 text-primary mx-auto" />
@@ -686,7 +689,7 @@ const BadgesPage = () => {
           open={!!selectedBadge}
           onOpenChange={(open) => !open && setSelectedBadge(null)}
         />
-      </div>
+      </PullToRefresh>
     </>
   );
 };
