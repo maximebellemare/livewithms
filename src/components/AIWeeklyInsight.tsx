@@ -92,9 +92,6 @@ const AIWeeklyInsight = ({ entries, range }: AIWeeklyInsightProps) => {
         </div>
       )}
 
-      <p className="mt-3 text-[10px] text-muted-foreground">
-        Powered by Lovable AI · Based on {entries.length} {entries.length === 1 ? "entry" : "entries"}
-      </p>
     </div>
   );
 };
