@@ -59,28 +59,13 @@ const CompactStreakRow = ({
     >
       {/* Streak grid: 3 on top, 2 centered on bottom */}
       <div className="grid grid-cols-3 gap-y-2 justify-items-center">
-        <div className="flex flex-col items-center gap-0.5">
-          <StreakPill emoji="🔥" value={logStreak} label="day" />
-          <span className="text-[9px] text-muted-foreground">daily</span>
-        </div>
-        <div className="flex flex-col items-center gap-0.5">
-          <StreakPill emoji="📊" value={weekStreak} label="week" zeroTip="Log every day for a full week to start your week streak!" />
-          <span className="text-[9px] text-muted-foreground">weekly</span>
-        </div>
-        <div className="flex flex-col items-center gap-0.5">
-          <StreakPill emoji="💊" value={medStreak} label="day" zeroTip="Mark your medications as taken to build a med streak!" />
-          <span className="text-[9px] text-muted-foreground">meds</span>
-        </div>
+        <StreakPill emoji="🔥" value={logStreak} label="day" />
+        <StreakPill emoji="📊" value={weekStreak} label="week" zeroTip="Log every day for a full week to start your week streak!" />
+        <StreakPill emoji="💊" value={medStreak} label="day" zeroTip="Mark your medications as taken to build a med streak!" />
       </div>
       <div className="flex items-center justify-center gap-8">
-        <div className="flex flex-col items-center gap-0.5">
-          <StreakPill emoji="🛡️" value={relapseStreak} label="day" zeroTip="Days since your last relapse — stay strong!" />
-          <span className="text-[9px] text-muted-foreground">relapse-free</span>
-        </div>
-        <div className="flex flex-col items-center gap-0.5">
-          <StreakPill emoji="🧠" value={cogStreak} label="day" zeroTip="Play a cognitive game to start your brain training streak!" />
-          <span className="text-[9px] text-muted-foreground">cognitive</span>
-        </div>
+        <StreakPill emoji="🛡️" value={relapseStreak} label="day" zeroTip="Days since your last relapse — stay strong!" />
+        <StreakPill emoji="🧠" value={cogStreak} label="day" zeroTip="Play a cognitive game to start your brain training streak!" />
       </div>
 
       {/* Badge nudge */}
