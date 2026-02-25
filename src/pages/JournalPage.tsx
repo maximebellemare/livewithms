@@ -84,12 +84,6 @@ const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: Edit
     }, 50);
   };
 
-  const handleVoiceTranscript = (transcript: string) => {
-    const prefix = text.trim() ? text + " " : "";
-    setText(prefix + transcript);
-    setSaved(false);
-    setShowEditor(true);
-  };
 
   return (
     <div className="rounded-2xl bg-card border border-border shadow-soft p-4 space-y-3">
