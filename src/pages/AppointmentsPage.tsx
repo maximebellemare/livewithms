@@ -9,6 +9,7 @@ import { CardListSkeleton } from "@/components/PageSkeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import TimePicker from "@/components/TimePicker";
 
 const AppointmentsPage = () => {
   const { data: appointments = [], isLoading } = useDbAppointments();
@@ -124,7 +125,7 @@ const AppointmentsPage = () => {
               </PopoverContent>
             </Popover>
             <label className="block text-sm font-medium text-foreground">Time (optional)</label>
-            <input type="time" value={editing.time || ""} onChange={(e) => setEditing({ ...editing, time: e.target.value })} className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm accent-primary" />
+            <TimePicker value={editing.time || ""} onChange={(t) => setEditing({ ...editing, time: t })} />
           </div>
 
           <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
