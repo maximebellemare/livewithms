@@ -73,7 +73,6 @@ const moreSections: MoreSection[] = [
     emoji: "🗺️",
     items: [
       { to: "/premium", icon: Crown, label: "Premium" },
-      { to: "/roadmap", icon: Map, label: "Roadmap" },
     ],
   },
   {

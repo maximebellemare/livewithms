@@ -119,7 +119,7 @@ const AnimatedRoutes = () => {
         <Route path="/my-ms-history" element={<ProtectedRoute><LazyPage><MyMSHistoryPage /></LazyPage></ProtectedRoute>} />
         <Route path="/relapses" element={<ProtectedRoute><LazyPage fallback={<RelapsesSkeleton />}><RelapsesPage /></LazyPage></ProtectedRoute>} />
         <Route path="/community/guidelines" element={<ProtectedRoute><LazyPage><CommunityGuidelinesPage /></LazyPage></ProtectedRoute>} />
-        <Route path="/roadmap" element={<ProtectedRoute><LazyPage><FeaturesRoadmapPage /></LazyPage></ProtectedRoute>} />
+        
         <Route path="/coming-soon/:feature" element={<ProtectedRoute><LazyPage><ComingSoonPage /></LazyPage></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><LazyPage><AdminPage /></LazyPage></ProtectedRoute>} />
         <Route path="/terms" element={<ProtectedRoute><LazyPage><TermsPage /></LazyPage></ProtectedRoute>} />
