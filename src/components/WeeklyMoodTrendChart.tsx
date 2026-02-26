@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { format, parseISO, startOfWeek, endOfWeek, eachWeekOfInterval, subDays } from "date-fns";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -91,7 +92,20 @@ const CollapsibleGroup = ({
         {label}
         <span className="ml-auto text-[8px] opacity-60">{items.length}</span>
       </button>
-      {open && <div className="space-y-1.5 pl-4">{items.map(renderSentence)}</div>}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-1.5 pl-4 pb-0.5">{items.map(renderSentence)}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
