@@ -518,7 +518,7 @@ const TodayPage = () => {
             <CollapsibleContent className="space-y-1.5 mt-1.5">
         <div className="flex items-center justify-center gap-2 rounded-lg bg-primary/8 border border-primary/15 px-3 py-2">
           <span className="text-xs">👇</span>
-          <p className="text-[11px] font-medium text-foreground/70">Hold to see insights · Tap a card below to log</p>
+          <p className="text-[11px] font-medium text-foreground/70">Tap a card below to log · Hold to see insights</p>
         </div>
         <RiskScoreSummaryCard />
 
