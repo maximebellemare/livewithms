@@ -516,6 +516,7 @@ const TodayPage = () => {
               <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-1.5 mt-1.5">
+        <p className="text-[10px] text-muted-foreground text-center">Tap a card to log · hold to see trends</p>
         <RiskScoreSummaryCard />
 
         {/* 7-day sparklines */}
