@@ -4,21 +4,19 @@ import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Check, Trash2, Dumbbell, Pill, Salad, Scale, Minus } from "lucide-react";
+import { Plus, Check, Trash2, Dumbbell, Salad, Scale, Minus } from "lucide-react";
 import { toast } from "sonner";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import {
   useExerciseLogs, useAddExercise, useDeleteExercise,
-  useSupplementLogs, useAddSupplement, useToggleSupplement,
   useDietGoals, useAddDietGoal, useDeleteDietGoal, useDietGoalLogs, useToggleDietGoalLog,
   useWeightLogs, useAddWeight,
 } from "@/hooks/useLifestyleTracking";
 
 const EXERCISE_TYPES = ["Walking", "Swimming", "Yoga", "Stretching", "Cycling", "Strength Training", "Pilates", "Tai Chi", "Other"];
 const INTENSITIES = ["light", "moderate", "vigorous"];
-const COMMON_SUPPLEMENTS = ["Vitamin D", "Vitamin B12", "Omega-3", "Magnesium", "Biotin", "Probiotics", "CoQ10", "Turmeric"];
 const DIET_PRESETS = ["Anti-inflammatory diet", "Mediterranean diet", "Low sodium", "High fiber", "Gluten-free", "Eat more vegetables", "Limit sugar", "Drink more water"];
 
 const today = format(new Date(), "yyyy-MM-dd");
@@ -29,7 +27,7 @@ const LifestylePage = () => {
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["exercise-logs"] });
-    await queryClient.invalidateQueries({ queryKey: ["supplement-logs"] });
+    
     await queryClient.invalidateQueries({ queryKey: ["diet-goals"] });
     await queryClient.invalidateQueries({ queryKey: ["weight-logs"] });
   }, [queryClient]);
@@ -40,15 +38,13 @@ const LifestylePage = () => {
       <PageHeader title="Lifestyle" subtitle="Track your daily wellness habits 🏋️" showBack />
       <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg px-4 py-4 animate-fade-in">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="exercise" className="text-xs"><Dumbbell className="h-3.5 w-3.5 mr-1" />Exercise</TabsTrigger>
-            <TabsTrigger value="supplements" className="text-xs"><Pill className="h-3.5 w-3.5 mr-1" />Supps</TabsTrigger>
             <TabsTrigger value="diet" className="text-xs"><Salad className="h-3.5 w-3.5 mr-1" />Diet</TabsTrigger>
             <TabsTrigger value="weight" className="text-xs"><Scale className="h-3.5 w-3.5 mr-1" />Weight</TabsTrigger>
           </TabsList>
 
           <TabsContent value="exercise" className="mt-4 space-y-4"><ExerciseTab /></TabsContent>
-          <TabsContent value="supplements" className="mt-4 space-y-4"><SupplementsTab /></TabsContent>
           <TabsContent value="diet" className="mt-4 space-y-4"><DietTab /></TabsContent>
           <TabsContent value="weight" className="mt-4 space-y-4"><WeightTab /></TabsContent>
         </Tabs>
@@ -134,75 +130,6 @@ function ExerciseTab() {
                 <p className="text-xs text-muted-foreground">{log.duration_minutes} min · {log.intensity} · {format(new Date(log.date + "T12:00:00"), "MMM d")}</p>
               </div>
               <button onClick={() => deleteExercise.mutate(log.id)} className="text-muted-foreground hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
-            </div>
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-
-// ── Supplements Tab ──
-function SupplementsTab() {
-  const { data: logs = [] } = useSupplementLogs(today);
-  const addSupplement = useAddSupplement();
-  const toggleSupplement = useToggleSupplement();
-  const [showAdd, setShowAdd] = useState(false);
-  const [customName, setCustomName] = useState("");
-
-  const handleAddPreset = async (name: string) => {
-    if (logs.some((l) => l.name === name)) { toast.error("Already added today"); return; }
-    try {
-      await addSupplement.mutateAsync({ date: today, name, taken: false });
-    } catch { toast.error("Failed to add supplement"); }
-  };
-
-  const handleAddCustom = async () => {
-    if (!customName.trim()) return;
-    try {
-      await addSupplement.mutateAsync({ date: today, name: customName.trim(), taken: false });
-      setCustomName("");
-      setShowAdd(false);
-    } catch { toast.error("Failed to add supplement"); }
-  };
-
-  return (
-    <>
-      <div className="flex items-center justify-between">
-        <h3 className="font-display text-sm font-semibold text-foreground">Today's Supplements</h3>
-        <button onClick={() => setShowAdd(!showAdd)} className="rounded-full bg-primary p-1.5 text-primary-foreground shadow-soft hover:opacity-90 active:scale-95 transition-all">
-          <Plus className="h-4 w-4" />
-        </button>
-      </div>
-
-      {showAdd && (
-        <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
-          <p className="text-xs text-muted-foreground">Quick add:</p>
-          <div className="flex flex-wrap gap-1.5">
-            {COMMON_SUPPLEMENTS.map((s) => (
-              <button key={s} onClick={() => handleAddPreset(s)} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs text-foreground hover:bg-muted active:scale-95 transition-all">{s}</button>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input type="text" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Custom supplement" className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" maxLength={50} />
-            <button onClick={handleAddCustom} disabled={!customName.trim()} className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60">Add</button>
-          </div>
-        </div>
-      )}
-
-      {logs.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">No supplements tracked today.</p>
-      ) : (
-        <div className="space-y-1.5">
-          {logs.map((log) => (
-            <div key={log.id} className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${log.taken ? "bg-primary/8" : "bg-secondary"}`}>
-              <button
-                onClick={() => toggleSupplement.mutate({ id: log.id, taken: !log.taken })}
-                className={`flex-shrink-0 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all ${log.taken ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40 hover:border-primary"}`}
-              >
-                {log.taken && <Check className="h-3 w-3" />}
-              </button>
-              <span className={`text-sm ${log.taken ? "line-through text-muted-foreground" : "text-foreground"}`}>{log.name}</span>
             </div>
           ))}
         </div>
