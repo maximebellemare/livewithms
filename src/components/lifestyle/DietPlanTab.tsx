@@ -10,30 +10,90 @@ import {
   useSwapRecipe, useResetRecipeSwap, useAISwapSuggestions,
   type DietPlan, type Recipe,
 } from "@/hooks/useDietPlans";
+import { useProfile } from "@/hooks/useProfile";
+
+// ── Diet Recommendation Engine ──
+function getDietRecommendations(plans: DietPlan[], msType: string | null, symptoms: string[]): { planId: string; reason: string }[] {
+  const recs: { planId: string; score: number; reason: string }[] = [];
+  const sympLower = symptoms.map(s => s.toLowerCase());
+
+  for (const plan of plans) {
+    let score = 0;
+    let reason = "";
+    const name = plan.name.toLowerCase();
+
+    if (name.includes("anti-inflammatory")) {
+      score += 3; // good baseline for all MS types
+      reason = "Reduces inflammation linked to MS progression";
+      if (msType === "RRMS") { score += 2; reason = "Great for managing RRMS flare-ups"; }
+      if (sympLower.some(s => s.includes("pain") || s.includes("fatigue"))) score += 1;
+    } else if (name.includes("mediterranean")) {
+      score += 2;
+      reason = "Heart-healthy fats support nerve protection";
+      if (sympLower.some(s => s.includes("brain fog") || s.includes("cognitive"))) { score += 2; reason = "Rich in omega-3s that support cognitive function"; }
+    } else if (name.includes("low sodium") || name.includes("low-sodium")) {
+      score += 1;
+      reason = "May help reduce lesion activity";
+      if (msType === "PPMS" || msType === "SPMS") { score += 2; reason = "Research links low sodium to slower progression"; }
+    } else if (name.includes("high fiber") || name.includes("high-fiber")) {
+      score += 1;
+      reason = "Supports gut health and immune regulation";
+      if (sympLower.some(s => s.includes("digestion") || s.includes("bowel") || s.includes("constipation"))) { score += 3; reason = "Targets digestive symptoms you're tracking"; }
+    } else if (name.includes("gluten")) {
+      score += 1;
+      reason = "May reduce gut-driven inflammation";
+      if (sympLower.some(s => s.includes("bloating") || s.includes("nausea") || s.includes("stomach"))) { score += 3; reason = "Could help with your GI symptoms"; }
+    }
+
+    recs.push({ planId: plan.id, score, reason });
+  }
+
+  return recs.sort((a, b) => b.score - a.score);
+}
 
 // ── Plan Browser (when no plan selected) ──
 function PlanBrowser({ plans, onSelect }: { plans: DietPlan[]; onSelect: (id: string) => void }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { data: profile } = useProfile();
+  const recommendations = getDietRecommendations(plans, profile?.ms_type ?? null, profile?.symptoms ?? []);
+  const topRecId = recommendations.length > 0 ? recommendations[0].planId : null;
+  const recMap = Object.fromEntries(recommendations.map(r => [r.planId, r.reason]));
+
+  // Sort plans: recommended first
+  const sortedPlans = [...plans].sort((a, b) => {
+    const aIdx = recommendations.findIndex(r => r.planId === a.id);
+    const bIdx = recommendations.findIndex(r => r.planId === b.id);
+    return aIdx - bIdx;
+  });
 
   return (
     <div className="space-y-3">
       <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-accent/40 to-card p-4 border border-primary/10">
         <h3 className="text-sm font-semibold text-foreground mb-1">Choose Your Diet Plan</h3>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Select an MS-friendly diet plan to get food lists, recipe ideas, and daily goals. You can swap recipes anytime with AI suggestions.
+          {profile?.ms_type || (profile?.symptoms?.length ?? 0) > 0
+            ? "We've ranked these MS-friendly diets based on your profile. Tap any plan to explore."
+            : "Select an MS-friendly diet plan to get food lists, recipe ideas, and daily goals. You can swap recipes anytime with AI suggestions."}
         </p>
       </div>
 
-      {plans.map((plan) => (
-        <div key={plan.id} className="rounded-xl bg-card border border-border shadow-soft overflow-hidden">
+      {sortedPlans.map((plan) => (
+         <div key={plan.id} className={`rounded-xl bg-card border shadow-soft overflow-hidden ${plan.id === topRecId ? "border-primary/40 ring-1 ring-primary/20" : "border-border"}`}>
           <button
             onClick={() => setExpandedId(expandedId === plan.id ? null : plan.id)}
             className="w-full flex items-center gap-3 p-4 text-left hover:bg-secondary/50 transition-colors"
           >
             <span className="text-2xl flex-shrink-0">{plan.emoji}</span>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">{plan.name}</p>
-              <p className="text-xs text-muted-foreground line-clamp-2">{plan.description}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-foreground">{plan.name}</p>
+                {plan.id === topRecId && (
+                  <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Sparkles className="h-2.5 w-2.5" /> Best Match
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground line-clamp-1">{recMap[plan.id] || plan.description}</p>
             </div>
             <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${expandedId === plan.id ? "rotate-180" : ""}`} />
           </button>
