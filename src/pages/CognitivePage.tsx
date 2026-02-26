@@ -3,8 +3,7 @@ import PullToRefresh from "@/components/PullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Brain, Zap, Hash, TrendingUp, Palette, Type, Grid3X3, Eye, Link, Target, LayoutGrid } from "lucide-react";
+import { Brain, Zap, Hash, TrendingUp, Palette, Type, Grid3X3, Eye, Link, Target, LayoutGrid, ChevronDown } from "lucide-react";
 import MemoryMatchGame from "@/components/cognitive/MemoryMatchGame";
 import ReactionTimeGame from "@/components/cognitive/ReactionTimeGame";
 import SequenceRecallGame from "@/components/cognitive/SequenceRecallGame";
@@ -18,20 +17,19 @@ import GoNoGoGame from "@/components/cognitive/GoNoGoGame";
 import CognitiveTrends from "@/components/cognitive/CognitiveTrends";
 import CognitiveStreakBadge from "@/components/cognitive/CognitiveStreakBadge";
 import { useBestScores } from "@/hooks/useCognitiveSessions";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { motion, AnimatePresence } from "framer-motion";
 
 const GAMES = [
-  { id: "memory", label: "Memory", icon: <Brain className="h-4 w-4" />, emoji: "🧠", title: "Memory Match", desc: "Find all matching pairs with as few moves as possible." },
-  { id: "reaction", label: "Reaction", icon: <Zap className="h-4 w-4" />, emoji: "⚡", title: "Reaction Time", desc: "Wait for the green signal, then tap as fast as you can!" },
-  { id: "sequence", label: "Sequence", icon: <Hash className="h-4 w-4" />, emoji: "🔢", title: "Sequence Recall", desc: "Watch and repeat growing number sequences." },
-  { id: "stroop", label: "Stroop", icon: <Palette className="h-4 w-4" />, emoji: "🎨", title: "Stroop Challenge", desc: "Tap the ink color — not what it says! Trains selective attention." },
-  { id: "scramble", label: "Scramble", icon: <Type className="h-4 w-4" />, emoji: "📝", title: "Word Scramble", desc: "Unscramble letters to form a word. Builds processing speed." },
-  { id: "symbol", label: "Symbol", icon: <Grid3X3 className="h-4 w-4" />, emoji: "🔢", title: "Symbol Digit", desc: "Match symbols to digits — mirrors the SDMT clinical test." },
-  { id: "nback", label: "N-Back", icon: <LayoutGrid className="h-4 w-4" />, emoji: "🧠", title: "N-Back", desc: "Tap when the letter matches N steps ago. Trains working memory." },
-  { id: "trails", label: "Trails", icon: <Link className="h-4 w-4" />, emoji: "🔗", title: "Trail Making", desc: "Connect numbers/letters in order. Used in clinical neuropsych testing." },
-  { id: "pattern", label: "Pattern", icon: <Eye className="h-4 w-4" />, emoji: "👁", title: "Pattern Recognition", desc: "Spot the odd one out in each grid." },
-  { id: "gonogo", label: "Go/No-Go", icon: <Target className="h-4 w-4" />, emoji: "🎯", title: "Go / No-Go", desc: "Tap for green, hold for red. Trains inhibitory control." },
-  { id: "trends", label: "Trends", icon: <TrendingUp className="h-4 w-4" />, emoji: "📊", title: "Trends", desc: "" },
+  { id: "memory", label: "Memory Match", icon: <Brain className="h-5 w-5" />, emoji: "🧠", desc: "Find all matching pairs with as few moves as possible.", component: <MemoryMatchGame /> },
+  { id: "reaction", label: "Reaction Time", icon: <Zap className="h-5 w-5" />, emoji: "⚡", desc: "Wait for green, then tap as fast as you can!", component: <ReactionTimeGame /> },
+  { id: "sequence", label: "Sequence Recall", icon: <Hash className="h-5 w-5" />, emoji: "🔢", desc: "Watch and repeat growing number sequences.", component: <SequenceRecallGame /> },
+  { id: "stroop", label: "Stroop Challenge", icon: <Palette className="h-5 w-5" />, emoji: "🎨", desc: "Tap the ink color — not what it says!", component: <StroopChallengeGame /> },
+  { id: "scramble", label: "Word Scramble", icon: <Type className="h-5 w-5" />, emoji: "📝", desc: "Unscramble letters to form a word.", component: <WordScrambleGame /> },
+  { id: "symbol", label: "Symbol Digit", icon: <Grid3X3 className="h-5 w-5" />, emoji: "🔣", desc: "Match symbols to digits — mirrors the SDMT clinical test.", component: <SymbolDigitGame /> },
+  { id: "nback", label: "N-Back", icon: <LayoutGrid className="h-5 w-5" />, emoji: "🧠", desc: "Tap when the letter matches N steps ago.", component: <NBackGame /> },
+  { id: "trails", label: "Trail Making", icon: <Link className="h-5 w-5" />, emoji: "🔗", desc: "Connect numbers/letters in order.", component: <TrailMakingGame /> },
+  { id: "pattern", label: "Pattern Recognition", icon: <Eye className="h-5 w-5" />, emoji: "👁", desc: "Spot the odd one out in each grid.", component: <PatternRecognitionGame /> },
+  { id: "gonogo", label: "Go / No-Go", icon: <Target className="h-5 w-5" />, emoji: "🎯", desc: "Tap for green, hold for red.", component: <GoNoGoGame /> },
 ];
 
 const GAME_TYPE_MAP: Record<string, { icon: React.ReactNode; label: string }> = {
@@ -47,23 +45,48 @@ const GAME_TYPE_MAP: Record<string, { icon: React.ReactNode; label: string }> = 
   go_no_go: { icon: <Target className="h-4 w-4 text-primary" />, label: "Go/No-Go" },
 };
 
-const GAME_COMPONENTS: Record<string, React.ReactNode> = {
-  memory: <MemoryMatchGame />,
-  reaction: <ReactionTimeGame />,
-  sequence: <SequenceRecallGame />,
-  stroop: <StroopChallengeGame />,
-  scramble: <WordScrambleGame />,
-  symbol: <SymbolDigitGame />,
-  nback: <NBackGame />,
-  trails: <TrailMakingGame />,
-  pattern: <PatternRecognitionGame />,
-  gonogo: <GoNoGoGame />,
+const GameCard = ({ game }: { game: typeof GAMES[number] }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="rounded-xl bg-card border border-border shadow-soft overflow-hidden">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-3 p-4 text-left hover:bg-secondary/50 transition-colors"
+      >
+        <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+          {game.icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">{game.emoji} {game.label}</p>
+          <p className="text-xs text-muted-foreground truncate">{game.desc}</p>
+        </div>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 pt-1">
+              {game.component}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 };
 
 const CognitivePage = () => {
   const { data: bestScores } = useBestScores();
   const queryClient = useQueryClient();
   const handleRefresh = useCallback(async () => { await queryClient.invalidateQueries({ queryKey: ["cognitive-sessions"] }); }, [queryClient]);
+  const [showTrends, setShowTrends] = useState(false);
 
   return (
     <>
@@ -97,32 +120,29 @@ const CognitivePage = () => {
           </div>
         )}
 
-        <Tabs defaultValue="memory">
-          <ScrollArea className="w-full">
-            <TabsList className="inline-flex w-max gap-0.5 p-1">
-              {GAMES.map((g) => (
-                <TabsTrigger key={g.id} value={g.id} className="flex items-center gap-1 text-[10px] px-2 py-1.5 whitespace-nowrap">
-                  {g.icon} <span className="hidden sm:inline">{g.label}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+        {/* Trends toggle */}
+        <button
+          onClick={() => setShowTrends((s) => !s)}
+          className="w-full flex items-center gap-2 rounded-xl bg-card border border-border p-3 hover:bg-secondary/50 transition-colors"
+        >
+          <TrendingUp className="h-5 w-5 text-primary" />
+          <span className="text-sm font-semibold text-foreground flex-1 text-left">📊 Trends & Progress</span>
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${showTrends ? "rotate-180" : ""}`} />
+        </button>
+        <AnimatePresence>
+          {showTrends && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+              <CognitiveTrends days={30} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          {GAMES.filter(g => g.id !== "trends").map((g) => (
-            <TabsContent key={g.id} value={g.id} className="mt-4">
-              <div className="rounded-xl bg-card p-4 shadow-soft">
-                <h3 className="text-sm font-semibold text-foreground mb-3">{g.emoji} {g.title}</h3>
-                <p className="text-xs text-muted-foreground mb-4">{g.desc}</p>
-                {GAME_COMPONENTS[g.id]}
-              </div>
-            </TabsContent>
+        {/* All games */}
+        <div className="space-y-3">
+          {GAMES.map((game) => (
+            <GameCard key={game.id} game={game} />
           ))}
-
-          <TabsContent value="trends" className="mt-4">
-            <CognitiveTrends days={30} />
-          </TabsContent>
-        </Tabs>
+        </div>
       </PullToRefresh>
     </>
   );
