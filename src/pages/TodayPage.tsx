@@ -854,6 +854,30 @@ const TodayPage = () => {
                         className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all active:scale-95 disabled:opacity-40"
                       >+</button>
                     </div>
+                    <div className="flex items-center justify-center gap-2 mt-2">
+                      {[2, 3, 4].map((amt) => (
+                        <button
+                          key={amt}
+                          onClick={async () => {
+                            const next = Math.min(20, currentGlasses + amt);
+                            if (next === currentGlasses) return;
+                            try {
+                              await saveEntry.mutateAsync({ ...entryPayload, water_glasses: next } as any);
+                              if (next >= goal && currentGlasses < goal) {
+                                confetti({ particleCount: 60, spread: 55, origin: { y: 0.7 }, colors: ["#38bdf8", "#06b6d4", "#22d3ee"] });
+                                toast.success("Hydration goal reached! 💧🎉");
+                              } else {
+                                toast.success(`Water: ${next} glasses 💧`);
+                              }
+                            } catch (err: any) { toast.error("Failed: " + err.message); }
+                          }}
+                          disabled={currentGlasses >= 20 || saveEntry.isPending}
+                          className="rounded-lg border border-border bg-secondary/60 px-3 py-1.5 text-xs font-semibold text-foreground transition-all hover:bg-primary/15 hover:border-primary/40 active:scale-95 disabled:opacity-40"
+                        >
+                          +{amt} 💧
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 );
               })()}
