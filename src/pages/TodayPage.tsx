@@ -977,10 +977,6 @@ const TodayPage = () => {
               })()}
 
 
-              <div className="card-base">
-                <label className="mb-2 block text-sm font-medium text-foreground">📝 Notes</label>
-                <textarea ref={notesRef} rows={3} placeholder="Anything else you want to remember..." value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-              </div>
             </CollapsibleContent>
           </Collapsible>
         </StaggerItem>
