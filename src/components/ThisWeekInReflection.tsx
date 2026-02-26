@@ -302,7 +302,7 @@ const DayRow = ({ day, entriesByDate, navigate }: DayRowProps) => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {note && (
+          {false && note && (
             <button
               onClick={handleShare}
               className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -466,19 +466,6 @@ const ThisWeekInReflection = ({ entries }: Props) => {
             {exporting ? "Generating…" : "PDF"}
           </button>
 
-          <button
-            onClick={handleShareWeek}
-            className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-            title={canShare ? "Share whole week" : "Copy whole week to clipboard"}
-          >
-            {weekCopied ? (
-              <><Check className="h-2.5 w-2.5 text-emerald-500" /><span className="text-emerald-500">Copied!</span></>
-            ) : canShare ? (
-              <><Share2 className="h-2.5 w-2.5" />Share</>
-            ) : (
-              <><Copy className="h-2.5 w-2.5" />Copy</>
-            )}
-          </button>
 
           <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
             allDone
