@@ -655,6 +655,25 @@ const TodayPage = () => {
                   Done
                 </button>
               </div>
+
+              {/* Goal editor */}
+              <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] text-muted-foreground font-medium">Daily goal:</span>
+                {[4, 6, 8, 10, 12].map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => updateProfile.mutate({ hydration_goal: g } as any)}
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors border ${
+                      goal === g
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-transparent text-muted-foreground border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex items-center justify-center gap-4">
                 <button
                   onClick={async () => {
@@ -715,9 +734,18 @@ const TodayPage = () => {
                   </button>
                 ))}
               </div>
-              <p className="mt-1.5 text-[10px] text-muted-foreground text-center">
-                Use presets or +/− to log water intake
-              </p>
+              {/* Guide */}
+              <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2 space-y-0.5">
+                <p className="text-[11px] font-medium text-foreground">What counts as 1 glass?</p>
+                <p className="text-[10px] text-muted-foreground">1 glass = ~250 ml (8 oz) of water, tea, or sugar-free drink.</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {goal <= 6
+                    ? "💡 Recommended: 6–8 glasses/day. Increase if active or in warm weather."
+                    : goal <= 10
+                    ? "💡 Great goal! Stay consistent and sip throughout the day."
+                    : "💡 High goal — perfect if you're very active or managing heat sensitivity."}
+                </p>
+              </div>
             </div>
           );
         })()}
@@ -814,8 +842,27 @@ const TodayPage = () => {
                 const goal = profile?.hydration_goal ?? 8;
                 const currentGlasses = todayEntry?.water_glasses ?? 0;
                 return (
-                  <div className="card-base">
-                    <label className="mb-2 block text-sm font-medium text-foreground">💧 Glasses of water</label>
+                  <div className="card-base space-y-3">
+                    <label className="block text-sm font-medium text-foreground">💧 Glasses of water</label>
+
+                    {/* Goal editor */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] text-muted-foreground font-medium">Daily goal:</span>
+                      {[4, 6, 8, 10, 12].map((g) => (
+                        <button
+                          key={g}
+                          onClick={() => updateProfile.mutate({ hydration_goal: g } as any)}
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors border ${
+                            goal === g
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-transparent text-muted-foreground border-border hover:border-primary/50"
+                          }`}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+
                     <div className="flex items-center gap-3">
                       <button
                         onClick={async () => {
@@ -853,6 +900,19 @@ const TodayPage = () => {
                         disabled={currentGlasses >= 20 || saveEntry.isPending}
                         className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all active:scale-95 disabled:opacity-40"
                       >+</button>
+                    </div>
+
+                    {/* Guide */}
+                    <div className="rounded-lg bg-muted/50 px-3 py-2 space-y-0.5">
+                      <p className="text-[11px] font-medium text-foreground">What counts as 1 glass?</p>
+                      <p className="text-[10px] text-muted-foreground">1 glass = ~250 ml (8 oz) of water, tea, or sugar-free drink.</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {goal <= 6
+                          ? "💡 Recommended: 6–8 glasses/day. Increase if active or in warm weather."
+                          : goal <= 10
+                          ? "💡 Great goal! Stay consistent and sip throughout the day."
+                          : "💡 High goal — perfect if you're very active or managing heat sensitivity."}
+                      </p>
                     </div>
                   </div>
                 );
