@@ -28,6 +28,7 @@ import { format, startOfWeek } from "date-fns";
 import { AvatarUpload } from "@/components/community/AvatarUpload";
 import { useBadgeEvents } from "@/hooks/useBadgeEvents";
 import { useUnreadMessagesCount } from "@/hooks/useMessages";
+import BlockedUsersCard from "@/components/BlockedUsersCard";
 
 function getNextMonday(): string {
   const today = new Date();
@@ -1569,6 +1570,11 @@ const ProfilePage = () => {
             </div>
           </button>
         </div>
+        </StaggerItem>
+
+        {/* Blocked Users */}
+        <StaggerItem>
+          <BlockedUsersCard />
         </StaggerItem>
 
         {/* Delete Account */}
