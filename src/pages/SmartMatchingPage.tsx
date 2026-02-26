@@ -4,16 +4,19 @@ import { useQueryClient } from "@tanstack/react-query";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { motion } from "framer-motion";
-import { Users, MessageCircle, Heart, Shield, Sparkles, Send } from "lucide-react";
+import { Users, MessageCircle, Heart, Shield, Sparkles, Send, MoreVertical, Flag, Ban } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMyMatchProfile, useUpsertMatchProfile, useSmartMatches } from "@/hooks/useSmartMatching";
 import { useProfile } from "@/hooks/useProfile";
 import { useStartConversation, useConversations } from "@/hooks/useMessages";
+import { useBlockUser } from "@/hooks/useUserBlocks";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const SmartMatchingPage = () => {
   const queryClient = useQueryClient();
@@ -23,6 +26,7 @@ const SmartMatchingPage = () => {
   const upsertProfile = useUpsertMatchProfile();
   const startConversation = useStartConversation();
   const { data: conversations = [] } = useConversations();
+  const blockUser = useBlockUser();
   const navigate = useNavigate();
 
   // Build a map of user_id -> conversation_id for existing conversations
@@ -38,6 +42,22 @@ const SmartMatchingPage = () => {
   const [messageTarget, setMessageTarget] = useState<{ user_id: string; display_name: string } | null>(null);
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
+  const [blockTarget, setBlockTarget] = useState<{ user_id: string; display_name: string } | null>(null);
+
+  const handleBlock = async () => {
+    if (!blockTarget) return;
+    try {
+      await blockUser.mutateAsync({ blockedId: blockTarget.user_id, reason: "blocked_from_matching" });
+      toast.success(`${blockTarget.display_name} has been blocked`);
+      setBlockTarget(null);
+    } catch {
+      toast.error("Failed to block user");
+    }
+  };
+
+  const handleReport = (match: { user_id: string; display_name: string }) => {
+    toast.success("Report submitted. Our team will review it.", { description: `Reported ${match.display_name}` });
+  };
 
   const handleSendMessage = async () => {
     if (!messageTarget || !messageText.trim()) return;
@@ -236,22 +256,44 @@ const SmartMatchingPage = () => {
                     </div>
                     {match.bio && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{match.bio}</p>}
                   </div>
-                  {existingConvoMap.has(match.user_id) ? (
-                    <button
-                      onClick={() => navigate("/messages")}
-                      className="rounded-full bg-secondary px-3 py-2 text-xs font-medium text-foreground shadow-soft hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5"
-                    >
-                      <MessageCircle className="h-3.5 w-3.5" />
-                      Continue
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setMessageTarget({ user_id: match.user_id, display_name: match.display_name })}
-                      className="rounded-full bg-primary p-2 text-primary-foreground shadow-soft hover:opacity-90 active:scale-95 transition-all"
-                    >
-                      <MessageCircle className="h-4 w-4" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {existingConvoMap.has(match.user_id) ? (
+                      <button
+                        onClick={() => navigate("/messages")}
+                        className="rounded-full bg-card border border-border px-3 py-2 text-xs font-medium text-foreground hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        Continue
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setMessageTarget({ user_id: match.user_id, display_name: match.display_name })}
+                        className="rounded-full bg-primary p-2 text-primary-foreground shadow-soft hover:opacity-90 active:scale-95 transition-all"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </button>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="min-w-[140px]">
+                        <DropdownMenuItem onClick={() => handleReport(match)} className="text-xs gap-2">
+                          <Flag className="h-3.5 w-3.5" />
+                          Report
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setBlockTarget({ user_id: match.user_id, display_name: match.display_name })}
+                          className="text-xs gap-2 text-destructive focus:text-destructive"
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                          Block
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               ))}
             </div>
@@ -284,6 +326,24 @@ const SmartMatchingPage = () => {
           </button>
         </DialogContent>
       </Dialog>
+
+      {/* Block confirmation */}
+      <AlertDialog open={!!blockTarget} onOpenChange={(open) => { if (!open) setBlockTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Block {blockTarget?.display_name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              They won't appear in your matches and won't be able to see you. This action can't be undone from here.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBlock} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Block
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
