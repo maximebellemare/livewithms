@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Check, X, Pill } from "lucide-react";
 import { useDbMedications, useDbMedicationLogs, useLogMedication } from "@/hooks/useMedications";
 
@@ -44,6 +45,9 @@ const MedicationChecklist = () => {
       {!allDone && (
         <p className="text-[10px] text-muted-foreground">Tap ✓ if you took it, ✗ if you skipped it.</p>
       )}
+      <Link to="/medications" className="text-[10px] font-medium text-primary hover:underline">
+        + Add or manage medications
+      </Link>
       {meds.map((med) => {
         const status = getLogStatus(med.id);
         return (
