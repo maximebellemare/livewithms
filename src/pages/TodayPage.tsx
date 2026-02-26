@@ -809,6 +809,55 @@ const TodayPage = () => {
                 <input type="number" min={0} max={24} step={0.5} placeholder="e.g. 7.5" value={sleepHours} onChange={(e) => setSleepHours(e.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
 
+              {/* Hydration in full check-in */}
+              {(() => {
+                const goal = profile?.hydration_goal ?? 8;
+                const currentGlasses = todayEntry?.water_glasses ?? 0;
+                return (
+                  <div className="card-base">
+                    <label className="mb-2 block text-sm font-medium text-foreground">💧 Glasses of water</label>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={async () => {
+                          if (currentGlasses <= 0) return;
+                          const next = currentGlasses - 1;
+                          try {
+                            await saveEntry.mutateAsync({ ...entryPayload, water_glasses: next } as any);
+                            toast.success(`Water: ${next} glasses 💧`);
+                          } catch (err: any) { toast.error("Failed: " + err.message); }
+                        }}
+                        disabled={currentGlasses <= 0 || saveEntry.isPending}
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-secondary-foreground transition-all active:scale-95 disabled:opacity-40"
+                      >−</button>
+                      <div className="text-center flex-1">
+                        <span className={`text-xl font-bold tabular-nums ${currentGlasses >= goal ? "text-primary" : "text-foreground"}`}>
+                          {currentGlasses}
+                        </span>
+                        <span className="text-sm text-muted-foreground"> / {goal}</span>
+                        {currentGlasses >= goal && <span className="ml-1 text-xs">🎉</span>}
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (currentGlasses >= 20) return;
+                          const next = currentGlasses + 1;
+                          try {
+                            await saveEntry.mutateAsync({ ...entryPayload, water_glasses: next } as any);
+                            if (next >= goal && (next - 1) < goal) {
+                              confetti({ particleCount: 60, spread: 55, origin: { y: 0.7 }, colors: ["#38bdf8", "#06b6d4", "#22d3ee"] });
+                              toast.success("Hydration goal reached! 💧🎉");
+                            } else {
+                              toast.success(`Water: ${next} glasses 💧`);
+                            }
+                          } catch (err: any) { toast.error("Failed: " + err.message); }
+                        }}
+                        disabled={currentGlasses >= 20 || saveEntry.isPending}
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all active:scale-95 disabled:opacity-40"
+                      >+</button>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <DailyPromptCard
                 onUsePrompt={(prompt) => {
                   const prefix = notes.trim() ? notes + "\n\n" : "";
