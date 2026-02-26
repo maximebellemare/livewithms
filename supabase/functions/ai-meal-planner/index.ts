@@ -28,7 +28,7 @@ serve(async (req) => {
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
     const today = new Date().toISOString().slice(0, 10);
 
-    const [profileRes, medsRes, entriesRes, energyRes] = await Promise.all([
+    const [profileRes, medsRes, entriesRes, energyRes, ratingsRes] = await Promise.all([
       supabaseClient
         .from("profiles")
         .select("is_premium, premium_until, ms_type, symptoms, medications, goals, sleep_goal, hydration_goal")
@@ -52,6 +52,12 @@ serve(async (req) => {
         .eq("user_id", userId)
         .eq("date", today)
         .maybeSingle(),
+      supabaseClient
+        .from("meal_ratings")
+        .select("meal_name, rating, diet_plan")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
     const profile = profileRes.data;
@@ -96,6 +102,10 @@ serve(async (req) => {
         highSymptoms.push(field.replace("_", " "));
       }
     }
+    // Build meal preference context from ratings
+    const ratings = ratingsRes.data || [];
+    const likedMeals = ratings.filter((r: any) => r.rating === "up").map((r: any) => r.meal_name);
+    const dislikedMeals = ratings.filter((r: any) => r.rating === "down").map((r: any) => r.meal_name);
 
     const prompt = `You are an MS nutrition specialist. Generate a personalized weekly meal plan for the "${diet_name}" diet.
 
@@ -119,6 +129,10 @@ ${energySpoons != null ? `- Energy budget: ${energySpoons} spoons (${energySpoon
 
 ## Dietary Preferences
 ${preferences || "None specified"}
+
+## User's Meal Ratings (IMPORTANT — respect these preferences!)
+${likedMeals.length > 0 ? `Liked meals (include more of these): ${likedMeals.join(", ")}` : "No liked meals yet"}
+${dislikedMeals.length > 0 ? `Disliked meals (AVOID these or similar): ${dislikedMeals.join(", ")}` : "No disliked meals yet"}
 
 ## Nutrition Strategy Based on Symptoms
 IMPORTANT: Tailor meals to address the user's specific symptom profile:

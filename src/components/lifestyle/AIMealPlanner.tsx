@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, Wand2, Brain, Pill, Zap, TrendingUp, Lightbulb, Flame, Fish, Shield, ChevronLeft, ChevronRight } from "lucide-react";
+import { Sparkles, Loader2, Wand2, Brain, Pill, Zap, TrendingUp, Lightbulb, Flame, Fish, Shield, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePremium } from "@/hooks/usePremium";
 import { useProfile } from "@/hooks/useProfile";
+import { useAuth } from "@/hooks/useAuth";
 import PremiumGate from "@/components/PremiumGate";
 import {
   useDietPlans, useUserDietPlan, useUpdateWeeklySelections,
@@ -29,14 +30,56 @@ export default function AIMealPlanner() {
   const { data: plans = [] } = useDietPlans();
   const { data: userPlan } = useUserDietPlan();
   const { data: profile } = useProfile();
+  const { user } = useAuth();
   const updateWeekly = useUpdateWeeklySelections();
   const [isGenerating, setIsGenerating] = useState(false);
   const [preferences, setPreferences] = useState("");
   const [reasoning, setReasoning] = useState<string[]>([]);
   const [dailyNutrition, setDailyNutrition] = useState<Record<string, DayNutrition>>({});
   const [selectedNutrDay, setSelectedNutrDay] = useState(0);
+  const [generatedMealNames, setGeneratedMealNames] = useState<string[]>([]);
+  const [mealRatings, setMealRatings] = useState<Record<string, "up" | "down">>({});
 
   const plan = plans.find(p => p.id === userPlan?.plan_id);
+  const dietName = plan?.name || "";
+
+  // Load existing ratings
+  useEffect(() => {
+    if (!user?.id || !dietName) return;
+    supabase
+      .from("meal_ratings")
+      .select("meal_name, rating")
+      .eq("user_id", user.id)
+      .eq("diet_plan", dietName)
+      .then(({ data }) => {
+        if (data) {
+          const map: Record<string, "up" | "down"> = {};
+          data.forEach((r: any) => { map[r.meal_name] = r.rating; });
+          setMealRatings(map);
+        }
+      });
+  }, [user?.id, dietName]);
+
+  const handleRate = useCallback(async (mealName: string, rating: "up" | "down") => {
+    if (!user?.id) return;
+    const existing = mealRatings[mealName];
+    const newRatings = { ...mealRatings };
+
+    if (existing === rating) {
+      // Toggle off
+      delete newRatings[mealName];
+      setMealRatings(newRatings);
+      await supabase.from("meal_ratings").delete()
+        .eq("user_id", user.id).eq("meal_name", mealName).eq("diet_plan", dietName);
+    } else {
+      newRatings[mealName] = rating;
+      setMealRatings(newRatings);
+      await supabase.from("meal_ratings").upsert(
+        { user_id: user.id, meal_name: mealName, rating, diet_plan: dietName },
+        { onConflict: "user_id,meal_name,diet_plan" }
+      );
+    }
+  }, [user?.id, mealRatings, dietName]);
 
   if (!isPremium) {
     return <PremiumGate feature="AI Meal Planner" />;
@@ -55,6 +98,7 @@ export default function AIMealPlanner() {
     setIsGenerating(true);
     setReasoning([]);
     setDailyNutrition({});
+    setGeneratedMealNames([]);
     try {
       const { data, error } = await supabase.functions.invoke("ai-meal-planner", {
         body: {
@@ -79,6 +123,21 @@ export default function AIMealPlanner() {
         setDailyNutrition(data.daily_nutrition);
         setSelectedNutrDay(0);
       }
+
+      // Extract unique meal names for rating
+      const recipes = plan.recipes as any[];
+      const recipeMap = new Map(recipes.map((r: any) => [r.id, r.name]));
+      const names = new Set<string>();
+      for (const day of Object.values(generatedPlan)) {
+        for (const val of Object.values(day as Record<string, string>)) {
+          if (val.startsWith("custom:")) {
+            names.add(val.replace("custom:", ""));
+          } else if (recipeMap.has(val)) {
+            names.add(recipeMap.get(val)!);
+          }
+        }
+      }
+      setGeneratedMealNames(Array.from(names));
 
       toast.success("Personalized meal plan generated! 🎉");
     } catch (e: any) {
@@ -276,6 +335,85 @@ export default function AIMealPlanner() {
                 </motion.li>
               ))}
             </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Meal Ratings */}
+      <AnimatePresence>
+        {generatedMealNames.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.35 }}
+            className="rounded-2xl bg-gradient-to-br from-secondary/40 via-card to-card p-4 border border-border shadow-soft"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15">
+                <ThumbsUp className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div>
+                <h4 className="text-xs font-semibold text-foreground">Rate these meals</h4>
+                <p className="text-[10px] text-muted-foreground">Your feedback improves future plans</p>
+              </div>
+            </div>
+
+            <div className="mt-2 space-y-1">
+              {generatedMealNames.map((name, i) => {
+                const rating = mealRatings[name];
+                return (
+                  <motion.div
+                    key={name}
+                    initial={{ opacity: 0, x: -6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="flex items-center justify-between rounded-lg px-2.5 py-1.5 hover:bg-secondary/30 transition-colors"
+                  >
+                    <span className="text-xs text-foreground truncate mr-2">{name}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleRate(name, "up")}
+                        className={`p-1 rounded-md transition-all ${
+                          rating === "up"
+                            ? "bg-green-500/20 text-green-500"
+                            : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                        }`}
+                        aria-label={`Like ${name}`}
+                      >
+                        <ThumbsUp className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => handleRate(name, "down")}
+                        className={`p-1 rounded-md transition-all ${
+                          rating === "down"
+                            ? "bg-red-400/20 text-red-400"
+                            : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                        }`}
+                        aria-label={`Dislike ${name}`}
+                      >
+                        <ThumbsDown className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* Summary */}
+            {Object.keys(mealRatings).length > 0 && (
+              <div className="mt-2 rounded-lg bg-secondary/30 px-3 py-1.5 flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">Your ratings</span>
+                <div className="flex items-center gap-2 text-[10px]">
+                  <span className="text-green-500">
+                    {Object.values(mealRatings).filter(r => r === "up").length} 👍
+                  </span>
+                  <span className="text-red-400">
+                    {Object.values(mealRatings).filter(r => r === "down").length} 👎
+                  </span>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

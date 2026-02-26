@@ -979,6 +979,33 @@ export type Database = {
         }
         Relationships: []
       }
+      meal_ratings: {
+        Row: {
+          created_at: string
+          diet_plan: string | null
+          id: string
+          meal_name: string
+          rating: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          diet_plan?: string | null
+          id?: string
+          meal_name: string
+          rating: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          diet_plan?: string | null
+          id?: string
+          meal_name?: string
+          rating?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       medication_logs: {
         Row: {
           created_at: string
