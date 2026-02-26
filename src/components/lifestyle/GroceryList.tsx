@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Check, ShoppingCart, Copy, ChevronDown } from "lucide-react";
+import { Check, ShoppingCart, Copy, ChevronDown, Printer } from "lucide-react";
 import { toast } from "sonner";
 import {
   useDietPlans, useUserDietPlan,
@@ -88,12 +88,23 @@ export default function GroceryList() {
     });
   };
 
-  const handleCopy = () => {
-    const text = ingredients
-      .filter(i => !checkedItems.has(i.key))
-      .map(i => `☐ ${i.label}${i.count > 1 ? ` (×${i.count})` : ""}`)
+  const buildText = (checked: boolean) =>
+    ingredients
+      .filter(i => (checked ? true : !checkedItems.has(i.key)))
+      .map(i => `${checkedItems.has(i.key) ? "☑" : "☐"} ${i.label}${i.count > 1 ? ` (×${i.count})` : ""}`)
       .join("\n");
-    navigator.clipboard.writeText(text).then(() => toast.success("Grocery list copied!"));
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(buildText(false)).then(() => toast.success("Grocery list copied!"));
+  };
+
+  const handlePrint = () => {
+    const text = buildText(true);
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`<html><head><title>Grocery List</title><style>body{font-family:system-ui,sans-serif;padding:2rem}h1{font-size:1.25rem;margin-bottom:1rem}pre{font-size:0.95rem;line-height:1.8;white-space:pre-wrap}</style></head><body><h1>🛒 Grocery List</h1><pre>${text}</pre></body></html>`);
+    win.document.close();
+    win.print();
   };
 
   const uncheckedCount = ingredients.filter(i => !checkedItems.has(i.key)).length;
@@ -107,9 +118,14 @@ export default function GroceryList() {
           <span className="text-xs text-muted-foreground">({uncheckedCount} items)</span>
           <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${collapsed ? "-rotate-90" : ""}`} />
         </button>
-        <button onClick={handleCopy} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
-          <Copy className="h-3.5 w-3.5" /> Copy
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handlePrint} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
+            <Printer className="h-3.5 w-3.5" /> Print
+          </button>
+          <button onClick={handleCopy} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
+            <Copy className="h-3.5 w-3.5" /> Copy
+          </button>
+        </div>
       </div>
 
       {!collapsed && (
