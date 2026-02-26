@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Snowflake } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import confetti from "canvas-confetti";
@@ -17,8 +17,6 @@ interface CompactStreakRowProps {
   relapseStreak: number;
   cogStreak: number;
   groundingSessions: number;
-  frozeToday?: boolean;
-  freezesRemaining?: number;
   nearBadge?: { emoji: string; name: string; pct: number; remaining: number; unit: string; hint: string } | null;
 }
 
@@ -67,8 +65,6 @@ const CompactStreakRow = ({
   relapseStreak,
   cogStreak,
   groundingSessions,
-  frozeToday = false,
-  freezesRemaining = 0,
   nearBadge,
 }: CompactStreakRowProps) => {
   const navigate = useNavigate();
@@ -122,17 +118,6 @@ const CompactStreakRow = ({
         <StreakPill emoji="🌿" value={groundingSessions} label="session" zeroTip="Complete a grounding exercise to start tracking!" />
       </div>
 
-      {/* Freeze indicator */}
-      {(frozeToday || freezesRemaining > 0) && (
-        <div className="flex items-center gap-1.5 justify-center">
-          <Snowflake className={`h-3 w-3 ${frozeToday ? "text-sky-400" : freezesRemaining > 0 ? "text-sky-400/60" : "text-muted-foreground/50"}`} />
-          <span className="text-[10px] text-muted-foreground">
-            {frozeToday
-              ? "Free pass protected your streak today ❄️"
-              : "1 free pass available this week"}
-          </span>
-        </div>
-      )}
 
       {/* Badge nudge */}
       {nearBadge && (
