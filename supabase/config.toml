@@ -42,3 +42,12 @@ verify_jwt = false
 [functions.ai-meal-planner]
 verify_jwt = false
 
+[functions.symptom-food-correlation]
+verify_jwt = false
+
+[functions.nutrition-coaching]
+verify_jwt = false
+
+[functions.inflammatory-scanner]
+verify_jwt = false
+
