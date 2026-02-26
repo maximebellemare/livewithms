@@ -4,14 +4,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { motion } from "framer-motion";
-import { Users, MessageCircle, Heart, Shield, Sparkles } from "lucide-react";
+import { Users, MessageCircle, Heart, Shield, Sparkles, Send } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMyMatchProfile, useUpsertMatchProfile, useSmartMatches } from "@/hooks/useSmartMatching";
 import { useProfile } from "@/hooks/useProfile";
+import { useStartConversation } from "@/hooks/useMessages";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const SmartMatchingPage = () => {
   const queryClient = useQueryClient();
@@ -19,11 +21,35 @@ const SmartMatchingPage = () => {
   const { data: profile } = useProfile();
   const { data: matches = [], isLoading: matchesLoading } = useSmartMatches();
   const upsertProfile = useUpsertMatchProfile();
+  const startConversation = useStartConversation();
+  const navigate = useNavigate();
 
   const [optIn, setOptIn] = useState(false);
   const [bio, setBio] = useState("");
   const [lookingFor, setLookingFor] = useState("");
   const [initialized, setInitialized] = useState(false);
+  const [messageTarget, setMessageTarget] = useState<{ user_id: string; display_name: string } | null>(null);
+  const [messageText, setMessageText] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const handleSendMessage = async () => {
+    if (!messageTarget || !messageText.trim()) return;
+    setSending(true);
+    try {
+      const convoId = await startConversation.mutateAsync({
+        otherUserId: messageTarget.user_id,
+        initialMessage: messageText.trim(),
+      });
+      setMessageTarget(null);
+      setMessageText("");
+      toast.success("Message sent!");
+      navigate("/messages");
+    } catch {
+      toast.error("Failed to send message");
+    } finally {
+      setSending(false);
+    }
+  };
 
   useEffect(() => {
     if (matchProfile && !initialized) {
@@ -203,18 +229,44 @@ const SmartMatchingPage = () => {
                     </div>
                     {match.bio && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{match.bio}</p>}
                   </div>
-                  <Link
-                    to="/messages"
+                  <button
+                    onClick={() => setMessageTarget({ user_id: match.user_id, display_name: match.display_name })}
                     className="rounded-full bg-primary p-2 text-primary-foreground shadow-soft hover:opacity-90 active:scale-95 transition-all"
                   >
                     <MessageCircle className="h-4 w-4" />
-                  </Link>
+                  </button>
                 </div>
               ))}
             </div>
           )}
         </div>
       </PullToRefresh>
+
+      {/* Send message dialog */}
+      <Dialog open={!!messageTarget} onOpenChange={(open) => { if (!open) { setMessageTarget(null); setMessageText(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">Message {messageTarget?.display_name}</DialogTitle>
+          </DialogHeader>
+          <textarea
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder="Say hello! Introduce yourself…"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
+            rows={3}
+            maxLength={500}
+            autoFocus
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={sending || !messageText.trim()}
+            className="flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+          >
+            <Send className="h-4 w-4" />
+            {sending ? "Sending…" : "Send Message"}
+          </button>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
