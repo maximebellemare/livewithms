@@ -159,14 +159,19 @@ function ActivePlanView({ plan, userPlan }: { plan: DietPlan; userPlan: NonNulla
 // ── Weekly Planner Section ──
 function WeeklyPlannerSection({ plan, userPlan }: { plan: DietPlan; userPlan: NonNullable<ReturnType<typeof useUserDietPlan>["data"]> }) {
   const [selectedDay, setSelectedDay] = useState<string>(DAYS[0]);
-  const [pickingSlot, setPickingSlot] = useState<string | null>(null); // meal type being picked
+  const [pickingSlot, setPickingSlot] = useState<string | null>(null);
   const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null);
+  const [customMealInput, setCustomMealInput] = useState("");
+  const [showCustomInput, setShowCustomInput] = useState<string | null>(null); // meal type with custom input open
   const updateWeekly = useUpdateWeeklySelections();
   const selections = userPlan.weekly_selections || {};
 
   const getDisplayRecipe = (original: Recipe): Recipe => userPlan.swapped_recipes[original.id] || original;
 
   const recipeById = (id: string): Recipe | undefined => {
+    if (id.startsWith("custom:")) {
+      return { id, name: id.slice(7), meal: "", ingredients: [], instructions: "" };
+    }
     for (const r of plan.recipes) {
       const displayed = getDisplayRecipe(r);
       if (displayed.id === id || r.id === id) return displayed;
@@ -245,17 +250,23 @@ function WeeklyPlannerSection({ plan, userPlan }: { plan: DietPlan; userPlan: No
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{mealEmojis[meal]} {meal}</span>
                     <button onClick={() => handleRemove(meal)} className="text-muted-foreground hover:text-destructive"><X className="h-3.5 w-3.5" /></button>
                   </div>
-                  <button onClick={() => setViewingRecipe(assignedRecipe)} className="w-full text-left">
-                    <p className="text-sm font-medium text-foreground">{assignedRecipe.name}</p>
-                    <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
-                      {assignedRecipe.prep_time && <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" />{assignedRecipe.prep_time}</span>}
-                      {assignedRecipe.calories && <span className="flex items-center gap-0.5"><Flame className="h-3 w-3" />{assignedRecipe.calories} cal</span>}
-                      {assignedRecipe.servings && <span className="flex items-center gap-0.5"><Users className="h-3 w-3" />{assignedRecipe.servings} servings</span>}
-                    </div>
-                  </button>
+                  {assignedId?.startsWith("custom:") ? (
+                    <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                      ✏️ {assignedRecipe.name}
+                    </p>
+                  ) : (
+                    <button onClick={() => setViewingRecipe(assignedRecipe)} className="w-full text-left">
+                      <p className="text-sm font-medium text-foreground">{assignedRecipe.name}</p>
+                      <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
+                        {assignedRecipe.prep_time && <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" />{assignedRecipe.prep_time}</span>}
+                        {assignedRecipe.calories && <span className="flex items-center gap-0.5"><Flame className="h-3 w-3" />{assignedRecipe.calories} cal</span>}
+                        {assignedRecipe.servings && <span className="flex items-center gap-0.5"><Users className="h-3 w-3" />{assignedRecipe.servings} servings</span>}
+                      </div>
+                    </button>
+                  )}
                 </div>
               ) : (
-                <button onClick={() => setPickingSlot(isPicking ? null : meal)}
+                <button onClick={() => { setPickingSlot(isPicking ? null : meal); setShowCustomInput(null); setCustomMealInput(""); }}
                   className="w-full p-3 text-left hover:bg-secondary/50 transition-colors">
                   <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{mealEmojis[meal]} {meal}</span>
                   <p className="text-xs text-muted-foreground mt-0.5">{isPicking ? "Choose a recipe below ↓" : "Tap to add a meal"}</p>
@@ -284,6 +295,50 @@ function WeeklyPlannerSection({ plan, userPlan }: { plan: DietPlan; userPlan: No
                       })}
                       {plan.recipes.filter(r => r.meal === meal).length === 0 && (
                         <p className="text-xs text-muted-foreground p-2">No {meal} recipes in this plan</p>
+                      )}
+
+                      {/* Custom meal option */}
+                      {showCustomInput === meal ? (
+                        <div className="flex items-center gap-2 p-2">
+                          <input
+                            type="text"
+                            value={customMealInput}
+                            onChange={(e) => setCustomMealInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && customMealInput.trim()) {
+                                handleAssign(meal, `custom:${customMealInput.trim()}`);
+                                setCustomMealInput("");
+                                setShowCustomInput(null);
+                              }
+                            }}
+                            placeholder="e.g. Oatmeal with berries"
+                            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                            autoFocus
+                            maxLength={100}
+                          />
+                          <button
+                            onClick={() => {
+                              if (customMealInput.trim()) {
+                                handleAssign(meal, `custom:${customMealInput.trim()}`);
+                                setCustomMealInput("");
+                                setShowCustomInput(null);
+                              }
+                            }}
+                            disabled={!customMealInput.trim()}
+                            className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setShowCustomInput(meal); setCustomMealInput(""); }}
+                          className="w-full text-left rounded-lg p-2.5 hover:bg-secondary/80 transition-colors border border-dashed border-border"
+                        >
+                          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                            ✏️ Write your own meal
+                          </p>
+                        </button>
                       )}
                     </div>
                   </motion.div>
