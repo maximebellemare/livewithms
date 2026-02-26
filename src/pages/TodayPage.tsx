@@ -976,16 +976,6 @@ const TodayPage = () => {
                 );
               })()}
 
-              <DailyPromptCard
-                onUsePrompt={(prompt) => {
-                  const prefix = notes.trim() ? notes + "\n\n" : "";
-                  setNotes(prefix + prompt + " ");
-                  setTimeout(() => {
-                    notesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                    notesRef.current?.focus();
-                  }, 50);
-                }}
-              />
 
               <div className="card-base">
                 <label className="mb-2 block text-sm font-medium text-foreground">📝 Notes</label>
