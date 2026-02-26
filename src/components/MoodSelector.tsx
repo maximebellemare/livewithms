@@ -10,6 +10,9 @@ const moodTags = [
   { emoji: "🥰", label: "Grateful" },
   { emoji: "😶", label: "Numb" },
   { emoji: "🤯", label: "Overwhelmed" },
+  { emoji: "🌤️", label: "Hopeful" },
+  { emoji: "😠", label: "Irritable" },
+  { emoji: "🌀", label: "Foggy" },
 ];
 
 interface MoodSelectorProps {
