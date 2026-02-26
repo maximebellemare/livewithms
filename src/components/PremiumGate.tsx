@@ -4,7 +4,7 @@ import { usePremium } from "@/hooks/usePremium";
 import { useNavigate } from "react-router-dom";
 
 interface PremiumGateProps {
-  children: ReactNode;
+  children?: ReactNode;
   feature?: string;
   compact?: boolean;
 }

@@ -39,3 +39,6 @@ verify_jwt = false
 [functions.diet-swap]
 verify_jwt = false
 
+[functions.ai-meal-planner]
+verify_jwt = false
+

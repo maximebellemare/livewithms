@@ -13,6 +13,9 @@ import {
   DAYS, MEALS, DAY_LABELS,
 } from "@/hooks/useDietPlans";
 import { useProfile } from "@/hooks/useProfile";
+import MealDiary from "./MealDiary";
+import GroceryList from "./GroceryList";
+import AIMealPlanner from "./AIMealPlanner";
 
 // ── Diet Recommendation Engine ──
 function getDietRecommendations(plans: DietPlan[], msType: string | null, symptoms: string[]): { planId: string; reason: string }[] {
@@ -116,7 +119,7 @@ function FoodListPreview({ icon, label, items }: { icon: React.ReactNode; label:
 
 // ── Active Plan View ──
 function ActivePlanView({ plan, userPlan }: { plan: DietPlan; userPlan: NonNullable<ReturnType<typeof useUserDietPlan>["data"]> }) {
-  const [activeSection, setActiveSection] = useState<"planner" | "recipes" | "foods" | "goals">("planner");
+  const [activeSection, setActiveSection] = useState<"planner" | "diary" | "recipes" | "foods" | "goals">("planner");
   const deselectPlan = useDeselectDietPlan();
   const handleDeselect = async () => {
     try { await deselectPlan.mutateAsync(); toast.success("Diet plan removed"); } catch { toast.error("Failed to remove plan"); }
@@ -137,17 +140,24 @@ function ActivePlanView({ plan, userPlan }: { plan: DietPlan; userPlan: NonNulla
         </div>
       </div>
 
-      <div className="flex gap-1 rounded-xl bg-secondary p-1">
-        {(["planner", "recipes", "foods", "goals"] as const).map((s) => (
+      <div className="flex gap-1 rounded-xl bg-secondary p-1 overflow-x-auto scrollbar-hide">
+        {(["planner", "diary", "recipes", "foods", "goals"] as const).map((s) => (
           <button key={s} onClick={() => setActiveSection(s)}
-            className={`flex-1 rounded-lg py-2 text-xs font-medium transition-all ${activeSection === s ? "bg-card text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"}`}>
-            {s === "planner" ? "📅 My Week" : s === "recipes" ? "🍳 Recipes" : s === "foods" ? "🥗 Foods" : "✅ Goals"}
+            className={`flex-shrink-0 flex-1 rounded-lg py-2 text-xs font-medium transition-all ${activeSection === s ? "bg-card text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"}`}>
+            {s === "planner" ? "📅 Week" : s === "diary" ? "📝 Diary" : s === "recipes" ? "🍳 Recipes" : s === "foods" ? "🥗 Foods" : "✅ Goals"}
           </button>
         ))}
       </div>
 
       <AnimatePresence mode="wait">
-        {activeSection === "planner" && <WeeklyPlannerSection key="planner" plan={plan} userPlan={userPlan} />}
+        {activeSection === "planner" && (
+          <div key="planner" className="space-y-4">
+            <AIMealPlanner />
+            <WeeklyPlannerSection plan={plan} userPlan={userPlan} />
+            <GroceryList />
+          </div>
+        )}
+        {activeSection === "diary" && <MealDiary key="diary" />}
         {activeSection === "recipes" && <RecipesSection key="recipes" plan={plan} userPlan={userPlan} />}
         {activeSection === "foods" && <FoodListsSection key="foods" plan={plan} />}
         {activeSection === "goals" && <GoalsSection key="goals" plan={plan} />}
