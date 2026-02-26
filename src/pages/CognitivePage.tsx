@@ -13,7 +13,7 @@ import SymbolDigitGame from "@/components/cognitive/SymbolDigitGame";
 
 import TrailMakingGame from "@/components/cognitive/TrailMakingGame";
 import PatternRecognitionGame from "@/components/cognitive/PatternRecognitionGame";
-import GoNoGoGame from "@/components/cognitive/GoNoGoGame";
+
 import CognitiveTrends from "@/components/cognitive/CognitiveTrends";
 import CognitiveStreakBadge from "@/components/cognitive/CognitiveStreakBadge";
 import { useBestScores } from "@/hooks/useCognitiveSessions";
@@ -29,7 +29,7 @@ const GAMES = [
   
   { id: "trails", label: "Trail Making", icon: <Link className="h-5 w-5" />, emoji: "🔗", desc: "Connect numbers/letters in order.", component: <TrailMakingGame /> },
   { id: "pattern", label: "Pattern Recognition", icon: <Eye className="h-5 w-5" />, emoji: "👁", desc: "Spot the odd one out in each grid.", component: <PatternRecognitionGame /> },
-  { id: "gonogo", label: "Go / No-Go", icon: <Target className="h-5 w-5" />, emoji: "🎯", desc: "Tap for green, hold for red.", component: <GoNoGoGame /> },
+  
 ];
 
 const GAME_TYPE_MAP: Record<string, { icon: React.ReactNode; label: string }> = {
@@ -42,7 +42,7 @@ const GAME_TYPE_MAP: Record<string, { icon: React.ReactNode; label: string }> = 
   
   trail_making: { icon: <Link className="h-4 w-4 text-primary" />, label: "Trails" },
   pattern_recognition: { icon: <Eye className="h-4 w-4 text-primary" />, label: "Pattern" },
-  go_no_go: { icon: <Target className="h-4 w-4 text-primary" />, label: "Go/No-Go" },
+  
 };
 
 const GameCard = ({ game }: { game: typeof GAMES[number] }) => {
