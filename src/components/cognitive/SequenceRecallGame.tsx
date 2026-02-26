@@ -3,10 +3,15 @@ import { motion } from "framer-motion";
 import { useSaveSession } from "@/hooks/useCognitiveSessions";
 import { toast } from "sonner";
 import { RotateCcw, Hash } from "lucide-react";
+import DifficultySelector, { type Difficulty } from "./DifficultySelector";
 
 type Phase = "showing" | "input" | "result";
 
+const START_LENGTH: Record<Difficulty, number> = { easy: 2, medium: 3, hard: 4 };
+const SHOW_SPEED: Record<Difficulty, number> = { easy: 800, medium: 600, hard: 450 };
+
 const SequenceRecallGame = () => {
+  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [sequence, setSequence] = useState<number[]>([]);
   const [userInput, setUserInput] = useState<number[]>([]);
   const [phase, setPhase] = useState<Phase>("result");
@@ -17,8 +22,24 @@ const SequenceRecallGame = () => {
   const startTimeRef = useRef(Date.now());
   const saveSession = useSaveSession();
 
+  const speed = SHOW_SPEED[difficulty];
+
+  const showSequence = useCallback((seq: number[]) => {
+    setPhase("showing");
+    setHighlightIdx(-1);
+    seq.forEach((_, i) => {
+      setTimeout(() => setHighlightIdx(i), (i + 1) * speed);
+    });
+    setTimeout(() => {
+      setHighlightIdx(-1);
+      setPhase("input");
+      setUserInput([]);
+    }, (seq.length + 1) * speed);
+  }, [speed]);
+
   const startGame = useCallback(() => {
-    const initial = [randomDigit(), randomDigit(), randomDigit()];
+    const len = START_LENGTH[difficulty];
+    const initial = Array.from({ length: len }, () => Math.floor(Math.random() * 10));
     setSequence(initial);
     setUserInput([]);
     setLevel(1);
@@ -26,24 +47,7 @@ const SequenceRecallGame = () => {
     setBestLevel(0);
     startTimeRef.current = Date.now();
     showSequence(initial);
-  }, []);
-
-  function randomDigit() {
-    return Math.floor(Math.random() * 10);
-  }
-
-  function showSequence(seq: number[]) {
-    setPhase("showing");
-    setHighlightIdx(-1);
-    seq.forEach((_, i) => {
-      setTimeout(() => setHighlightIdx(i), (i + 1) * 600);
-    });
-    setTimeout(() => {
-      setHighlightIdx(-1);
-      setPhase("input");
-      setUserInput([]);
-    }, (seq.length + 1) * 600);
-  }
+  }, [difficulty, showSequence]);
 
   const handleDigit = (d: number) => {
     if (phase !== "input") return;
@@ -58,7 +62,7 @@ const SequenceRecallGame = () => {
         const newLevel = level + 1;
         setLevel(newLevel);
         if (newLevel > bestLevel) setBestLevel(newLevel);
-        const nextSeq = [...sequence, randomDigit()];
+        const nextSeq = [...sequence, Math.floor(Math.random() * 10)];
         setSequence(nextSeq);
         setTimeout(() => showSequence(nextSeq), 500);
       } else {
@@ -69,23 +73,27 @@ const SequenceRecallGame = () => {
           game_type: "sequence_recall",
           score: finalScore,
           duration_seconds: duration,
-          details: { max_length: sequence.length, levels_completed: level - 1 },
+          details: { max_length: sequence.length, levels_completed: level - 1, difficulty },
         });
         toast.success(`🔢 Reached level ${level} — Score: ${finalScore}`);
       }
     }
   };
 
+  const isPlaying = phase === "showing" || phase === "input";
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex gap-4 text-sm text-muted-foreground">
-          <span>Level: <strong className="text-foreground">{level}</strong></span>
-          <span>Score: <strong className="text-foreground">{score}</strong></span>
-        </div>
+        <DifficultySelector value={difficulty} onChange={setDifficulty} disabled={isPlaying} />
         <button onClick={startGame} className="rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
           <RotateCcw className="h-4 w-4" />
         </button>
+      </div>
+
+      <div className="flex gap-4 text-sm text-muted-foreground">
+        <span>Level: <strong className="text-foreground">{level}</strong></span>
+        <span>Score: <strong className="text-foreground">{score}</strong></span>
       </div>
 
       {phase === "result" && level === 0 && (

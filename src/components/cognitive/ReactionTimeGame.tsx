@@ -3,12 +3,19 @@ import { motion } from "framer-motion";
 import { useSaveSession } from "@/hooks/useCognitiveSessions";
 import { toast } from "sonner";
 import { Zap, RotateCcw } from "lucide-react";
+import DifficultySelector, { type Difficulty } from "./DifficultySelector";
 
 type Phase = "waiting" | "ready" | "go" | "result" | "too-early";
 
-const ROUNDS = 5;
+const ROUND_COUNT: Record<Difficulty, number> = { easy: 3, medium: 5, hard: 8 };
+const DELAY_RANGE: Record<Difficulty, [number, number]> = {
+  easy: [2000, 4000],
+  medium: [1500, 3000],
+  hard: [800, 2000],
+};
 
 const ReactionTimeGame = () => {
+  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [phase, setPhase] = useState<Phase>("waiting");
   const [times, setTimes] = useState<number[]>([]);
   const [currentTime, setCurrentTime] = useState(0);
@@ -16,14 +23,17 @@ const ReactionTimeGame = () => {
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const saveSession = useSaveSession();
 
+  const rounds = ROUND_COUNT[difficulty];
+  const [minDelay, maxDelay] = DELAY_RANGE[difficulty];
+
   const startRound = useCallback(() => {
     setPhase("ready");
-    const delay = 1500 + Math.random() * 3000;
+    const delay = minDelay + Math.random() * (maxDelay - minDelay);
     timerRef.current = setTimeout(() => {
       goTimestamp.current = Date.now();
       setPhase("go");
     }, delay);
-  }, []);
+  }, [minDelay, maxDelay]);
 
   const handleTap = () => {
     if (phase === "waiting") {
@@ -44,7 +54,7 @@ const ReactionTimeGame = () => {
       const newTimes = [...times, reaction];
       setTimes(newTimes);
 
-      if (newTimes.length >= ROUNDS) {
+      if (newTimes.length >= rounds) {
         setPhase("result");
         const avg = Math.round(newTimes.reduce((a, b) => a + b, 0) / newTimes.length);
         const best = Math.min(...newTimes);
@@ -53,7 +63,7 @@ const ReactionTimeGame = () => {
           game_type: "reaction_time",
           score,
           duration_seconds: Math.round(newTimes.reduce((a, b) => a + b, 0) / 1000),
-          details: { times: newTimes, average_ms: avg, best_ms: best },
+          details: { times: newTimes, average_ms: avg, best_ms: best, difficulty },
         });
         toast.success(`⚡ Average: ${avg}ms — Score: ${score}`);
       } else {
@@ -82,16 +92,20 @@ const ReactionTimeGame = () => {
     result: "bg-primary/10 border-primary/30",
   }[phase];
 
+  const isPlaying = phase !== "waiting" && phase !== "result";
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">
-          Round: <strong className="text-foreground">{Math.min(times.length + 1, ROUNDS)}/{ROUNDS}</strong>
-        </span>
+        <DifficultySelector value={difficulty} onChange={setDifficulty} disabled={isPlaying} />
         <button onClick={reset} className="rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
           <RotateCcw className="h-4 w-4" />
         </button>
       </div>
+
+      <span className="text-sm text-muted-foreground">
+        Round: <strong className="text-foreground">{Math.min(times.length + 1, rounds)}/{rounds}</strong>
+      </span>
 
       <motion.button
         onClick={handleTap}

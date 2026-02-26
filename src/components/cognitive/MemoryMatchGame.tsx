@@ -3,8 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSaveSession } from "@/hooks/useCognitiveSessions";
 import { toast } from "sonner";
 import { RotateCcw, Trophy } from "lucide-react";
+import DifficultySelector, { type Difficulty } from "./DifficultySelector";
 
-const EMOJIS = ["🧠", "💡", "⚡", "🎯", "🔥", "💪", "🌟", "🎨"];
+const EMOJIS = ["🧠", "💡", "⚡", "🎯", "🔥", "💪", "🌟", "🎨", "🎭", "🌈"];
+
+const PAIR_COUNT: Record<Difficulty, number> = { easy: 4, medium: 6, hard: 8 };
+const GRID_COLS: Record<Difficulty, string> = { easy: "grid-cols-4", medium: "grid-cols-4", hard: "grid-cols-4" };
 
 interface Card {
   id: number;
@@ -14,6 +18,7 @@ interface Card {
 }
 
 const MemoryMatchGame = () => {
+  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
@@ -22,8 +27,10 @@ const MemoryMatchGame = () => {
   const [gameOver, setGameOver] = useState(false);
   const saveSession = useSaveSession();
 
+  const pairCount = PAIR_COUNT[difficulty];
+
   const initGame = useCallback(() => {
-    const pairs = EMOJIS.slice(0, 6);
+    const pairs = EMOJIS.slice(0, pairCount);
     const deck = [...pairs, ...pairs]
       .sort(() => Math.random() - 0.5)
       .map((emoji, i) => ({ id: i, emoji, flipped: false, matched: false }));
@@ -33,7 +40,7 @@ const MemoryMatchGame = () => {
     setMatched(0);
     setStartTime(null);
     setGameOver(false);
-  }, []);
+  }, [pairCount]);
 
   useEffect(() => { initGame(); }, [initGame]);
 
@@ -58,15 +65,15 @@ const MemoryMatchGame = () => {
           const newMatched = matched + 1;
           setMatched(newMatched);
           setSelected([]);
-          if (newMatched === 6) {
+          if (newMatched === pairCount) {
             setGameOver(true);
             const duration = Math.round((Date.now() - (startTime || Date.now())) / 1000);
-            const score = Math.max(100 - (moves + 1 - 6) * 5 - Math.floor(duration / 5), 10);
+            const score = Math.max(100 - (moves + 1 - pairCount) * 5 - Math.floor(duration / 5), 10);
             saveSession.mutate({
               game_type: "memory_match",
               score,
               duration_seconds: duration,
-              details: { moves: moves + 1, pairs: 6 },
+              details: { moves: moves + 1, pairs: pairCount, difficulty },
             });
             toast.success(`🧠 Memory Match complete! Score: ${score}`);
           }
@@ -80,19 +87,25 @@ const MemoryMatchGame = () => {
     }
   };
 
+  const handleDifficultyChange = (d: Difficulty) => {
+    setDifficulty(d);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex gap-4 text-sm text-muted-foreground">
-          <span>Moves: <strong className="text-foreground">{moves}</strong></span>
-          <span>Pairs: <strong className="text-foreground">{matched}/6</strong></span>
-        </div>
+        <DifficultySelector value={difficulty} onChange={handleDifficultyChange} disabled={!!startTime && !gameOver} />
         <button onClick={initGame} className="rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
           <RotateCcw className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
+      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <span>Moves: <strong className="text-foreground">{moves}</strong></span>
+        <span>Pairs: <strong className="text-foreground">{matched}/{pairCount}</strong></span>
+      </div>
+
+      <div className={`grid ${GRID_COLS[difficulty]} gap-2`}>
         {cards.map((card) => (
           <motion.button
             key={card.id}
