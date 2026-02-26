@@ -656,6 +656,45 @@ export type Database = {
         }
         Relationships: []
       }
+      diet_plans: {
+        Row: {
+          created_at: string
+          daily_goals: Json
+          description: string
+          emoji: string
+          food_lists: Json
+          id: string
+          name: string
+          recipes: Json
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          daily_goals?: Json
+          description?: string
+          emoji?: string
+          food_lists?: Json
+          id?: string
+          name: string
+          recipes?: Json
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          daily_goals?: Json
+          description?: string
+          emoji?: string
+          food_lists?: Json
+          id?: string
+          name?: string
+          recipes?: Json
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       energy_activities: {
         Row: {
           budget_id: string
@@ -1507,6 +1546,44 @@ export type Database = {
           reason?: string | null
         }
         Relationships: []
+      }
+      user_diet_plans: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          plan_id: string
+          swapped_recipes: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          plan_id: string
+          swapped_recipes?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          plan_id?: string
+          swapped_recipes?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_diet_plans_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "diet_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
