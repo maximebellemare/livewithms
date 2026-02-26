@@ -136,7 +136,7 @@ const TodayPage = () => {
     return () => observer.disconnect();
   }, []);
 
-  const { streak, frozeToday, freezesRemaining } = useStreak();
+  const { streak } = useStreak();
   const medStreak = useMedStreak();
   const relapseStreak = useRelapseFreeStreak();
   const { weekStreak } = useWeekStreak();
@@ -497,8 +497,6 @@ const TodayPage = () => {
             relapseStreak={relapseStreak}
             cogStreak={cogStreak}
             groundingSessions={groundingSessions}
-            frozeToday={frozeToday}
-            freezesRemaining={freezesRemaining}
             nearBadge={(() => {
               const b = findClosestBadge({ logStreak: streak, weekStreak, medStreak, relapseStreak, cogStreak, groundingSessions });
               if (!b) return null;
