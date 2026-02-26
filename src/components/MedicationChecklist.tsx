@@ -34,7 +34,7 @@ const MedicationChecklist = () => {
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-foreground flex items-center gap-2">
           <Pill className="h-4 w-4 text-primary" />
-          Today's Medications
+          Today's Medications & Supplements
         </p>
         {allDone && (
           <span className="text-[10px] font-medium text-primary bg-accent px-2 py-0.5 rounded-full">
