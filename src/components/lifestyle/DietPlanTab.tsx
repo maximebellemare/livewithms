@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ReactDOM from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -385,7 +386,7 @@ function WeeklyPlannerSection({ plan, userPlan }: { plan: DietPlan; userPlan: No
 
 // ── Recipe Detail Sheet ──
 function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe; onClose: () => void }) {
-  return (
+  return ReactDOM.createPortal(
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
       <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }}
         className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-t-2xl bg-card border-t border-border p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
@@ -422,7 +423,8 @@ function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe; onClose: () =>
           </div>
         </div>
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 }
 
