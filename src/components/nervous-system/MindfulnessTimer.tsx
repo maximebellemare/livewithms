@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, RotateCcw, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { playCompletionChime } from "./useCompletionSound";
 
 const DURATIONS = [3, 5, 10, 15, 20] as const;
 
@@ -28,6 +29,7 @@ const MindfulnessTimer = () => {
           clearInterval(intervalRef.current!);
           setRunning(false);
           setFinished(true);
+          playCompletionChime();
           return 0;
         }
         return prev - 1;

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, Ear, Hand, Wind, Cookie, ChevronRight, RotateCcw, Check, History, Trash2 } from "lucide-react";
 import confetti from "canvas-confetti";
+import { playCompletionChime } from "./useCompletionSound";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useGroundingStreak } from "@/hooks/useGroundingStreak";
@@ -104,6 +105,7 @@ const GroundingExercise = () => {
     } else {
       vibrate([10, 40, 10, 40, 10]);
       setStep(senses.length);
+      playCompletionChime();
       confetti({
         particleCount: 80,
         spread: 70,
