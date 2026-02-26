@@ -10,16 +10,27 @@ import {
 
 // ── Category classification ──
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  "🥬 Fruits & Vegetables": [
-    "lettuce","arugula","spinach","kale","greens","broccoli","cauliflower","cabbage",
-    "carrot","celery","cucumber","tomato","pepper","onion","garlic","ginger","avocado",
-    "zucchini","squash","sweet potato","potato","mushroom","corn","peas","beans","beet",
-    "radish","asparagus","eggplant","leek","shallot","scallion","cilantro","parsley",
-    "basil","mint","dill","rosemary","thyme","oregano","chive","lemon","lime","orange",
-    "apple","banana","berries","blueberr","strawberr","raspberr","mango","pineapple",
-    "grape","peach","pear","melon","watermelon","pomegranate","fig","date","cranberr",
-    "cherry","plum","kiwi","papaya","coconut","fruit","vegetable","salad","herb",
-    "fennel","artichoke","bok choy","watercress","endive","romaine","mixed green",
+  "🧂 Spices & Seasonings": [
+    "salt","black pepper","white pepper","ground pepper","pepper flake","peppercorn",
+    "cumin","paprika","turmeric","cinnamon","nutmeg","clove",
+    "coriander","cardamom","cayenne","chili powder","curry","garam masala",
+    "bay leaf","saffron","allspice","seasoning","spice","pinch","dried oregano",
+    "dried basil","dried thyme","dried rosemary","dried dill","dried parsley",
+    "onion powder","garlic powder","smoked paprika","red pepper flake",
+  ],
+  "🥫 Pantry & Canned": [
+    "olive oil","oil","vinegar","soy sauce","tamari","hot sauce","sriracha","mustard",
+    "ketchup","mayo","mayonnaise","salsa","pesto","broth","stock","tomato paste",
+    "tomato sauce","canned","diced tomato","coconut cream","coconut aminos",
+    "coconut milk","maple syrup","honey","sugar","molasses","agave","jam",
+    "nut butter","almond butter","peanut butter","tahini","hummus",
+    "nutritional yeast","baking","vanilla","cocoa","chocolate","chip",
+  ],
+  "🧀 Dairy & Alternatives": [
+    "milk","cheese","yogurt","yoghurt","cream","butter","ghee","kefir","cottage",
+    "ricotta","mozzarella","parmesan","feta","cheddar","gouda","brie","sour cream",
+    "whipping","half-and-half","oat milk","almond milk","soy milk",
+    "cashew milk","dairy",
   ],
   "🥩 Protein": [
     "chicken","turkey","beef","pork","lamb","fish","salmon","tuna","shrimp","prawn",
@@ -27,29 +38,10 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     "sausage","bacon","ham","steak","ground","mince","fillet","breast","thigh",
     "lentil","chickpea","black bean","kidney bean","edamame","protein",
   ],
-  "🧀 Dairy & Alternatives": [
-    "milk","cheese","yogurt","yoghurt","cream","butter","ghee","kefir","cottage",
-    "ricotta","mozzarella","parmesan","feta","cheddar","gouda","brie","sour cream",
-    "whipping","half-and-half","oat milk","almond milk","soy milk","coconut milk",
-    "cashew milk","dairy",
-  ],
   "🌾 Grains & Bread": [
     "rice","pasta","noodle","bread","tortilla","wrap","oat","quinoa","barley","farro",
     "couscous","bulgur","cereal","granola","flour","cornmeal","polenta","pita",
     "bagel","roll","bun","cracker","breadcrumb","panko","muesli","rolled oat",
-  ],
-  "🥫 Pantry & Canned": [
-    "olive oil","oil","vinegar","soy sauce","tamari","hot sauce","sriracha","mustard",
-    "ketchup","mayo","mayonnaise","salsa","pesto","broth","stock","tomato paste",
-    "tomato sauce","canned","diced tomato","coconut cream","coconut aminos",
-    "maple syrup","honey","sugar","molasses","agave","jam","nut butter","almond butter",
-    "peanut butter","tahini","hummus","nutritional yeast","baking","vanilla",
-    "cocoa","chocolate","chip",
-  ],
-  "🧂 Spices & Seasonings": [
-    "salt","pepper","cumin","paprika","turmeric","cinnamon","nutmeg","clove",
-    "coriander","cardamom","cayenne","chili powder","curry","garam masala",
-    "bay leaf","saffron","allspice","seasoning","spice","pinch","dried",
   ],
   "🥜 Nuts & Seeds": [
     "almond","walnut","cashew","pecan","pistachio","hazelnut","macadamia","peanut",
@@ -57,6 +49,18 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   ],
   "❄️ Frozen": [
     "frozen","ice cream",
+  ],
+  "🥬 Fruits & Vegetables": [
+    "lettuce","arugula","spinach","kale","greens","broccoli","cauliflower","cabbage",
+    "carrot","celery","cucumber","tomato","bell pepper","pepper","onion","garlic",
+    "ginger","avocado","zucchini","squash","sweet potato","potato","mushroom","corn",
+    "peas","beans","beet","radish","asparagus","eggplant","leek","shallot","scallion",
+    "cilantro","parsley","basil","mint","dill","rosemary","thyme","oregano","chive",
+    "lemon","lime","orange","apple","banana","berries","blueberr","strawberr",
+    "raspberr","mango","pineapple","grape","peach","pear","melon","watermelon",
+    "pomegranate","fig","date","cranberr","cherry","plum","kiwi","papaya","coconut",
+    "fruit","vegetable","salad","herb","fennel","artichoke","bok choy","watercress",
+    "endive","romaine","mixed green",
   ],
 };
 
