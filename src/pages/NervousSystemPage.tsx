@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Wind, Leaf, Heart } from "lucide-react";
+import { Wind, Leaf, Heart, Brain } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -8,11 +8,13 @@ import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import BreathingExercise from "@/components/nervous-system/BreathingExercise";
 import GroundingExercise from "@/components/nervous-system/GroundingExercise";
 import VagalToneExercises from "@/components/nervous-system/VagalToneExercises";
+import MindfulnessTimer from "@/components/nervous-system/MindfulnessTimer";
 
 const tabs = [
   { id: "breathing", label: "Breathing", icon: Wind },
   { id: "grounding", label: "Grounding", icon: Leaf },
   { id: "vagal", label: "Vagal Tone", icon: Heart },
+  { id: "mindfulness", label: "Meditate", icon: Brain },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -70,6 +72,7 @@ const NervousSystemPage = () => {
             {activeTab === "breathing" && <BreathingExercise />}
             {activeTab === "grounding" && <GroundingExercise />}
             {activeTab === "vagal" && <VagalToneExercises />}
+            {activeTab === "mindfulness" && <MindfulnessTimer />}
           </StaggerItem>
         </StaggerContainer>
       </PullToRefresh>
