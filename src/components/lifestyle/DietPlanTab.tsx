@@ -93,7 +93,13 @@ function PlanBrowser({ plans, onSelect }: { plans: DietPlan[]; onSelect: (id: st
                   </span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground line-clamp-1">{recMap[plan.id] || plan.description}</p>
+              <p className="text-xs text-muted-foreground line-clamp-2">{plan.description}</p>
+              {recMap[plan.id] && (
+                <p className="text-[11px] text-primary/80 mt-1 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 flex-shrink-0" />
+                  <span className="italic">{recMap[plan.id]}</span>
+                </p>
+              )}
             </div>
             <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${expandedId === plan.id ? "rotate-180" : ""}`} />
           </button>
