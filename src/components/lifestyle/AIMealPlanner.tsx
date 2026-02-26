@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, Loader2, Wand2 } from "lucide-react";
+import { Sparkles, Loader2, Wand2, Brain, Pill, Zap, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePremium } from "@/hooks/usePremium";
+import { useProfile } from "@/hooks/useProfile";
 import PremiumGate from "@/components/PremiumGate";
 import {
   useDietPlans, useUserDietPlan, useUpdateWeeklySelections,
@@ -14,6 +15,7 @@ export default function AIMealPlanner() {
   const { isPremium } = usePremium();
   const { data: plans = [] } = useDietPlans();
   const { data: userPlan } = useUserDietPlan();
+  const { data: profile } = useProfile();
   const updateWeekly = useUpdateWeeklySelections();
   const [isGenerating, setIsGenerating] = useState(false);
   const [preferences, setPreferences] = useState("");
@@ -51,13 +53,20 @@ export default function AIMealPlanner() {
         userDietPlanId: userPlan.id,
         weekly_selections: generatedPlan,
       });
-      toast.success("AI meal plan generated! 🎉");
+      toast.success("Personalized meal plan generated! 🎉");
     } catch (e: any) {
       toast.error(e.message || "Failed to generate meal plan");
     } finally {
       setIsGenerating(false);
     }
   };
+
+  // Show personalization signals
+  const signals: { icon: typeof Brain; label: string }[] = [];
+  if (profile?.ms_type) signals.push({ icon: Brain, label: profile.ms_type });
+  if (profile?.symptoms?.length) signals.push({ icon: TrendingUp, label: `${profile.symptoms.length} symptoms tracked` });
+  if (profile?.medications?.length) signals.push({ icon: Pill, label: `${profile.medications.length} medications` });
+  signals.push({ icon: Zap, label: "Energy-aware" });
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
@@ -68,8 +77,18 @@ export default function AIMealPlanner() {
           </div>
           <div>
             <h3 className="text-sm font-semibold text-foreground">AI Meal Planner</h3>
-            <p className="text-[11px] text-muted-foreground">Auto-fill your entire week with MS-friendly meals</p>
+            <p className="text-[11px] text-muted-foreground">Personalized to your MS profile, symptoms & medications</p>
           </div>
+        </div>
+
+        {/* Personalization signals */}
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {signals.map(({ icon: Icon, label }) => (
+            <span key={label} className="inline-flex items-center gap-1 rounded-full bg-secondary/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+              <Icon className="h-2.5 w-2.5" />
+              {label}
+            </span>
+          ))}
         </div>
 
         <input
@@ -87,14 +106,14 @@ export default function AIMealPlanner() {
           className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.98] disabled:opacity-60 transition-all"
         >
           {isGenerating ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Generating your plan…</>
+            <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing your profile & generating…</>
           ) : (
-            <><Wand2 className="h-4 w-4" /> Generate Weekly Plan</>
+            <><Wand2 className="h-4 w-4" /> Generate Personalized Plan</>
           )}
         </button>
 
         <p className="text-[10px] text-muted-foreground text-center mt-2">
-          This will replace your current weekly selections with AI-generated meals.
+          Uses your symptoms, medications, energy level & recent trends to tailor meals.
         </p>
       </div>
     </motion.div>
