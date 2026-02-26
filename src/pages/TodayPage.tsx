@@ -765,7 +765,7 @@ const TodayPage = () => {
             {/* Sleep goal editor */}
             <div className="mb-3 flex flex-wrap items-center gap-1.5">
               <span className="text-[11px] text-muted-foreground font-medium">Nightly goal:</span>
-              {[6, 7, 7.5, 8, 9].map((g) => (
+              {[4.5, 5, 6, 7, 7.5, 8, 9, 10].map((g) => (
                 <button
                   key={g}
                   onClick={() => updateProfile.mutate({ sleep_goal: g } as any)}
@@ -865,7 +865,7 @@ const TodayPage = () => {
                 {/* Sleep goal editor */}
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-[11px] text-muted-foreground font-medium">Nightly goal:</span>
-                  {[6, 7, 7.5, 8, 9].map((g) => (
+                  {[4.5, 5, 6, 7, 7.5, 8, 9, 10].map((g) => (
                     <button
                       key={g}
                       onClick={() => updateProfile.mutate({ sleep_goal: g } as any)}
