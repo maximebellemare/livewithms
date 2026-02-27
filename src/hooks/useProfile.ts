@@ -42,6 +42,7 @@ export interface Profile {
   height_cm: number | null;
   goal_weight: number | null;
   goal_weight_unit: string;
+  weekly_exercise_goal_minutes: number;
 }
 
 export const useProfile = () => {

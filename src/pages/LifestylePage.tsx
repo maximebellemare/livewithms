@@ -1,22 +1,29 @@
 import { useState, useCallback } from "react";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Dumbbell, Salad, Scale, Minus, Trash2 } from "lucide-react";
+import { Plus, Dumbbell, Salad, Scale, Minus, Trash2, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import PullToRefresh from "@/components/PullToRefresh";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   useExerciseLogs, useAddExercise, useDeleteExercise,
 } from "@/hooks/useLifestyleTracking";
+import { useProfile } from "@/hooks/useProfile";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import DietPlanTab from "@/components/lifestyle/DietPlanTab";
 import WeightTab from "@/components/lifestyle/WeightTab";
+import ExerciseWeeklyGoal from "@/components/lifestyle/ExerciseWeeklyGoal";
+import ExerciseHistoryChart from "@/components/lifestyle/ExerciseHistoryChart";
+import ExerciseLibrary from "@/components/lifestyle/ExerciseLibrary";
+import ExerciseCorrelation from "@/components/lifestyle/ExerciseCorrelation";
+import PremiumGate from "@/components/PremiumGate";
 
 const EXERCISE_TYPES = ["Walking", "Swimming", "Yoga", "Stretching", "Cycling", "Strength Training", "Pilates", "Tai Chi", "Other"];
 const INTENSITIES = ["light", "moderate", "vigorous"];
-
 
 const today = format(new Date(), "yyyy-MM-dd");
 
@@ -54,14 +61,34 @@ const LifestylePage = () => {
 
 // ── Exercise Tab ──
 function ExerciseTab() {
+  const { user } = useAuth();
   const { data: logs = [] } = useExerciseLogs();
+  const { data: profile } = useProfile();
   const addExercise = useAddExercise();
   const deleteExercise = useDeleteExercise();
   const [showForm, setShowForm] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
   const [type, setType] = useState("Walking");
   const [duration, setDuration] = useState(30);
   const [intensity, setIntensity] = useState("moderate");
   const [notes, setNotes] = useState("");
+
+  // Fetch symptom entries for AI correlation
+  const { data: symptomEntries = [] } = useQuery({
+    queryKey: ["daily-entries-exercise-corr", user?.id],
+    queryFn: async () => {
+      const start = format(subDays(new Date(), 29), "yyyy-MM-dd");
+      const { data, error } = await supabase
+        .from("daily_entries")
+        .select("date, fatigue, mood, pain, brain_fog")
+        .eq("user_id", user!.id)
+        .gte("date", start)
+        .order("date", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user,
+  });
 
   const handleAdd = async () => {
     try {
@@ -74,11 +101,20 @@ function ExerciseTab() {
 
   return (
     <>
+      {/* Weekly Goal */}
+      <ExerciseWeeklyGoal logs={logs} />
+
+      {/* Quick Log */}
       <div className="flex items-center justify-between">
         <h3 className="font-display text-sm font-semibold text-foreground">Exercise Log</h3>
-        <button onClick={() => setShowForm(!showForm)} className="rounded-full bg-primary p-1.5 text-primary-foreground shadow-soft hover:opacity-90 active:scale-95 transition-all">
-          <Plus className="h-4 w-4" />
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowLibrary(!showLibrary)} className="rounded-full bg-secondary p-1.5 text-foreground shadow-soft hover:bg-muted active:scale-95 transition-all">
+            <BookOpen className="h-4 w-4" />
+          </button>
+          <button onClick={() => setShowForm(!showForm)} className="rounded-full bg-primary p-1.5 text-primary-foreground shadow-soft hover:opacity-90 active:scale-95 transition-all">
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
@@ -117,6 +153,28 @@ function ExerciseTab() {
         )}
       </AnimatePresence>
 
+      {/* Exercise History Chart */}
+      <ExerciseHistoryChart logs={logs} />
+
+      {/* Exercise Library */}
+      <AnimatePresence>
+        {showLibrary && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            <ExerciseLibrary />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* AI Symptom-Exercise Correlation - Premium */}
+      <PremiumGate feature="Exercise × Symptom Analysis" compact>
+        <ExerciseCorrelation
+          exerciseLogs={logs}
+          symptomEntries={symptomEntries}
+          msType={profile?.ms_type ?? null}
+        />
+      </PremiumGate>
+
+      {/* Recent Logs */}
       {logs.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-6">No exercises logged yet. Tap + to get started.</p>
       ) : (
@@ -128,7 +186,7 @@ function ExerciseTab() {
                 <p className="text-sm font-medium text-foreground">{log.type}</p>
                 <p className="text-xs text-muted-foreground">{log.duration_minutes} min · {log.intensity} · {format(new Date(log.date + "T12:00:00"), "MMM d")}</p>
               </div>
-              <button onClick={() => deleteExercise.mutate(log.id)} className="text-muted-foreground hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+              <button onClick={() => deleteExercise.mutate(log.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
             </div>
           ))}
         </div>

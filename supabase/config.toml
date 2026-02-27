@@ -54,3 +54,6 @@ verify_jwt = false
 [functions.weight-insights]
 verify_jwt = false
 
+[functions.exercise-correlation]
+verify_jwt = false
+

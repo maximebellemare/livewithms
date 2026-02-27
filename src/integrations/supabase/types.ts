@@ -1299,6 +1299,7 @@ export type Database = {
           updated_at: string
           user_id: string
           weekly_digest_enabled: boolean
+          weekly_exercise_goal_minutes: number
           weekly_log_goal: number
           year_diagnosed: string | null
         }
@@ -1347,6 +1348,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           weekly_digest_enabled?: boolean
+          weekly_exercise_goal_minutes?: number
           weekly_log_goal?: number
           year_diagnosed?: string | null
         }
@@ -1395,6 +1397,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           weekly_digest_enabled?: boolean
+          weekly_exercise_goal_minutes?: number
           weekly_log_goal?: number
           year_diagnosed?: string | null
         }
