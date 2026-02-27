@@ -31,6 +31,9 @@ const SYMPTOM_OPTIONS = [
   "Fatigue", "Pain", "Brain Fog", "Mobility Issues", "Spasticity",
   "Vision Problems", "Numbness/Tingling", "Bladder Issues",
   "Depression", "Anxiety", "Dizziness", "Heat Sensitivity",
+  "Tremor", "Speech Difficulty", "Swallowing Difficulty", "Balance Issues",
+  "Memory Problems", "Muscle Weakness", "Sleep Disturbance", "Bowel Issues",
+  "Headaches", "Hearing Loss", "Itching", "Seizures",
 ];
 
 const GOAL_OPTIONS = [
