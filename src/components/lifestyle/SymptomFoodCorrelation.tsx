@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, TrendingUp, AlertTriangle, Lightbulb, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Sparkles, Loader2, TrendingUp, AlertTriangle, Lightbulb, ShieldCheck, ShieldAlert, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePremium } from "@/hooks/usePremium";
@@ -8,7 +8,7 @@ import PremiumGate from "@/components/PremiumGate";
 import { useMealLogs } from "@/hooks/useMealLogs";
 import { useEntries } from "@/hooks/useEntries";
 import { useUserDietPlan, useDietPlans, Recipe } from "@/hooks/useDietPlans";
-import { useMemo } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface FoodInsight {
   emoji: string;
@@ -60,6 +60,15 @@ export default function SymptomFoodCorrelation() {
   const [insights, setInsights] = useState<FoodInsight[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasRun, setHasRun] = useState(false);
+  const [selectedIngredient, setSelectedIngredient] = useState<string | null>(null);
+
+  const matchingMeals = useMemo(() => {
+    if (!selectedIngredient) return [];
+    const q = selectedIngredient.toLowerCase();
+    return combinedMeals.filter(m =>
+      m.name.toLowerCase().includes(q) || m.notes?.toLowerCase().includes(q)
+    );
+  }, [selectedIngredient, combinedMeals]);
 
   if (!isPremium) return <PremiumGate feature="Symptom-Food Correlation" compact />;
 
@@ -143,7 +152,7 @@ export default function SymptomFoodCorrelation() {
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {[...beneficial].map((f, j) => (
-                      <span key={j} className="text-[10px] font-medium bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20 px-2 py-0.5 rounded-full">✓ {f}</span>
+                      <button key={j} onClick={() => setSelectedIngredient(f)} className="text-[10px] font-medium bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20 px-2 py-0.5 rounded-full hover:bg-green-500/20 transition-colors cursor-pointer">✓ {f}</button>
                     ))}
                   </div>
                 </div>
@@ -156,7 +165,7 @@ export default function SymptomFoodCorrelation() {
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {[...problematic].map((f, j) => (
-                      <span key={j} className="text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded-full">⚠ {f}</span>
+                      <button key={j} onClick={() => setSelectedIngredient(f)} className="text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded-full hover:bg-amber-500/20 transition-colors cursor-pointer">⚠ {f}</button>
                     ))}
                   </div>
                 </div>
@@ -194,6 +203,33 @@ export default function SymptomFoodCorrelation() {
           </motion.div>
         ))}
       </AnimatePresence>
+
+      <Dialog open={!!selectedIngredient} onOpenChange={(open) => !open && setSelectedIngredient(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <UtensilsCrossed className="h-4 w-4 text-primary" />
+              Meals with "{selectedIngredient}"
+            </DialogTitle>
+            <DialogDescription>
+              {matchingMeals.length > 0
+                ? `Found in ${matchingMeals.length} meal${matchingMeals.length > 1 ? "s" : ""}`
+                : "No exact matches found in your logged meals"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-60 overflow-y-auto space-y-2">
+            {matchingMeals.map((m, i) => (
+              <div key={m.id || i} className="rounded-lg border border-border bg-secondary/30 p-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">{m.name}</span>
+                  <span className="text-[10px] text-muted-foreground capitalize">{m.meal_type}</span>
+                </div>
+                <span className="text-[11px] text-muted-foreground">{m.date}</span>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
