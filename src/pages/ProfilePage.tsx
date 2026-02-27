@@ -326,8 +326,21 @@ const ProfilePage = () => {
     }
   };
   const msTypes = ["RRMS", "PPMS", "SPMS", "CIS", "Unknown"];
-  const commonSymptoms = ["Fatigue", "Pain", "Brain Fog", "Numbness", "Vision Issues", "Spasticity", "Balance", "Bladder"];
-  const goalOptions = ["Better Sleep", "More Energy", "Less Pain", "Improved Mood", "Better Mobility", "Sharper Thinking"];
+  const commonSymptoms = [
+    "Fatigue", "Pain", "Brain Fog", "Mobility Issues", "Spasticity",
+    "Vision Problems", "Numbness/Tingling", "Bladder Issues",
+    "Depression", "Anxiety", "Dizziness", "Heat Sensitivity",
+    "Tremor", "Speech Difficulty", "Swallowing Difficulty", "Balance Issues",
+    "Memory Problems", "Muscle Weakness", "Sleep Disturbance", "Bowel Issues",
+    "Headaches", "Hearing Loss", "Itching", "Seizures",
+  ];
+  const goalOptions = [
+    "Better sleep", "More energy", "Improved mobility", "Stable mood",
+    "Sharper cognition", "Reduce pain", "Stay active", "Manage stress",
+    "Build strength", "Lose weight", "Eat healthier", "Drink more water",
+    "Reduce fatigue", "Improve balance", "Social connection", "Mindfulness",
+    "Track symptoms", "Medication adherence", "Fewer relapses", "Work productivity",
+  ];
 
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: currentYear - 1959 }, (_, i) => String(currentYear - i));
