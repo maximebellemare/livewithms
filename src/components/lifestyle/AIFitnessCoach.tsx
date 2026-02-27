@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { Dumbbell, Loader2, Sparkles, ChevronLeft, RotateCcw, Save, Check, Trash2, ChevronDown, ChevronUp, ClipboardList, MessageCircle, Info } from "lucide-react";
+import { Dumbbell, Loader2, Sparkles, ChevronLeft, RotateCcw, Save, Check, Trash2, ChevronDown, ChevronUp, ClipboardList, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ExerciseLog } from "@/hooks/useLifestyleTracking";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import FitnessCoachChat from "./FitnessCoachChat";
-import ExerciseDetailSheet from "./ExerciseDetailSheet";
+
 
 interface Props {
   exerciseLogs: ExerciseLog[];
@@ -183,7 +183,7 @@ export default function AIFitnessCoach({ exerciseLogs, symptomEntries, msType }:
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [completedDays, setCompletedDays] = useState<Set<string>>(new Set());
   const [viewingSavedPlan, setViewingSavedPlan] = useState<SavedPlan | null>(null);
-  const [selectedExercise, setSelectedExercise] = useState<WorkoutExercise | null>(null);
+  
 
   const toggleItem = (list: string[], item: string, setter: (v: string[]) => void) => {
     setter(list.includes(item) ? list.filter((i) => i !== item) : [...list, item]);
@@ -575,15 +575,11 @@ export default function AIFitnessCoach({ exerciseLogs, symptomEntries, msType }:
                       {day.exercises?.length > 0 && (
                         <div className="space-y-1.5">
                           {day.exercises.map((ex, j) => (
-                            <button
+                            <div
                               key={j}
-                              onClick={() => setSelectedExercise(ex)}
-                              className="w-full text-left rounded-md bg-background/50 p-2 space-y-0.5 hover:bg-background/80 transition-colors group"
+                              className="w-full rounded-md bg-background/50 p-2 space-y-0.5"
                             >
-                              <div className="flex items-center justify-between">
-                                <p className="text-xs font-semibold text-foreground">{ex.name}</p>
-                                <Info className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                              </div>
+                              <p className="text-xs font-semibold text-foreground">{ex.name}</p>
                               {(ex.sets || ex.reps || ex.rest) && (
                                 <div className="flex gap-2 text-[10px] text-muted-foreground">
                                   {ex.sets && <span>{ex.sets} sets</span>}
@@ -592,8 +588,7 @@ export default function AIFitnessCoach({ exerciseLogs, symptomEntries, msType }:
                                 </div>
                               )}
                               {ex.instruction && <p className="text-[10px] text-muted-foreground italic">{ex.instruction}</p>}
-                              <p className="text-[10px] text-primary font-medium mt-0.5">Tap for guide & demo →</p>
-                            </button>
+                            </div>
                           ))}
                         </div>
                       )}
@@ -676,13 +671,6 @@ export default function AIFitnessCoach({ exerciseLogs, symptomEntries, msType }:
           </div>
         </div>
       )}
-
-      {/* Exercise Detail Sheet */}
-      <ExerciseDetailSheet
-        exercise={selectedExercise}
-        onClose={() => setSelectedExercise(null)}
-        msType={msType}
-      />
     </div>
   );
 }
