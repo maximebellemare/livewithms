@@ -115,6 +115,7 @@ const EnergyBudgetPage = () => {
   const { data: history = [] } = useEnergyHistory(7);
   const { data: frequentActivities = [] } = useFrequentActivities(6);
   const [editingCostId, setEditingCostId] = useState<string | null>(null);
+  const [restoredNames, setRestoredNames] = useState<Set<string>>(new Set());
   const [showClearCompleted, setShowClearCompleted] = useState(false);
 
   const completedActivities = useMemo(() => activities.filter(a => a.completed), [activities]);
@@ -539,8 +540,13 @@ const EnergyBudgetPage = () => {
             <SortableContext items={sortedActivities.map((a) => a.id)} strategy={verticalListSortingStrategy}>
               <div className="space-y-1.5">
                 {sortedActivities.map((activity) => (
-                  <SortableActivityRow
+                  <motion.div
                     key={activity.id}
+                    initial={restoredNames.has(activity.name) ? { opacity: 0, x: -40, scale: 0.95 } : false}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  >
+                  <SortableActivityRow
                     activity={activity}
                     onToggle={() => toggleActivity.mutate({ id: activity.id, completed: !activity.completed })}
                     onDelete={() => {
@@ -550,7 +556,18 @@ const EnergyBudgetPage = () => {
                           toast(`"${snapshot.name}" deleted`, {
                             action: {
                               label: "Undo",
-                              onClick: () => restoreActivity.mutate(snapshot),
+                              onClick: () => {
+                                setRestoredNames(prev => new Set(prev).add(snapshot.name));
+                                restoreActivity.mutate(snapshot, {
+                                  onSuccess: () => {
+                                    setTimeout(() => setRestoredNames(prev => {
+                                      const next = new Set(prev);
+                                      next.delete(snapshot.name);
+                                      return next;
+                                    }), 1500);
+                                  },
+                                });
+                              },
                             },
                             duration: 5000,
                           });
@@ -561,6 +578,7 @@ const EnergyBudgetPage = () => {
                     editingCostId={editingCostId}
                     setEditingCostId={setEditingCostId}
                   />
+                  </motion.div>
                 ))}
                 {activities.length > 0 && !swipeHintDismissed && (
                   <p
