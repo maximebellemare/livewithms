@@ -20,6 +20,16 @@ const GOAL_OPTIONS = [
   { label: "Improve balance", emoji: "⚖️" },
   { label: "Cardiovascular health", emoji: "❤️" },
   { label: "Pain management", emoji: "🩹" },
+  { label: "Improve posture", emoji: "🧍" },
+  { label: "Increase endurance", emoji: "🔋" },
+  { label: "Tone body", emoji: "✨" },
+  { label: "Better sleep", emoji: "😴" },
+  { label: "Improve mobility", emoji: "🦿" },
+  { label: "Reduce spasticity", emoji: "🫠" },
+  { label: "Strengthen core", emoji: "🎯" },
+  { label: "Rehab / recovery", emoji: "🏥" },
+  { label: "Stay active at home", emoji: "🏠" },
+  { label: "Social / group fitness", emoji: "👥" },
 ];
 
 const ABILITY_OPTIONS = [
