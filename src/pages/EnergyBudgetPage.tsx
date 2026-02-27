@@ -59,6 +59,7 @@ import RestBufferSuggestion from "@/components/energy/RestBufferSuggestion";
 import EndOfDayReflection from "@/components/energy/EndOfDayReflection";
 import WeeklyConsistency from "@/components/energy/WeeklyConsistency";
 import EnergyForecastCard from "@/components/energy/EnergyForecastCard";
+import FatiguePatternCard from "@/components/energy/FatiguePatternCard";
 
 const SPOON_KEY = "livewithms_last_spoon_count";
 
@@ -451,7 +452,10 @@ const EnergyBudgetPage = () => {
           }}
         />
 
-        {/* Activities */}
+        {/* Fatigue Pattern Analysis — premium */}
+        <FatiguePatternCard />
+
+
         <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-display text-sm font-semibold text-foreground">Today's Activities</h3>
