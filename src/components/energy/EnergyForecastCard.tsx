@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePremium } from "@/hooks/usePremium";
@@ -23,18 +23,20 @@ interface Forecast {
   tip: string;
 }
 
-function useForecast() {
+function useForecast(forceRefresh: boolean) {
   const { user } = useAuth();
   return useQuery<Forecast>({
-    queryKey: ["energy-forecast", user?.id],
+    queryKey: ["energy-forecast", user?.id, forceRefresh],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("energy-forecast");
+      const { data, error } = await supabase.functions.invoke("energy-forecast", {
+        body: { force_refresh: forceRefresh },
+      });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       return data as Forecast;
     },
     enabled: !!user,
-    staleTime: 30 * 60 * 1000, // 30 min cache
+    staleTime: 30 * 60 * 1000,
     retry: false,
   });
 }
@@ -57,13 +59,12 @@ interface Props {
 }
 
 const ForecastContent = ({ onApplyBudget, onAddActivity }: Props) => {
-  const { data: forecast, isLoading, error, isFetching } = useForecast();
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const [forceRefresh, setForceRefresh] = useState(false);
+  const { data: forecast, isLoading, error, isFetching } = useForecast(forceRefresh);
   const [expanded, setExpanded] = useState(false);
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["energy-forecast", user?.id] });
+    setForceRefresh(true);
     toast("Refreshing forecast…");
   };
 
