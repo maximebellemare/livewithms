@@ -22,7 +22,7 @@ import ExerciseLibrary from "@/components/lifestyle/ExerciseLibrary";
 import ExerciseCorrelation from "@/components/lifestyle/ExerciseCorrelation";
 import ExerciseQuickLog from "@/components/lifestyle/ExerciseQuickLog";
 import ExerciseHeatmap from "@/components/lifestyle/ExerciseHeatmap";
-import ExerciseDailySuggestion from "@/components/lifestyle/ExerciseDailySuggestion";
+import AIFitnessCoach from "@/components/lifestyle/AIFitnessCoach";
 import PremiumGate from "@/components/PremiumGate";
 
 const EXERCISE_TYPES = ["Walking", "Swimming", "Yoga", "Stretching", "Cycling", "Strength Training", "Pilates", "Tai Chi", "Other"];
@@ -113,9 +113,9 @@ function ExerciseTab() {
       {/* Activity Heatmap */}
       <ExerciseHeatmap logs={logs} />
 
-      {/* AI Daily Suggestion - Premium */}
-      <PremiumGate feature="AI Exercise Suggestion" compact>
-        <ExerciseDailySuggestion
+      {/* AI Fitness Coach - Premium */}
+      <PremiumGate feature="AI Fitness Coach" compact>
+        <AIFitnessCoach
           exerciseLogs={logs}
           symptomEntries={symptomEntries}
           msType={profile?.ms_type ?? null}

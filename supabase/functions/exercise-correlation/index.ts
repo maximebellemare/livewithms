@@ -9,13 +9,51 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { exerciseLogs, symptomEntries, msType, mode } = await req.json();
+    const body = await req.json();
+    const { exerciseLogs, symptomEntries, msType, mode, coachInput } = body;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     let prompt: string;
 
-    if (mode === "daily_suggestion") {
+    if (mode === "fitness_coach") {
+
+      prompt = `You are a certified personal fitness coach specializing in MS (Multiple Sclerosis) patients.
+Create a personalized weekly training plan based on the following:
+
+**User's Goals:** ${JSON.stringify(coachInput?.goals || [])}
+**Exercises they can do:** ${JSON.stringify(coachInput?.abilities || [])}
+**Time available:** ${coachInput?.timeAvailable || "Not specified"}
+**Gym access:** ${coachInput?.hasGym === true ? "Yes" : coachInput?.hasGym === false ? "No, home workouts only" : "Not specified"}
+**Additional notes:** ${coachInput?.additionalNotes || "None"}
+
+**MS Type:** ${msType || "Not specified"}
+**Recent symptoms (last 7 days):** ${JSON.stringify(symptomEntries)}
+**Recent exercise history:** ${JSON.stringify(exerciseLogs)}
+
+CRITICAL GUIDELINES:
+- ONLY recommend exercises from the abilities they listed
+- If no gym, use bodyweight, resistance bands, or household items only
+- Account for MS fatigue: include rest days and lower-intensity options
+- Consider heat sensitivity common in MS
+- If high fatigue in recent symptoms, reduce intensity
+- Include warm-up and cool-down recommendations
+- Make it progressive but safe
+
+Respond with ONLY valid JSON:
+{
+  "overview": "2-3 sentence personalized overview of the plan and why it suits them",
+  "weekly_schedule": [
+    { "day": "Monday", "workout": "Description of workout", "duration": "e.g. 30 minutes", "notes": "Any MS-specific tips for this session" },
+    { "day": "Tuesday", "workout": "...", "duration": "...", "notes": "..." }
+  ],
+  "tips": ["3-5 actionable tips specific to their goals and MS"],
+  "progression": "How to progress over the next 4-6 weeks",
+  "caution": "Any important MS-specific caution, or null if none"
+}
+
+Include 7 days (Mon-Sun), with at least 1-2 rest or active recovery days.`;
+    } else if (mode === "daily_suggestion") {
       prompt = `You are an MS wellness specialist. Based on recent exercise and symptom data, suggest ONE exercise for today.
 
 Recent exercises: ${JSON.stringify(exerciseLogs)}
