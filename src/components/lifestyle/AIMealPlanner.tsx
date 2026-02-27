@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, Wand2, Brain, Pill, Zap, TrendingUp, Lightbulb, Flame, Fish, Shield, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, RefreshCw, Ban, X } from "lucide-react";
+import { Sparkles, Loader2, Wand2, Brain, Pill, Zap, TrendingUp, Lightbulb, Flame, Fish, Shield, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, RefreshCw, Ban, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePremium } from "@/hooks/usePremium";
@@ -40,6 +40,7 @@ export default function AIMealPlanner() {
   const [selectedNutrDay, setSelectedNutrDay] = useState(0);
   const [generatedMealNames, setGeneratedMealNames] = useState<string[]>([]);
   const [mealRatings, setMealRatings] = useState<Record<string, "up" | "down">>({});
+  const [excludeInput, setExcludeInput] = useState("");
 
   const plan = plans.find(p => p.id === userPlan?.plan_id);
   const dietName = plan?.name || "";
@@ -241,11 +242,12 @@ export default function AIMealPlanner() {
           maxLength={200}
         />
 
-        {(profile?.excluded_ingredients ?? []).length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 mb-3">
-            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-              <Ban className="h-2.5 w-2.5" /> Excluding:
-            </span>
+        <div className="mb-3 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <Ban className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+            <span className="text-[10px] text-muted-foreground">Excluded ingredients:</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
             {(profile?.excluded_ingredients ?? []).map((ing, i) => (
               <button
                 key={i}
@@ -261,8 +263,34 @@ export default function AIMealPlanner() {
                 <X className="h-2.5 w-2.5" />
               </button>
             ))}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const trimmed = excludeInput.trim().toLowerCase();
+                if (!trimmed || trimmed.length > 50) { toast.error("Enter a valid ingredient (max 50 chars)"); return; }
+                const current = profile?.excluded_ingredients ?? [];
+                if (current.some(i => i.toLowerCase() === trimmed)) { toast.error("Already excluded"); return; }
+                const { error } = await supabase.from("profiles").update({ excluded_ingredients: [...current, trimmed] }).eq("user_id", user?.id);
+                if (error) { toast.error("Failed to add"); return; }
+                toast.success(`"${trimmed}" excluded from future plans`);
+                setExcludeInput("");
+              }}
+              className="inline-flex items-center gap-1"
+            >
+              <input
+                type="text"
+                value={excludeInput}
+                onChange={e => setExcludeInput(e.target.value)}
+                placeholder="Add ingredient…"
+                className="w-24 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/40"
+                maxLength={50}
+              />
+              <button type="submit" className="rounded-full bg-destructive/10 p-0.5 text-destructive hover:bg-destructive/20 transition-colors">
+                <Plus className="h-3 w-3" />
+              </button>
+            </form>
           </div>
-        )}
+        </div>
 
         <button
           onClick={handleGenerate}
