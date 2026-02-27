@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, TrendingUp, AlertTriangle, Lightbulb, ShieldCheck, ShieldAlert, UtensilsCrossed } from "lucide-react";
+import { Sparkles, Loader2, TrendingUp, AlertTriangle, Lightbulb, ShieldCheck, ShieldAlert, UtensilsCrossed, Ban, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePremium } from "@/hooks/usePremium";
@@ -8,6 +8,7 @@ import PremiumGate from "@/components/PremiumGate";
 import { useMealLogs } from "@/hooks/useMealLogs";
 import { useEntries } from "@/hooks/useEntries";
 import { useUserDietPlan, useDietPlans, Recipe } from "@/hooks/useDietPlans";
+import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface FoodInsight {
@@ -25,7 +26,10 @@ export default function SymptomFoodCorrelation() {
   const { data: allEntries = [] } = useEntries();
   const { data: userDietPlan } = useUserDietPlan();
   const { data: dietPlans = [] } = useDietPlans();
+  const { data: profile } = useProfile();
+  const updateProfile = useUpdateProfile();
   const entries = useMemo(() => allEntries.slice(0, 30), [allEntries]);
+  const excludedIngredients = profile?.excluded_ingredients ?? [];
 
   // Merge manual meal logs with planned meals from the active diet plan
   const combinedMeals = useMemo(() => {
@@ -228,8 +232,54 @@ export default function SymptomFoodCorrelation() {
               </div>
             ))}
           </div>
+          {selectedIngredient && !excludedIngredients.includes(selectedIngredient.toLowerCase()) && (
+            <button
+              onClick={async () => {
+                const updated = [...excludedIngredients, selectedIngredient!.toLowerCase()];
+                await updateProfile.mutateAsync({ excluded_ingredients: updated } as any);
+                toast.success(`"${selectedIngredient}" will be excluded from future AI meal plans`);
+                setSelectedIngredient(null);
+              }}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-destructive/10 border border-destructive/20 py-2 text-sm font-medium text-destructive hover:bg-destructive/20 transition-colors"
+            >
+              <Ban className="h-3.5 w-3.5" />
+              Exclude from future meal plans
+            </button>
+          )}
+          {selectedIngredient && excludedIngredients.includes(selectedIngredient.toLowerCase()) && (
+            <p className="text-xs text-muted-foreground text-center py-1">
+              ✓ Already excluded from AI meal plans
+            </p>
+          )}
         </DialogContent>
       </Dialog>
+
+      {/* Excluded ingredients list */}
+      {excludedIngredients.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-3 shadow-soft">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Ban className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[11px] font-medium text-muted-foreground">Excluded from AI meal plans</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {excludedIngredients.map((ing, i) => (
+              <span key={i} className="inline-flex items-center gap-1 text-[10px] font-medium bg-destructive/10 text-destructive border border-destructive/20 px-2 py-0.5 rounded-full">
+                {ing}
+                <button
+                  onClick={async () => {
+                    const updated = excludedIngredients.filter(x => x !== ing);
+                    await updateProfile.mutateAsync({ excluded_ingredients: updated } as any);
+                    toast.success(`"${ing}" removed from exclusions`);
+                  }}
+                  className="hover:bg-destructive/20 rounded-full p-0.5 transition-colors"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

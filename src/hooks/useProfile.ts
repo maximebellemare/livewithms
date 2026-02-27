@@ -38,6 +38,7 @@ export interface Profile {
   grounding_weekly_goal: number;
   hydration_reminder_hour: number;
   pinned_metrics: string[];
+  excluded_ingredients: string[];
 }
 
 export const useProfile = () => {

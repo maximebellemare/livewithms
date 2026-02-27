@@ -1226,6 +1226,7 @@ export type Database = {
           created_at: string
           diagnosis_date: string | null
           display_name: string | null
+          excluded_ingredients: string[]
           goals: string[] | null
           grounding_weekly_goal: number
           hydration_goal: number
@@ -1270,6 +1271,7 @@ export type Database = {
           created_at?: string
           diagnosis_date?: string | null
           display_name?: string | null
+          excluded_ingredients?: string[]
           goals?: string[] | null
           grounding_weekly_goal?: number
           hydration_goal?: number
@@ -1314,6 +1316,7 @@ export type Database = {
           created_at?: string
           diagnosis_date?: string | null
           display_name?: string | null
+          excluded_ingredients?: string[]
           goals?: string[] | null
           grounding_weekly_goal?: number
           hydration_goal?: number
