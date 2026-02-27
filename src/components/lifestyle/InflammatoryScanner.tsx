@@ -46,7 +46,7 @@ export default function InflammatoryScanner() {
   const { isPremium } = usePremium();
   const { user } = useAuth();
   const { data: profile } = useProfile();
-  const { data: mealLogs = [] } = useMealLogs(3);
+  const { data: mealLogs = [] } = useMealLogs(50);
   const { data: scanHistory = [] } = useInflammatoryScanHistory(20);
   const saveScan = useSaveInflammatoryScan();
   const deleteScan = useDeleteInflammatoryScan();
@@ -349,9 +349,9 @@ export default function InflammatoryScanner() {
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Weekly Report */}
+      {/* Weekly Report — only counts meals from your diary */}
       {scanHistory.length >= 2 && (
-        <InflammationWeeklyReport scans={scanHistory} />
+        <InflammationWeeklyReport scans={scanHistory} mealLogNames={mealLogs.map(m => m.name)} />
       )}
 
       {/* Ingredient Alternatives Library */}

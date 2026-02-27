@@ -6,6 +6,7 @@ import type { InflammatoryScan } from "@/hooks/useInflammatoryScanHistory";
 
 interface Props {
   scans: InflammatoryScan[];
+  mealLogNames?: string[];
 }
 
 const scoreDot = { green: "bg-green-500", yellow: "bg-amber-500", red: "bg-red-500" };
@@ -15,13 +16,19 @@ const scoreIcon = {
   red: <ShieldX className="h-3.5 w-3.5 text-red-500" />,
 };
 
-export default function InflammationWeeklyReport({ scans }: Props) {
+export default function InflammationWeeklyReport({ scans, mealLogNames = [] }: Props) {
   const report = useMemo(() => {
     const weekAgo = subDays(new Date(), 7);
     const twoWeeksAgo = subDays(new Date(), 14);
 
-    const thisWeek = scans.filter(s => isAfter(new Date(s.scanned_at), weekAgo));
-    const lastWeek = scans.filter(s => {
+    // Only include scans that match actual meals from the diary
+    const logNamesLower = new Set(mealLogNames.map(n => n.toLowerCase()));
+    const dietScans = logNamesLower.size > 0
+      ? scans.filter(s => logNamesLower.has(s.meal_name.toLowerCase()))
+      : scans;
+
+    const thisWeek = dietScans.filter(s => isAfter(new Date(s.scanned_at), weekAgo));
+    const lastWeek = dietScans.filter(s => {
       const d = new Date(s.scanned_at);
       return isAfter(d, twoWeeksAgo) && !isAfter(d, weekAgo);
     });
@@ -55,7 +62,7 @@ export default function InflammationWeeklyReport({ scans }: Props) {
     });
 
     return { thisWeek, thisAvg, lastAvg, topFlags, dist, totalScans: thisWeek.length };
-  }, [scans]);
+  }, [scans, mealLogNames]);
 
   if (!report) return null;
 
