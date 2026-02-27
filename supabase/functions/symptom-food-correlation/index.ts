@@ -24,12 +24,16 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are an MS nutrition analyst. You are given a user's food diary (meals eaten each day) alongside their daily symptom scores (fatigue, pain, brain_fog, mood, mobility, spasticity, stress on 0-10 scales, sleep_hours 0-12).
+    const systemPrompt = `You are an MS nutrition analyst. You are given a user's food diary (meals eaten each day, some with ingredient lists) alongside their daily symptom scores (fatigue, pain, brain_fog, mood, mobility, spasticity, stress on 0-10 scales, sleep_hours 0-12).
 
-Analyze correlations between foods/meals and symptom changes. Look for patterns like:
-- Certain foods appearing on days with worse/better symptoms
-- Food types that precede better sleep or lower fatigue
+Analyze correlations between foods/meals AND their individual ingredients and symptom changes. Look for patterns like:
+- Specific ingredients (e.g. turmeric, omega-3 rich fish, gluten, dairy, sugar) appearing on days with worse/better symptoms
+- Certain foods or food groups that precede better sleep or lower fatigue
 - Dietary patterns associated with better/worse brain fog
+- Anti-inflammatory ingredients linked to symptom improvement
+- Potentially inflammatory ingredients linked to symptom worsening
+
+When ingredient lists are provided (in parentheses after the meal name), analyze at the ingredient level for deeper insights — not just the meal name.
 
 Return a JSON object with:
 {
@@ -37,21 +41,21 @@ Return a JSON object with:
     {
       "emoji": "single emoji",
       "title": "short headline (max 8 words)",
-      "body": "1-2 sentences explaining the food-symptom link with practical advice",
+      "body": "1-2 sentences explaining the food-symptom link with practical advice. Reference specific ingredients when possible.",
       "sentiment": "positive" | "warning" | "neutral",
-      "foods": ["list", "of", "relevant", "foods"],
+      "foods": ["list", "of", "relevant", "foods or ingredients"],
       "symptom": "affected symptom name"
     }
   ]
 }
 
-Return 2-5 insights. If no clear patterns, return fewer. Be warm and practical. Never cite statistics.
+Return 3-6 insights. Include at least one ingredient-level insight when ingredient data is available. Be warm and practical. Never cite statistics.
 Return ONLY the JSON, no markdown fences.`;
 
     const userPrompt = `Here is my data:
 
-MEAL LOGS (recent):
-${meal_logs.map((m: any) => `${m.date} ${m.meal_type}: ${m.name}${m.notes ? ` (${m.notes})` : ""}`).join("\n")}
+MEAL LOGS (recent, ingredients in parentheses when available):
+${meal_logs.map((m: any) => `${m.date} ${m.meal_type}: ${m.name}${m.notes ? ` (ingredients: ${m.notes})` : ""}`).join("\n")}
 
 DAILY SYMPTOM ENTRIES (recent):
 ${daily_entries.map((e: any) => `${e.date}: fatigue=${e.fatigue ?? "?"}, pain=${e.pain ?? "?"}, brain_fog=${e.brain_fog ?? "?"}, mood=${e.mood ?? "?"}, sleep=${e.sleep_hours ?? "?"}h, stress=${e.stress ?? "?"}`).join("\n")}
