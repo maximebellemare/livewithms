@@ -60,6 +60,7 @@ const EnergyBudgetPage = () => {
   const { data: history = [] } = useEnergyHistory(7);
   const { data: frequentActivities = [] } = useFrequentActivities(6);
   const [editingCostId, setEditingCostId] = useState<string | null>(null);
+  const [swipeHintDismissed, setSwipeHintDismissed] = useState(() => localStorage.getItem("hint_energy_swipe_used") === "1");
 
   const [newName, setNewName] = useState("");
   const [newCost, setNewCost] = useState(1);
@@ -455,6 +456,17 @@ const EnergyBudgetPage = () => {
                 setEditingCostId={setEditingCostId}
               />
             ))}
+            {activities.length > 0 && !swipeHintDismissed && (
+              <p
+                className="mt-1 text-center text-[11px] text-muted-foreground/60 animate-fade-in cursor-pointer select-none"
+                onClick={() => {
+                  localStorage.setItem("hint_energy_swipe_used", "1");
+                  setSwipeHintDismissed(true);
+                }}
+              >
+                ← Swipe left to delete · tap to dismiss
+              </p>
+            )}
           </div>
           {activities.length > 0 && (
             <p className="text-xs text-muted-foreground text-center pt-1">

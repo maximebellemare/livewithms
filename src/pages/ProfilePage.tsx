@@ -541,6 +541,7 @@ const ProfilePage = () => {
               { key: "hint_journal_swipe_used", label: "Swipe entry to edit/delete", page: "Journal", path: "/journal" },
               { key: "hint_pull_refresh_v1", label: "Pull down to refresh", page: "General", path: "/medications" },
               { key: "hint_appt_swipe_used", label: "Swipe to delete appointment", page: "Appointments", path: "/appointments" },
+              { key: "hint_energy_swipe_used", label: "Swipe to delete activity", page: "Energy", path: "/energy" },
             ];
             const active = HINTS.filter((h) => !localStorage.getItem(h.key));
             const dismissed = HINTS.filter((h) => localStorage.getItem(h.key));
