@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, Wand2, Brain, Pill, Zap, TrendingUp, Lightbulb, Flame, Fish, Shield, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, RefreshCw, Ban } from "lucide-react";
+import { Sparkles, Loader2, Wand2, Brain, Pill, Zap, TrendingUp, Lightbulb, Flame, Fish, Shield, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, RefreshCw, Ban, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePremium } from "@/hooks/usePremium";
@@ -247,9 +247,19 @@ export default function AIMealPlanner() {
               <Ban className="h-2.5 w-2.5" /> Excluding:
             </span>
             {(profile?.excluded_ingredients ?? []).map((ing, i) => (
-              <span key={i} className="text-[10px] font-medium bg-destructive/10 text-destructive border border-destructive/20 px-1.5 py-0.5 rounded-full">
+              <button
+                key={i}
+                onClick={async () => {
+                  const updated = (profile?.excluded_ingredients ?? []).filter((_, idx) => idx !== i);
+                  const { error } = await supabase.from("profiles").update({ excluded_ingredients: updated }).eq("user_id", user?.id);
+                  if (error) { toast.error("Failed to remove"); return; }
+                  toast.success(`"${ing}" removed from exclusions`);
+                }}
+                className="inline-flex items-center gap-1 text-[10px] font-medium bg-destructive/10 text-destructive border border-destructive/20 px-1.5 py-0.5 rounded-full hover:bg-destructive/20 transition-colors"
+              >
                 {ing}
-              </span>
+                <X className="h-2.5 w-2.5" />
+              </button>
             ))}
           </div>
         )}
