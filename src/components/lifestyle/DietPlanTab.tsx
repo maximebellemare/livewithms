@@ -294,7 +294,7 @@ function WeeklyPlannerSection({ plan, userPlan }: { plan: DietPlan; userPlan: No
               className={`flex-shrink-0 rounded-lg px-3 py-2 text-xs font-medium transition-all relative ${selectedDay === day ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
               <span className="block">{DAY_LABELS[day]}</span>
               <span className={`block text-[9px] mt-0.5 ${selectedDay === day ? "opacity-80" : "opacity-60"}`}>{dayNum}</span>
-              {dayCount > 0 && <span className={`block text-[9px] mt-0.5 ${selectedDay === day ? "opacity-80" : "opacity-60"}`}>{dayCount}/{MEALS.length}</span>}
+              
               {today && <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-1 ring-card" />}
             </button>
           );
