@@ -12,6 +12,9 @@ export interface DbAppointment {
   location: string | null;
   notes: string | null;
   reminder: string;
+  recurrence: string;
+  recurrence_parent_id: string | null;
+  checklist: { text: string; checked: boolean }[];
   created_at: string;
   updated_at: string;
 }
@@ -27,7 +30,7 @@ export const useDbAppointments = () => {
         .select("*")
         .order("date", { ascending: true });
       if (error) throw error;
-      return data as DbAppointment[];
+      return (data as unknown as DbAppointment[]);
     },
     enabled: !!user,
   });
@@ -50,6 +53,8 @@ export const useSaveAppointment = () => {
             location: appt.location,
             notes: appt.notes,
             reminder: appt.reminder || "none",
+            recurrence: appt.recurrence || "none",
+            checklist: appt.checklist || [],
           })
           .eq("id", appt.id)
           .select()
@@ -68,6 +73,8 @@ export const useSaveAppointment = () => {
             location: appt.location,
             notes: appt.notes,
             reminder: appt.reminder || "none",
+            recurrence: appt.recurrence || "none",
+            checklist: appt.checklist || [],
           })
           .select()
           .single();

@@ -16,11 +16,14 @@ export type Database = {
     Tables: {
       appointments: {
         Row: {
+          checklist: Json
           created_at: string
           date: string
           id: string
           location: string | null
           notes: string | null
+          recurrence: string
+          recurrence_parent_id: string | null
           reminder: string
           reminder_day_sent: boolean
           reminder_hour_sent: boolean
@@ -31,11 +34,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          checklist?: Json
           created_at?: string
           date: string
           id?: string
           location?: string | null
           notes?: string | null
+          recurrence?: string
+          recurrence_parent_id?: string | null
           reminder?: string
           reminder_day_sent?: boolean
           reminder_hour_sent?: boolean
@@ -46,11 +52,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          checklist?: Json
           created_at?: string
           date?: string
           id?: string
           location?: string | null
           notes?: string | null
+          recurrence?: string
+          recurrence_parent_id?: string | null
           reminder?: string
           reminder_day_sent?: boolean
           reminder_hour_sent?: boolean
@@ -60,7 +69,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "appointments_recurrence_parent_id_fkey"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       badge_events: {
         Row: {

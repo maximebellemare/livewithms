@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { format, isSameDay, parseISO } from "date-fns";
 import PageHeader from "@/components/PageHeader";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, ArrowLeft, Trash2, Edit2, MapPin, Clock, CalendarIcon, Bell, BellOff } from "lucide-react";
+import { Plus, ArrowLeft, Trash2, Edit2, MapPin, Clock, CalendarIcon, Bell, BellOff, Repeat } from "lucide-react";
 import { APPOINTMENT_TYPES, getAppointmentTypeInfo, AppointmentType } from "@/lib/appointments";
 import { useDbAppointments, useSaveAppointment, useDeleteAppointment } from "@/hooks/useAppointments";
 import { CardListSkeleton } from "@/components/PageSkeleton";
@@ -15,6 +15,8 @@ import SwipeableAppointmentCard from "@/components/appointments/SwipeableAppoint
 import { useIsMobile } from "@/hooks/use-mobile";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
+import AppointmentStats from "@/components/appointments/AppointmentStats";
+import PreVisitChecklist from "@/components/appointments/PreVisitChecklist";
 
 const AppointmentsPage = () => {
   const { data: appointments = [], isLoading } = useDbAppointments();
@@ -57,6 +59,8 @@ const AppointmentsPage = () => {
       location: "",
       notes: "",
       reminder: "none",
+      recurrence: "none",
+      checklist: [],
     });
     setShowForm(true);
   };
@@ -174,6 +178,38 @@ const AppointmentsPage = () => {
             )}
           </div>
 
+          <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
+            <label className="block text-sm font-medium text-foreground">Recurrence</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "none", label: "One-time" },
+                { value: "monthly", label: "Monthly" },
+                { value: "quarterly", label: "Every 3 months" },
+                { value: "biannual", label: "Every 6 months" },
+                { value: "annual", label: "Yearly" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setEditing({ ...editing, recurrence: opt.value })}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                    (editing.recurrence || "none") === opt.value
+                      ? "bg-primary text-primary-foreground shadow-soft"
+                      : "bg-secondary text-muted-foreground"
+                  }`}
+                >
+                  {opt.value !== "none" && <Repeat className="h-3 w-3" />}
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <PreVisitChecklist
+            type={editing.type || "custom"}
+            checklist={editing.checklist || []}
+            onChange={(checklist) => setEditing({ ...editing, checklist })}
+          />
+
           <div className="rounded-xl bg-card p-4 shadow-soft">
             <label className="block text-sm font-medium text-foreground mb-2">Notes (optional)</label>
             <textarea rows={2} value={editing.notes || ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} placeholder="Questions to ask..." className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
@@ -227,6 +263,8 @@ const AppointmentsPage = () => {
             </div>
           </div>
         )}
+
+        <AppointmentStats appointments={appointments} />
 
         <div className="space-y-2" data-tour="appts-list">
           {isLoading ? (

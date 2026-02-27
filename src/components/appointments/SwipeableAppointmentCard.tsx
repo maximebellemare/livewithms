@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
 import { motion, useMotionValue, useTransform, animate, PanInfo } from "framer-motion";
-import { Trash2, Edit2, MapPin, Clock, CalendarIcon } from "lucide-react";
+import { Trash2, Edit2, MapPin, Clock, CalendarIcon, Repeat } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { getAppointmentTypeInfo, AppointmentType } from "@/lib/appointments";
+import CountdownBadge from "./CountdownBadge";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   AlertDialog,
@@ -25,6 +26,7 @@ interface SwipeableAppointmentCardProps {
     time: string | null;
     location: string | null;
     notes: string | null;
+    recurrence?: string;
   };
   showDate: boolean;
   onEdit: () => void;
@@ -96,8 +98,19 @@ const SwipeableAppointmentCard = ({ appt, showDate, onEdit, onDelete }: Swipeabl
         {typeInfo.emoji}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-foreground">{appt.title}</p>
-        <p className="text-xs text-muted-foreground">{typeInfo.label}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium text-foreground truncate">{appt.title}</p>
+          <CountdownBadge date={appt.date} />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs text-muted-foreground">{typeInfo.label}</p>
+          {appt.recurrence && appt.recurrence !== "none" && (
+            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+              <Repeat className="h-2.5 w-2.5" />
+              {appt.recurrence}
+            </span>
+          )}
+        </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
           {showDate && (
             <span className="flex items-center gap-1">
