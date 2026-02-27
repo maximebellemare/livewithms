@@ -13,6 +13,10 @@ export interface DbMedication {
   active: boolean;
   color: string | null;
   reminder_time: string | null;
+  supply_count: number | null;
+  supply_unit: string | null;
+  refill_date: string | null;
+  pills_per_dose: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +66,10 @@ export const useSaveMedication = () => {
             active: med.active ?? true,
             color: med.color,
             reminder_time: med.reminder_time ?? null,
+            supply_count: med.supply_count ?? null,
+            supply_unit: med.supply_unit ?? "pills",
+            refill_date: med.refill_date ?? null,
+            pills_per_dose: med.pills_per_dose ?? 1,
           })
           .eq("id", med.id)
           .select()
@@ -81,6 +89,10 @@ export const useSaveMedication = () => {
             active: med.active ?? true,
             color: med.color,
             reminder_time: med.reminder_time ?? null,
+            supply_count: med.supply_count ?? null,
+            supply_unit: med.supply_unit ?? "pills",
+            refill_date: med.refill_date ?? null,
+            pills_per_dose: med.pills_per_dose ?? 1,
           })
           .select()
           .single();

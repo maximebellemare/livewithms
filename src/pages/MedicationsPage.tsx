@@ -1,13 +1,23 @@
 import { useState, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { format } from "date-fns";
 import SEOHead from "@/components/SEOHead";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import PageHeader from "@/components/PageHeader";
-import { Plus, Pill, Trash2, Edit2, ArrowLeft, Bell, BellOff } from "lucide-react";
+import { Plus, Pill, Trash2, Edit2, ArrowLeft, Bell, BellOff, Package, CalendarIcon } from "lucide-react";
 import { useDbMedications, useSaveMedication, useDeleteMedication } from "@/hooks/useMedications";
 import { CardListSkeleton } from "@/components/PageSkeleton";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
+import MedicationStats from "@/components/medications/MedicationStats";
+import SideEffectsTracker from "@/components/medications/SideEffectsTracker";
+import RefillAlert from "@/components/medications/RefillAlert";
+import DrugInteractionWarnings from "@/components/medications/DrugInteractionWarnings";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { parseISO } from "date-fns";
 
 const MedicationsPage = () => {
   const { data: meds = [], isLoading } = useDbMedications();
@@ -33,6 +43,10 @@ const MedicationsPage = () => {
       active: editing.active ?? true,
       color: editing.color,
       reminder_time: editing.reminder_enabled ? editing.reminder_time || null : null,
+      supply_count: editing.supply_count || null,
+      supply_unit: editing.supply_unit || "pills",
+      refill_date: editing.refill_date || null,
+      pills_per_dose: editing.pills_per_dose || 1,
     });
     setShowForm(false);
     setEditing(null);
@@ -57,6 +71,10 @@ const MedicationsPage = () => {
       active: true,
       reminder_enabled: false,
       reminder_time: "08:00",
+      supply_count: null,
+      supply_unit: "pills",
+      refill_date: null,
+      pills_per_dose: 1,
     });
     setShowForm(true);
   };
@@ -187,6 +205,80 @@ const MedicationsPage = () => {
             )}
           </div>
 
+          {/* Supply Tracking */}
+          <div className="card-base space-y-3">
+            <label className="block text-sm font-medium text-foreground flex items-center gap-2">
+              <Package className="h-4 w-4 text-primary" />
+              Supply Tracking (optional)
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Current supply</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={editing.supply_count ?? ""}
+                  onChange={(e) => setEditing({ ...editing, supply_count: e.target.value ? Number(e.target.value) : null })}
+                  placeholder="e.g. 30"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Unit</label>
+                <select
+                  value={editing.supply_unit || "pills"}
+                  onChange={(e) => setEditing({ ...editing, supply_unit: e.target.value })}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="pills">Pills</option>
+                  <option value="capsules">Capsules</option>
+                  <option value="tablets">Tablets</option>
+                  <option value="ml">mL</option>
+                  <option value="doses">Doses</option>
+                  <option value="injections">Injections</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Per dose</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={editing.pills_per_dose || 1}
+                  onChange={(e) => setEditing({ ...editing, pills_per_dose: Number(e.target.value) || 1 })}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Refill date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal text-xs", !editing.refill_date && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-1.5 h-3 w-3" />
+                      {editing.refill_date ? format(parseISO(editing.refill_date), "MMM d") : "Set date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={editing.refill_date ? parseISO(editing.refill_date) : undefined}
+                      onSelect={(d) => d && setEditing({ ...editing, refill_date: format(d, "yyyy-MM-dd") })}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          </div>
+
+          {/* Side Effects (only when editing existing) */}
+          {editing.id && (
+            <SideEffectsTracker medicationId={editing.id} medicationName={editing.name} />
+          )}
+
           <button
             onClick={handleSave}
             disabled={!editing.name || saveMutation.isPending}
@@ -213,6 +305,9 @@ const MedicationsPage = () => {
         }
       />
       <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg space-y-3 px-4 py-4">
+        <MedicationStats medications={meds} />
+        <DrugInteractionWarnings medications={meds} />
+        <RefillAlert medications={meds} />
         {isLoading ? (
           <CardListSkeleton count={3} />
         ) : meds.length === 0 ? (

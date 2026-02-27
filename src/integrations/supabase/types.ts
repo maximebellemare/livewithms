@@ -1243,6 +1243,47 @@ export type Database = {
           },
         ]
       }
+      medication_side_effects: {
+        Row: {
+          created_at: string
+          date: string
+          effect: string
+          id: string
+          medication_id: string
+          notes: string | null
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          effect: string
+          id?: string
+          medication_id: string
+          notes?: string | null
+          severity?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          effect?: string
+          id?: string
+          medication_id?: string
+          notes?: string | null
+          severity?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medication_side_effects_medication_id_fkey"
+            columns: ["medication_id"]
+            isOneToOne: false
+            referencedRelation: "medications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medications: {
         Row: {
           active: boolean
@@ -1252,8 +1293,12 @@ export type Database = {
           id: string
           infusion_interval_months: number | null
           name: string
+          pills_per_dose: number | null
+          refill_date: string | null
           reminder_time: string | null
           schedule_type: string
+          supply_count: number | null
+          supply_unit: string | null
           times_per_day: number | null
           updated_at: string
           user_id: string
@@ -1266,8 +1311,12 @@ export type Database = {
           id?: string
           infusion_interval_months?: number | null
           name: string
+          pills_per_dose?: number | null
+          refill_date?: string | null
           reminder_time?: string | null
           schedule_type?: string
+          supply_count?: number | null
+          supply_unit?: string | null
           times_per_day?: number | null
           updated_at?: string
           user_id: string
@@ -1280,8 +1329,12 @@ export type Database = {
           id?: string
           infusion_interval_months?: number | null
           name?: string
+          pills_per_dose?: number | null
+          refill_date?: string | null
           reminder_time?: string | null
           schedule_type?: string
+          supply_count?: number | null
+          supply_unit?: string | null
           times_per_day?: number | null
           updated_at?: string
           user_id?: string
