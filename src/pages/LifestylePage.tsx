@@ -1,19 +1,18 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { format } from "date-fns";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Check, Trash2, Dumbbell, Salad, Scale, Minus } from "lucide-react";
+import { Plus, Dumbbell, Salad, Scale, Minus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import {
   useExerciseLogs, useAddExercise, useDeleteExercise,
-  useWeightLogs, useAddWeight,
 } from "@/hooks/useLifestyleTracking";
 import DietPlanTab from "@/components/lifestyle/DietPlanTab";
+import WeightTab from "@/components/lifestyle/WeightTab";
 
 const EXERCISE_TYPES = ["Walking", "Swimming", "Yoga", "Stretching", "Cycling", "Strength Training", "Pilates", "Tai Chi", "Other"];
 const INTENSITIES = ["light", "moderate", "vigorous"];
@@ -132,73 +131,6 @@ function ExerciseTab() {
               <button onClick={() => deleteExercise.mutate(log.id)} className="text-muted-foreground hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
             </div>
           ))}
-        </div>
-      )}
-    </>
-  );
-}
-
-// ── Weight Tab ──
-function WeightTab() {
-  const { data: logs = [] } = useWeightLogs(90);
-  const addWeight = useAddWeight();
-  const [weight, setWeight] = useState("");
-  const [unit, setUnit] = useState("kg");
-
-  const handleAdd = async () => {
-    const w = parseFloat(weight);
-    if (isNaN(w) || w <= 0) { toast.error("Enter a valid weight"); return; }
-    try {
-      await addWeight.mutateAsync({ date: today, weight: w, unit });
-      toast.success("Weight logged!");
-      setWeight("");
-    } catch { toast.error("Failed to log weight"); }
-  };
-
-  const chartData = useMemo(() => logs.map((l) => ({
-    date: format(new Date(l.date + "T12:00:00"), "MMM d"),
-    weight: Number(l.weight),
-  })), [logs]);
-
-  return (
-    <>
-      <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
-        <h3 className="font-display text-sm font-semibold text-foreground">Log Weight</h3>
-        <div className="flex gap-2">
-          <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Weight" step="0.1" className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
-          <select value={unit} onChange={(e) => setUnit(e.target.value)} className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
-            <option value="kg">kg</option>
-            <option value="lbs">lbs</option>
-          </select>
-          <button onClick={handleAdd} disabled={addWeight.isPending} className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60">Log</button>
-        </div>
-      </div>
-
-      {chartData.length >= 2 && (
-        <div className="rounded-xl bg-card p-4 shadow-soft">
-          <h3 className="font-display text-sm font-semibold text-foreground mb-3">Weight Trend</h3>
-          <ResponsiveContainer width="100%" height={160}>
-            <LineChart data={chartData}>
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-              <YAxis domain={["auto", "auto"]} tick={{ fontSize: 10 }} width={40} />
-              <Tooltip />
-              <Line type="monotone" dataKey="weight" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {logs.length > 0 && (
-        <div className="rounded-xl bg-card p-4 shadow-soft">
-          <h3 className="font-display text-sm font-semibold text-foreground mb-2">Recent Entries</h3>
-          <div className="space-y-1">
-            {logs.slice(-10).reverse().map((l) => (
-              <div key={l.id} className="flex items-center justify-between text-sm py-1">
-                <span className="text-muted-foreground">{format(new Date(l.date + "T12:00:00"), "MMM d, yyyy")}</span>
-                <span className="font-medium text-foreground">{Number(l.weight)} {l.unit}</span>
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </>

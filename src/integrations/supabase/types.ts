@@ -1266,8 +1266,11 @@ export type Database = {
           diagnosis_date: string | null
           display_name: string | null
           excluded_ingredients: string[]
+          goal_weight: number | null
+          goal_weight_unit: string
           goals: string[] | null
           grounding_weekly_goal: number
+          height_cm: number | null
           hydration_goal: number
           hydration_reminder_hour: number
           id: string
@@ -1311,8 +1314,11 @@ export type Database = {
           diagnosis_date?: string | null
           display_name?: string | null
           excluded_ingredients?: string[]
+          goal_weight?: number | null
+          goal_weight_unit?: string
           goals?: string[] | null
           grounding_weekly_goal?: number
+          height_cm?: number | null
           hydration_goal?: number
           hydration_reminder_hour?: number
           id?: string
@@ -1356,8 +1362,11 @@ export type Database = {
           diagnosis_date?: string | null
           display_name?: string | null
           excluded_ingredients?: string[]
+          goal_weight?: number | null
+          goal_weight_unit?: string
           goals?: string[] | null
           grounding_weekly_goal?: number
+          height_cm?: number | null
           hydration_goal?: number
           hydration_reminder_hour?: number
           id?: string

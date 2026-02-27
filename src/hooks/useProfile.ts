@@ -39,6 +39,9 @@ export interface Profile {
   hydration_reminder_hour: number;
   pinned_metrics: string[];
   excluded_ingredients: string[];
+  height_cm: number | null;
+  goal_weight: number | null;
+  goal_weight_unit: string;
 }
 
 export const useProfile = () => {
