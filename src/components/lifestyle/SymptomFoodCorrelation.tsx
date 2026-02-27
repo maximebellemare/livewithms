@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, TrendingUp, AlertTriangle, Lightbulb } from "lucide-react";
+import { Sparkles, Loader2, TrendingUp, AlertTriangle, Lightbulb, ShieldCheck, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePremium } from "@/hooks/usePremium";
@@ -119,6 +119,52 @@ export default function SymptomFoodCorrelation() {
       </div>
 
       <AnimatePresence>
+        {hasRun && insights.length > 0 && (() => {
+          const beneficial = new Set<string>();
+          const problematic = new Set<string>();
+          insights.forEach(i => {
+            i.foods?.forEach(f => {
+              if (i.sentiment === "positive") beneficial.add(f);
+              else if (i.sentiment === "warning") problematic.add(f);
+            });
+          });
+          // Remove items that appear in both
+          beneficial.forEach(f => { if (problematic.has(f)) { beneficial.delete(f); problematic.delete(f); } });
+          if (beneficial.size === 0 && problematic.size === 0) return null;
+          return (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-xl border border-border bg-card p-4 shadow-soft space-y-3">
+              <h4 className="text-xs font-semibold text-foreground tracking-wide uppercase">Ingredient Impact Summary</h4>
+              {beneficial.size > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
+                    <span className="text-[11px] font-medium text-green-600 dark:text-green-400">Beneficial</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {[...beneficial].map((f, j) => (
+                      <span key={j} className="text-[10px] font-medium bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20 px-2 py-0.5 rounded-full">✓ {f}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {problematic.size > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <ShieldAlert className="h-3.5 w-3.5 text-amber-500" />
+                    <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">Watch Out</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {[...problematic].map((f, j) => (
+                      <span key={j} className="text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded-full">⚠ {f}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          );
+        })()}
+
         {hasRun && insights.length === 0 && !isLoading && (
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-muted-foreground text-center py-4">
             No clear patterns found yet. Keep logging for more insights!
