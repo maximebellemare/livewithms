@@ -30,14 +30,14 @@ const MUSCLE_GROUP_ANIMATIONS: Record<string, { emoji: string; label: string; co
   flexibility: { emoji: "🧘", label: "Flexibility", colors: "from-teal-500/20 to-cyan-500/20" },
 };
 
-/** Fetch an exercise GIF from ExerciseDB via edge function */
-async function fetchExerciseImage(name: string): Promise<string | null> {
+/** Fetch an AI-generated exercise illustration (cached in storage) */
+async function fetchExerciseImage(name: string, muscleGroup?: string): Promise<string | null> {
   try {
-    const { data, error } = await supabase.functions.invoke("exercise-image", {
-      body: { name },
+    const { data, error } = await supabase.functions.invoke("exercise-illustration", {
+      body: { name, muscle_group: muscleGroup },
     });
     if (error) return null;
-    return data?.gifUrl || null;
+    return data?.imageUrl || null;
   } catch {
     return null;
   }
@@ -50,7 +50,6 @@ export default function ExerciseDetailSheet({ exercise, onClose, msType }: Props
   const [imageLoading, setImageLoading] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
 
-  // Fetch exercise image when the exercise changes
   useEffect(() => {
     if (!exercise) return;
     setExerciseImageUrl(null);
@@ -58,7 +57,7 @@ export default function ExerciseDetailSheet({ exercise, onClose, msType }: Props
     setImageLoading(true);
     setAiExplanation(null);
 
-    fetchExerciseImage(exercise.name).then((url) => {
+    fetchExerciseImage(exercise.name, exercise.muscle_group).then((url) => {
       setExerciseImageUrl(url);
       setImageLoading(false);
       if (!url) setImageFailed(true);
@@ -139,18 +138,18 @@ Keep it friendly, concise, and practical.`,
             </button>
           </div>
 
-          {/* Exercise Image or Muscle Group Fallback */}
+          {/* Exercise Illustration or Muscle Group Fallback */}
           <div className={`rounded-xl bg-gradient-to-br ${mg.colors} p-3 flex items-center justify-center min-h-[140px] overflow-hidden`}>
             {imageLoading ? (
               <div className="flex flex-col items-center gap-2">
                 <Loader2 className="h-6 w-6 animate-spin text-foreground/50" />
-                <p className="text-[10px] text-foreground/50">Loading illustration…</p>
+                <p className="text-[10px] text-foreground/50">Generating illustration…</p>
               </div>
             ) : exerciseImageUrl && !imageFailed ? (
               <img
                 src={exerciseImageUrl}
-                alt={`${exercise.name} demonstration`}
-                className="max-h-[180px] w-auto rounded-lg object-contain"
+                alt={`${exercise.name} illustration`}
+                className="max-h-[200px] w-auto rounded-lg object-contain"
                 onError={() => setImageFailed(true)}
               />
             ) : (
@@ -158,19 +157,12 @@ Keep it friendly, concise, and practical.`,
                 {imageFailed && (
                   <div className="flex items-center justify-center gap-1 mb-1">
                     <ImageOff className="h-3 w-3 text-foreground/40" />
-                    <p className="text-[9px] text-foreground/40">No illustration found</p>
+                    <p className="text-[9px] text-foreground/40">Illustration unavailable</p>
                   </div>
                 )}
                 <motion.div
-                  animate={{
-                    scale: [1, 1.15, 1],
-                    rotate: [0, 3, -3, 0],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
+                  animate={{ scale: [1, 1.15, 1], rotate: [0, 3, -3, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                   className="text-4xl"
                 >
                   {mg.emoji}
@@ -179,6 +171,15 @@ Keep it friendly, concise, and practical.`,
               </div>
             )}
           </div>
+
+          {/* AI badge */}
+          {exerciseImageUrl && !imageFailed && (
+            <div className="flex justify-center">
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-medium text-primary">
+                ✨ AI-generated
+              </span>
+            </div>
+          )}
 
           {/* Form Tip */}
           {exercise.instruction && (
