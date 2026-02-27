@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { format, subMonths, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
+import { ComposedChart, Bar, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { useRelapses } from "@/hooks/useRelapses";
 import { TrendingUp } from "lucide-react";
 
@@ -44,7 +44,7 @@ const RelapseMonthlyTrendChart = () => {
 
       <div className="h-36">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} barCategoryGap="20%">
+          <ComposedChart data={chartData} barCategoryGap="20%">
             <XAxis
               dataKey="month"
               tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
@@ -82,7 +82,17 @@ const RelapseMonthlyTrendChart = () => {
                 />
               ))}
             </Bar>
-          </BarChart>
+            <Line
+              dataKey="count"
+              type="monotone"
+              stroke="hsl(var(--primary))"
+              strokeWidth={1.5}
+              strokeOpacity={0.6}
+              dot={false}
+              activeDot={false}
+              strokeDasharray="4 3"
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>
