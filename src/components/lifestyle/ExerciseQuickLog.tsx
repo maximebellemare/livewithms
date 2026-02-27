@@ -88,7 +88,7 @@ export default function ExerciseQuickLog() {
             <input
               type="range"
               min={5}
-              max={120}
+              max={240}
               step={5}
               value={duration}
               onChange={(e) => setDuration(Number(e.target.value))}
