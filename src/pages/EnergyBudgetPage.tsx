@@ -5,7 +5,17 @@ import { format } from "date-fns";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus, Check, Zap, Battery, BatteryLow, BatteryWarning, ChevronDown, ChevronUp, Info, ExternalLink, Star, Pencil } from "lucide-react";
+import { Plus, Minus, Check, Zap, Battery, BatteryLow, BatteryWarning, ChevronDown, ChevronUp, Info, ExternalLink, Star, Pencil, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import SwipeableActivityRow from "@/components/energy/SwipeableActivityRow";
 import {
   DndContext,
@@ -105,6 +115,15 @@ const EnergyBudgetPage = () => {
   const { data: history = [] } = useEnergyHistory(7);
   const { data: frequentActivities = [] } = useFrequentActivities(6);
   const [editingCostId, setEditingCostId] = useState<string | null>(null);
+  const [showClearCompleted, setShowClearCompleted] = useState(false);
+
+  const completedActivities = useMemo(() => activities.filter(a => a.completed), [activities]);
+
+  const handleClearCompleted = () => {
+    completedActivities.forEach(a => deleteActivity.mutate(a.id));
+    toast.success(`${completedActivities.length} completed activit${completedActivities.length === 1 ? "y" : "ies"} cleared`);
+    setShowClearCompleted(false);
+  };
   const [swipeHintDismissed, setSwipeHintDismissed] = useState(() => localStorage.getItem("hint_energy_swipe_used") === "1");
 
   const sensors = useSensors(
@@ -558,9 +577,20 @@ const EnergyBudgetPage = () => {
             </SortableContext>
           </DndContext>
           {activities.length > 0 && (
-            <p className="text-xs text-muted-foreground text-center pt-1">
-              {activities.filter(a => a.completed).length} of {activities.length} done
-            </p>
+            <div className="flex items-center justify-between pt-1 px-1">
+              <p className="text-xs text-muted-foreground">
+                {activities.filter(a => a.completed).length} of {activities.length} done
+              </p>
+              {activities.filter(a => a.completed).length > 0 && (
+                <button
+                  onClick={() => setShowClearCompleted(true)}
+                  className="flex items-center gap-1 text-xs text-destructive/70 hover:text-destructive transition-colors"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Clear completed
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -659,6 +689,21 @@ const EnergyBudgetPage = () => {
           </div>
         </div>
       </PullToRefresh>
+
+      <AlertDialog open={showClearCompleted} onOpenChange={setShowClearCompleted}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear completed activities?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove {completedActivities.length} completed activit{completedActivities.length === 1 ? "y" : "ies"} from today's plan. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleClearCompleted}>Clear All</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
