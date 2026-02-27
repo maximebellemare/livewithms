@@ -148,7 +148,7 @@ const FatiguePatternContent = () => {
             className={`rounded-lg border p-3 ${severityStyles[pattern.severity]} transition-colors`}
           >
             <div className="flex items-start gap-2.5">
-              <span className="text-lg leading-none mt-0.5">{pattern.icon}</span>
+              <span className="text-lg leading-none mt-0.5">{pattern.icon || "⚡"}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h4 className="text-xs font-semibold text-foreground">{pattern.title}</h4>
