@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, Wand2, Brain, Pill, Zap, TrendingUp, Lightbulb, Flame, Fish, Shield, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Sparkles, Loader2, Wand2, Brain, Pill, Zap, TrendingUp, Lightbulb, Flame, Fish, Shield, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePremium } from "@/hooks/usePremium";
@@ -33,6 +33,7 @@ export default function AIMealPlanner() {
   const { user } = useAuth();
   const updateWeekly = useUpdateWeeklySelections();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [regeneratingDay, setRegeneratingDay] = useState<string | null>(null);
   const [preferences, setPreferences] = useState("");
   const [reasoning, setReasoning] = useState<string[]>([]);
   const [dailyNutrition, setDailyNutrition] = useState<Record<string, DayNutrition>>({});
@@ -147,7 +148,47 @@ export default function AIMealPlanner() {
     }
   };
 
-  // Show personalization signals
+  const handleRegenerateDay = async (day: string) => {
+    setRegeneratingDay(day);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-meal-planner", {
+        body: {
+          recipes: plan.recipes,
+          diet_name: plan.name,
+          preferences: preferences.trim() || undefined,
+          single_day: day,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const dayPlan = data.plan as WeeklySelections;
+      // Merge the single day into existing selections
+      const currentSelections = userPlan.weekly_selections || {};
+      const merged: WeeklySelections = { ...currentSelections, ...dayPlan };
+      await updateWeekly.mutateAsync({
+        userDietPlanId: userPlan.id,
+        weekly_selections: merged,
+      });
+
+      // Update daily nutrition for just this day
+      if (data.daily_nutrition?.[day]) {
+        setDailyNutrition(prev => ({ ...prev, [day]: data.daily_nutrition[day] }));
+      }
+
+      if (data.reasoning?.length) {
+        setReasoning(data.reasoning);
+      }
+
+      toast.success(`${DAY_LABELS[day]} meals regenerated! 🔄`);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to regenerate day");
+    } finally {
+      setRegeneratingDay(null);
+    }
+  };
+
+
   const signals: { icon: typeof Brain; label: string }[] = [];
   if (profile?.ms_type) signals.push({ icon: Brain, label: profile.ms_type });
   if (profile?.symptoms?.length) signals.push({ icon: TrendingUp, label: `${profile.symptoms.length} symptoms tracked` });
@@ -252,6 +293,14 @@ export default function AIMealPlanner() {
                   className="p-0.5 rounded hover:bg-secondary/60 disabled:opacity-30 transition-colors"
                 >
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+                <button
+                  onClick={() => handleRegenerateDay(currentDay)}
+                  disabled={!!regeneratingDay}
+                  className="p-1 rounded-md hover:bg-secondary/60 disabled:opacity-40 transition-colors ml-1"
+                  title={`Regenerate ${DAY_LABELS[currentDay]} meals`}
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground ${regeneratingDay === currentDay ? "animate-spin" : ""}`} />
                 </button>
               </div>
             </div>

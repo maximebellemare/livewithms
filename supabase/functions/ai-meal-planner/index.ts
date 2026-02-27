@@ -69,7 +69,7 @@ serve(async (req) => {
       });
     }
 
-    const { recipes, diet_name, preferences } = await req.json();
+    const { recipes, diet_name, preferences, single_day } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI service not configured");
@@ -107,7 +107,10 @@ serve(async (req) => {
     const likedMeals = ratings.filter((r: any) => r.rating === "up").map((r: any) => r.meal_name);
     const dislikedMeals = ratings.filter((r: any) => r.rating === "down").map((r: any) => r.meal_name);
 
-    const prompt = `You are an MS nutrition specialist. Generate a personalized weekly meal plan for the "${diet_name}" diet.
+    const isSingleDay = !!single_day;
+    const dayScope = isSingleDay ? `ONLY for ${single_day}` : "for the full week (monday through sunday)";
+
+    const prompt = `You are an MS nutrition specialist. Generate a personalized meal plan ${dayScope} for the "${diet_name}" diet.
 
 ## User's MS Profile
 - MS type: ${profile?.ms_type || "not specified"}
@@ -163,7 +166,20 @@ Return a JSON object with three keys:
    - anti_inflammatory_score: 1-10 rating of how anti-inflammatory the day's meals are (10 = most anti-inflammatory)
    - top_nutrients: 2-3 key nutrients that day's meals are especially rich in (e.g. "Vitamin D", "Iron", "Magnesium")
 
-Format:
+${isSingleDay ? `Format (single day):
+{
+  "plan": { "${single_day}": { "breakfast": "recipe_id_or_custom:name", "lunch": "...", "dinner": "...", "snack": "..." } },
+  "reasoning": [
+    "Meal Name — benefit for symptom/condition"
+  ],
+  "daily_nutrition": {
+    "${single_day}": { "calories": 1650, "omega3_mg": 2200, "anti_inflammatory_score": 8, "top_nutrients": ["Omega-3", "Turmeric", "Vitamin D"] }
+  }
+}
+
+Rules:
+- Generate meals ONLY for ${single_day}
+- Cover all 4 meal types (breakfast, lunch, dinner, snack)` : `Format:
 {
   "plan": { "monday": { "breakfast": "recipe_id_or_custom:name", "lunch": "...", "dinner": "...", "snack": "..." }, ... },
   "reasoning": [
@@ -179,7 +195,7 @@ Format:
 
 Rules:
 - Cover all 7 days (monday through sunday)
-- Cover all 4 meal types (breakfast, lunch, dinner, snack)
+- Cover all 4 meal types (breakfast, lunch, dinner, snack)`}
 - Prioritize anti-inflammatory and nutrient-dense foods
 - Adapt meal complexity to the user's energy level
 - Vary meals across the week for nutritional diversity
