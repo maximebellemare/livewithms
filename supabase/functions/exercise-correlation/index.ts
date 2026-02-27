@@ -86,7 +86,7 @@ Respond with ONLY valid JSON:
       "duration": "e.g. 30 minutes",
       "warmup": "Specific warmup instructions (2-3 min)",
       "exercises": [
-        { "name": "Exercise name", "sets": "3", "reps": "10-12", "rest": "60s", "instruction": "Brief form tip or MS-specific modification" }
+        { "name": "Exercise name", "sets": "3", "reps": "10-12", "rest": "60s", "instruction": "Brief form tip or MS-specific modification", "steps": ["Step 1: Stand with feet shoulder-width apart...", "Step 2: Slowly lower..."], "muscle_group": "upper_body|lower_body|core|full_body|cardio|flexibility" }
       ],
       "cooldown": "Specific cooldown instructions (2-3 min)",
       "notes": "Any MS-specific tips for this session"
