@@ -29,7 +29,7 @@ import RelapseFreeStreakBanner from "@/components/relapses/RelapseFreeStreakBann
 import RelapseStatsDashboard from "@/components/relapses/RelapseStatsDashboard";
 import RelapseFilters, { RelapseFilterState } from "@/components/relapses/RelapseFilters";
 import ExportRelapseHistory from "@/components/relapses/ExportRelapseHistory";
-import RelapseMonthlyTrendChart from "@/components/relapses/RelapseMonthlyTrendChart";
+import RelapseMonthlyTrendChart, { MonthSelection } from "@/components/relapses/RelapseMonthlyTrendChart";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -431,6 +431,7 @@ const RelapsesPage = () => {
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<MonthSelection | null>(null);
   const [filters, setFilters] = useState<RelapseFilterState>({
     severity: null,
     status: "all",
@@ -455,9 +456,13 @@ const RelapsesPage = () => {
           r.severity.toLowerCase().includes(q);
         if (!matches) return false;
       }
+      if (selectedMonth) {
+        const d = parseISO(r.start_date);
+        if (d.getFullYear() !== selectedMonth.year || d.getMonth() !== selectedMonth.month) return false;
+      }
       return true;
     });
-  }, [relapses, filters]);
+  }, [relapses, filters, selectedMonth]);
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["relapses"] });
@@ -524,7 +529,7 @@ const RelapsesPage = () => {
 
         {/* Monthly trend chart */}
         <StaggerItem>
-          <RelapseMonthlyTrendChart />
+          <RelapseMonthlyTrendChart selectedMonth={selectedMonth} onMonthSelect={setSelectedMonth} />
         </StaggerItem>
 
         {/* Actions row */}

@@ -2,9 +2,20 @@ import { useMemo } from "react";
 import { format, subMonths, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { ComposedChart, Bar, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { useRelapses } from "@/hooks/useRelapses";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, X } from "lucide-react";
 
-const RelapseMonthlyTrendChart = () => {
+export interface MonthSelection {
+  year: number;
+  month: number; // 0-indexed
+  label: string;
+}
+
+interface Props {
+  selectedMonth?: MonthSelection | null;
+  onMonthSelect?: (month: MonthSelection | null) => void;
+}
+
+const RelapseMonthlyTrendChart = ({ selectedMonth, onMonthSelect }: Props) => {
   const { data: relapses } = useRelapses();
 
   const chartData = useMemo(() => {
@@ -20,6 +31,8 @@ const RelapseMonthlyTrendChart = () => {
         month: format(date, "MMM"),
         fullMonth: format(date, "MMMM yyyy"),
         count,
+        year: date.getFullYear(),
+        monthIndex: date.getMonth(),
       };
     });
     return months;
@@ -29,6 +42,18 @@ const RelapseMonthlyTrendChart = () => {
   const totalYear = chartData.reduce((sum, d) => sum + d.count, 0);
 
   if (!relapses || relapses.length === 0) return null;
+
+  const handleBarClick = (data: any) => {
+    if (!onMonthSelect) return;
+    const entry = data?.activePayload?.[0]?.payload;
+    if (!entry) return;
+    // Toggle off if same month selected
+    if (selectedMonth && selectedMonth.year === entry.year && selectedMonth.month === entry.monthIndex) {
+      onMonthSelect(null);
+    } else {
+      onMonthSelect({ year: entry.year, month: entry.monthIndex, label: entry.fullMonth });
+    }
+  };
 
   return (
     <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
@@ -42,9 +67,19 @@ const RelapseMonthlyTrendChart = () => {
         </span>
       </div>
 
+      {selectedMonth && (
+        <button
+          onClick={() => onMonthSelect?.(null)}
+          className="flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+        >
+          Showing: {selectedMonth.label}
+          <X className="h-3 w-3" />
+        </button>
+      )}
+
       <div className="h-36">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} barCategoryGap="20%">
+          <ComposedChart data={chartData} barCategoryGap="20%" onClick={handleBarClick} style={{ cursor: onMonthSelect ? "pointer" : undefined }}>
             <XAxis
               dataKey="month"
               tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
@@ -75,12 +110,23 @@ const RelapseMonthlyTrendChart = () => {
               }}
             />
             <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={24}>
-              {chartData.map((entry, index) => (
-                <Cell
-                  key={index}
-                  fill={entry.count > 0 ? "hsl(var(--primary))" : "hsl(var(--muted) / 0.5)"}
-                />
-              ))}
+              {chartData.map((entry, index) => {
+                const isSelected = selectedMonth
+                  ? selectedMonth.year === entry.year && selectedMonth.month === entry.monthIndex
+                  : true;
+                return (
+                  <Cell
+                    key={index}
+                    fill={
+                      entry.count > 0
+                        ? isSelected
+                          ? "hsl(var(--primary))"
+                          : "hsl(var(--primary) / 0.25)"
+                        : "hsl(var(--muted) / 0.5)"
+                    }
+                  />
+                );
+              })}
             </Bar>
             <Line
               dataKey="count"
