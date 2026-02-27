@@ -21,6 +21,13 @@ import {
 } from "@/hooks/useEnergyBudget";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import WeeklyTrendsChart from "@/components/energy/WeeklyTrendsChart";
+import OverexertionAlert from "@/components/energy/OverexertionAlert";
+import FatigueCorrelation from "@/components/energy/FatigueCorrelation";
+import AppointmentImport from "@/components/energy/AppointmentImport";
+import RestBufferSuggestion from "@/components/energy/RestBufferSuggestion";
+import EndOfDayReflection from "@/components/energy/EndOfDayReflection";
+import WeeklyConsistency from "@/components/energy/WeeklyConsistency";
 
 const SPOON_KEY = "livewithms_last_spoon_count";
 
@@ -475,6 +482,39 @@ const EnergyBudgetPage = () => {
           )}
         </div>
 
+        {/* Overexertion Alert */}
+        <OverexertionAlert
+          plannedSpoons={plannedSpoons}
+          totalSpoons={totalSpoons}
+          history={history}
+        />
+
+        {/* Appointment Import */}
+        <AppointmentImport
+          budgetId={budget.id}
+          activities={activities}
+          onImport={(name, cost) => handleAddPreset({ name, cost })}
+        />
+
+        {/* Rest Buffer Suggestion */}
+        <RestBufferSuggestion totalSpoons={totalSpoons} plannedSpoons={plannedSpoons} />
+
+        {/* Weekly Trends Chart */}
+        <WeeklyTrendsChart history={history} />
+
+        {/* Fatigue Correlation */}
+        <FatigueCorrelation history={history} />
+
+        {/* Weekly Consistency */}
+        <WeeklyConsistency history={history} />
+
+        {/* End of Day Reflection */}
+        <EndOfDayReflection
+          totalSpoons={totalSpoons}
+          usedSpoons={usedSpoons}
+          activitiesCount={activities.length}
+        />
+
         {/* 7-day history */}
         <div className="rounded-xl bg-card p-4 shadow-soft">
           <button
@@ -507,7 +547,7 @@ const EnergyBudgetPage = () => {
                         <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all ${
-                              day.used > day.total_spoons ? "bg-red-500" : "bg-primary"
+                              day.used > day.total_spoons ? "bg-destructive" : "bg-primary"
                             }`}
                             style={{ width: `${dayPct}%` }}
                           />
