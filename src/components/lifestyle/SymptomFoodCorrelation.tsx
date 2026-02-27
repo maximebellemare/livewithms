@@ -7,6 +7,7 @@ import { usePremium } from "@/hooks/usePremium";
 import PremiumGate from "@/components/PremiumGate";
 import { useMealLogs } from "@/hooks/useMealLogs";
 import { useEntries } from "@/hooks/useEntries";
+import { useUserDietPlan, useDietPlans, Recipe } from "@/hooks/useDietPlans";
 import { useMemo } from "react";
 
 interface FoodInsight {
@@ -22,7 +23,40 @@ export default function SymptomFoodCorrelation() {
   const { isPremium } = usePremium();
   const { data: mealLogs = [] } = useMealLogs(30);
   const { data: allEntries = [] } = useEntries();
+  const { data: userDietPlan } = useUserDietPlan();
+  const { data: dietPlans = [] } = useDietPlans();
   const entries = useMemo(() => allEntries.slice(0, 30), [allEntries]);
+
+  // Merge manual meal logs with planned meals from the active diet plan
+  const combinedMeals = useMemo(() => {
+    const meals = [...mealLogs];
+    if (userDietPlan?.weekly_selections) {
+      const plan = dietPlans.find(p => p.id === userDietPlan.plan_id);
+      const allRecipes = plan?.recipes ?? [];
+      const swaps = userDietPlan.swapped_recipes ?? {};
+      Object.entries(userDietPlan.weekly_selections).forEach(([day, dayMeals]) => {
+        Object.entries(dayMeals as Record<string, string>).forEach(([mealType, recipeId]) => {
+          const recipe: Recipe | undefined = swaps[recipeId] ?? allRecipes.find(r => r.id === recipeId);
+          const name = recipe?.name ?? recipeId;
+          // Only add if not already in meal logs (avoid duplicates)
+          const isDuplicate = meals.some(m => m.name === name && m.meal_type === mealType);
+          if (!isDuplicate) {
+            meals.push({
+              id: `plan-${day}-${mealType}`,
+              user_id: "",
+              date: day,
+              meal_type: mealType,
+              name,
+              notes: recipe?.ingredients?.join(", ") ?? null,
+              created_at: "",
+            });
+          }
+        });
+      });
+    }
+    return meals;
+  }, [mealLogs, userDietPlan, dietPlans]);
+
   const [insights, setInsights] = useState<FoodInsight[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasRun, setHasRun] = useState(false);
@@ -30,13 +64,13 @@ export default function SymptomFoodCorrelation() {
   if (!isPremium) return <PremiumGate feature="Symptom-Food Correlation" compact />;
 
   const handleAnalyze = async () => {
-    if (mealLogs.length < 5) { toast.error("Log at least 5 meals to see correlations"); return; }
+    if (combinedMeals.length < 5) { toast.error("Log at least 5 meals to see correlations"); return; }
     if (entries.length < 5) { toast.error("Log at least 5 daily entries to see correlations"); return; }
 
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("symptom-food-correlation", {
-        body: { meal_logs: mealLogs.slice(0, 50), daily_entries: entries.slice(0, 30) },
+        body: { meal_logs: combinedMeals.slice(0, 50), daily_entries: entries.slice(0, 30) },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -80,7 +114,7 @@ export default function SymptomFoodCorrelation() {
         </button>
 
         <p className="text-[10px] text-muted-foreground text-center mt-2">
-          Based on {mealLogs.length} meals & {entries.length} symptom entries
+          Based on {combinedMeals.length} meals & {entries.length} symptom entries
         </p>
       </div>
 
