@@ -10,6 +10,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMealLogs } from "@/hooks/useMealLogs";
 import { useInflammatoryScanHistory, useSaveInflammatoryScan, useDeleteInflammatoryScan } from "@/hooks/useInflammatoryScanHistory";
 import PremiumGate from "@/components/PremiumGate";
+import InflammationWeeklyReport from "./InflammationWeeklyReport";
+import IngredientAlternatives from "./IngredientAlternatives";
 
 interface ScanFlag {
   ingredient: string;
@@ -347,6 +349,13 @@ export default function InflammatoryScanner() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Weekly Report */}
+      {scanHistory.length >= 2 && (
+        <InflammationWeeklyReport scans={scanHistory} />
+      )}
+
+      {/* Ingredient Alternatives Library */}
+      <IngredientAlternatives />
     </div>
   );
 }
