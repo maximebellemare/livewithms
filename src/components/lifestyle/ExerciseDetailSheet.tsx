@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, MessageCircle, Loader2, ImageOff } from "lucide-react";
+import { X, MessageCircle, Loader2, ImageOff, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
@@ -30,43 +30,48 @@ const MUSCLE_GROUP_ANIMATIONS: Record<string, { emoji: string; label: string; co
   flexibility: { emoji: "🧘", label: "Flexibility", colors: "from-teal-500/20 to-cyan-500/20" },
 };
 
-/** Fetch an AI-generated exercise illustration (cached in storage) */
-async function fetchExerciseImage(name: string, muscleGroup?: string): Promise<string | null> {
+interface IllustrationImages {
+  startUrl: string | null;
+  endUrl: string | null;
+}
+
+async function fetchExerciseImages(name: string, muscleGroup?: string): Promise<IllustrationImages> {
   try {
     const { data, error } = await supabase.functions.invoke("exercise-illustration", {
       body: { name, muscle_group: muscleGroup },
     });
-    if (error) return null;
-    return data?.imageUrl || null;
+    if (error) return { startUrl: null, endUrl: null };
+    return { startUrl: data?.startUrl || null, endUrl: data?.endUrl || null };
   } catch {
-    return null;
+    return { startUrl: null, endUrl: null };
   }
 }
 
 export default function ExerciseDetailSheet({ exercise, onClose, msType }: Props) {
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
-  const [exerciseImageUrl, setExerciseImageUrl] = useState<string | null>(null);
+  const [images, setImages] = useState<IllustrationImages>({ startUrl: null, endUrl: null });
   const [imageLoading, setImageLoading] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
     if (!exercise) return;
-    setExerciseImageUrl(null);
+    setImages({ startUrl: null, endUrl: null });
     setImageFailed(false);
     setImageLoading(true);
     setAiExplanation(null);
 
-    fetchExerciseImage(exercise.name, exercise.muscle_group).then((url) => {
-      setExerciseImageUrl(url);
+    fetchExerciseImages(exercise.name, exercise.muscle_group).then((result) => {
+      setImages(result);
       setImageLoading(false);
-      if (!url) setImageFailed(true);
+      if (!result.startUrl && !result.endUrl) setImageFailed(true);
     });
   }, [exercise?.name]);
 
   if (!exercise) return null;
 
   const mg = MUSCLE_GROUP_ANIMATIONS[exercise.muscle_group || "full_body"] || MUSCLE_GROUP_ANIMATIONS.full_body;
+  const hasImages = (images.startUrl || images.endUrl) && !imageFailed;
 
   const askCoach = async () => {
     setLoadingAi(true);
@@ -138,26 +143,56 @@ Keep it friendly, concise, and practical.`,
             </button>
           </div>
 
-          {/* Exercise Illustration or Muscle Group Fallback */}
-          <div className={`rounded-xl bg-gradient-to-br ${mg.colors} p-3 flex items-center justify-center min-h-[140px] overflow-hidden`}>
+          {/* Exercise Illustrations (Start → End) or Fallback */}
+          <div className={`rounded-xl bg-gradient-to-br ${mg.colors} p-3 min-h-[140px]`}>
             {imageLoading ? (
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center justify-center gap-2 min-h-[140px]">
                 <Loader2 className="h-6 w-6 animate-spin text-foreground/50" />
-                <p className="text-[10px] text-foreground/50">Generating illustration…</p>
+                <p className="text-[10px] text-foreground/50">Generating illustrations…</p>
               </div>
-            ) : exerciseImageUrl && !imageFailed ? (
-              <img
-                src={exerciseImageUrl}
-                alt={`${exercise.name} illustration`}
-                className="max-h-[200px] w-auto rounded-lg object-contain"
-                onError={() => setImageFailed(true)}
-              />
+            ) : hasImages ? (
+              <div className="flex items-center gap-2">
+                {/* Start position */}
+                <div className="flex-1 text-center space-y-1">
+                  <p className="text-[9px] font-semibold text-foreground/60 uppercase tracking-wide">Start</p>
+                  {images.startUrl ? (
+                    <img
+                      src={images.startUrl}
+                      alt={`${exercise.name} – starting position`}
+                      className="max-h-[160px] w-auto mx-auto rounded-lg object-contain"
+                      onError={() => setImageFailed(true)}
+                    />
+                  ) : (
+                    <div className="h-[120px] flex items-center justify-center text-3xl">{mg.emoji}</div>
+                  )}
+                </div>
+
+                {/* Arrow */}
+                <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                  <ArrowRight className="h-5 w-5 text-foreground/40" />
+                </div>
+
+                {/* End position */}
+                <div className="flex-1 text-center space-y-1">
+                  <p className="text-[9px] font-semibold text-foreground/60 uppercase tracking-wide">End</p>
+                  {images.endUrl ? (
+                    <img
+                      src={images.endUrl}
+                      alt={`${exercise.name} – end position`}
+                      className="max-h-[160px] w-auto mx-auto rounded-lg object-contain"
+                      onError={() => setImageFailed(true)}
+                    />
+                  ) : (
+                    <div className="h-[120px] flex items-center justify-center text-3xl">{mg.emoji}</div>
+                  )}
+                </div>
+              </div>
             ) : (
-              <div className="text-center space-y-1">
+              <div className="text-center space-y-1 flex flex-col items-center justify-center min-h-[140px]">
                 {imageFailed && (
                   <div className="flex items-center justify-center gap-1 mb-1">
                     <ImageOff className="h-3 w-3 text-foreground/40" />
-                    <p className="text-[9px] text-foreground/40">Illustration unavailable</p>
+                    <p className="text-[9px] text-foreground/40">Illustrations unavailable</p>
                   </div>
                 )}
                 <motion.div
@@ -173,7 +208,7 @@ Keep it friendly, concise, and practical.`,
           </div>
 
           {/* AI badge */}
-          {exerciseImageUrl && !imageFailed && (
+          {hasImages && (
             <div className="flex justify-center">
               <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-medium text-primary">
                 ✨ AI-generated
