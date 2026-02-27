@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, forwardRef } from "react";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
-import { Check, Minus, Plus, Trash2 } from "lucide-react";
+import { Check, GripVertical, Minus, Plus, Trash2 } from "lucide-react";
 
 interface SwipeableActivityRowProps {
   activity: {
@@ -14,6 +14,8 @@ interface SwipeableActivityRowProps {
   onUpdateCost: (cost: number) => void;
   editingCostId: string | null;
   setEditingCostId: (id: string | null) => void;
+  dragHandleProps?: Record<string, any>;
+  isDragging?: boolean;
 }
 
 const SWIPE_THRESHOLD = -80;
@@ -25,6 +27,8 @@ export default function SwipeableActivityRow({
   onUpdateCost,
   editingCostId,
   setEditingCostId,
+  dragHandleProps,
+  isDragging,
 }: SwipeableActivityRowProps) {
   const x = useMotionValue(0);
   const deleteOpacity = useTransform(x, [-100, -60, 0], [1, 0.8, 0]);
@@ -47,7 +51,7 @@ export default function SwipeableActivityRow({
   const isEditing = editingCostId === activity.id;
 
   return (
-    <div className="relative overflow-hidden rounded-lg">
+    <div className={`relative overflow-hidden rounded-lg ${isDragging ? "z-50 shadow-lg ring-2 ring-primary/30" : ""}`}>
       {/* Delete background */}
       <motion.div
         className="absolute inset-0 flex items-center justify-end px-4 bg-destructive rounded-lg"
@@ -70,6 +74,9 @@ export default function SwipeableActivityRow({
           activity.completed ? "bg-primary/8 opacity-60" : "bg-secondary"
         }`}
       >
+        <div {...dragHandleProps} className="flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-muted-foreground/40 hover:text-muted-foreground">
+          <GripVertical className="h-4 w-4" />
+        </div>
         <button
           onClick={onToggle}
           className={`flex-shrink-0 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all ${
