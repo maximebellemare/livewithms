@@ -33,33 +33,20 @@ const MUSCLE_GROUP_ANIMATIONS: Record<string, { emoji: string; label: string; co
 /** Fetch an exercise image from the free wger.de API */
 async function fetchExerciseImage(name: string): Promise<string | null> {
   try {
-    // Search for the exercise by name
     const searchRes = await fetch(
       `https://wger.de/api/v2/exercise/search/?term=${encodeURIComponent(name)}&language=english&format=json`
     );
     if (!searchRes.ok) return null;
     const searchData = await searchRes.json();
 
-    // Get the first matching suggestion
     const suggestions = searchData?.suggestions || [];
-    if (suggestions.length === 0) return null;
-
-    const exerciseBaseId = suggestions[0]?.data?.base_id;
-    if (!exerciseBaseId) return null;
-
-    // Fetch images for this exercise
-    const imgRes = await fetch(
-      `https://wger.de/api/v2/exerciseimage/?exercise_base=${exerciseBaseId}&format=json`
-    );
-    if (!imgRes.ok) return null;
-    const imgData = await imgRes.json();
-
-    const results = imgData?.results || [];
-    if (results.length === 0) return null;
-
-    // Prefer main image
-    const mainImage = results.find((r: any) => r.is_main) || results[0];
-    return mainImage?.image || null;
+    // Find the first suggestion that has an image
+    for (const suggestion of suggestions) {
+      if (suggestion?.data?.image) {
+        return `https://wger.de${suggestion.data.image}`;
+      }
+    }
+    return null;
   } catch {
     return null;
   }
