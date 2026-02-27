@@ -460,6 +460,7 @@ const TodayPage = () => {
         ) : (
         <>
 
+        {/* 1. Risk/Alert Banner — urgent items first */}
         <StaggerItem><RiskAlertBanner /></StaggerItem>
 
         {isMilestone && (
@@ -471,9 +472,10 @@ const TodayPage = () => {
           </StaggerItem>
         )}
 
-        <StaggerItem><DiagnosisAnniversaryCard /></StaggerItem>
-        <StaggerItem><HeatAlertCard /></StaggerItem>
+        {/* 2. Medication checklist — #1 daily action */}
+        <StaggerItem><MedicationChecklist /></StaggerItem>
 
+        {/* 3. Already logged banner */}
         {!todayLoading && alreadyLogged && (
           <StaggerItem>
             <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/8 px-4 py-3">
@@ -486,9 +488,10 @@ const TodayPage = () => {
           </StaggerItem>
         )}
 
-        <StaggerItem><MondayRecapCard /></StaggerItem>
+        {/* 4. Suggested next — context-aware nudges */}
+        {!alreadyLogged && <StaggerItem><SuggestedNextCards /></StaggerItem>}
 
-        {/* Compact streak + badge nudge row */}
+        {/* 5. Compact streak + badge nudge row */}
         <StaggerItem>
           <CompactStreakRow
             logStreak={streak}
@@ -505,8 +508,7 @@ const TodayPage = () => {
           />
         </StaggerItem>
 
-        <StaggerItem><WeeklySummaryBanner /></StaggerItem>
-
+        {/* 6. Week at a Glance — sparklines */}
         <StaggerItem>
           <Collapsible defaultOpen={!alreadyLogged}>
             <CollapsibleTrigger className="flex w-full items-center justify-between text-left group">
@@ -833,10 +835,11 @@ const TodayPage = () => {
           Tap to log · hold to see insights
         </p>
 
-        {!alreadyLogged && <StaggerItem><SuggestedNextCards /></StaggerItem>}
-
-        {/* Medication checklist */}
-        <StaggerItem><MedicationChecklist /></StaggerItem>
+        {/* 7. Monday recap + contextual cards */}
+        <StaggerItem><MondayRecapCard /></StaggerItem>
+        <StaggerItem><DiagnosisAnniversaryCard /></StaggerItem>
+        <StaggerItem><HeatAlertCard /></StaggerItem>
+        <StaggerItem><WeeklySummaryBanner /></StaggerItem>
 
         {/* Section: Full Check-In — merged symptoms + mood/sleep/notes */}
         <StaggerItem>
