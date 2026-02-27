@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { Dumbbell, Loader2, Sparkles, ChevronLeft, RotateCcw, Save, Check, Trash2, ChevronDown, ChevronUp, ClipboardList } from "lucide-react";
+import { Dumbbell, Loader2, Sparkles, ChevronLeft, RotateCcw, Save, Check, Trash2, ChevronDown, ChevronUp, ClipboardList, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ExerciseLog } from "@/hooks/useLifestyleTracking";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import FitnessCoachChat from "./FitnessCoachChat";
 
 interface Props {
   exerciseLogs: ExerciseLog[];
@@ -632,6 +633,14 @@ export default function AIFitnessCoach({ exerciseLogs, symptomEntries, msType }:
               <p className="text-xs text-destructive">⚠️ {plan.caution}</p>
             </div>
           )}
+
+          {/* Coach Chat */}
+          <FitnessCoachChat
+            planContext={plan}
+            exerciseLogs={exerciseLogs}
+            symptomEntries={symptomEntries}
+            msType={msType}
+          />
 
           <div className="flex flex-wrap gap-2">
             {!viewingSavedPlan && (

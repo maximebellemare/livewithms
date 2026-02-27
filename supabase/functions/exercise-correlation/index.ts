@@ -14,9 +14,36 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    let prompt: string;
+    let prompt: string | undefined;
+    let messages: { role: string; content: string }[] | undefined;
 
-    if (mode === "fitness_coach") {
+    if (mode === "coach_chat") {
+      const { chatMessages, planContext } = body;
+      const systemPrompt = `You are a certified personal fitness coach specializing in MS (Multiple Sclerosis) patients.
+You are having a conversation with a user about their fitness plan and exercise routine.
+
+${planContext ? `**Their current training plan:**
+${JSON.stringify(planContext)}` : "They don't have a saved plan yet."}
+
+**Their MS Type:** ${msType || "Not specified"}
+**Recent symptoms (last 7 days):** ${JSON.stringify(symptomEntries || [])}
+**Recent exercise history:** ${JSON.stringify(exerciseLogs || [])}
+
+GUIDELINES:
+- Be warm, encouraging, and specific to MS
+- If they ask to modify their plan, suggest specific changes with sets/reps/rest
+- Account for MS fatigue, heat sensitivity, and balance issues
+- If they describe new symptoms or pain, suggest modifications or rest
+- Keep responses concise but helpful (2-4 paragraphs max)
+- Use emoji sparingly for warmth
+- If they ask something outside your expertise, say so and suggest consulting their neurologist
+- When suggesting plan changes, be specific about which day/exercise to swap`;
+
+      messages = [
+        { role: "system", content: systemPrompt },
+        ...(chatMessages || []).map((m: any) => ({ role: m.role, content: m.content })),
+      ];
+    } else if (mode === "fitness_coach") {
       prompt = `You are a certified personal fitness coach specializing in MS (Multiple Sclerosis) patients.
 Create a detailed, personalized weekly training plan based on the following:
 
@@ -117,6 +144,11 @@ Guidelines:
 - If data is limited, say so and give general MS exercise guidance`;
     }
 
+    const aiMessages = messages || [
+      { role: "system", content: "You are an MS exercise specialist. Return only valid JSON, no markdown." },
+      { role: "user", content: prompt! },
+    ];
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -125,10 +157,7 @@ Guidelines:
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: "You are an MS exercise specialist. Return only valid JSON, no markdown." },
-          { role: "user", content: prompt },
-        ],
+        messages: aiMessages,
       }),
     });
 
@@ -149,6 +178,14 @@ Guidelines:
 
     const data = await response.json();
     let content = data.choices?.[0]?.message?.content || "";
+
+    // For chat mode, return the raw text reply
+    if (mode === "coach_chat") {
+      return new Response(JSON.stringify({ reply: content }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     content = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const parsed = JSON.parse(content);
 
