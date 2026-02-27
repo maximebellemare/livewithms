@@ -57,3 +57,6 @@ verify_jwt = false
 [functions.exercise-correlation]
 verify_jwt = false
 
+[functions.energy-forecast]
+verify_jwt = false
+

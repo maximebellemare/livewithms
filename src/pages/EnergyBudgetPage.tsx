@@ -58,6 +58,7 @@ import AppointmentImport from "@/components/energy/AppointmentImport";
 import RestBufferSuggestion from "@/components/energy/RestBufferSuggestion";
 import EndOfDayReflection from "@/components/energy/EndOfDayReflection";
 import WeeklyConsistency from "@/components/energy/WeeklyConsistency";
+import EnergyForecastCard from "@/components/energy/EnergyForecastCard";
 
 const SPOON_KEY = "livewithms_last_spoon_count";
 
@@ -434,6 +435,21 @@ const EnergyBudgetPage = () => {
             </p>
           )}
         </div>
+
+        {/* AI Energy Forecast — premium */}
+        <EnergyForecastCard
+          onApplyBudget={(spoons) => {
+            if (budget) {
+              updateBudget.mutate({ id: budget.id, total_spoons: spoons });
+              localStorage.setItem(SPOON_KEY, String(spoons));
+            }
+          }}
+          onAddActivity={(name, cost) => {
+            if (budget) {
+              addActivity.mutate({ budget_id: budget.id, name, spoon_cost: cost });
+            }
+          }}
+        />
 
         {/* Activities */}
         <div className="rounded-xl bg-card p-4 shadow-soft space-y-3">
