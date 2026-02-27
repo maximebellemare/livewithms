@@ -17,26 +17,25 @@ function slugify(name: string): string {
     .slice(0, 80);
 }
 
-async function generateAndUpload(
+async function generateAndUploadSequence(
   supabase: any,
   apiKey: string,
   slug: string,
-  suffix: string,
   prompt: string
 ): Promise<string | null> {
-  const filePath = `${slug}-${suffix}.png`;
+  const filePath = `${slug}-sequence.png`;
 
   // Check cache
   const { data: existing } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
   if (existing?.publicUrl) {
     const headRes = await fetch(existing.publicUrl, { method: "HEAD" });
     if (headRes.ok) {
-      console.log(`exercise-illustration cache-hit ${slug}-${suffix}`);
+      console.log(`exercise-illustration cache-hit ${slug}-sequence`);
       return existing.publicUrl;
     }
   }
 
-  console.log(`exercise-illustration generating ${slug}-${suffix}`);
+  console.log(`exercise-illustration generating ${slug}-sequence`);
 
   const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -53,8 +52,11 @@ async function generateAndUpload(
 
   if (!aiRes.ok) {
     const errText = await aiRes.text();
-    console.error(`AI gateway error (${suffix}):`, aiRes.status, errText);
-    return null;
+    console.error("AI gateway error:", aiRes.status, errText);
+
+    if (aiRes.status === 429) throw new Error("Rate limited, try again shortly");
+    if (aiRes.status === 402) throw new Error("AI credits exhausted");
+    throw new Error(`AI generation failed: ${aiRes.status}`);
   }
 
   const aiData = await aiRes.json();
@@ -72,8 +74,8 @@ async function generateAndUpload(
     .upload(filePath, imageBytes, { contentType, upsert: true });
 
   if (uploadError) {
-    console.error(`upload error (${suffix}):`, uploadError.message);
-    return imageDataUrl; // fallback to data URL
+    console.error("upload error:", uploadError.message);
+    return imageDataUrl; // fallback
   }
 
   const { data: publicUrlData } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
@@ -97,30 +99,41 @@ serve(async (req) => {
     const slug = slugify(name);
     const mgLabel = muscle_group || "full body";
 
-    const baseStyle = `Style: minimal flat illustration, white background, single person shown from the side. Use soft muted colors (blues, greens, warm skin tones). No text, no labels, no equipment brand names. The person should have a neutral, inclusive appearance. Show proper form clearly.`;
+    const prompt = `Create a clean 2-panel instructional fitness illustration for the exercise "${name}" targeting ${mgLabel}.
+Layout requirements:
+- LEFT panel: starting position
+- RIGHT panel: end/peak position
+- Use the exact SAME person, same outfit, same camera angle, and same setting in both panels
+- Show clear body movement progression from left to right
+- Add a simple subtle arrow between panels to indicate motion direction
+Style:
+- minimal flat illustration
+- white background
+- side view preferred
+- soft muted colors (blues, greens, warm skin tones)
+- no text, no labels, no logos
+- proper and safe form, inclusive neutral appearance.`;
 
-    const startPrompt = `Create a clean, simple fitness illustration showing a person in the STARTING POSITION of the exercise "${name}". The exercise targets ${mgLabel}. The person should be in the ready/initial position before the movement begins. ${baseStyle}`;
+    const sequenceUrl = await generateAndUploadSequence(supabase, LOVABLE_API_KEY, slug, prompt);
 
-    const endPrompt = `Create a clean, simple fitness illustration showing a person in the END/PEAK POSITION of the exercise "${name}". The exercise targets ${mgLabel}. The person should be at the peak of the movement (e.g. fully squatted, arm fully curled, etc). ${baseStyle}`;
-
-    // Generate both images in parallel
-    const [startUrl, endUrl] = await Promise.all([
-      generateAndUpload(supabase, LOVABLE_API_KEY, slug, "start", startPrompt),
-      generateAndUpload(supabase, LOVABLE_API_KEY, slug, "end", endPrompt),
-    ]);
-
-    console.log("exercise-illustration done", slug, { start: !!startUrl, end: !!endUrl });
+    console.log("exercise-illustration done", slug, { sequence: !!sequenceUrl });
 
     return new Response(
-      JSON.stringify({ startUrl, endUrl, cached: false }),
+      JSON.stringify({
+        sequenceUrl,
+        startUrl: null,
+        endUrl: null,
+        cached: false,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
     console.error("exercise-illustration error:", e);
+    const message = e instanceof Error ? e.message : "Unknown error";
+    const status = message.includes("Rate limited") ? 429 : message.includes("credits") ? 402 : 500;
 
-    const status = e instanceof Error && e.message.includes("Rate") ? 429 : 500;
     return new Response(
-      JSON.stringify({ startUrl: null, endUrl: null, error: e instanceof Error ? e.message : "Unknown error" }),
+      JSON.stringify({ sequenceUrl: null, startUrl: null, endUrl: null, error: message }),
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

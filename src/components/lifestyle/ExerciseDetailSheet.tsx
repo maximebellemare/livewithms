@@ -31,6 +31,7 @@ const MUSCLE_GROUP_ANIMATIONS: Record<string, { emoji: string; label: string; co
 };
 
 interface IllustrationImages {
+  sequenceUrl: string | null;
   startUrl: string | null;
   endUrl: string | null;
 }
@@ -40,23 +41,27 @@ async function fetchExerciseImages(name: string, muscleGroup?: string): Promise<
     const { data, error } = await supabase.functions.invoke("exercise-illustration", {
       body: { name, muscle_group: muscleGroup },
     });
-    if (error) return { startUrl: null, endUrl: null };
-    return { startUrl: data?.startUrl || null, endUrl: data?.endUrl || null };
+    if (error) return { sequenceUrl: null, startUrl: null, endUrl: null };
+    return {
+      sequenceUrl: data?.sequenceUrl || null,
+      startUrl: data?.startUrl || null,
+      endUrl: data?.endUrl || null,
+    };
   } catch {
-    return { startUrl: null, endUrl: null };
+    return { sequenceUrl: null, startUrl: null, endUrl: null };
   }
 }
 
 export default function ExerciseDetailSheet({ exercise, onClose, msType }: Props) {
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
-  const [images, setImages] = useState<IllustrationImages>({ startUrl: null, endUrl: null });
+  const [images, setImages] = useState<IllustrationImages>({ sequenceUrl: null, startUrl: null, endUrl: null });
   const [imageLoading, setImageLoading] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
     if (!exercise) return;
-    setImages({ startUrl: null, endUrl: null });
+    setImages({ sequenceUrl: null, startUrl: null, endUrl: null });
     setImageFailed(false);
     setImageLoading(true);
     setAiExplanation(null);
@@ -64,14 +69,14 @@ export default function ExerciseDetailSheet({ exercise, onClose, msType }: Props
     fetchExerciseImages(exercise.name, exercise.muscle_group).then((result) => {
       setImages(result);
       setImageLoading(false);
-      if (!result.startUrl && !result.endUrl) setImageFailed(true);
+      if (!result.sequenceUrl && !result.startUrl && !result.endUrl) setImageFailed(true);
     });
   }, [exercise?.name]);
 
   if (!exercise) return null;
 
   const mg = MUSCLE_GROUP_ANIMATIONS[exercise.muscle_group || "full_body"] || MUSCLE_GROUP_ANIMATIONS.full_body;
-  const hasImages = (images.startUrl || images.endUrl) && !imageFailed;
+  const hasImages = (images.sequenceUrl || images.startUrl || images.endUrl) && !imageFailed;
 
   const askCoach = async () => {
     setLoadingAi(true);
@@ -120,13 +125,11 @@ Keep it friendly, concise, and practical.`,
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
         className="fixed inset-x-0 bottom-0 z-50 w-full max-w-lg mx-auto bg-card rounded-t-2xl shadow-lg max-h-[85vh] overflow-y-auto"
       >
-        {/* Handle */}
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
         </div>
 
         <div className="px-4 pb-6 space-y-4">
-          {/* Header */}
           <div className="flex items-start justify-between">
             <div className="space-y-1 flex-1">
               <h3 className="text-base font-bold text-foreground">{exercise.name}</h3>
@@ -143,50 +146,62 @@ Keep it friendly, concise, and practical.`,
             </button>
           </div>
 
-          {/* Exercise Illustrations (Start → End) or Fallback */}
           <div className={`rounded-xl bg-gradient-to-br ${mg.colors} p-3 min-h-[140px]`}>
             {imageLoading ? (
               <div className="flex flex-col items-center justify-center gap-2 min-h-[140px]">
                 <Loader2 className="h-6 w-6 animate-spin text-foreground/50" />
-                <p className="text-[10px] text-foreground/50">Generating illustrations…</p>
+                <p className="text-[10px] text-foreground/50">Generating exercise sequence…</p>
               </div>
             ) : hasImages ? (
-              <div className="flex items-center gap-2">
-                {/* Start position */}
-                <div className="flex-1 text-center space-y-1">
-                  <p className="text-[9px] font-semibold text-foreground/60 uppercase tracking-wide">Start</p>
-                  {images.startUrl ? (
-                    <img
-                      src={images.startUrl}
-                      alt={`${exercise.name} – starting position`}
-                      className="max-h-[160px] w-auto mx-auto rounded-lg object-contain"
-                      onError={() => setImageFailed(true)}
-                    />
-                  ) : (
-                    <div className="h-[120px] flex items-center justify-center text-3xl">{mg.emoji}</div>
-                  )}
+              images.sequenceUrl ? (
+                <div className="space-y-2">
+                  <img
+                    src={images.sequenceUrl}
+                    alt={`${exercise.name} start and end positions`}
+                    className="max-h-[220px] w-auto mx-auto rounded-lg object-contain"
+                    onError={() => setImageFailed(true)}
+                  />
+                  <div className="flex items-center justify-center gap-4 text-[9px] font-semibold uppercase tracking-wide text-foreground/60">
+                    <span>Start</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                    <span>End</span>
+                  </div>
                 </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 text-center space-y-1">
+                    <p className="text-[9px] font-semibold text-foreground/60 uppercase tracking-wide">Start</p>
+                    {images.startUrl ? (
+                      <img
+                        src={images.startUrl}
+                        alt={`${exercise.name} – starting position`}
+                        className="max-h-[160px] w-auto mx-auto rounded-lg object-contain"
+                        onError={() => setImageFailed(true)}
+                      />
+                    ) : (
+                      <div className="h-[120px] flex items-center justify-center text-3xl">{mg.emoji}</div>
+                    )}
+                  </div>
 
-                {/* Arrow */}
-                <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                  <ArrowRight className="h-5 w-5 text-foreground/40" />
-                </div>
+                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                    <ArrowRight className="h-5 w-5 text-foreground/40" />
+                  </div>
 
-                {/* End position */}
-                <div className="flex-1 text-center space-y-1">
-                  <p className="text-[9px] font-semibold text-foreground/60 uppercase tracking-wide">End</p>
-                  {images.endUrl ? (
-                    <img
-                      src={images.endUrl}
-                      alt={`${exercise.name} – end position`}
-                      className="max-h-[160px] w-auto mx-auto rounded-lg object-contain"
-                      onError={() => setImageFailed(true)}
-                    />
-                  ) : (
-                    <div className="h-[120px] flex items-center justify-center text-3xl">{mg.emoji}</div>
-                  )}
+                  <div className="flex-1 text-center space-y-1">
+                    <p className="text-[9px] font-semibold text-foreground/60 uppercase tracking-wide">End</p>
+                    {images.endUrl ? (
+                      <img
+                        src={images.endUrl}
+                        alt={`${exercise.name} – end position`}
+                        className="max-h-[160px] w-auto mx-auto rounded-lg object-contain"
+                        onError={() => setImageFailed(true)}
+                      />
+                    ) : (
+                      <div className="h-[120px] flex items-center justify-center text-3xl">{mg.emoji}</div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )
             ) : (
               <div className="text-center space-y-1 flex flex-col items-center justify-center min-h-[140px]">
                 {imageFailed && (
@@ -207,7 +222,6 @@ Keep it friendly, concise, and practical.`,
             )}
           </div>
 
-          {/* AI badge */}
           {hasImages && (
             <div className="flex justify-center">
               <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-medium text-primary">
@@ -216,7 +230,6 @@ Keep it friendly, concise, and practical.`,
             </div>
           )}
 
-          {/* Form Tip */}
           {exercise.instruction && (
             <div className="rounded-lg bg-primary/5 border border-primary/10 px-3 py-2">
               <p className="text-xs text-foreground">
@@ -225,7 +238,6 @@ Keep it friendly, concise, and practical.`,
             </div>
           )}
 
-          {/* Step-by-step Instructions */}
           {exercise.steps && exercise.steps.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-foreground">📋 Step-by-Step</h4>
@@ -242,7 +254,6 @@ Keep it friendly, concise, and practical.`,
             </div>
           )}
 
-          {/* Ask AI Coach */}
           <div className="space-y-2">
             <button
               onClick={askCoach}
