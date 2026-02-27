@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, MessageCircle, Loader2 } from "lucide-react";
+import { X, MessageCircle, Loader2, ImageOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
@@ -30,9 +30,62 @@ const MUSCLE_GROUP_ANIMATIONS: Record<string, { emoji: string; label: string; co
   flexibility: { emoji: "🧘", label: "Flexibility", colors: "from-teal-500/20 to-cyan-500/20" },
 };
 
+/** Fetch an exercise image from the free wger.de API */
+async function fetchExerciseImage(name: string): Promise<string | null> {
+  try {
+    // Search for the exercise by name
+    const searchRes = await fetch(
+      `https://wger.de/api/v2/exercise/search/?term=${encodeURIComponent(name)}&language=english&format=json`
+    );
+    if (!searchRes.ok) return null;
+    const searchData = await searchRes.json();
+
+    // Get the first matching suggestion
+    const suggestions = searchData?.suggestions || [];
+    if (suggestions.length === 0) return null;
+
+    const exerciseBaseId = suggestions[0]?.data?.base_id;
+    if (!exerciseBaseId) return null;
+
+    // Fetch images for this exercise
+    const imgRes = await fetch(
+      `https://wger.de/api/v2/exerciseimage/?exercise_base=${exerciseBaseId}&format=json`
+    );
+    if (!imgRes.ok) return null;
+    const imgData = await imgRes.json();
+
+    const results = imgData?.results || [];
+    if (results.length === 0) return null;
+
+    // Prefer main image
+    const mainImage = results.find((r: any) => r.is_main) || results[0];
+    return mainImage?.image || null;
+  } catch {
+    return null;
+  }
+}
+
 export default function ExerciseDetailSheet({ exercise, onClose, msType }: Props) {
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
+  const [exerciseImageUrl, setExerciseImageUrl] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  // Fetch exercise image when the exercise changes
+  useEffect(() => {
+    if (!exercise) return;
+    setExerciseImageUrl(null);
+    setImageFailed(false);
+    setImageLoading(true);
+    setAiExplanation(null);
+
+    fetchExerciseImage(exercise.name).then((url) => {
+      setExerciseImageUrl(url);
+      setImageLoading(false);
+      if (!url) setImageFailed(true);
+    });
+  }, [exercise?.name]);
 
   if (!exercise) return null;
 
@@ -108,25 +161,45 @@ Keep it friendly, concise, and practical.`,
             </button>
           </div>
 
-          {/* Animated Muscle Group Illustration */}
-          <div className={`rounded-xl bg-gradient-to-br ${mg.colors} p-4 flex items-center justify-center`}>
-            <div className="text-center space-y-1">
-              <motion.div
-                animate={{
-                  scale: [1, 1.15, 1],
-                  rotate: [0, 3, -3, 0],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-                className="text-4xl"
-              >
-                {mg.emoji}
-              </motion.div>
-              <p className="text-[10px] font-semibold text-foreground/70">{mg.label}</p>
-            </div>
+          {/* Exercise Image or Muscle Group Fallback */}
+          <div className={`rounded-xl bg-gradient-to-br ${mg.colors} p-3 flex items-center justify-center min-h-[140px] overflow-hidden`}>
+            {imageLoading ? (
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="h-6 w-6 animate-spin text-foreground/50" />
+                <p className="text-[10px] text-foreground/50">Loading illustration…</p>
+              </div>
+            ) : exerciseImageUrl && !imageFailed ? (
+              <img
+                src={exerciseImageUrl}
+                alt={`${exercise.name} demonstration`}
+                className="max-h-[180px] w-auto rounded-lg object-contain"
+                onError={() => setImageFailed(true)}
+              />
+            ) : (
+              <div className="text-center space-y-1">
+                {imageFailed && (
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <ImageOff className="h-3 w-3 text-foreground/40" />
+                    <p className="text-[9px] text-foreground/40">No illustration found</p>
+                  </div>
+                )}
+                <motion.div
+                  animate={{
+                    scale: [1, 1.15, 1],
+                    rotate: [0, 3, -3, 0],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  className="text-4xl"
+                >
+                  {mg.emoji}
+                </motion.div>
+                <p className="text-[10px] font-semibold text-foreground/70">{mg.label}</p>
+              </div>
+            )}
           </div>
 
           {/* Form Tip */}
