@@ -30,23 +30,14 @@ const MUSCLE_GROUP_ANIMATIONS: Record<string, { emoji: string; label: string; co
   flexibility: { emoji: "🧘", label: "Flexibility", colors: "from-teal-500/20 to-cyan-500/20" },
 };
 
-/** Fetch an exercise image from the free wger.de API */
+/** Fetch an exercise GIF from ExerciseDB via edge function */
 async function fetchExerciseImage(name: string): Promise<string | null> {
   try {
-    const searchRes = await fetch(
-      `https://wger.de/api/v2/exercise/search/?term=${encodeURIComponent(name)}&language=english&format=json`
-    );
-    if (!searchRes.ok) return null;
-    const searchData = await searchRes.json();
-
-    const suggestions = searchData?.suggestions || [];
-    // Find the first suggestion that has an image
-    for (const suggestion of suggestions) {
-      if (suggestion?.data?.image) {
-        return `https://wger.de${suggestion.data.image}`;
-      }
-    }
-    return null;
+    const { data, error } = await supabase.functions.invoke("exercise-image", {
+      body: { name },
+    });
+    if (error) return null;
+    return data?.gifUrl || null;
   } catch {
     return null;
   }
