@@ -446,7 +446,8 @@ const EnergyBudgetPage = () => {
             {[...activities].sort((a, b) => Number(a.completed) - Number(b.completed)).map((activity) => (
               <motion.div
                 key={activity.id}
-                layout
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all ${
                   activity.completed ? "bg-primary/8 opacity-60" : "bg-secondary"
                 }`}
