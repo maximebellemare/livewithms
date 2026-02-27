@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { X, MessageCircle, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,123 +69,122 @@ Keep it friendly, concise, and practical.`,
     }
   };
 
-  return (
+  return createPortal(
     <>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center"
+        className="fixed inset-0 z-50 bg-black/40"
         onClick={onClose}
+      />
+      <motion.div
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="fixed inset-x-0 bottom-0 z-50 w-full max-w-lg mx-auto bg-card rounded-t-2xl shadow-lg max-h-[85vh] overflow-y-auto"
       >
-        <motion.div
-          initial={{ y: "100%" }}
-          animate={{ y: 0 }}
-          exit={{ y: "100%" }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="w-full max-w-lg bg-card rounded-t-2xl shadow-lg max-h-[85vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Handle */}
-          <div className="flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
-          </div>
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+        </div>
 
-          <div className="px-4 pb-6 space-y-4">
-            {/* Header */}
-            <div className="flex items-start justify-between">
-              <div className="space-y-1 flex-1">
-                <h3 className="text-base font-bold text-foreground">{exercise.name}</h3>
-                {(exercise.sets || exercise.reps) && (
-                  <p className="text-xs text-muted-foreground">
-                    {exercise.sets && `${exercise.sets} sets`}
-                    {exercise.reps && ` · ${exercise.reps}`}
-                    {exercise.rest && ` · Rest: ${exercise.rest}`}
-                  </p>
-                )}
-              </div>
-              <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Animated Muscle Group Illustration */}
-            <div className={`rounded-xl bg-gradient-to-br ${mg.colors} p-4 flex items-center justify-center`}>
-              <div className="text-center space-y-1">
-                <motion.div
-                  animate={{
-                    scale: [1, 1.15, 1],
-                    rotate: [0, 3, -3, 0],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                  className="text-4xl"
-                >
-                  {mg.emoji}
-                </motion.div>
-                <p className="text-[10px] font-semibold text-foreground/70">{mg.label}</p>
-              </div>
-            </div>
-
-            {/* Form Tip */}
-            {exercise.instruction && (
-              <div className="rounded-lg bg-primary/5 border border-primary/10 px-3 py-2">
-                <p className="text-xs text-foreground">
-                  <span className="font-semibold">💡 Form tip:</span> {exercise.instruction}
+        <div className="px-4 pb-6 space-y-4">
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div className="space-y-1 flex-1">
+              <h3 className="text-base font-bold text-foreground">{exercise.name}</h3>
+              {(exercise.sets || exercise.reps) && (
+                <p className="text-xs text-muted-foreground">
+                  {exercise.sets && `${exercise.sets} sets`}
+                  {exercise.reps && ` · ${exercise.reps}`}
+                  {exercise.rest && ` · Rest: ${exercise.rest}`}
                 </p>
-              </div>
-            )}
-
-            {/* Step-by-step Instructions */}
-            {exercise.steps && exercise.steps.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-foreground">📋 Step-by-Step</h4>
-                <div className="space-y-1.5">
-                  {exercise.steps.map((step, i) => (
-                    <div key={i} className="flex gap-2 items-start">
-                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                        <span className="text-[10px] font-bold">{i + 1}</span>
-                      </div>
-                      <p className="text-xs text-foreground leading-relaxed flex-1">{step}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Ask AI Coach */}
-            <div className="space-y-2">
-              <button
-                onClick={askCoach}
-                disabled={loadingAi}
-                className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-secondary px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-60 transition-all"
-              >
-                {loadingAi ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <MessageCircle className="h-3.5 w-3.5" />
-                )}
-                {loadingAi ? "Asking coach…" : "Ask AI Coach how to do this"}
-              </button>
-
-              {aiExplanation && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  className="rounded-lg bg-secondary/50 p-3 overflow-hidden"
-                >
-                  <div className="prose prose-sm max-w-none text-xs text-foreground [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_p]:text-xs [&_li]:text-xs [&_strong]:text-foreground">
-                    <ReactMarkdown>{aiExplanation}</ReactMarkdown>
-                  </div>
-                </motion.div>
               )}
             </div>
+            <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
           </div>
-        </motion.div>
+
+          {/* Animated Muscle Group Illustration */}
+          <div className={`rounded-xl bg-gradient-to-br ${mg.colors} p-4 flex items-center justify-center`}>
+            <div className="text-center space-y-1">
+              <motion.div
+                animate={{
+                  scale: [1, 1.15, 1],
+                  rotate: [0, 3, -3, 0],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                className="text-4xl"
+              >
+                {mg.emoji}
+              </motion.div>
+              <p className="text-[10px] font-semibold text-foreground/70">{mg.label}</p>
+            </div>
+          </div>
+
+          {/* Form Tip */}
+          {exercise.instruction && (
+            <div className="rounded-lg bg-primary/5 border border-primary/10 px-3 py-2">
+              <p className="text-xs text-foreground">
+                <span className="font-semibold">💡 Form tip:</span> {exercise.instruction}
+              </p>
+            </div>
+          )}
+
+          {/* Step-by-step Instructions */}
+          {exercise.steps && exercise.steps.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-foreground">📋 Step-by-Step</h4>
+              <div className="space-y-1.5">
+                {exercise.steps.map((step, i) => (
+                  <div key={i} className="flex gap-2 items-start">
+                    <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                      <span className="text-[10px] font-bold">{i + 1}</span>
+                    </div>
+                    <p className="text-xs text-foreground leading-relaxed flex-1">{step}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Ask AI Coach */}
+          <div className="space-y-2">
+            <button
+              onClick={askCoach}
+              disabled={loadingAi}
+              className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-secondary px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-60 transition-all"
+            >
+              {loadingAi ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <MessageCircle className="h-3.5 w-3.5" />
+              )}
+              {loadingAi ? "Asking coach…" : "Ask AI Coach how to do this"}
+            </button>
+
+            {aiExplanation && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                className="rounded-lg bg-secondary/50 p-3 overflow-hidden"
+              >
+                <div className="prose prose-sm max-w-none text-xs text-foreground [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_p]:text-xs [&_li]:text-xs [&_strong]:text-foreground">
+                  <ReactMarkdown>{aiExplanation}</ReactMarkdown>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </div>
       </motion.div>
-    </>
+    </>,
+    document.body
   );
 }
