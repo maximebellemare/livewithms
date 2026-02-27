@@ -820,6 +820,45 @@ export type Database = {
         }
         Relationships: []
       }
+      inflammatory_scans: {
+        Row: {
+          created_at: string
+          flags: Json
+          id: string
+          meal_name: string
+          overall_label: string
+          overall_score: string
+          positives: Json
+          scanned_at: string
+          summary: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          flags?: Json
+          id?: string
+          meal_name: string
+          overall_label?: string
+          overall_score?: string
+          positives?: Json
+          scanned_at?: string
+          summary?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          flags?: Json
+          id?: string
+          meal_name?: string
+          overall_label?: string
+          overall_score?: string
+          positives?: Json
+          scanned_at?: string
+          summary?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       learn_articles: {
         Row: {
           body: string

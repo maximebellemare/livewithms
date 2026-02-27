@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, UtensilsCrossed, X } from "lucide-react";
+import { Plus, Trash2, X, ScanSearch } from "lucide-react";
 import { toast } from "sonner";
 import { useMealLogs, useAddMealLog, useDeleteMealLog } from "@/hooks/useMealLogs";
+import { useMealScanScores } from "@/hooks/useInflammatoryScanHistory";
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 const MEAL_EMOJIS: Record<string, string> = { breakfast: "🌅", lunch: "☀️", dinner: "🌙", snack: "🍎" };
+
+const scoreDotColor: Record<string, string> = {
+  green: "bg-green-500",
+  yellow: "bg-amber-500",
+  red: "bg-red-500",
+};
 
 const today = format(new Date(), "yyyy-MM-dd");
 
@@ -14,6 +21,7 @@ export default function MealDiary() {
   const { data: logs = [] } = useMealLogs(7);
   const addMeal = useAddMealLog();
   const deleteMeal = useDeleteMealLog();
+  const scanScores = useMealScanScores();
   const [showForm, setShowForm] = useState(false);
   const [mealType, setMealType] = useState<string>("lunch");
   const [name, setName] = useState("");
@@ -39,6 +47,15 @@ export default function MealDiary() {
     if (!groupedPast[l.date]) groupedPast[l.date] = [];
     groupedPast[l.date].push(l);
   });
+
+  const renderScanBadge = (mealName: string) => {
+    const score = scanScores.get(mealName.toLowerCase());
+    if (!score) return null;
+    const dotClass = scoreDotColor[score] || scoreDotColor.yellow;
+    return (
+      <span className={`h-2 w-2 rounded-full flex-shrink-0 ${dotClass}`} title={`Inflammation: ${score}`} />
+    );
+  };
 
   return (
     <div className="space-y-3">
@@ -83,7 +100,10 @@ export default function MealDiary() {
             <div key={log.id} className="flex items-center gap-3 rounded-xl bg-card px-4 py-3 shadow-soft border border-border">
               <span className="text-lg flex-shrink-0">{MEAL_EMOJIS[log.meal_type] || "🍽️"}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{log.name}</p>
+                <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                  {log.name}
+                  {renderScanBadge(log.name)}
+                </p>
                 <p className="text-xs text-muted-foreground capitalize">{log.meal_type}{log.notes ? ` · ${log.notes}` : ""}</p>
               </div>
               <button onClick={() => deleteMeal.mutate(log.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
@@ -102,7 +122,10 @@ export default function MealDiary() {
               {dayLogs.map(log => (
                 <div key={log.id} className="flex items-center gap-2 text-sm">
                   <span className="text-xs">{MEAL_EMOJIS[log.meal_type] || "🍽️"}</span>
-                  <span className="text-foreground/90">{log.name}</span>
+                  <span className="text-foreground/90 flex items-center gap-1">
+                    {log.name}
+                    {renderScanBadge(log.name)}
+                  </span>
                   <span className="text-xs text-muted-foreground capitalize">· {log.meal_type}</span>
                 </div>
               ))}
