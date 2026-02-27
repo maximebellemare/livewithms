@@ -7,6 +7,22 @@ import PageHeader from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus, Check, Zap, Battery, BatteryLow, BatteryWarning, ChevronDown, ChevronUp, Info, ExternalLink, Star, Pencil } from "lucide-react";
 import SwipeableActivityRow from "@/components/energy/SwipeableActivityRow";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -20,6 +36,7 @@ import {
   useEnergyHistory,
   useFrequentActivities,
   useUpdateActivityCost,
+  useReorderActivities,
 } from "@/hooks/useEnergyBudget";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,6 +63,31 @@ const PRESET_ACTIVITIES = [
   { name: "Rest / Nap", cost: 0 },
 ];
 
+function SortableActivityRow(props: {
+  activity: { id: string; name: string; spoon_cost: number; completed: boolean };
+  onToggle: () => void;
+  onDelete: () => void;
+  onUpdateCost: (cost: number) => void;
+  editingCostId: string | null;
+  setEditingCostId: (id: string | null) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.activity.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <SwipeableActivityRow
+        {...props}
+        dragHandleProps={listeners}
+        isDragging={isDragging}
+      />
+    </div>
+  );
+}
+
 const EnergyBudgetPage = () => {
   const queryClient = useQueryClient();
   const today = format(new Date(), "yyyy-MM-dd");
@@ -57,10 +99,38 @@ const EnergyBudgetPage = () => {
   const toggleActivity = useToggleActivity();
   const deleteActivity = useDeleteActivity();
   const updateActivityCost = useUpdateActivityCost();
+  const reorderActivities = useReorderActivities();
   const { data: history = [] } = useEnergyHistory(7);
   const { data: frequentActivities = [] } = useFrequentActivities(6);
   const [editingCostId, setEditingCostId] = useState<string | null>(null);
   const [swipeHintDismissed, setSwipeHintDismissed] = useState(() => localStorage.getItem("hint_energy_swipe_used") === "1");
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
+
+  const sortedActivities = useMemo(
+    () => [...activities].sort((a, b) => Number(a.completed) - Number(b.completed) || a.sort_order - b.sort_order),
+    [activities]
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = sortedActivities.findIndex((a) => a.id === active.id);
+      const newIndex = sortedActivities.findIndex((a) => a.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = [...sortedActivities];
+      const [moved] = reordered.splice(oldIndex, 1);
+      reordered.splice(newIndex, 0, moved);
+      const updates = reordered.map((a, i) => ({ id: a.id, sort_order: i }));
+      reorderActivities.mutate(updates);
+    },
+    [sortedActivities, reorderActivities]
+  );
 
   const [newName, setNewName] = useState("");
   const [newCost, setNewCost] = useState(1);
@@ -444,30 +514,34 @@ const EnergyBudgetPage = () => {
             </p>
           )}
 
-          <div className="space-y-1.5">
-            {[...activities].sort((a, b) => Number(a.completed) - Number(b.completed)).map((activity) => (
-              <SwipeableActivityRow
-                key={activity.id}
-                activity={activity}
-                onToggle={() => toggleActivity.mutate({ id: activity.id, completed: !activity.completed })}
-                onDelete={() => deleteActivity.mutate(activity.id)}
-                onUpdateCost={(cost) => updateActivityCost.mutate({ id: activity.id, spoon_cost: cost })}
-                editingCostId={editingCostId}
-                setEditingCostId={setEditingCostId}
-              />
-            ))}
-            {activities.length > 0 && !swipeHintDismissed && (
-              <p
-                className="mt-1 text-center text-[11px] text-muted-foreground/60 animate-fade-in cursor-pointer select-none"
-                onClick={() => {
-                  localStorage.setItem("hint_energy_swipe_used", "1");
-                  setSwipeHintDismissed(true);
-                }}
-              >
-                ← Swipe left to delete · tap to dismiss
-              </p>
-            )}
-          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={sortedActivities.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-1.5">
+                {sortedActivities.map((activity) => (
+                  <SortableActivityRow
+                    key={activity.id}
+                    activity={activity}
+                    onToggle={() => toggleActivity.mutate({ id: activity.id, completed: !activity.completed })}
+                    onDelete={() => deleteActivity.mutate(activity.id)}
+                    onUpdateCost={(cost) => updateActivityCost.mutate({ id: activity.id, spoon_cost: cost })}
+                    editingCostId={editingCostId}
+                    setEditingCostId={setEditingCostId}
+                  />
+                ))}
+                {activities.length > 0 && !swipeHintDismissed && (
+                  <p
+                    className="mt-1 text-center text-[11px] text-muted-foreground/60 animate-fade-in cursor-pointer select-none"
+                    onClick={() => {
+                      localStorage.setItem("hint_energy_swipe_used", "1");
+                      setSwipeHintDismissed(true);
+                    }}
+                  >
+                    ← Swipe left to delete · drag ≡ to reorder · tap to dismiss
+                  </p>
+                )}
+              </div>
+            </SortableContext>
+          </DndContext>
           {activities.length > 0 && (
             <p className="text-xs text-muted-foreground text-center pt-1">
               {activities.filter(a => a.completed).length} of {activities.length} done

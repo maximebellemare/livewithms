@@ -155,6 +155,25 @@ export function useUpdateActivityCost() {
   });
 }
 
+export function useReorderActivities() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (items: { id: string; sort_order: number }[]) => {
+      const promises = items.map(({ id, sort_order }) =>
+        supabase
+          .from("energy_activities" as any)
+          .update({ sort_order } as any)
+          .eq("id", id)
+      );
+      const results = await Promise.all(promises);
+      const err = results.find((r) => r.error);
+      if (err?.error) throw err.error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["energy-activities"] }),
+  });
+}
+
 export function useEnergyHistory(days = 7) {
   const { user } = useAuth();
   const end = format(new Date(), "yyyy-MM-dd");
