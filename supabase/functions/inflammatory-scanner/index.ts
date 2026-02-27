@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { meal_name, meal_notes, ingredients } = await req.json();
+    const { meal_name, meal_notes, ingredients, ms_type, symptoms, medications } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -21,6 +21,13 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Provide a meal name or ingredients to scan." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    // Build personalized context
+    let personalContext = "";
+    if (ms_type) personalContext += `\nThe user has ${ms_type} Multiple Sclerosis.`;
+    if (symptoms?.length) personalContext += `\nTheir tracked symptoms include: ${symptoms.join(", ")}.`;
+    if (medications?.length) personalContext += `\nTheir current medications: ${medications.join(", ")}.`;
+    if (personalContext) personalContext = `\n\nPERSONALIZED CONTEXT (use to tailor your analysis):${personalContext}\nConsider drug-food interactions and symptom-specific triggers.`;
 
     const systemPrompt = `You are an MS inflammatory food specialist. Analyze the given meal or ingredients and flag items that may trigger or worsen inflammation, particularly for people with Multiple Sclerosis.
 
@@ -31,6 +38,7 @@ Consider MS-specific inflammatory triggers:
 - High-sodium foods
 - Alcohol, artificial sweeteners
 - Foods high in arachidonic acid
+${personalContext}
 
 Also highlight anti-inflammatory ingredients present.
 
@@ -39,6 +47,7 @@ Return a JSON object:
   "overall_score": "green" | "yellow" | "red",
   "overall_label": "Anti-inflammatory" | "Moderate" | "Inflammatory",
   "summary": "One sentence overall assessment",
+  "personalized_note": "One sentence noting any MS-type or medication-specific concern (or null if none)",
   "flags": [
     {
       "ingredient": "name of flagged item",
