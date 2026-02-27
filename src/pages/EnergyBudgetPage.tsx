@@ -18,6 +18,7 @@ import {
   useUpdateBudget,
   useEnergyHistory,
   useFrequentActivities,
+  useUpdateActivityCost,
 } from "@/hooks/useEnergyBudget";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -54,8 +55,10 @@ const EnergyBudgetPage = () => {
   const addActivity = useAddActivity();
   const toggleActivity = useToggleActivity();
   const deleteActivity = useDeleteActivity();
+  const updateActivityCost = useUpdateActivityCost();
   const { data: history = [] } = useEnergyHistory(7);
   const { data: frequentActivities = [] } = useFrequentActivities(6);
+  const [editingCostId, setEditingCostId] = useState<string | null>(null);
 
   const [newName, setNewName] = useState("");
   const [newCost, setNewCost] = useState(1);
@@ -463,12 +466,46 @@ const EnergyBudgetPage = () => {
                     {activity.name}
                   </span>
                 </div>
-                <span className={`text-xs whitespace-nowrap transition-all ${activity.completed ? "text-muted-foreground/50 line-through" : "text-muted-foreground"}`}>
-                  {activity.spoon_cost}🥄
-                </span>
+                {editingCostId === activity.id ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        const next = Math.max(0, activity.spoon_cost - 1);
+                        updateActivityCost.mutate({ id: activity.id, spoon_cost: next });
+                      }}
+                      className="rounded bg-secondary p-0.5 hover:bg-muted active:scale-95"
+                    >
+                      <Minus className="h-2.5 w-2.5" />
+                    </button>
+                    <span className="text-xs font-semibold min-w-[2ch] text-center">{activity.spoon_cost}🥄</span>
+                    <button
+                      onClick={() => {
+                        const next = Math.min(10, activity.spoon_cost + 1);
+                        updateActivityCost.mutate({ id: activity.id, spoon_cost: next });
+                      }}
+                      className="rounded bg-secondary p-0.5 hover:bg-muted active:scale-95"
+                    >
+                      <Plus className="h-2.5 w-2.5" />
+                    </button>
+                    <button
+                      onClick={() => setEditingCostId(null)}
+                      className="rounded-full bg-primary p-0.5 text-primary-foreground ml-0.5 active:scale-95"
+                    >
+                      <Check className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setEditingCostId(activity.id)}
+                    className={`text-xs whitespace-nowrap transition-all hover:text-primary ${activity.completed ? "text-muted-foreground/50 line-through" : "text-muted-foreground"}`}
+                    title="Tap to adjust spoon cost"
+                  >
+                    {activity.spoon_cost}🥄
+                  </button>
+                )}
                 <button
                   onClick={() => deleteActivity.mutate(activity.id)}
-                  className="text-muted-foreground hover:text-red-500 transition-colors"
+                  className="text-muted-foreground hover:text-destructive transition-colors"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>

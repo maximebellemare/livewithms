@@ -140,6 +140,21 @@ export function useDeleteActivity() {
   });
 }
 
+export function useUpdateActivityCost() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, spoon_cost }: { id: string; spoon_cost: number }) => {
+      const { error } = await supabase
+        .from("energy_activities" as any)
+        .update({ spoon_cost } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["energy-activities"] }),
+  });
+}
+
 export function useEnergyHistory(days = 7) {
   const { user } = useAuth();
   const end = format(new Date(), "yyyy-MM-dd");
