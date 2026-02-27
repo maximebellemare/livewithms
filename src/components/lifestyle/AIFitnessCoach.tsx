@@ -43,6 +43,20 @@ const ABILITY_OPTIONS = [
   { label: "Chair exercises", emoji: "🪑" },
   { label: "Resistance bands", emoji: "🔴" },
   { label: "Pilates", emoji: "🧎" },
+  { label: "Tai Chi", emoji: "🥋" },
+  { label: "Dancing", emoji: "💃" },
+  { label: "Hiking", emoji: "🥾" },
+  { label: "Stair climbing", emoji: "🪜" },
+  { label: "Elliptical", emoji: "🔄" },
+  { label: "Rowing", emoji: "🚣" },
+  { label: "Bodyweight exercises", emoji: "🫃" },
+  { label: "Aqua aerobics", emoji: "🌊" },
+  { label: "Balance training", emoji: "⚖️" },
+  { label: "Light gardening", emoji: "🌿" },
+  { label: "Foam rolling", emoji: "🧴" },
+  { label: "Boxing/Kickboxing", emoji: "🥊" },
+  { label: "Jump rope", emoji: "🪢" },
+  { label: "TRX / Suspension", emoji: "🔗" },
 ];
 
 const TIME_OPTIONS = [
