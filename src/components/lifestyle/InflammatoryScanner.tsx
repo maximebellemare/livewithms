@@ -175,6 +175,19 @@ export default function InflammatoryScanner() {
 
   return (
     <div className="space-y-3">
+      {/* Why it matters */}
+      <div className="rounded-xl bg-amber-500/5 border border-amber-500/15 p-3 space-y-1.5">
+        <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+          🧠 Why inflammatory food matters for MS
+        </p>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          In Multiple Sclerosis, the immune system mistakenly attacks the myelin sheath protecting nerves. 
+          Inflammatory foods — like processed meats, refined sugars, and trans fats — can amplify this immune response, 
+          increasing pro-inflammatory cytokines and worsening symptoms like fatigue, brain fog, and pain. 
+          An anti-inflammatory diet helps calm the immune system, supports myelin repair, and may reduce relapse frequency.
+        </p>
+      </div>
+
       <div className="rounded-2xl bg-gradient-to-br from-primary/10 via-accent/50 to-card p-4 border border-primary/15 shadow-soft">
         <div className="flex items-center gap-2 mb-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15">
