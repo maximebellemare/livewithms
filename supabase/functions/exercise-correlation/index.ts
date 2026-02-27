@@ -9,11 +9,36 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { exerciseLogs, symptomEntries, msType } = await req.json();
+    const { exerciseLogs, symptomEntries, msType, mode } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const prompt = `You are an MS wellness specialist analyzing the relationship between exercise and symptoms.
+    let prompt: string;
+
+    if (mode === "daily_suggestion") {
+      prompt = `You are an MS wellness specialist. Based on recent exercise and symptom data, suggest ONE exercise for today.
+
+Recent exercises: ${JSON.stringify(exerciseLogs)}
+Recent symptoms (last 7 days): ${JSON.stringify(symptomEntries)}
+MS Type: ${msType || "Not specified"}
+
+Consider:
+- If fatigue is high recently, suggest low-intensity
+- Avoid repeating the same exercise too many consecutive days
+- Account for MS-specific needs (heat sensitivity, balance, spasticity)
+- If no data, give a safe general suggestion
+
+Respond with ONLY valid JSON:
+{
+  "exercise": "Exercise name",
+  "duration": "e.g. 15-20 minutes",
+  "intensity": "light/moderate/vigorous",
+  "reason": "1-2 sentences explaining why this is ideal today",
+  "alternative": "A lower-energy alternative if they're not feeling up to it",
+  "caution": "Any MS-specific caution, or null if none"
+}`;
+    } else {
+      prompt = `You are an MS wellness specialist analyzing the relationship between exercise and symptoms.
 
 Exercise data (last 30 days): ${JSON.stringify(exerciseLogs)}
 Symptom data (last 30 days): ${JSON.stringify(symptomEntries)}
@@ -34,6 +59,7 @@ Guidelines:
 - Consider MS-specific concerns like heat sensitivity, fatigue management
 - Note if certain exercise types correlate with better or worse symptom days
 - If data is limited, say so and give general MS exercise guidance`;
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

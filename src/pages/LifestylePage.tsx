@@ -20,6 +20,9 @@ import ExerciseWeeklyGoal from "@/components/lifestyle/ExerciseWeeklyGoal";
 import ExerciseHistoryChart from "@/components/lifestyle/ExerciseHistoryChart";
 import ExerciseLibrary from "@/components/lifestyle/ExerciseLibrary";
 import ExerciseCorrelation from "@/components/lifestyle/ExerciseCorrelation";
+import ExerciseQuickLog from "@/components/lifestyle/ExerciseQuickLog";
+import ExerciseHeatmap from "@/components/lifestyle/ExerciseHeatmap";
+import ExerciseDailySuggestion from "@/components/lifestyle/ExerciseDailySuggestion";
 import PremiumGate from "@/components/PremiumGate";
 
 const EXERCISE_TYPES = ["Walking", "Swimming", "Yoga", "Stretching", "Cycling", "Strength Training", "Pilates", "Tai Chi", "Other"];
@@ -104,7 +107,22 @@ function ExerciseTab() {
       {/* Weekly Goal */}
       <ExerciseWeeklyGoal logs={logs} />
 
-      {/* Quick Log */}
+      {/* Quick Log Presets */}
+      <ExerciseQuickLog />
+
+      {/* Activity Heatmap */}
+      <ExerciseHeatmap logs={logs} />
+
+      {/* AI Daily Suggestion - Premium */}
+      <PremiumGate feature="AI Exercise Suggestion" compact>
+        <ExerciseDailySuggestion
+          exerciseLogs={logs}
+          symptomEntries={symptomEntries}
+          msType={profile?.ms_type ?? null}
+        />
+      </PremiumGate>
+
+      {/* Quick Log Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-display text-sm font-semibold text-foreground">Exercise Log</h3>
         <div className="flex gap-2">
