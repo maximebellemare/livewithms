@@ -36,6 +36,33 @@ serve(async (req) => {
       });
     }
 
+    // Parse body for force_refresh flag
+    let forceRefresh = false;
+    try {
+      const body = await req.json();
+      forceRefresh = body?.force_refresh === true;
+    } catch {
+      // no body or invalid JSON — that's fine
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // Check cache (unless force refresh)
+    if (!forceRefresh) {
+      const { data: cached } = await supabase
+        .from("energy_forecast_cache")
+        .select("forecast_data")
+        .eq("user_id", user.id)
+        .eq("forecast_date", today)
+        .maybeSingle();
+
+      if (cached?.forecast_data) {
+        return new Response(JSON.stringify(cached.forecast_data), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Fetch last 14 days of daily entries
     const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0];
     const { data: entries } = await supabase
@@ -64,7 +91,6 @@ serve(async (req) => {
     }
 
     // Fetch today's appointments
-    const today = new Date().toISOString().split("T")[0];
     const { data: appointments } = await supabase
       .from("appointments")
       .select("title, type, time")
@@ -161,6 +187,14 @@ Rules:
     } catch {
       throw new Error("Failed to parse AI response");
     }
+
+    // Save to cache (upsert)
+    await supabase
+      .from("energy_forecast_cache")
+      .upsert(
+        { user_id: user.id, forecast_date: today, forecast_data: forecast },
+        { onConflict: "user_id,forecast_date" }
+      );
 
     return new Response(JSON.stringify(forecast), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
