@@ -24,12 +24,14 @@ interface FatigueAnalysis {
   message?: string;
 }
 
-function useFatiguePatterns() {
+function useFatiguePatterns(forceRefresh = false) {
   const { user } = useAuth();
   return useQuery<FatigueAnalysis>({
-    queryKey: ["fatigue-patterns", user?.id],
+    queryKey: ["fatigue-patterns", user?.id, forceRefresh],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("fatigue-patterns");
+      const { data, error } = await supabase.functions.invoke("fatigue-patterns", {
+        body: { force_refresh: forceRefresh },
+      });
       if (error) throw error;
       if (data?.error === "insufficient_data") return data;
       if (data?.error) throw new Error(data.error);

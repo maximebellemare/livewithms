@@ -820,6 +820,30 @@ export type Database = {
         }
         Relationships: []
       }
+      fatigue_pattern_cache: {
+        Row: {
+          created_at: string
+          id: string
+          pattern_data: Json
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pattern_data?: Json
+          user_id: string
+          week_start?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pattern_data?: Json
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       fitness_plans: {
         Row: {
           abilities: string[]

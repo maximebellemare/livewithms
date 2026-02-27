@@ -13,6 +13,12 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Missing auth");
 
+    let forceRefresh = false;
+    try {
+      const body = await req.json();
+      forceRefresh = body?.force_refresh === true;
+    } catch { /* no body is fine */ }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -34,6 +40,30 @@ serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Calculate current week start (Monday)
+    const now = new Date();
+    const day = now.getUTCDay();
+    const diff = day === 0 ? 6 : day - 1;
+    const weekStart = new Date(now);
+    weekStart.setUTCDate(now.getUTCDate() - diff);
+    const weekStartStr = weekStart.toISOString().split("T")[0];
+
+    // Check cache
+    if (!forceRefresh) {
+      const { data: cached } = await supabase
+        .from("fatigue_pattern_cache")
+        .select("pattern_data")
+        .eq("user_id", user.id)
+        .eq("week_start", weekStartStr)
+        .maybeSingle();
+
+      if (cached?.pattern_data) {
+        return new Response(JSON.stringify(cached.pattern_data), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Fetch last 60 days of daily entries for pattern detection
@@ -172,6 +202,15 @@ Rules:
     } catch {
       throw new Error("Failed to parse AI response");
     }
+
+    // Cache the result for this week
+    await supabase
+      .from("fatigue_pattern_cache")
+      .upsert({
+        user_id: user.id,
+        week_start: weekStartStr,
+        pattern_data: analysis,
+      }, { onConflict: "user_id,week_start" });
 
     return new Response(JSON.stringify(analysis), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
