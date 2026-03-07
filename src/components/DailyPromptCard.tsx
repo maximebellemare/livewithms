@@ -142,7 +142,8 @@ const DailyPromptCard = ({ onUsePrompt, entry }: DailyPromptCardProps) => {
             autoFocus
             className="w-full resize-none rounded-xl bg-secondary/60 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
           />
-          <div className="flex items-center gap-2 justify-end">
+          <div className="flex items-center gap-2 justify-between">
+            <VoiceMicButton onTranscript={(t) => setReflectText((prev) => (prev ? prev + " " : "") + t)} />
             <button
               onClick={() => { setShowEditor(false); setReflectText(""); }}
               className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors"
