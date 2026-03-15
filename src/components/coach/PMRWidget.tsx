@@ -291,7 +291,17 @@ const PMRWidget = () => {
           <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
         </div>
 
-        <button
+        {/* Voice narration toggle */}
+        {narration.supported && (
+          <div className="w-full max-w-[280px] flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[11px] font-medium text-foreground">Voice guide</span>
+            </div>
+            <Switch checked={narration.enabled} onCheckedChange={narration.setEnabled} />
+          </div>
+        )}
+
           onClick={confirmSelection}
           disabled={selectedCount === 0}
           className="mt-2 flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-40 active:scale-95 transition-all"
