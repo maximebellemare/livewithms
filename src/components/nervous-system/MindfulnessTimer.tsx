@@ -27,18 +27,19 @@ const MindfulnessTimer = () => {
     if (!running) return;
     intervalRef.current = setInterval(() => {
       setSecondsLeft((prev) => {
+        sound.onTick(prev - 1);
         if (prev <= 1) {
           clearInterval(intervalRef.current!);
           setRunning(false);
           setFinished(true);
-          playCompletionChime();
+          sound.onEnd();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [running]);
+  }, [running, sound]);
 
   const reset = () => {
     setRunning(false);
