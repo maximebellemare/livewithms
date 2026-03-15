@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { hapticSuccess } from "@/lib/haptics";
 import { Play, Pause, RotateCcw, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSoundCues } from "./useSoundCues";
