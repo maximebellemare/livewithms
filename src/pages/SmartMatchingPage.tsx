@@ -157,7 +157,7 @@ const SmartMatchingPage = () => {
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="e.g. Diagnosed 5 years ago, love hiking and cooking"
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="mt-1 w-full rounded-lg border border-border bg-background text-foreground px-3 py-2 text-sm resize-none placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                   rows={2}
                   maxLength={200}
                 />
