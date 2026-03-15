@@ -140,18 +140,17 @@
 }
 
 @layer components {
-  /* Standard card — single source of truth for card styling */
+  /* Standard card — breathable, calm, borderless */
   .card-base {
-    @apply rounded-xl bg-card p-4 shadow-soft
-           transition-all duration-200 ease-out
-           hover:shadow-card hover:-translate-y-0.5;
+    @apply rounded-2xl bg-card p-5 shadow-soft
+           transition-all duration-200 ease-out;
   }
 
-  /* Interactive card — stronger lift for clickable cards */
+  /* Interactive card — subtle lift for clickable cards */
   .card-interactive {
-    @apply rounded-xl bg-card p-4 shadow-soft border border-border
+    @apply rounded-2xl bg-card p-5 shadow-soft
            transition-all duration-200 ease-out
-           hover:shadow-elevated hover:-translate-y-1 hover:border-primary/20
+           hover:shadow-card hover:-translate-y-0.5
            active:scale-[0.98] active:shadow-soft;
   }
 
@@ -170,6 +169,12 @@
   /* Section label — readable uppercase label */
   .section-label {
     @apply text-xs font-semibold uppercase tracking-widest text-muted-foreground;
+  }
+
+  /* Minimum accessible tap target */
+  .tap-target {
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 
