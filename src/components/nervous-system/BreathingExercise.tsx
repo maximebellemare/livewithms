@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, RotateCcw, Timer } from "lucide-react";
+import { Play, Pause, RotateCcw, Timer, Volume2 } from "lucide-react";
 import ListenButton from "@/components/ListenButton";
+import { Switch } from "@/components/ui/switch";
 import { playCompletionChime } from "./useCompletionSound";
+import { useVoiceNarration } from "./useVoiceNarration";
 
 type BreathingPattern = {
   id: string;
@@ -56,6 +58,7 @@ const BreathingExercise = () => {
   const [totalElapsed, setTotalElapsed] = useState(0);
   const [finished, setFinished] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const narration = useVoiceNarration();
   const totalSeconds = selectedMinutes * 60;
 
   const currentPhase = selectedPattern.phases[phaseIndex];
@@ -72,8 +75,9 @@ const BreathingExercise = () => {
     setCycleCount(0);
     setTotalElapsed(0);
     setFinished(false);
+    narration.stop();
     if (intervalRef.current) clearInterval(intervalRef.current);
-  }, []);
+  }, [narration]);
 
   const toggle = useCallback(() => {
     if (finished) {
@@ -123,6 +127,20 @@ const BreathingExercise = () => {
     }, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [isRunning, selectedPattern.phases.length, totalSeconds]);
+
+  // Announce phase changes via voice narration
+  useEffect(() => {
+    if (isRunning && currentPhase) {
+      narration.speak(currentPhase.instruction);
+    }
+  }, [phaseIndex, isRunning, cycleCount]);
+
+  // Announce completion
+  useEffect(() => {
+    if (finished) {
+      narration.speak("Well done. Exercise complete.");
+    }
+  }, [finished]);
 
   // Set countdown when phase changes
   useEffect(() => {
@@ -191,6 +209,17 @@ const BreathingExercise = () => {
           ))}
         </div>
       </div>
+
+      {/* Voice narration toggle */}
+      {narration.supported && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-medium text-foreground">Voice guide</span>
+          </div>
+          <Switch checked={narration.enabled} onCheckedChange={narration.setEnabled} />
+        </div>
+      )}
 
       {/* Breathing circle */}
       <div className="flex flex-col items-center py-6">

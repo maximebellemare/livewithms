@@ -4,6 +4,7 @@ import { Play, Pause, RotateCcw, ChevronRight, Check, Zap, ZapOff, Vibrate, Volu
 import { Slider } from "@/components/ui/slider";
 import ListenButton from "@/components/ListenButton";
 import { Switch } from "@/components/ui/switch";
+import { useVoiceNarration } from "@/components/nervous-system/useVoiceNarration";
 
 // Web Audio API tone generator for phase transition cues
 const playTone = (freq: number, dur: number, vol = 0.12) => {
@@ -62,6 +63,7 @@ const PMRWidget = () => {
   const [running, setRunning] = useState(false);
   const [completed, setCompleted] = useState<boolean[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const narration = useVoiceNarration();
 
   const currentGroup = activeGroups[groupIdx];
   const totalCompleted = completed.filter(Boolean).length;
@@ -150,6 +152,17 @@ const PMRWidget = () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [running, phase, groupIdx, currentGroup, activeGroups, haptic, audioCue]);
+
+  // Voice narration on phase transitions
+  useEffect(() => {
+    if (phase === "tense" && currentGroup) {
+      narration.speak(`${currentGroup.name}. ${currentGroup.instruction}`);
+    } else if (phase === "release" && currentGroup) {
+      narration.speak(`Release. Let go of your ${currentGroup.name.toLowerCase()}.`);
+    } else if (phase === "done") {
+      narration.speak("Session complete. Well done.");
+    }
+  }, [phase, groupIdx]);
 
   const start = () => {
     haptic();
@@ -277,6 +290,17 @@ const PMRWidget = () => {
           </div>
           <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
         </div>
+
+        {/* Voice narration toggle */}
+        {narration.supported && (
+          <div className="w-full max-w-[280px] flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[11px] font-medium text-foreground">Voice guide</span>
+            </div>
+            <Switch checked={narration.enabled} onCheckedChange={narration.setEnabled} />
+          </div>
+        )}
 
         <button
           onClick={confirmSelection}

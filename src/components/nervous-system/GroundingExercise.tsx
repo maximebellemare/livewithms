@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import ListenButton from "@/components/ListenButton";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, Ear, Hand, Wind, Cookie, ChevronRight, RotateCcw, Check, History, Trash2 } from "lucide-react";
+import { Eye, Ear, Hand, Wind, Cookie, ChevronRight, RotateCcw, Check, History, Trash2, Volume2 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { playCompletionChime } from "./useCompletionSound";
+import { useVoiceNarration } from "./useVoiceNarration";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useGroundingStreak } from "@/hooks/useGroundingStreak";
@@ -34,6 +36,7 @@ const GroundingExercise = () => {
   const [saved, setSaved] = useState(false);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [milestoneHit, setMilestoneHit] = useState<number | null>(null);
+  const narration = useVoiceNarration();
   const finished = step >= senses.length;
 
   const loadHistory = useCallback(async () => {
@@ -102,11 +105,14 @@ const GroundingExercise = () => {
   const handleNext = () => {
     vibrate([5, 30, 5]);
     if (step < senses.length - 1) {
-      setStep((s) => s + 1);
+      const nextStep = step + 1;
+      setStep(nextStep);
+      narration.speak(`Name ${senses[nextStep].count} ${senses[nextStep].sense}`);
     } else {
       vibrate([10, 40, 10, 40, 10]);
       setStep(senses.length);
       playCompletionChime();
+      narration.speak("Well done. You're grounded.");
       confetti({
         particleCount: 80,
         spread: 70,
@@ -235,6 +241,15 @@ const GroundingExercise = () => {
             text="5-4-3-2-1 Grounding Exercise. Engage each of your senses to gently bring yourself back to the present moment. Name 5 things you can see. 4 things you can touch. 3 things you can hear. 2 things you can smell. And 1 thing you can taste. There's no rush, take your time."
             label="Listen to instructions"
           />
+          {narration.supported && (
+            <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-foreground">Voice guide</span>
+              </div>
+              <Switch checked={narration.enabled} onCheckedChange={narration.setEnabled} />
+            </div>
+          )}
           {user && totalCount !== null && totalCount > 0 && (
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">
@@ -252,8 +267,11 @@ const GroundingExercise = () => {
             </div>
           )}
           <div className="flex flex-col gap-2">
-            <button
-              onClick={() => setStarted(true)}
+           <button
+              onClick={() => {
+                setStarted(true);
+                narration.speak(`Name ${senses[0].count} ${senses[0].sense}`);
+              }}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]"
             >
               Begin Exercise
