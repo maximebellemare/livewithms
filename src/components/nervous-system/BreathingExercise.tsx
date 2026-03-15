@@ -79,8 +79,9 @@ const BreathingExercise = () => {
     setTotalElapsed(0);
     setFinished(false);
     narration.stop();
+    sound.cleanup();
     if (intervalRef.current) clearInterval(intervalRef.current);
-  }, [narration]);
+  }, [narration, sound]);
 
   const toggle = useCallback(() => {
     if (finished) {
