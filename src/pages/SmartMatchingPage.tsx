@@ -168,7 +168,7 @@ const SmartMatchingPage = () => {
                   value={lookingFor}
                   onChange={(e) => setLookingFor(e.target.value)}
                   placeholder="e.g. Someone to chat with about fatigue management"
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="mt-1 w-full rounded-lg border border-border bg-background text-foreground px-3 py-2 text-sm resize-none placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                   rows={2}
                   maxLength={200}
                 />
