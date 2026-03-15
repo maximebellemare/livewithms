@@ -153,6 +153,17 @@ const PMRWidget = () => {
     };
   }, [running, phase, groupIdx, currentGroup, activeGroups, haptic, audioCue]);
 
+  // Voice narration on phase transitions
+  useEffect(() => {
+    if (phase === "tense" && currentGroup) {
+      narration.speak(`${currentGroup.name}. ${currentGroup.instruction}`);
+    } else if (phase === "release" && currentGroup) {
+      narration.speak(`Release. Let go of your ${currentGroup.name.toLowerCase()}.`);
+    } else if (phase === "done") {
+      narration.speak("Session complete. Well done.");
+    }
+  }, [phase, groupIdx]);
+
   const start = () => {
     haptic();
     audioCue("tense");
