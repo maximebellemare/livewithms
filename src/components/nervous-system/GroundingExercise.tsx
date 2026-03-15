@@ -149,6 +149,7 @@ const GroundingExercise = () => {
         clearInterval(timer);
         setShowReflections(true);
         saveSession();
+        hapticSuccess();
       }
     }, interval);
     return () => clearInterval(timer);
