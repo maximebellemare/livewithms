@@ -105,11 +105,14 @@ const GroundingExercise = () => {
   const handleNext = () => {
     vibrate([5, 30, 5]);
     if (step < senses.length - 1) {
-      setStep((s) => s + 1);
+      const nextStep = step + 1;
+      setStep(nextStep);
+      narration.speak(`Name ${senses[nextStep].count} ${senses[nextStep].sense}`);
     } else {
       vibrate([10, 40, 10, 40, 10]);
       setStep(senses.length);
       playCompletionChime();
+      narration.speak("Well done. You're grounded.");
       confetti({
         particleCount: 80,
         spread: 70,
