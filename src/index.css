@@ -47,9 +47,9 @@
     --brand-blue-light: 210 60% 95%;
     --brand-warm-gray: 30 10% 40%;
 
-    --shadow-soft: 0 2px 12px -2px hsl(0 0% 0% / 0.06);
-    --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.08);
-    --shadow-elevated: 0 8px 30px -6px hsl(0 0% 0% / 0.12);
+    --shadow-soft: 0 2px 16px -3px hsl(0 0% 0% / 0.05);
+    --shadow-card: 0 4px 24px -6px hsl(0 0% 0% / 0.07);
+    --shadow-elevated: 0 8px 32px -8px hsl(0 0% 0% / 0.10);
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
