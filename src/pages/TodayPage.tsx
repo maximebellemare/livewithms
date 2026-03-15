@@ -730,18 +730,6 @@ const TodayPage = () => {
                   </button>
                 ))}
               </div>
-              {/* Guide */}
-              <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2 space-y-0.5">
-                <p className="text-[11px] font-medium text-foreground">What counts as 1 glass?</p>
-                <p className="text-[10px] text-muted-foreground">1 glass = ~250 ml (8 oz) of water, tea, or sugar-free drink.</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {goal <= 6
-                    ? "💡 Recommended: 6–8 glasses/day. Increase if active or in warm weather."
-                    : goal <= 10
-                    ? "💡 Great goal! Stay consistent and sip throughout the day."
-                    : "💡 High goal — perfect if you're very active or managing heat sensitivity."}
-                </p>
-              </div>
             </div>
           );
         })()}
