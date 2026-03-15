@@ -481,8 +481,8 @@ const TodayPage = () => {
             <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/8 px-4 py-3">
               <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-primary" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">Already logged today 🧡</p>
-                <p className="text-xs text-muted-foreground">Your entry is saved — update it any time below.</p>
+                <p className="text-sm font-semibold text-foreground">You’ve already logged symptoms today.</p>
+                <p className="text-xs text-muted-foreground">You can add another entry tomorrow.</p>
               </div>
             </div>
           </StaggerItem>
