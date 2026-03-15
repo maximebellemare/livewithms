@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useSaveLearnProgress } from "@/hooks/useLearnProgress";
+import ListenButton from "@/components/ListenButton";
 
 interface ArticleBodyProps {
   body: string;
@@ -55,8 +56,9 @@ const ArticleBody = ({ body, articleId, initialProgress = 0 }: ArticleBodyProps)
 
   return (
     <div className="border-t border-border">
-      {/* Progress bar with label */}
+      {/* Listen + Progress bar */}
       <div className="flex items-center gap-2 px-4 pt-2">
+        <ListenButton text={body} label="Listen" />
         <div className="h-1 flex-1 bg-muted rounded-full">
           <div
             className="h-full bg-primary transition-all duration-150 ease-out rounded-full"
