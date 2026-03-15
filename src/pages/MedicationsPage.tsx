@@ -280,6 +280,64 @@ const MedicationsPage = () => {
             </div>
           </div>
 
+          {/* Timeline dates */}
+          <div className="card-base space-y-3">
+            <label className="block text-sm font-medium text-foreground flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4 text-primary" />
+              Timeline Dates
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Start date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal text-xs", !editing.start_date && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-1.5 h-3 w-3" />
+                      {editing.start_date ? format(parseISO(editing.start_date), "MMM d, yyyy") : "Set date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={editing.start_date ? parseISO(editing.start_date) : undefined}
+                      onSelect={(d) => d && setEditing({ ...editing, start_date: format(d, "yyyy-MM-dd") })}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">End date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal text-xs", !editing.end_date && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-1.5 h-3 w-3" />
+                      {editing.end_date ? format(parseISO(editing.end_date), "MMM d, yyyy") : "Still taking"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={editing.end_date ? parseISO(editing.end_date) : undefined}
+                      onSelect={(d) => d && setEditing({ ...editing, end_date: format(d, "yyyy-MM-dd"), active: false })}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {editing.end_date && (
+                  <button
+                    onClick={() => setEditing({ ...editing, end_date: null, active: true })}
+                    className="mt-1 text-[10px] text-primary hover:underline"
+                  >
+                    Clear (still taking)
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Side Effects (only when editing existing) */}
           {editing.id && (
             <SideEffectsTracker medicationId={editing.id} medicationName={editing.name} />
