@@ -437,12 +437,6 @@ const TodayPage = () => {
                     </AlertDialogContent>
                   </AlertDialog>
                 </div>
-                {!localStorage.getItem("lp_unpin_used") && (
-                  <p className="text-xs text-muted-foreground text-center mt-0.5 animate-fade-in">Hold pill to unpin</p>
-                )}
-                {pinnedMetrics.length >= 2 && !localStorage.getItem("hint_drag_reorder_used") && (
-                  <p className="text-xs text-muted-foreground text-center mt-0.5 animate-fade-in">Drag ⠿ to reorder pills</p>
-                )}
               </StaggerItem>
             </motion.div>
           )}
