@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS trg_handle_new_user ON auth.users;
