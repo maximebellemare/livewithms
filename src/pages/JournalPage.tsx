@@ -356,7 +356,8 @@ const JournalPage = () => {
         {/* Today's editor */}
         <StaggerItem>
         <section data-tour="journal-editor" className="space-y-2">
-          <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <PenLine className="h-3.5 w-3.5" />
             Write today's entry
           </p>
           {isLoading ? (
