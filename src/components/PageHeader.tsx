@@ -16,13 +16,13 @@ const PageHeader = ({ title, subtitle, action, showBack = false }: PageHeaderPro
   const navigate = useNavigate();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-1.5">
+    <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-md">
+      <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-4">
+        <div className="flex items-center gap-2">
           {showBack && (
             <button
               onClick={() => navigate(-1)}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors -ml-1"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors -ml-1 tap-target"
               aria-label="Go back"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -33,11 +33,11 @@ const PageHeader = ({ title, subtitle, action, showBack = false }: PageHeaderPro
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
           >
-            <h1 className="font-display text-[22px] font-semibold tracking-tight text-foreground">{title}</h1>
-            {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+            <h1 className="font-display text-[24px] font-semibold tracking-tight text-foreground">{title}</h1>
+            {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
           </motion.div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           {action}
           <NotificationBell />
         </div>
