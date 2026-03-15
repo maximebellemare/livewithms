@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { hapticMedium } from "@/lib/haptics";
 import { useAuth } from "./useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "./use-toast";
@@ -240,6 +241,7 @@ export const useCoach = () => {
         setMessages(messages);
       } finally {
         setIsLoading(false);
+        hapticMedium();
       }
     },
     [user, messages, mode, toast, ensureSession, persistMessage]

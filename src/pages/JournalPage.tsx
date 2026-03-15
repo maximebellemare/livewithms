@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback } from "react";
+import { hapticLight, hapticSuccess } from "@/lib/haptics";
 import VoiceMicButton from "@/components/journal/VoiceMicButton";
 import SEOHead from "@/components/SEOHead";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
@@ -80,6 +81,7 @@ const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: Edit
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+    hapticLight();
     toast.success("Journal entry saved 🧡");
     if (isFirstNote) onFirstReflection?.();
   };
@@ -202,6 +204,7 @@ const PastEntry = React.forwardRef<HTMLDivElement, PastEntryProps>(({ entry }, r
     });
     setSaved(true);
     setTimeout(() => { setSaved(false); setEditing(false); }, 1500);
+    hapticLight();
     toast.success("Entry updated 🧡");
   };
 

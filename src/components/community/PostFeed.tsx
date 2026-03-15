@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import VoiceMicButton from "@/components/journal/VoiceMicButton";
 import { toast } from "sonner";
+import { hapticLight } from "@/lib/haptics";
 import { PostCard } from "./PostCard";
 import AnimatedList, { listItemVariants } from "@/components/AnimatedList";
 import { motion } from "framer-motion";
@@ -83,6 +84,7 @@ export const PostFeed = ({
       setTitle("");
       setBody("");
       setShowCreate(false);
+      hapticLight();
       toast.success("Post created!");
     } catch {
       toast.error("Failed to create post");

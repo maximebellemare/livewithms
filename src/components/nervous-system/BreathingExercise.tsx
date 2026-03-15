@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { hapticSuccess } from "@/lib/haptics";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, RotateCcw, Timer, Volume2 } from "lucide-react";
 import ListenButton from "@/components/ListenButton";
@@ -113,6 +114,7 @@ const BreathingExercise = () => {
           setIsRunning(false);
           setFinished(true);
           sound.onEnd();
+          hapticSuccess();
           if (intervalRef.current) clearInterval(intervalRef.current);
           return totalSeconds;
         }
