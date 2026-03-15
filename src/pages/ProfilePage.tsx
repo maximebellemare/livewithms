@@ -558,8 +558,16 @@ const ProfilePage = () => {
 
         {/* MS Details */}
         <StaggerItem>
+        <Collapsible>
+          <CollapsibleTrigger className="flex w-full items-center justify-between card-base text-left group">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              <p className="text-sm font-semibold text-foreground">Personal Details</p>
+            </div>
+            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-3 mt-3">
         <div data-tour="profile-ms-details" className="card-base space-y-3">
-          <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium text-foreground">Community Display Name</p>
           </div>
