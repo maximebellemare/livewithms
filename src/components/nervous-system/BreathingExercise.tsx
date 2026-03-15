@@ -107,10 +107,12 @@ const BreathingExercise = () => {
     intervalRef.current = setInterval(() => {
       setTotalElapsed((prev) => {
         const next = prev + 1;
+        const remaining = totalSeconds - next;
+        sound.onTick(remaining);
         if (next >= totalSeconds) {
           setIsRunning(false);
           setFinished(true);
-          playCompletionChime();
+          sound.onEnd();
           if (intervalRef.current) clearInterval(intervalRef.current);
           return totalSeconds;
         }
@@ -132,7 +134,7 @@ const BreathingExercise = () => {
       });
     }, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isRunning, selectedPattern.phases.length, totalSeconds]);
+  }, [isRunning, selectedPattern.phases.length, totalSeconds, sound]);
 
   // Announce phase changes via voice narration
   useEffect(() => {
