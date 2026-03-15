@@ -177,9 +177,10 @@ const FeedbackTab = () => {
 
       {/* Per-session breakdown */}
       {filtered.length === 0 ? (
-        <div className="text-center py-8">
-          <MessageSquare className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">No feedback yet</p>
+        <div className="rounded-xl bg-secondary/50 px-4 py-8 text-center space-y-1.5 animate-fade-in">
+          <MessageSquare className="h-7 w-7 text-primary mx-auto" />
+          <p className="text-sm font-medium text-foreground mt-2">No feedback yet</p>
+          <p className="text-xs text-muted-foreground">Feedback from users will appear here as it comes in.</p>
         </div>
       ) : (
         <>
