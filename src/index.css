@@ -107,17 +107,21 @@
     @apply bg-background text-foreground antialiased;
     font-family: 'DM Sans', sans-serif;
     font-size: 16px;
-    line-height: 1.6;
+    line-height: 1.65;
+    letter-spacing: -0.01em;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
   h1, h2, h3 {
     font-family: 'Playfair Display', serif;
   }
-  /* Typography scale — semantic classes */
+  /* Typography scale — calm wellness aesthetic */
   h1 { @apply text-[28px] leading-tight font-semibold tracking-tight; }
-  h2 { @apply text-[22px] leading-snug font-semibold; }
-  h3 { @apply text-[18px] leading-snug font-semibold; }
+  h2 { @apply text-[21px] leading-snug font-semibold; }
+  h3 { @apply text-[17px] leading-snug font-semibold; }
   p  { @apply text-[15px] leading-relaxed; }
+
+  /* Paragraph spacing for readability */
+  p + p { @apply mt-3; }
 }
 
 @layer utilities {
