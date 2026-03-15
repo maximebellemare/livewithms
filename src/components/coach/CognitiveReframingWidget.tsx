@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, AlertTriangle, Search, Lightbulb, Sparkles, ChevronRight, ChevronLeft, RotateCcw, Check } from "lucide-react";
+import StepIndicator from "@/components/StepIndicator";
 
 interface Step {
   id: string;
@@ -94,6 +95,9 @@ const CognitiveReframingWidget = () => {
 
   return (
     <div className="flex flex-col items-center gap-3 py-4">
+      {/* Step text indicator */}
+      {!done && <StepIndicator current={stepIdx + 1} total={STEPS.length} label="Reframing" />}
+
       {/* Progress ring */}
       <div className="relative flex items-center justify-center" style={{ width: 120, height: 120 }}>
         <svg width={120} height={120} className="absolute -rotate-90">

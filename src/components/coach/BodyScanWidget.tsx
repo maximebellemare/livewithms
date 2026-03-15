@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, SkipForward, RotateCcw, Eye, Volume2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import StepIndicator from "@/components/StepIndicator";
 import { Switch } from "@/components/ui/switch";
 import { useVoiceNarration } from "@/components/nervous-system/useVoiceNarration";
 
@@ -180,14 +181,7 @@ const BodyScanWidget = () => {
         {(phase === "scanning" || phase === "transition") && (
           <motion.div key="active" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
             {/* Step indicator */}
-            <div className="flex items-center justify-center gap-1.5">
-              <span className="text-[11px] font-medium text-primary">
-                Step {regionIdx + 1}
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                of {BODY_REGIONS.length}
-              </span>
-            </div>
+            <StepIndicator current={regionIdx + 1} total={BODY_REGIONS.length} label="Body Scan" />
 
             {/* Region label & instruction */}
             <AnimatePresence mode="wait">
