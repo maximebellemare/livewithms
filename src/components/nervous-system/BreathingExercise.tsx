@@ -75,8 +75,9 @@ const BreathingExercise = () => {
     setCycleCount(0);
     setTotalElapsed(0);
     setFinished(false);
+    narration.stop();
     if (intervalRef.current) clearInterval(intervalRef.current);
-  }, []);
+  }, [narration]);
 
   const toggle = useCallback(() => {
     if (finished) {
