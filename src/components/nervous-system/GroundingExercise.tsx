@@ -432,17 +432,8 @@ const GroundingExercise = () => {
 
   return (
     <div className="space-y-5">
-      {/* Progress dots */}
-      <div className="flex items-center justify-center gap-2">
-        {senses.map((s, i) => (
-          <div
-            key={i}
-            className={`h-2 rounded-full transition-all duration-300 ${
-              i < step ? "w-2 bg-primary" : i === step ? "w-6 bg-primary" : "w-2 bg-muted"
-            }`}
-          />
-        ))}
-      </div>
+      {/* Step indicator */}
+      <StepIndicator current={step + 1} total={senses.length} label="Grounding" />
 
       <AnimatePresence mode="wait">
         <motion.div

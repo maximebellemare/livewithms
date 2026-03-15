@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, AlertTriangle, Search, Lightbulb, Sparkles, ChevronRight, ChevronLeft, RotateCcw, Check } from "lucide-react";
+import StepIndicator from "@/components/StepIndicator";
 
 interface Step {
   id: string;
