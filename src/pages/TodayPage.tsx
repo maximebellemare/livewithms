@@ -357,7 +357,7 @@ const TodayPage = () => {
           </Link>
         }
       />
-      <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg space-y-3 px-4 py-3">
+      <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg space-y-5 px-5 py-4 pb-56">
         {/* Pinned metrics compact summary */}
         <AnimatePresence>
           {pinnedMetrics.length > 0 && weekEntries.length > 0 && (
