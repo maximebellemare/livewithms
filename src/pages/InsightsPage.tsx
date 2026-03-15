@@ -969,23 +969,24 @@ const InsightsPage = () => {
             {/* ── Hydration Summary ── */}
             <HydrationSummaryCard entries={allEntries} range={range} />
 
-            {/* ── Symptom Correlation Matrix ── */}
+            {/* ── Medication & Relapse Deep Dive ── */}
+            <StaggerItem>
+            <Collapsible>
+              <CollapsibleTrigger className="flex w-full items-center justify-between text-left group py-1">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Medication & Relapses
+                </p>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 mt-2">
             <SymptomCorrelationMatrix entries={allEntries} />
-
-            {/* ── Grounding Sessions ── */}
             <GroundingSessionsChart />
-
-            {/* ── Medication Adherence ── */}
             <MedicationAdherenceChart range={range} />
             <MedicationStreakCounter />
-
-            {/* ── Relapse Risk Indicator ── */}
             <div data-tour="insights-risk">
               <RelapseRiskIndicator />
             </div>
             <ContactNeurologistCard />
-
-            {/* ── Relapse Timeline ── */}
             <RelapseTimeline />
             <RelapseTrendCard />
             <RelapseFreeStreak />
@@ -998,6 +999,9 @@ const InsightsPage = () => {
             <RelapseNotesTimeline />
             <RelapseYearComparison />
             <RelapseFrequencyTrend />
+              </CollapsibleContent>
+            </Collapsible>
+            </StaggerItem>
 
             {/* ── Mood Tags Breakdown ── */}
             {(() => {

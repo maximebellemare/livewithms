@@ -829,6 +829,8 @@ const ProfilePage = () => {
             Save Goals
           </button>
         </div>
+          </CollapsibleContent>
+        </Collapsible>
         </StaggerItem>
 
         {/* Neurologist details */}
