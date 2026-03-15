@@ -458,6 +458,9 @@ const CoachChat = ({ mode, resumeSessionId, initialMessage }: CoachChatProps) =>
               </div>
               {msg.role === "assistant" && (
                 <div className="flex items-center gap-1 mt-1 ml-1">
+                  {msg.content.length > 200 && (
+                    <ListenButton text={msg.content} label="Listen" className="mr-1" />
+                  )}
                   <button
                     onClick={() => toggleReaction(i, "up")}
                     className={`p-1 rounded-md transition-colors ${
