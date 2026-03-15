@@ -17,6 +17,8 @@ export interface DbMedication {
   supply_unit: string | null;
   refill_date: string | null;
   pills_per_dose: number | null;
+  start_date: string | null;
+  end_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -70,7 +72,9 @@ export const useSaveMedication = () => {
             supply_unit: med.supply_unit ?? "pills",
             refill_date: med.refill_date ?? null,
             pills_per_dose: med.pills_per_dose ?? 1,
-          })
+            start_date: med.start_date ?? null,
+            end_date: med.end_date ?? null,
+          } as any)
           .eq("id", med.id)
           .select()
           .single();
@@ -93,7 +97,9 @@ export const useSaveMedication = () => {
             supply_unit: med.supply_unit ?? "pills",
             refill_date: med.refill_date ?? null,
             pills_per_dose: med.pills_per_dose ?? 1,
-          })
+            start_date: med.start_date ?? null,
+            end_date: med.end_date ?? null,
+          } as any)
           .select()
           .single();
         if (error) throw error;

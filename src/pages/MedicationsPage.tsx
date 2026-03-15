@@ -13,6 +13,8 @@ import MedicationStats from "@/components/medications/MedicationStats";
 import SideEffectsTracker from "@/components/medications/SideEffectsTracker";
 import RefillAlert from "@/components/medications/RefillAlert";
 import DrugInteractionWarnings from "@/components/medications/DrugInteractionWarnings";
+import MedicationTimeline from "@/components/medications/MedicationTimeline";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -47,6 +49,8 @@ const MedicationsPage = () => {
       supply_unit: editing.supply_unit || "pills",
       refill_date: editing.refill_date || null,
       pills_per_dose: editing.pills_per_dose || 1,
+      start_date: editing.start_date || null,
+      end_date: editing.end_date || null,
     });
     setShowForm(false);
     setEditing(null);
@@ -75,6 +79,8 @@ const MedicationsPage = () => {
       supply_unit: "pills",
       refill_date: null,
       pills_per_dose: 1,
+      start_date: format(new Date(), "yyyy-MM-dd"),
+      end_date: null,
     });
     setShowForm(true);
   };
@@ -274,6 +280,64 @@ const MedicationsPage = () => {
             </div>
           </div>
 
+          {/* Timeline dates */}
+          <div className="card-base space-y-3">
+            <label className="block text-sm font-medium text-foreground flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4 text-primary" />
+              Timeline Dates
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Start date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal text-xs", !editing.start_date && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-1.5 h-3 w-3" />
+                      {editing.start_date ? format(parseISO(editing.start_date), "MMM d, yyyy") : "Set date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={editing.start_date ? parseISO(editing.start_date) : undefined}
+                      onSelect={(d) => d && setEditing({ ...editing, start_date: format(d, "yyyy-MM-dd") })}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">End date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal text-xs", !editing.end_date && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-1.5 h-3 w-3" />
+                      {editing.end_date ? format(parseISO(editing.end_date), "MMM d, yyyy") : "Still taking"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={editing.end_date ? parseISO(editing.end_date) : undefined}
+                      onSelect={(d) => d && setEditing({ ...editing, end_date: format(d, "yyyy-MM-dd"), active: false })}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {editing.end_date && (
+                  <button
+                    onClick={() => setEditing({ ...editing, end_date: null, active: true })}
+                    className="mt-1 text-[10px] text-primary hover:underline"
+                  >
+                    Clear (still taking)
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Side Effects (only when editing existing) */}
           {editing.id && (
             <SideEffectsTracker medicationId={editing.id} medicationName={editing.name} />
@@ -305,73 +369,86 @@ const MedicationsPage = () => {
         }
       />
       <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg space-y-3 px-4 py-4">
-        <MedicationStats medications={meds} />
-        <DrugInteractionWarnings medications={meds} />
-        <RefillAlert medications={meds} />
-        {isLoading ? (
-          <CardListSkeleton count={3} />
-        ) : meds.length === 0 ? (
-          <StaggerItem>
-          <div className="rounded-2xl bg-card border border-border shadow-soft px-6 py-10 text-center space-y-3">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-accent/50">
-              <svg viewBox="0 0 48 48" className="h-10 w-10 text-primary" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="14" y="6" width="20" height="36" rx="10" />
-                <line x1="14" y1="24" x2="34" y2="24" />
-                <circle cx="24" cy="15" r="2" fill="currentColor" opacity="0.4" />
-                <circle cx="24" cy="33" r="2" fill="currentColor" opacity="0.4" />
-              </svg>
-            </div>
-            <h3 className="font-display text-base font-semibold text-foreground">No medications yet</h3>
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
-              Keep track of your treatments by adding your first medication. We'll help you stay on schedule.
-            </p>
-            <button onClick={openNew} className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]">
-              <Plus className="h-4 w-4" /> Add medication
-            </button>
-          </div>
-          </StaggerItem>
-        ) : (
-          <div data-tour="meds-list">
-          {meds.map((med) => (
-            <StaggerItem key={med.id}>
-            <div onClick={() => { openEdit(med); localStorage.setItem("hint_meds_tap_used", "1"); }} className="flex items-center gap-3 card-base mb-3 cursor-pointer">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent">
-                <Pill className="h-5 w-5 text-accent-foreground" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">{med.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {med.dosage && `${med.dosage} · `}
-                  {med.schedule_type === "daily" && `${med.times_per_day || 1}× daily`}
-                  {med.schedule_type === "infusion" && `Every ${med.infusion_interval_months || 6} months`}
-                  {med.schedule_type === "custom" && "Custom schedule"}
-                  {med.reminder_time && (() => {
-                    const utcH = parseInt(med.reminder_time!.split(":")[0], 10);
-                    const localH = (utcH + new Date().getTimezoneOffset() / -60 + 24) % 24;
-                    const displayH = localH === 0 ? 12 : localH > 12 ? localH - 12 : localH;
-                    const ampm = localH < 12 ? "AM" : "PM";
-                    return ` · 🔔 ${displayH}:00 ${ampm}`;
-                  })()}
+        <Tabs defaultValue="medications" className="w-full">
+          <TabsList className="w-full">
+            <TabsTrigger value="medications" className="flex-1">Medications</TabsTrigger>
+            <TabsTrigger value="timeline" className="flex-1">Timeline</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="medications" className="space-y-3 mt-3">
+            <MedicationStats medications={meds} />
+            <DrugInteractionWarnings medications={meds} />
+            <RefillAlert medications={meds} />
+            {isLoading ? (
+              <CardListSkeleton count={3} />
+            ) : meds.length === 0 ? (
+              <StaggerItem>
+              <div className="rounded-2xl bg-card border border-border shadow-soft px-6 py-10 text-center space-y-3">
+                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-accent/50">
+                  <svg viewBox="0 0 48 48" className="h-10 w-10 text-primary" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="14" y="6" width="20" height="36" rx="10" />
+                    <line x1="14" y1="24" x2="34" y2="24" />
+                    <circle cx="24" cy="15" r="2" fill="currentColor" opacity="0.4" />
+                    <circle cx="24" cy="33" r="2" fill="currentColor" opacity="0.4" />
+                  </svg>
+                </div>
+                <h3 className="font-display text-base font-semibold text-foreground">No medications yet</h3>
+                <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
+                  Keep track of your treatments by adding your first medication. We'll help you stay on schedule.
                 </p>
-              </div>
-              <div className="flex gap-1">
-                <button onClick={() => openEdit(med)} className="rounded-full p-2 text-muted-foreground hover:bg-secondary">
-                  <Edit2 className="h-4 w-4" />
-                </button>
-                <button onClick={() => handleDelete(med.id)} className="rounded-full p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
-                  <Trash2 className="h-4 w-4" />
+                <button onClick={openNew} className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]">
+                  <Plus className="h-4 w-4" /> Add medication
                 </button>
               </div>
-            </div>
-            </StaggerItem>
-          ))}
-          {!localStorage.getItem("hint_meds_tap_used") && (
-            <p className="text-xs text-muted-foreground text-center mt-1 animate-fade-in">
-              Tap a med to log it as taken
-            </p>
-          )}
-          </div>
-        )}
+              </StaggerItem>
+            ) : (
+              <div data-tour="meds-list">
+              {meds.map((med) => (
+                <StaggerItem key={med.id}>
+                <div onClick={() => { openEdit(med); localStorage.setItem("hint_meds_tap_used", "1"); }} className="flex items-center gap-3 card-base mb-3 cursor-pointer">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent">
+                    <Pill className="h-5 w-5 text-accent-foreground" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">{med.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {med.dosage && `${med.dosage} · `}
+                      {med.schedule_type === "daily" && `${med.times_per_day || 1}× daily`}
+                      {med.schedule_type === "infusion" && `Every ${med.infusion_interval_months || 6} months`}
+                      {med.schedule_type === "custom" && "Custom schedule"}
+                      {med.reminder_time && (() => {
+                        const utcH = parseInt(med.reminder_time!.split(":")[0], 10);
+                        const localH = (utcH + new Date().getTimezoneOffset() / -60 + 24) % 24;
+                        const displayH = localH === 0 ? 12 : localH > 12 ? localH - 12 : localH;
+                        const ampm = localH < 12 ? "AM" : "PM";
+                        return ` · 🔔 ${displayH}:00 ${ampm}`;
+                      })()}
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => openEdit(med)} className="rounded-full p-2 text-muted-foreground hover:bg-secondary">
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => handleDelete(med.id)} className="rounded-full p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                </StaggerItem>
+              ))}
+              {!localStorage.getItem("hint_meds_tap_used") && (
+                <p className="text-xs text-muted-foreground text-center mt-1 animate-fade-in">
+                  Tap a med to log it as taken
+                </p>
+              )}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="timeline" className="mt-3">
+            <MedicationTimeline medications={meds} onEdit={openEdit} />
+          </TabsContent>
+        </Tabs>
       </PullToRefresh>
     </>
   );

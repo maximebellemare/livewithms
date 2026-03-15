@@ -1402,6 +1402,7 @@ export type Database = {
           color: string | null
           created_at: string
           dosage: string | null
+          end_date: string | null
           id: string
           infusion_interval_months: number | null
           name: string
@@ -1409,6 +1410,7 @@ export type Database = {
           refill_date: string | null
           reminder_time: string | null
           schedule_type: string
+          start_date: string | null
           supply_count: number | null
           supply_unit: string | null
           times_per_day: number | null
@@ -1420,6 +1422,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           dosage?: string | null
+          end_date?: string | null
           id?: string
           infusion_interval_months?: number | null
           name: string
@@ -1427,6 +1430,7 @@ export type Database = {
           refill_date?: string | null
           reminder_time?: string | null
           schedule_type?: string
+          start_date?: string | null
           supply_count?: number | null
           supply_unit?: string | null
           times_per_day?: number | null
@@ -1438,6 +1442,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           dosage?: string | null
+          end_date?: string | null
           id?: string
           infusion_interval_months?: number | null
           name?: string
@@ -1445,6 +1450,7 @@ export type Database = {
           refill_date?: string | null
           reminder_time?: string | null
           schedule_type?: string
+          start_date?: string | null
           supply_count?: number | null
           supply_unit?: string | null
           times_per_day?: number | null

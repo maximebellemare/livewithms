@@ -1,0 +1,3 @@
+ALTER TABLE public.medications
+  ADD COLUMN IF NOT EXISTS start_date date DEFAULT CURRENT_DATE,
+  ADD COLUMN IF NOT EXISTS end_date date DEFAULT NULL;
