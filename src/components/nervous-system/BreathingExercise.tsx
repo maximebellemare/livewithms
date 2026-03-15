@@ -229,6 +229,14 @@ const BreathingExercise = () => {
         </div>
       )}
 
+      {/* Sound cues */}
+      <SoundCueControls
+        enabled={sound.enabled}
+        onEnabledChange={sound.setEnabled}
+        ambientOn={sound.ambientOn}
+        onToggleAmbient={sound.toggleAmbient}
+      />
+
       {/* Breathing circle */}
       <div className="flex flex-col items-center py-6">
         <div className="relative flex h-52 w-52 items-center justify-center">
