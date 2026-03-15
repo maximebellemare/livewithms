@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, RotateCcw, Timer } from "lucide-react";
+import { Play, Pause, RotateCcw, Timer, Volume2 } from "lucide-react";
 import ListenButton from "@/components/ListenButton";
+import { Switch } from "@/components/ui/switch";
 import { playCompletionChime } from "./useCompletionSound";
+import { useVoiceNarration } from "./useVoiceNarration";
 
 type BreathingPattern = {
   id: string;
