@@ -210,6 +210,17 @@ const BreathingExercise = () => {
         </div>
       </div>
 
+      {/* Voice narration toggle */}
+      {narration.supported && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-medium text-foreground">Voice guide</span>
+          </div>
+          <Switch checked={narration.enabled} onCheckedChange={narration.setEnabled} />
+        </div>
+      )}
+
       {/* Breathing circle */}
       <div className="flex flex-col items-center py-6">
         <div className="relative flex h-52 w-52 items-center justify-center">
