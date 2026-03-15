@@ -160,7 +160,13 @@ const BreathingExercise = () => {
         ))}
       </div>
 
-      <p className="text-xs text-muted-foreground leading-relaxed">{selectedPattern.description}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground leading-relaxed flex-1">{selectedPattern.description}</p>
+        <ListenButton
+          text={`${selectedPattern.name}. ${selectedPattern.description}. The phases are: ${selectedPattern.phases.map(p => `${p.label}: ${p.instruction}, for ${p.duration} seconds`).join(". ")}.`}
+          label="Listen"
+        />
+      </div>
 
       {/* Duration selector */}
       <div className="space-y-2">
