@@ -61,6 +61,7 @@ const BreathingExercise = () => {
   const [finished, setFinished] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const narration = useVoiceNarration();
+  const sound = useSoundCues();
   const totalSeconds = selectedMinutes * 60;
 
   const currentPhase = selectedPattern.phases[phaseIndex];
