@@ -45,6 +45,7 @@ const MindfulnessTimer = () => {
     setRunning(false);
     setFinished(false);
     setSecondsLeft(selectedMinutes * 60);
+    sound.cleanup();
   };
 
   const toggleRunning = () => {
