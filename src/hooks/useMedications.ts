@@ -72,7 +72,9 @@ export const useSaveMedication = () => {
             supply_unit: med.supply_unit ?? "pills",
             refill_date: med.refill_date ?? null,
             pills_per_dose: med.pills_per_dose ?? 1,
-          })
+            start_date: med.start_date ?? null,
+            end_date: med.end_date ?? null,
+          } as any)
           .eq("id", med.id)
           .select()
           .single();
