@@ -11,22 +11,22 @@
     --primary-foreground: 0 0% 100%;
 
     --background: 30 20% 98%;
-    --foreground: 0 0% 12%;
+    --foreground: 0 0% 7%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 12%;
+    --card-foreground: 0 0% 7%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 12%;
+    --popover-foreground: 0 0% 7%;
 
     --secondary: 30 15% 95%;
-    --secondary-foreground: 0 0% 12%;
+    --secondary-foreground: 0 0% 7%;
 
     --muted: 30 10% 94%;
-    --muted-foreground: 0 0% 35%;
+    --muted-foreground: 0 0% 30%;
 
     --accent: 25 85% 95%;
-    --accent-foreground: 25 85% 35%;
+    --accent-foreground: 25 85% 30%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -45,7 +45,7 @@
     --brand-green-light: 145 45% 95%;
     --brand-blue: 210 60% 50%;
     --brand-blue-light: 210 60% 95%;
-    --brand-warm-gray: 30 10% 60%;
+    --brand-warm-gray: 30 10% 40%;
 
     --shadow-soft: 0 2px 12px -2px hsl(0 0% 0% / 0.06);
     --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.08);
@@ -63,17 +63,17 @@
 
   .dark {
     --background: 0 0% 7%;
-    --foreground: 30 10% 92%;
+    --foreground: 30 10% 93%;
     --card: 0 0% 10%;
-    --card-foreground: 30 10% 92%;
+    --card-foreground: 30 10% 93%;
     --popover: 0 0% 10%;
-    --popover-foreground: 30 10% 92%;
+    --popover-foreground: 30 10% 93%;
     --primary: 25 85% 55%;
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 14%;
-    --secondary-foreground: 30 10% 92%;
+    --secondary-foreground: 30 10% 93%;
     --muted: 0 0% 16%;
-    --muted-foreground: 30 10% 65%;
+    --muted-foreground: 30 10% 70%;
     --accent: 25 50% 15%;
     --accent-foreground: 25 85% 70%;
     --destructive: 0 62.8% 30.6%;
@@ -107,11 +107,17 @@
     @apply bg-background text-foreground antialiased;
     font-family: 'DM Sans', sans-serif;
     font-size: 16px;
+    line-height: 1.6;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
   h1, h2, h3 {
     font-family: 'Playfair Display', serif;
   }
+  /* Typography scale — semantic classes */
+  h1 { @apply text-[28px] leading-tight font-semibold tracking-tight; }
+  h2 { @apply text-[22px] leading-snug font-semibold; }
+  h3 { @apply text-[18px] leading-snug font-semibold; }
+  p  { @apply text-[15px] leading-relaxed; }
 }
 
 @layer utilities {
@@ -120,6 +126,11 @@
   }
   .tap-highlight-none {
     -webkit-tap-highlight-color: transparent;
+  }
+  /* Accessible helper text — never below 12px */
+  .text-helper {
+    @apply text-xs text-muted-foreground;
+    font-size: max(12px, 0.75rem);
   }
 }
 
@@ -151,9 +162,9 @@
            hover:scale-110 hover:text-primary active:scale-95;
   }
 
-  /* Section label — uppercase tracking used across pages */
+  /* Section label — readable uppercase label */
   .section-label {
-    @apply text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70;
+    @apply text-xs font-semibold uppercase tracking-widest text-muted-foreground;
   }
 }
 
