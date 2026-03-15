@@ -4,6 +4,7 @@ import { Play, Pause, RotateCcw, ChevronRight, Check, Zap, ZapOff, Vibrate, Volu
 import { Slider } from "@/components/ui/slider";
 import ListenButton from "@/components/ListenButton";
 import { Switch } from "@/components/ui/switch";
+import { useVoiceNarration } from "@/components/nervous-system/useVoiceNarration";
 
 // Web Audio API tone generator for phase transition cues
 const playTone = (freq: number, dur: number, vol = 0.12) => {

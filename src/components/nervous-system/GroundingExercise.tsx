@@ -36,6 +36,7 @@ const GroundingExercise = () => {
   const [saved, setSaved] = useState(false);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [milestoneHit, setMilestoneHit] = useState<number | null>(null);
+  const narration = useVoiceNarration();
   const finished = step >= senses.length;
 
   const loadHistory = useCallback(async () => {
