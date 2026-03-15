@@ -602,7 +602,7 @@ const EnergyBudgetPage = () => {
                 ))}
                 {activities.length > 0 && !swipeHintDismissed && (
                   <p
-                    className="mt-1 text-center text-[11px] text-muted-foreground/60 animate-fade-in cursor-pointer select-none"
+                    className="mt-1 text-center text-xs text-muted-foreground animate-fade-in cursor-pointer select-none"
                     onClick={() => {
                       localStorage.setItem("hint_energy_swipe_used", "1");
                       setSwipeHintDismissed(true);
