@@ -109,7 +109,7 @@ const BodyScanWidget = () => {
         </div>
         <div>
           <p className="text-sm font-medium text-foreground">Body Scan Meditation</p>
-          <p className="text-[11px] text-muted-foreground">{BODY_REGIONS.length} regions · ~{Math.round(totalDuration / 60)} min</p>
+          <p className="text-xs text-muted-foreground">{BODY_REGIONS.length} regions · ~{Math.round(totalDuration / 60)} min</p>
         </div>
       </div>
 
