@@ -142,7 +142,7 @@ const BodyScanWidget = () => {
 
             {/* Region timer */}
             <Progress value={pct} className="h-2" />
-            <p className="text-[11px] text-muted-foreground text-center">{region.duration - elapsed}s remaining</p>
+            <p className="text-xs text-muted-foreground text-center">{region.duration - elapsed}s remaining</p>
 
             {/* Controls */}
             <div className="flex justify-center gap-3">
