@@ -797,15 +797,21 @@ const TodayPage = () => {
           </div>
         )}
 
-        <p className="text-[10px] text-muted-foreground text-center -mt-1.5">
-          Tap to log · hold to see insights
-        </p>
-
-        {/* 7. Monday recap + contextual cards */}
-        <StaggerItem><MondayRecapCard /></StaggerItem>
-        <StaggerItem><DiagnosisAnniversaryCard /></StaggerItem>
-        <StaggerItem><HeatAlertCard /></StaggerItem>
-        <StaggerItem><WeeklySummaryBanner /></StaggerItem>
+        {/* 7. Contextual cards */}
+        <StaggerItem>
+          <Collapsible>
+            <CollapsibleTrigger className="flex w-full items-center justify-between text-left group">
+              <p className="section-label pt-1">📋 Updates & Reminders</p>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3 mt-2">
+              <MondayRecapCard />
+              <DiagnosisAnniversaryCard />
+              <HeatAlertCard />
+              <WeeklySummaryBanner />
+            </CollapsibleContent>
+          </Collapsible>
+        </StaggerItem>
 
         {/* Section: Full Check-In — merged symptoms + mood/sleep/notes */}
         <StaggerItem>
