@@ -157,10 +157,10 @@
 
   /* Interactive card — subtle lift for clickable cards */
   .card-interactive {
-    @apply rounded-2xl bg-card p-5 shadow-soft
+    @apply rounded-2xl border border-border/50 bg-card p-5 shadow-soft
            transition-all duration-200 ease-out
            animate-fade-in
-           hover:shadow-card hover:-translate-y-0.5
+           hover:shadow-card hover:-translate-y-0.5 hover:border-primary/20
            active:scale-[0.98] active:shadow-soft;
   }
 

@@ -105,7 +105,7 @@ const CoachPage = () => {
                 <ArrowLeft className="h-4 w-4" />
               </button>
               <div className="flex-1">
-                <h2 className="text-base font-semibold font-heading">
+                <h2 className="text-base font-semibold">
                   {modes.find((m) => m.id === activeMode)?.label}
                 </h2>
               </div>

@@ -49,19 +49,20 @@ const NervousSystemPage = () => {
 
           {/* Tab selector */}
           <StaggerItem>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
               {tabs.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setActiveTab(id)}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-medium transition-all ${
+                  className={`flex shrink-0 flex-1 items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-xs font-medium transition-all ${
                     activeTab === id
                       ? "bg-primary text-primary-foreground shadow-soft"
                       : "bg-secondary text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
-                  {label}
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="hidden xs:inline sm:inline">{label}</span>
+                  <span className="xs:hidden sm:hidden">{label}</span>
                 </button>
               ))}
             </div>
