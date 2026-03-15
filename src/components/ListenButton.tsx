@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Volume2, Pause, Square, Loader2 } from "lucide-react";
+import { Volume2, Pause, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ListenButtonProps {
@@ -7,6 +7,8 @@ interface ListenButtonProps {
   label?: string;
   className?: string;
 }
+
+const SPEEDS = [0.75, 1, 1.25, 1.5] as const;
 
 const stripMarkdown = (md: string): string =>
   md
@@ -21,6 +23,7 @@ const stripMarkdown = (md: string): string =>
 const ListenButton = ({ text, label = "Listen", className }: ListenButtonProps) => {
   const [state, setState] = useState<"idle" | "speaking" | "paused">("idle");
   const [supported, setSupported] = useState(true);
+  const [speed, setSpeed] = useState(1);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
@@ -32,7 +35,6 @@ const ListenButton = ({ text, label = "Listen", className }: ListenButtonProps) 
     };
   }, []);
 
-  // Sync state with speechSynthesis events
   useEffect(() => {
     const check = () => {
       if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
@@ -56,10 +58,9 @@ const ListenButton = ({ text, label = "Listen", className }: ListenButtonProps) 
 
     const plainText = stripMarkdown(text);
     const utter = new SpeechSynthesisUtterance(plainText);
-    utter.rate = 0.95;
+    utter.rate = speed;
     utter.pitch = 1;
 
-    // Pick a good voice if available
     const voices = synth.getVoices();
     const preferred = voices.find(
       (v) => v.lang.startsWith("en") && v.name.toLowerCase().includes("natural")
@@ -73,7 +74,7 @@ const ListenButton = ({ text, label = "Listen", className }: ListenButtonProps) 
     utteranceRef.current = utter;
     synth.speak(utter);
     setState("speaking");
-  }, [text, state]);
+  }, [text, state, speed]);
 
   const handlePause = useCallback(() => {
     window.speechSynthesis.pause();
@@ -85,7 +86,38 @@ const ListenButton = ({ text, label = "Listen", className }: ListenButtonProps) 
     setState("idle");
   }, []);
 
+  const cycleSpeed = useCallback(() => {
+    setSpeed((prev) => {
+      const idx = SPEEDS.indexOf(prev as typeof SPEEDS[number]);
+      const next = SPEEDS[(idx + 1) % SPEEDS.length];
+      // If currently speaking, restart with new speed
+      if (state === "speaking" || state === "paused") {
+        window.speechSynthesis.cancel();
+        setTimeout(() => {
+          const synth = window.speechSynthesis;
+          const plainText = stripMarkdown(text);
+          const utter = new SpeechSynthesisUtterance(plainText);
+          utter.rate = next;
+          utter.pitch = 1;
+          const voices = synth.getVoices();
+          const preferred = voices.find(
+            (v) => v.lang.startsWith("en") && v.name.toLowerCase().includes("natural")
+          ) || voices.find((v) => v.lang.startsWith("en") && !v.localService) || voices.find((v) => v.lang.startsWith("en"));
+          if (preferred) utter.voice = preferred;
+          utter.onend = () => setState("idle");
+          utter.onerror = () => setState("idle");
+          utteranceRef.current = utter;
+          synth.speak(utter);
+          setState("speaking");
+        }, 50);
+      }
+      return next;
+    });
+  }, [state, text]);
+
   if (!supported) return null;
+
+  const speedLabel = speed === 1 ? "1×" : `${speed}×`;
 
   return (
     <div className={`flex items-center gap-1 ${className ?? ""}`}>
@@ -144,6 +176,17 @@ const ListenButton = ({ text, label = "Listen", className }: ListenButtonProps) 
           </Button>
         </>
       )}
+
+      {/* Speed selector - always visible */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={cycleSpeed}
+        className="h-6 px-1.5 text-[10px] font-mono font-semibold text-muted-foreground border-border hover:text-primary min-w-[36px]"
+        title="Change reading speed"
+      >
+        {speedLabel}
+      </Button>
     </div>
   );
 };
