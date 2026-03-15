@@ -252,6 +252,13 @@ const GroundingExercise = () => {
               <Switch checked={narration.enabled} onCheckedChange={narration.setEnabled} />
             </div>
           )}
+          <SoundCueControls
+            enabled={sound.enabled}
+            onEnabledChange={sound.setEnabled}
+            ambientOn={sound.ambientOn}
+            onToggleAmbient={sound.toggleAmbient}
+            showAmbient={false}
+          />
           {user && totalCount !== null && totalCount > 0 && (
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">
@@ -272,6 +279,7 @@ const GroundingExercise = () => {
            <button
               onClick={() => {
                 setStarted(true);
+                sound.onStart();
                 narration.speak(`Name ${senses[0].count} ${senses[0].sense}`);
               }}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground shadow-soft transition-all hover:opacity-90 active:scale-[0.98]"
