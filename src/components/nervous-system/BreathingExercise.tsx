@@ -114,6 +114,7 @@ const BreathingExercise = () => {
           setIsRunning(false);
           setFinished(true);
           sound.onEnd();
+          hapticSuccess();
           if (intervalRef.current) clearInterval(intervalRef.current);
           return totalSeconds;
         }

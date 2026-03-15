@@ -84,6 +84,7 @@ export const PostFeed = ({
       setTitle("");
       setBody("");
       setShowCreate(false);
+      hapticLight();
       toast.success("Post created!");
     } catch {
       toast.error("Failed to create post");

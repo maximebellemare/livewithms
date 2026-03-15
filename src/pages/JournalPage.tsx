@@ -204,6 +204,7 @@ const PastEntry = React.forwardRef<HTMLDivElement, PastEntryProps>(({ entry }, r
     });
     setSaved(true);
     setTimeout(() => { setSaved(false); setEditing(false); }, 1500);
+    hapticLight();
     toast.success("Entry updated 🧡");
   };
 

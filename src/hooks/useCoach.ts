@@ -241,6 +241,7 @@ export const useCoach = () => {
         setMessages(messages);
       } finally {
         setIsLoading(false);
+        hapticMedium();
       }
     },
     [user, messages, mode, toast, ensureSession, persistMessage]

@@ -34,6 +34,7 @@ const MindfulnessTimer = () => {
           setRunning(false);
           setFinished(true);
           sound.onEnd();
+          hapticSuccess();
           return 0;
         }
         return prev - 1;
