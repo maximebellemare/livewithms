@@ -112,6 +112,14 @@ const MindfulnessTimer = () => {
         </div>
       </div>
 
+      {/* Sound cues */}
+      <SoundCueControls
+        enabled={sound.enabled}
+        onEnabledChange={sound.setEnabled}
+        ambientOn={sound.ambientOn}
+        onToggleAmbient={sound.toggleAmbient}
+      />
+
       {/* Timer circle */}
       <div className="flex flex-col items-center gap-4">
         <div className="relative flex items-center justify-center" style={{ width: 220, height: 220 }}>
