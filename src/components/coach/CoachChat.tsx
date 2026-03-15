@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Send, BarChart3, Heart, Calendar, HelpCircle, ChevronDown, ThumbsUp, ThumbsDown } from "lucide-react";
+import ListenButton from "@/components/ListenButton";
 import VoiceMicButton from "@/components/journal/VoiceMicButton";
 import UpgradeNudge from "@/components/premium/UpgradeNudge";
 import { motion, AnimatePresence } from "framer-motion";
