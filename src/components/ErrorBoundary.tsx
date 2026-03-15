@@ -37,10 +37,10 @@ class ErrorBoundary extends Component<Props, State> {
 
           <div className="space-y-2">
             <h1 className="font-display text-xl font-bold text-foreground">
-              Something went wrong
+              Something didn't go as planned
             </h1>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              An unexpected error occurred. You can try again or reload the app.
+              The app couldn't respond right now. You can try again or reload — your data is safe.
             </p>
           </div>
 
