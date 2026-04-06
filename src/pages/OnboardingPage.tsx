@@ -302,7 +302,7 @@ const OnboardingPage = () => {
         <input
           type="number"
           min={1950}
-          max={2026}
+          max={new Date().getFullYear()}
           placeholder="e.g. 2020"
           value={yearDiagnosed}
           onChange={(e) => setYearDiagnosed(e.target.value)}

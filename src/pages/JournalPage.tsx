@@ -54,7 +54,7 @@ interface EditorCardProps {
 }
 
 const EditorCard = ({ date, entry, recentEntries = [], onFirstReflection }: EditorCardProps) => {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(entry?.notes ?? "");
   const [saved, setSaved] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const saveEntry = useSaveEntry();
