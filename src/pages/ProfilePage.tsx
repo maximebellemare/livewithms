@@ -57,6 +57,7 @@ const ProfilePage = () => {
   const { data: isAdmin } = useIsAdmin();
   const navigate = useNavigate();
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const { fontSize, setFontSize } = useFontSize();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const isDark = resolvedTheme === "dark";
