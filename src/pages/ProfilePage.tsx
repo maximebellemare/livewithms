@@ -9,7 +9,7 @@ import SEOHead from "@/components/SEOHead";
 import DigestPreviewCard from "@/components/DigestPreviewCard";
 import PageHeader from "@/components/PageHeader";
 import { Link } from "react-router-dom";
-import { ChevronRight, ChevronDown, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope, Monitor, RotateCcw, MessageSquare, Thermometer, Droplets, X } from "lucide-react";
+import { ChevronRight, ChevronDown, Download, Shield, ExternalLink, FileText, LogOut, Moon, Sun, Mail, Check, Mails, Sparkles, Users, BellRing, Bell, Trash2, AlertTriangle, Globe, Calendar, Activity, Target, Stethoscope, Monitor, RotateCcw, MessageSquare, Thermometer, Droplets, X, Type } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,6 +28,7 @@ import { format, startOfWeek } from "date-fns";
 import { AvatarUpload } from "@/components/community/AvatarUpload";
 import { useBadgeEvents } from "@/hooks/useBadgeEvents";
 import { useUnreadMessagesCount } from "@/hooks/useMessages";
+import { useFontSize, FontSizeOption } from "@/hooks/useFontSize";
 import BlockedUsersCard from "@/components/BlockedUsersCard";
 
 function getNextMonday(): string {
@@ -56,6 +57,7 @@ const ProfilePage = () => {
   const { data: isAdmin } = useIsAdmin();
   const navigate = useNavigate();
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const { fontSize, setFontSize } = useFontSize();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const isDark = resolvedTheme === "dark";
@@ -912,6 +914,34 @@ const ProfilePage = () => {
             <p className="text-[11px] text-muted-foreground/70 mt-1">System mode automatically matches your device's light or dark setting.</p>
           </div>
 
+          {/* Font size selector */}
+          <div className="card-base space-y-3">
+            <div className="flex items-center gap-2">
+              <Type className="h-4 w-4 text-primary" />
+              <p className="text-sm font-medium text-foreground">Text Size</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Adjust text size for easier reading.</p>
+            <div className="flex gap-2">
+              {([
+                { value: "normal" as FontSizeOption, label: "Normal" },
+                { value: "large" as FontSizeOption, label: "Large" },
+                { value: "xl" as FontSizeOption, label: "Extra Large" },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setFontSize(opt.value)}
+                  className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-medium transition-all tap-target ${
+                    fontSize === opt.value
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground/70 mt-1">Changes apply immediately across all screens.</p>
+          </div>
           <NotificationToggle />
 
           {/* Notification Settings Link */}
