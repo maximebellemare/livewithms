@@ -1207,7 +1207,7 @@ const ProfilePage = () => {
 
           {[
             { icon: Shield, label: "Privacy & Data", desc: "Manage your data preferences", to: "/privacy" },
-            { icon: Sparkles, label: "Feature Roadmap", desc: "See what's coming next", to: "/roadmap" },
+            { icon: Sparkles, label: "Feature Roadmap", desc: "See what's coming next", to: "/coming-soon/roadmap" },
           ].map(({ icon: Icon, label, desc, to }) => (
             <Link key={label} to={to} className="tap-highlight-none flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary text-foreground">
               <Icon className="h-4 w-4 flex-shrink-0" />
