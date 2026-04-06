@@ -18,10 +18,33 @@ import { useQueryClient } from "@tanstack/react-query";
 /* ─── helpers ────────────────────────────────────────────── */
 const SYMPTOM_KEYS: (keyof DailyEntry)[] = ["fatigue", "pain", "brain_fog", "mood", "mobility", "spasticity", "stress"];
 
+const SYMPTOM_WEIGHTS: Record<string, number> = {
+  fatigue: 0.25,
+  pain: 0.20,
+  mobility: 0.20,
+  brain_fog: 0.15,
+  spasticity: 0.10,
+  stress: 0.05,
+  mood: 0.05,
+};
+
+const INVERT_KEYS = new Set(["mood"]);
+
 function overallScore(entry: DailyEntry): number {
-  const vals = SYMPTOM_KEYS.map((k) => entry[k] as number | null).filter((v): v is number => v !== null);
-  if (!vals.length) return 0;
-  return vals.reduce((a, b) => a + b, 0) / vals.length;
+  let totalWeight = 0;
+  let weightedSum = 0;
+
+  for (const k of SYMPTOM_KEYS) {
+    const raw = entry[k] as number | null;
+    if (raw === null) continue;
+    const w = SYMPTOM_WEIGHTS[k as string] ?? 0;
+    const val = INVERT_KEYS.has(k as string) ? 10 - raw : raw;
+    totalWeight += w;
+    weightedSum += val * w;
+  }
+
+  if (totalWeight === 0) return 0;
+  return weightedSum / totalWeight;
 }
 
 /** Returns Tailwind bg + text colour classes based on 0-10 severity */
