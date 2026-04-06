@@ -529,7 +529,7 @@ const InsightsPage = () => {
                       SYMPTOMS.forEach(({ key }) => {
                         const v = e[key as keyof typeof e] as number | null;
                         if (v === null) return;
-                        const lowerIsBetter = key === "fatigue" || key === "pain" || key === "brain_fog";
+                        const lowerIsBetter = ALL_CONFIGS[key as keyof typeof ALL_CONFIGS]?.lowerIsBetter ?? false;
                         // Normalise so "higher contribution = better"
                         score += lowerIsBetter ? (10 - v) : v;
                         count++;
@@ -855,6 +855,11 @@ const InsightsPage = () => {
                       <span>Max: <strong className="text-foreground">{maxVal !== null ? maxVal.toFixed(1) : "—"}</strong></span>
                       <span>Days logged: <strong className="text-foreground">{validVals.length}</strong></span>
                     </div>
+                    {isSleep && (
+                      <p className="mt-1 text-[9px] text-muted-foreground">
+                        🌙 Showing actual hours — the main trend chart above scales sleep to 0–10 for comparison.
+                      </p>
+                    )}
                   </div>
                 );
               })}
