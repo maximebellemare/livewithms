@@ -914,6 +914,34 @@ const ProfilePage = () => {
             <p className="text-[11px] text-muted-foreground/70 mt-1">System mode automatically matches your device's light or dark setting.</p>
           </div>
 
+          {/* Font size selector */}
+          <div className="card-base space-y-3">
+            <div className="flex items-center gap-2">
+              <Type className="h-4 w-4 text-primary" />
+              <p className="text-sm font-medium text-foreground">Text Size</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Adjust text size for easier reading.</p>
+            <div className="flex gap-2">
+              {([
+                { value: "normal" as FontSizeOption, label: "Normal" },
+                { value: "large" as FontSizeOption, label: "Large" },
+                { value: "xl" as FontSizeOption, label: "Extra Large" },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setFontSize(opt.value)}
+                  className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-medium transition-all tap-target ${
+                    fontSize === opt.value
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground/70 mt-1">Changes apply immediately across all screens.</p>
+          </div>
           <NotificationToggle />
 
           {/* Notification Settings Link */}
