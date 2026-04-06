@@ -76,6 +76,15 @@ const ReportsPage = () => {
   const [showPreview, setShowPreview] = useState(false);
   const reportFileName = `LiveWithMS-Report-${format(new Date(), "yyyy-MM-dd")}.pdf`;
 
+  useEffect(() => {
+    setReportBlob(null);
+  }, [
+    startDate, endDate,
+    includeSymptoms, includeMedications, includeAppointments,
+    includeProfile, includeNotes, includeRelapses, includeHydration,
+    includeRiskScore, includeTrendCharts, includeMoodTags,
+    includePeriodComparison, includeTriggerAnalysis, includeAiInsight,
+  ]);
 
   const startStr = format(startDate, "yyyy-MM-dd");
   const endStr = format(endDate, "yyyy-MM-dd");
@@ -503,7 +512,7 @@ const ReportsPage = () => {
                         </p>
                         <button
                           onClick={() => setDeletingId(entry.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          className="opacity-40 hover:opacity-100 transition-opacity rounded-md p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                           aria-label="Delete entry"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
