@@ -49,7 +49,7 @@ const sections = [
   },
   {
     title: "12. Contact",
-    body: "If you have questions about these Terms of Service, please email us at support@livewithms.app.",
+    body: "If you have questions about these Terms of Service, please email us at support@livewithms.com.",
   },
 ];
 
