@@ -81,7 +81,7 @@ type QuickLogMetric = "mood" | "fatigue" | "pain" | "brain_fog" | "sleep" | "mob
 
 const TodayPage = () => {
   const navigate = useNavigate();
-  const { checkIn, showModal, submitCheckIn, dismissModal } = useDailyCheckIn();
+  const { checkIn, showModal, submitCheckIn, resetCheckIn, dismissModal } = useDailyCheckIn();
   const queryClient = useQueryClient();
   const [fatigue, setFatigue] = useState(0);
   const [pain, setPain] = useState(0);
