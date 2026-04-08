@@ -43,6 +43,7 @@ export interface Profile {
   goal_weight: number | null;
   goal_weight_unit: string;
   weekly_exercise_goal_minutes: number;
+  trial_started_at: string | null;
 }
 
 export const useProfile = () => {
