@@ -6,7 +6,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PROGRAMS, getCompletionMessage } from "@/data/programContent";
+import type { ProgramTimer as ProgramTimerType, CountdownTimer } from "@/data/programContent";
 import { motion, AnimatePresence } from "framer-motion";
+import ProgramTimer from "./ProgramTimer";
+import ProgramCountdownTimer from "./ProgramCountdownTimer";
+import ListenButton from "@/components/ListenButton";
 
 const ProgramsSection = () => {
   const { user } = useAuth();
