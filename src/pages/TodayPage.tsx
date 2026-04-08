@@ -81,7 +81,7 @@ type QuickLogMetric = "mood" | "fatigue" | "pain" | "brain_fog" | "sleep" | "mob
 
 const TodayPage = () => {
   const navigate = useNavigate();
-  const { checkIn, showModal, submitCheckIn, dismissModal } = useDailyCheckIn();
+  const { checkIn, showModal, submitCheckIn, resetCheckIn, dismissModal } = useDailyCheckIn();
   const queryClient = useQueryClient();
   const [fatigue, setFatigue] = useState(0);
   const [pain, setPain] = useState(0);
@@ -463,7 +463,7 @@ const TodayPage = () => {
 
         {/* 0. Daily emotional check-in */}
         <StaggerItem>
-          <DailyCheckInCard checkIn={checkIn} onComplete={submitCheckIn} />
+          <DailyCheckInCard checkIn={checkIn} onComplete={submitCheckIn} onReset={resetCheckIn} />
         </StaggerItem>
 
         {/* 1. Risk/Alert Banner — urgent items first */}

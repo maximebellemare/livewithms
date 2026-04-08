@@ -1,40 +1,42 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckInMood } from "@/hooks/useDailyCheckIn";
+import { CheckInMood, CheckInData } from "@/hooks/useDailyCheckIn";
 import { useNavigate } from "react-router-dom";
 
-const MOOD_OPTIONS: { key: CheckInMood; emoji: string; label: string }[] = [
-  { key: "good", emoji: "😊", label: "Good" },
-  { key: "okay", emoji: "😐", label: "Okay" },
-  { key: "struggling", emoji: "😞", label: "Struggling" },
-  { key: "exhausted", emoji: "😴", label: "Exhausted" },
+const MOOD_OPTIONS: { key: CheckInMood; emoji: string; label: string; sublabel: string }[] = [
+  { key: "good", emoji: "😊", label: "Good", sublabel: "Feeling positive" },
+  { key: "okay", emoji: "😐", label: "Okay", sublabel: "Somewhere in between" },
+  { key: "struggling", emoji: "😞", label: "Struggling", sublabel: "Having a hard time" },
+  { key: "exhausted", emoji: "😴", label: "Exhausted", sublabel: "Running on empty" },
 ];
 
 const SUGGESTIONS: Record<CheckInMood, { emoji: string; label: string; route: string }[]> = {
   good: [
-    { emoji: "🧠", label: "Try a brain game", route: "/cognitive" },
-    { emoji: "📝", label: "Write in your journal", route: "/journal" },
-    { emoji: "💪", label: "Log some exercise", route: "/lifestyle" },
+    { emoji: "📝", label: "Capture what's working in your journal", route: "/journal" },
+    { emoji: "🧠", label: "Challenge your brain with a quick game", route: "/cognitive" },
+    { emoji: "💪", label: "Build on this energy with some movement", route: "/lifestyle" },
   ],
   okay: [
-    { emoji: "🌿", label: "A grounding exercise", route: "/nervous-system" },
-    { emoji: "📊", label: "Check your insights", route: "/insights" },
-    { emoji: "📝", label: "Jot down some thoughts", route: "/journal" },
+    { emoji: "🌿", label: "Try a short grounding exercise", route: "/nervous-system" },
+    { emoji: "📝", label: "Write down a few thoughts", route: "/journal" },
+    { emoji: "📊", label: "See how your week is looking", route: "/insights" },
   ],
   struggling: [
-    { emoji: "💬", label: "Talk to your coach", route: "/coach" },
-    { emoji: "🫁", label: "Try a breathing exercise", route: "/nervous-system" },
-    { emoji: "📖", label: "Read something helpful", route: "/learn" },
+    { emoji: "💬", label: "Talk it through with your coach", route: "/coach" },
+    { emoji: "🫁", label: "Take a few slow, deep breaths", route: "/nervous-system" },
+    { emoji: "📖", label: "Read something that might help", route: "/learn" },
   ],
   exhausted: [
-    { emoji: "🫁", label: "Gentle breathing", route: "/nervous-system" },
-    { emoji: "🔋", label: "Plan your energy", route: "/energy-budget" },
-    { emoji: "💬", label: "Chat with your coach", route: "/coach" },
+    { emoji: "🫁", label: "A gentle breathing exercise", route: "/nervous-system" },
+    { emoji: "🔋", label: "Simplify your day with energy planning", route: "/energy-budget" },
+    { emoji: "💬", label: "Let your coach know how you're feeling", route: "/coach" },
   ],
 };
 
+const transition = { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] };
+
 interface DailyCheckInFlowProps {
-  onComplete: (mood: CheckInMood) => void;
+  onComplete: (mood: CheckInMood) => CheckInData;
   onDismiss?: () => void;
   variant?: "modal" | "card";
 }
@@ -44,50 +46,62 @@ const DailyCheckInFlow = ({ onComplete, onDismiss, variant = "card" }: DailyChec
   const [step, setStep] = useState<"ask" | "response" | "suggest">("ask");
   const [selectedMood, setSelectedMood] = useState<CheckInMood | null>(null);
   const [aiResponse, setAiResponse] = useState("");
+  const [hoveredMood, setHoveredMood] = useState<CheckInMood | null>(null);
 
   const handleSelect = (mood: CheckInMood) => {
     setSelectedMood(mood);
-    // onComplete saves data & returns the AI response text
     const result = onComplete(mood);
-    // The hook returns CheckInData but we call it from parent
-    setStep("response");
+    setAiResponse(result.aiResponse);
+    setTimeout(() => setStep("response"), 150);
   };
 
   const isModal = variant === "modal";
 
   return (
-    <div className={isModal ? "" : "rounded-2xl border border-primary/15 bg-primary/5 p-5"}>
+    <div className={isModal ? "" : "rounded-2xl border border-primary/10 bg-gradient-to-b from-primary/[0.04] to-primary/[0.08] p-6"}>
       <AnimatePresence mode="wait">
         {step === "ask" && (
           <motion.div
             key="ask"
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="space-y-4 text-center"
+            exit={{ opacity: 0, y: -10 }}
+            transition={transition}
+            className="space-y-5 text-center"
           >
-            <div className="space-y-1">
-              <p className="text-lg font-semibold text-foreground">How are you feeling today?</p>
-              <p className="text-xs text-muted-foreground">Take a moment. There's no wrong answer.</p>
+            <div className="space-y-2">
+              <p className="text-xl font-semibold text-foreground tracking-tight">
+                How are you feeling today?
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Take a moment. There's no wrong answer.
+              </p>
             </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              {MOOD_OPTIONS.map(({ key, emoji, label }) => (
+            <div className="grid grid-cols-2 gap-3">
+              {MOOD_OPTIONS.map(({ key, emoji, label, sublabel }) => (
                 <button
                   key={key}
                   onClick={() => handleSelect(key)}
-                  className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/40 hover:bg-primary/5 active:scale-95"
+                  onMouseEnter={() => setHoveredMood(key)}
+                  onMouseLeave={() => setHoveredMood(null)}
+                  className="group flex flex-col items-center gap-2 rounded-2xl border border-border/60 bg-card p-5 transition-all duration-200 hover:border-primary/30 hover:shadow-sm active:scale-[0.96]"
                 >
-                  <span className="text-3xl">{emoji}</span>
-                  <span className="text-sm font-medium text-foreground">{label}</span>
+                  <span className="text-4xl transition-transform duration-200 group-hover:scale-110">
+                    {emoji}
+                  </span>
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">{label}</span>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{sublabel}</p>
+                  </div>
                 </button>
               ))}
             </div>
             {onDismiss && (
               <button
                 onClick={onDismiss}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors pt-1"
               >
-                Skip for now
+                I'll check in later
               </button>
             )}
           </motion.div>
@@ -96,74 +110,95 @@ const DailyCheckInFlow = ({ onComplete, onDismiss, variant = "card" }: DailyChec
         {step === "response" && selectedMood && (
           <motion.div
             key="response"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="space-y-4 text-center"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ ...transition, duration: 0.4 }}
+            className="space-y-5 text-center py-2"
           >
-            <span className="text-4xl">
-              {MOOD_OPTIONS.find((m) => m.key === selectedMood)?.emoji}
-            </span>
-            <p className="text-sm text-foreground leading-relaxed max-w-xs mx-auto font-medium">
-              {/* Read from localStorage since parent saved it */}
-              {(() => {
-                try {
-                  const data = JSON.parse(localStorage.getItem("daily_checkin") || "{}");
-                  return data.aiResponse || "";
-                } catch { return ""; }
-              })()}
-            </p>
-            <button
-              onClick={() => setStep("suggest")}
-              className="text-xs font-medium text-primary hover:underline"
+            <motion.span
+              className="inline-block text-5xl"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
             >
-              Want help for today? →
-            </button>
-            {isModal && (
+              {MOOD_OPTIONS.find((m) => m.key === selectedMood)?.emoji}
+            </motion.span>
+
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25, duration: 0.4 }}
+              className="space-y-1"
+            >
+              <p className="text-sm text-muted-foreground font-medium">
+                {MOOD_OPTIONS.find((m) => m.key === selectedMood)?.label}
+              </p>
+              <p className="text-[15px] text-foreground leading-relaxed max-w-[280px] mx-auto font-medium">
+                {aiResponse}
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="space-y-2 pt-1"
+            >
               <button
-                onClick={onDismiss}
-                className="block mx-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setStep("suggest")}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-4 py-2 text-xs font-semibold text-primary hover:bg-primary/15 transition-colors"
               >
-                Continue to dashboard
+                Want some ideas for today?
               </button>
-            )}
+              {isModal && (
+                <button
+                  onClick={onDismiss}
+                  className="block mx-auto text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+                >
+                  Continue to dashboard
+                </button>
+              )}
+            </motion.div>
           </motion.div>
         )}
 
         {step === "suggest" && selectedMood && (
           <motion.div
             key="suggest"
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="space-y-3"
+            exit={{ opacity: 0, y: -10 }}
+            transition={transition}
+            className="space-y-4"
           >
             <p className="text-sm font-semibold text-foreground text-center">
-              Here are some ideas for today:
+              A few gentle ideas for today
             </p>
             <div className="space-y-2">
-              {SUGGESTIONS[selectedMood].map(({ emoji, label, route }) => (
-                <button
+              {SUGGESTIONS[selectedMood].map(({ emoji, label, route }, i) => (
+                <motion.button
                   key={route}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.08, duration: 0.3 }}
                   onClick={() => {
                     onDismiss?.();
                     navigate(route);
                   }}
-                  className="w-full flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-all hover:border-primary/30 hover:bg-primary/5 active:scale-[0.98]"
+                  className="w-full flex items-center gap-3.5 rounded-xl border border-border/60 bg-card px-4 py-3.5 text-left transition-all hover:border-primary/25 hover:bg-primary/[0.03] active:scale-[0.98]"
                 >
-                  <span className="text-xl">{emoji}</span>
-                  <span className="text-sm font-medium text-foreground">{label}</span>
-                </button>
+                  <span className="text-xl flex-shrink-0">{emoji}</span>
+                  <span className="text-[13px] font-medium text-foreground leading-snug">{label}</span>
+                </motion.button>
               ))}
             </div>
-            {isModal && (
-              <button
-                onClick={onDismiss}
-                className="block mx-auto text-xs text-muted-foreground hover:text-foreground transition-colors pt-1"
-              >
-                Close
-              </button>
-            )}
+            <button
+              onClick={onDismiss}
+              className="block mx-auto text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors pt-1"
+            >
+              {isModal ? "Continue to dashboard" : "Maybe later"}
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
