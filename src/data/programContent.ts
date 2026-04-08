@@ -1,11 +1,30 @@
 // Full structured content for all premium programs
 // Each day includes: title, instructions, supportLine (optional), variation (optional)
+// Timer metadata (optional): breathing phases or countdown seconds
+
+export interface BreathingPhase {
+  label: string;
+  duration: number; // seconds
+}
+
+export interface ProgramTimer {
+  type: "breathing";
+  phases: BreathingPhase[];
+  cycles: number;
+}
+
+export interface CountdownTimer {
+  type: "countdown";
+  seconds: number;
+  label?: string;
+}
 
 export interface ProgramDay {
   title: string;
   instructions: string;
   supportLine?: string;
   variation?: string;
+  timer?: ProgramTimer | CountdownTimer;
 }
 
 export interface ProgramDefinition {
