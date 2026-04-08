@@ -8,8 +8,8 @@ import {
   Container,
   Head,
   Heading,
+  Hr,
   Html,
-  Link,
   Preview,
   Text,
 } from 'npm:@react-email/components@0.0.22'
@@ -27,24 +27,25 @@ export const InviteEmail = ({
 }: InviteEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>You've been invited to join {siteName}</Preview>
+    <Preview>You've been invited to LiveWithMS 💌</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>You've been invited</Heading>
+        <Text style={emoji}>💌</Text>
+        <Heading style={h1}>You're invited!</Heading>
         <Text style={text}>
-          You've been invited to join{' '}
-          <Link href={siteUrl} style={link}>
-            <strong>{siteName}</strong>
-          </Link>
-          . Click the button below to accept the invitation and create your
-          account.
+          You've been invited to join LiveWithMS. Click below to accept and set
+          up your account.
         </Text>
         <Button style={button} href={confirmationUrl}>
-          Accept Invitation
+          Accept Invite
         </Button>
+        <Hr style={hr} />
         <Text style={footer}>
           If you weren't expecting this invitation, you can safely ignore this
           email.
+        </Text>
+        <Text style={footerBrand}>
+          LiveWithMS · Your data is encrypted and private
         </Text>
       </Container>
     </Body>
@@ -53,27 +54,34 @@ export const InviteEmail = ({
 
 export default InviteEmail
 
-const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
-const container = { padding: '20px 25px' }
+const main = { backgroundColor: '#ffffff', fontFamily: "'DM Sans', Arial, sans-serif" }
+const container = { padding: '32px 24px', maxWidth: '480px', margin: '0 auto' }
+const emoji = { fontSize: '40px', textAlign: 'center' as const, margin: '0 0 8px' }
 const h1 = {
-  fontSize: '22px',
-  fontWeight: 'bold' as const,
-  color: '#000000',
-  margin: '0 0 20px',
+  fontSize: '24px',
+  fontWeight: '700' as const,
+  color: '#121212',
+  margin: '0 0 16px',
+  textAlign: 'center' as const,
 }
 const text = {
-  fontSize: '14px',
-  color: '#55575d',
-  lineHeight: '1.5',
-  margin: '0 0 25px',
+  fontSize: '15px',
+  color: '#404040',
+  lineHeight: '1.6',
+  margin: '0 0 16px',
 }
-const link = { color: 'inherit', textDecoration: 'underline' }
 const button = {
-  backgroundColor: '#000000',
+  backgroundColor: 'hsl(25, 85%, 50%)',
   color: '#ffffff',
-  fontSize: '14px',
-  borderRadius: '8px',
-  padding: '12px 20px',
+  fontSize: '16px',
+  fontWeight: '600' as const,
+  borderRadius: '999px',
+  padding: '14px 32px',
   textDecoration: 'none',
+  display: 'block' as const,
+  textAlign: 'center' as const,
+  margin: '8px 0 24px',
 }
-const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
+const hr = { borderColor: '#f0ece8', margin: '24px 0' }
+const footer = { fontSize: '13px', color: '#777', margin: '0 0 8px' }
+const footerBrand = { fontSize: '12px', color: '#999', margin: '0', textAlign: 'center' as const }
