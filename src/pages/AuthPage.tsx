@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import MedicalDisclaimerDialog from "@/components/MedicalDisclaimerDialog";
+import { friendlyError } from "@/lib/errorMessages";
 
 type Mode = "signin" | "signup" | "forgot";
 
@@ -22,7 +23,7 @@ const AuthPage = () => {
       redirect_uri: window.location.origin,
     });
     if (error) {
-      toast.error((error as any).message ?? "Google sign-in failed");
+      toast.error(friendlyError((error as any).message));
       setGoogleLoading(false);
     }
     // On success the page redirects — no need to reset loading
@@ -36,7 +37,7 @@ const AuthPage = () => {
     if (mode === "forgot") {
       const { error } = await sendPasswordReset(email);
       if (error) {
-        toast.error(error.message);
+        toast.error(friendlyError(error.message));
       } else {
         toast.success("Password reset email sent! Check your inbox.");
         setMode("signin");
@@ -44,7 +45,7 @@ const AuthPage = () => {
     } else if (mode === "signup") {
       const { error } = await signUp(email, password);
       if (error) {
-        toast.error(error.message);
+        toast.error(friendlyError(error.message));
       } else {
         toast.success("Check your email to confirm your account!");
         setMode("signin");
@@ -52,7 +53,7 @@ const AuthPage = () => {
     } else {
       const { error } = await signIn(email, password);
       if (error) {
-        toast.error(error.message);
+        toast.error(friendlyError(error.message));
       }
     }
     setLoading(false);
@@ -171,7 +172,7 @@ const AuthPage = () => {
 
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          <MedicalDisclaimerDialog triggerClassName="hover:text-primary/70 transition-colors cursor-pointer" /> · <a href="/terms" className="hover:text-primary/70 transition-colors">Terms</a> · Your data is encrypted and private
+          <MedicalDisclaimerDialog triggerClassName="hover:text-primary/70 transition-colors cursor-pointer" /> · <a href="/terms" className="hover:text-primary/70 transition-colors">Terms</a> · <a href="mailto:support@livewithms.app" className="hover:text-primary/70 transition-colors">Support</a> · Your data is encrypted and private
         </p>
       </div>
     </div>

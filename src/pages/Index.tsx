@@ -22,6 +22,11 @@ const Index = () => {
         <p className="mt-4 text-xs text-muted-foreground">
           Free · Private · Not medical advice
         </p>
+        <div className="mt-6 flex items-center justify-center gap-3 text-[11px] text-muted-foreground">
+          <a href="/terms" className="hover:text-primary transition-colors">Terms</a>
+          <span>·</span>
+          <a href="mailto:support@livewithms.app" className="hover:text-primary transition-colors">Contact</a>
+        </div>
       </div>
     </div>
   );

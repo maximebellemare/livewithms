@@ -1359,12 +1359,17 @@ const ProfilePage = () => {
 
         {/* Crisis resources */}
         <StaggerItem>
-        <div className="rounded-xl border border-border bg-card p-4 text-center">
+        <div className="rounded-xl border border-border bg-card p-4 text-center space-y-2">
           <p className="text-xs font-medium text-foreground">Need support?</p>
-          <a href="https://www.nationalmssociety.org" target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline">
-            National MS Society <ExternalLink className="h-3 w-3" />
+          <a href="mailto:support@livewithms.app" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+            <Mail className="h-3 w-3" /> support@livewithms.app
           </a>
-          <p className="mt-2 text-[10px] text-muted-foreground">Crisis Line: 988 (Suicide & Crisis Lifeline)</p>
+          <div className="pt-1 border-t border-border/50">
+            <a href="https://www.nationalmssociety.org" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+              National MS Society <ExternalLink className="h-3 w-3" />
+            </a>
+            <p className="mt-1 text-[10px] text-muted-foreground">Crisis Line: 988 (Suicide & Crisis Lifeline)</p>
+          </div>
         </div>
         </StaggerItem>
 
