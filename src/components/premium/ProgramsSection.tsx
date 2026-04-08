@@ -202,6 +202,27 @@ const ProgramsSection = () => {
                                           {day.instructions}
                                         </p>
 
+                                        {/* Listen button for audio guidance */}
+                                        <ListenButton
+                                          text={`${day.title}. ${day.instructions}${day.supportLine ? ` ${day.supportLine}` : ""}`}
+                                          label="Listen"
+                                          className="!-ml-1"
+                                        />
+
+                                        {/* Interactive timer */}
+                                        {day.timer?.type === "breathing" && (
+                                          <ProgramTimer
+                                            phases={(day.timer as ProgramTimerType).phases}
+                                            cycles={(day.timer as ProgramTimerType).cycles}
+                                          />
+                                        )}
+                                        {day.timer?.type === "countdown" && (
+                                          <ProgramCountdownTimer
+                                            seconds={(day.timer as CountdownTimer).seconds}
+                                            label={(day.timer as CountdownTimer).label}
+                                          />
+                                        )}
+
                                         {/* Support line */}
                                         {day.supportLine && (
                                           <p className="text-[11px] text-muted-foreground italic leading-relaxed">
