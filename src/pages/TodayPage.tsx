@@ -467,6 +467,13 @@ const TodayPage = () => {
           <DailyCheckInCard checkIn={checkIn} onComplete={submitCheckIn} onReset={resetCheckIn} />
         </StaggerItem>
 
+        {/* 0b. Pattern insight — subtle observation */}
+        {patternInsight && (
+          <StaggerItem>
+            <PatternInsightCard insight={patternInsight} />
+          </StaggerItem>
+        )}
+
         {/* 1. Risk/Alert Banner — urgent items first */}
         <StaggerItem><RiskAlertBanner /></StaggerItem>
 
