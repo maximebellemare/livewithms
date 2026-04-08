@@ -23,7 +23,7 @@ async function buildVapidJwt(audience: string, privateKeyB64u: string): Promise<
   const payload = base64UrlEncode(new TextEncoder().encode(JSON.stringify({
     aud: audience,
     exp: Math.floor(Date.now() / 1000) + 12 * 3600,
-    sub: "mailto:valmontmarketing@gmail.com",
+    sub: "mailto:support@livewithms.com",
   })));
 
   const keyData = base64UrlDecode(privateKeyB64u);
