@@ -21,7 +21,7 @@ const features = [
 ];
 
 const PremiumPage = () => {
-  const { isPremium, premiumUntil, checkSubscription } = usePremium();
+  const { isPremium, premiumUntil, hasRealSubscription, checkSubscription } = usePremium();
   const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const [loading, setLoading] = useState(false);
   const [managingPortal, setManagingPortal] = useState(false);
@@ -60,15 +60,18 @@ const PremiumPage = () => {
   };
 
   const handleManageSubscription = async () => {
+    if (!hasRealSubscription) return;
     setManagingPortal(true);
     try {
       const { data, error } = await supabase.functions.invoke("customer-portal");
       if (error) throw error;
       if (data?.url) {
         window.open(data.url, "_blank");
+      } else {
+        toast.info("No billing portal available for your account yet.");
       }
-    } catch (e: any) {
-      toast.error(e.message || "Failed to open billing portal.");
+    } catch {
+      toast.info("Unable to open billing management right now. Please try again later.");
     } finally {
       setManagingPortal(false);
     }
@@ -106,14 +109,20 @@ const PremiumPage = () => {
                     Renews on {new Date(premiumUntil).toLocaleDateString()}
                   </p>
                 )}
-                <button
-                  onClick={handleManageSubscription}
-                  disabled={managingPortal}
-                  className="inline-flex items-center gap-2 rounded-full bg-secondary px-5 py-2 text-sm font-medium text-foreground transition-all hover:bg-secondary/80 disabled:opacity-60"
-                >
-                  <CreditCard className="h-4 w-4" />
-                  {managingPortal ? "Opening…" : "Manage Subscription"}
-                </button>
+                {hasRealSubscription ? (
+                  <button
+                    onClick={handleManageSubscription}
+                    disabled={managingPortal}
+                    className="inline-flex items-center gap-2 rounded-full bg-secondary px-5 py-2 text-sm font-medium text-foreground transition-all hover:bg-secondary/80 disabled:opacity-60"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    {managingPortal ? "Opening…" : "Manage Subscription"}
+                  </button>
+                ) : (
+                  <p className="text-xs text-muted-foreground/70 italic">
+                    No active subscription to manage yet.
+                  </p>
+                )}
               </div>
             </StaggerItem>
           ) : (
