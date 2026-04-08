@@ -46,6 +46,9 @@ import { useRecordBadgeEvent } from "@/hooks/useBadgeEvents";
 
 import SuggestedNextCards from "@/components/SuggestedNextCards";
 import HeatAlertCard from "@/components/HeatAlertCard";
+import DailyCheckInModal from "@/components/DailyCheckInModal";
+import DailyCheckInCard from "@/components/DailyCheckInCard";
+import { useDailyCheckIn } from "@/hooks/useDailyCheckIn";
 
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
