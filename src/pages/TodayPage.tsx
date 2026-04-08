@@ -463,7 +463,7 @@ const TodayPage = () => {
 
         {/* 0. Daily emotional check-in */}
         <StaggerItem>
-          <DailyCheckInCard checkIn={checkIn} onComplete={submitCheckIn} />
+          <DailyCheckInCard checkIn={checkIn} onComplete={submitCheckIn} onReset={resetCheckIn} />
         </StaggerItem>
 
         {/* 1. Risk/Alert Banner — urgent items first */}
