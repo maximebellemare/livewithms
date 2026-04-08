@@ -40,6 +40,7 @@ export function useSaveSession() {
 
   return useMutation({
     mutationFn: async (session: {
+
       game_type: string;
       score: number;
       duration_seconds: number;
@@ -56,7 +57,18 @@ export function useSaveSession() {
         } as any);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["cognitive-sessions"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cognitive-sessions"] });
+      const messages = [
+        "Nice. Even a short reset helps. 🌿",
+        "That was a good pause. ☀️",
+        "A moment well spent. 💛",
+        "Your brain thanks you. 🧠",
+      ];
+      import("sonner").then(({ toast }) => {
+        toast(messages[Math.floor(Math.random() * messages.length)]);
+      });
+    },
   });
 }
 

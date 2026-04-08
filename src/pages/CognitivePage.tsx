@@ -17,7 +17,9 @@ import PatternRecognitionGame from "@/components/cognitive/PatternRecognitionGam
 import CognitiveTrends from "@/components/cognitive/CognitiveTrends";
 import CognitiveStreakBadge from "@/components/cognitive/CognitiveStreakBadge";
 import { useBestScores } from "@/hooks/useCognitiveSessions";
+import { useDailyGameLimit } from "@/hooks/useDailyGameLimit";
 import { motion, AnimatePresence } from "framer-motion";
+import GameLimitOverlay from "@/components/cognitive/GameLimitOverlay";
 
 const GAMES = [
   { id: "memory", label: "Memory Match", icon: <Brain className="h-5 w-5" />, emoji: "🧠", desc: "Find all matching pairs with as few moves as possible.", component: <MemoryMatchGame /> },
@@ -45,7 +47,7 @@ const GAME_TYPE_MAP: Record<string, { icon: React.ReactNode; label: string }> = 
   
 };
 
-const GameCard = ({ game }: { game: typeof GAMES[number] }) => {
+const GameCard = ({ game, onSessionComplete }: { game: typeof GAMES[number]; onSessionComplete?: () => void }) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -87,6 +89,11 @@ const CognitivePage = () => {
   const queryClient = useQueryClient();
   const handleRefresh = useCallback(async () => { await queryClient.invalidateQueries({ queryKey: ["cognitive-sessions"] }); }, [queryClient]);
   const [showTrends, setShowTrends] = useState(false);
+  const { limitReached, remaining, limit, isPremium, isLoading: limitLoading } = useDailyGameLimit();
+  const [showLimitOverlay, setShowLimitOverlay] = useState(false);
+
+  // Show overlay when limit is reached after a session completes
+  const shouldShowOverlay = limitReached && showLimitOverlay;
 
   return (
     <>
@@ -102,6 +109,20 @@ const CognitivePage = () => {
         </div>
 
         <CognitiveStreakBadge />
+
+        {/* Daily session counter for free users */}
+        {!isPremium && !limitLoading && (
+          <div className="flex items-center justify-between rounded-xl bg-card border border-border px-4 py-3">
+            <span className="text-xs text-muted-foreground">
+              {limitReached
+                ? "You've used your resets for today"
+                : `${remaining} of ${limit} resets remaining today`}
+            </span>
+            {isPremium === false && (
+              <span className="text-[10px] font-medium text-primary">Unlimited with Premium</span>
+            )}
+          </div>
+        )}
 
         {/* Best scores summary */}
         {bestScores && Object.keys(bestScores).length > 0 && (
@@ -138,12 +159,26 @@ const CognitivePage = () => {
         </AnimatePresence>
 
         {/* All games */}
-        <div className="space-y-3">
+        <div className={`space-y-3 ${limitReached ? "opacity-50 pointer-events-none select-none" : ""}`}>
           {GAMES.map((game) => (
-            <GameCard key={game.id} game={game} />
+            <GameCard key={game.id} game={game} onSessionComplete={() => { if (!isPremium) setShowLimitOverlay(true); }} />
           ))}
         </div>
+
+        {/* Limit reached inline nudge */}
+        {limitReached && !showLimitOverlay && (
+          <div className="rounded-2xl border border-primary/15 bg-accent/50 p-5 text-center">
+            <p className="text-sm font-medium text-foreground">You've had a good reset today ☀️</p>
+            <p className="text-xs text-muted-foreground mt-1">Come back tomorrow, or unlock unlimited resets with Premium.</p>
+          </div>
+        )}
       </PullToRefresh>
+
+      <AnimatePresence>
+        {shouldShowOverlay && (
+          <GameLimitOverlay onDismiss={() => setShowLimitOverlay(false)} />
+        )}
+      </AnimatePresence>
     </>
   );
 };
