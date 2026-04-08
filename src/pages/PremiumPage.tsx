@@ -257,10 +257,10 @@ const PremiumPage = () => {
                   ) : (
                     <Crown className="h-5 w-5" />
                   )}
-                  {loading ? "Opening checkout…" : "Start 14-Day Free Trial"}
+                  {loading ? "Opening checkout…" : trialExpired ? "Continue with Premium" : "Try your personal MS companion"}
                 </button>
                 <p className="text-center text-[11px] text-muted-foreground">
-                  14-day free trial • Cancel anytime
+                  Cancel anytime • No commitment
                 </p>
               </div>
             </StaggerItem>
