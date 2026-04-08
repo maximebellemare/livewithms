@@ -43,6 +43,10 @@ export default function FitnessCoachChat({ planContext, exerciseLogs, symptomEnt
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
+    if (limitReached) {
+      setShowLimitOverlay(true);
+      return;
+    }
 
     const userMsg: ChatMessage = { role: "user", content: text.trim() };
     const newMessages = [...messages, userMsg];
