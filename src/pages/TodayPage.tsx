@@ -49,6 +49,7 @@ import HeatAlertCard from "@/components/HeatAlertCard";
 import DailyCheckInModal from "@/components/DailyCheckInModal";
 import DailyCheckInCard from "@/components/DailyCheckInCard";
 import { useDailyCheckIn } from "@/hooks/useDailyCheckIn";
+import PatternInsightCard from "@/components/PatternInsightCard";
 
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
@@ -81,7 +82,7 @@ type QuickLogMetric = "mood" | "fatigue" | "pain" | "brain_fog" | "sleep" | "mob
 
 const TodayPage = () => {
   const navigate = useNavigate();
-  const { checkIn, showModal, submitCheckIn, resetCheckIn, dismissModal } = useDailyCheckIn();
+  const { checkIn, showModal, submitCheckIn, resetCheckIn, dismissModal, patternInsight } = useDailyCheckIn();
   const queryClient = useQueryClient();
   const [fatigue, setFatigue] = useState(0);
   const [pain, setPain] = useState(0);
@@ -465,6 +466,13 @@ const TodayPage = () => {
         <StaggerItem>
           <DailyCheckInCard checkIn={checkIn} onComplete={submitCheckIn} onReset={resetCheckIn} />
         </StaggerItem>
+
+        {/* 0b. Pattern insight — subtle observation */}
+        {patternInsight && (
+          <StaggerItem>
+            <PatternInsightCard insight={patternInsight} />
+          </StaggerItem>
+        )}
 
         {/* 1. Risk/Alert Banner — urgent items first */}
         <StaggerItem><RiskAlertBanner /></StaggerItem>

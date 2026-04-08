@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { format } from "date-fns";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { format, subDays, differenceInCalendarDays } from "date-fns";
 
 export type CheckInMood = "good" | "okay" | "struggling" | "exhausted";
 
@@ -10,12 +10,32 @@ export interface CheckInData {
   timestamp: string;
 }
 
-const STORAGE_KEY = "daily_checkin";
+export interface CheckInHistoryEntry {
+  date: string;
+  mood: CheckInMood;
+  completedAt: string;
+}
 
-/**
- * 8+ responses per mood — warm, human, never clinical.
- * Each is 1–2 short sentences max.
- */
+export type PatternType =
+  | "consecutive_exhausted"
+  | "consecutive_struggling"
+  | "low_energy_week"
+  | "improving"
+  | "consistent_checkins"
+  | "re_engage"
+  | null;
+
+export interface PatternInsight {
+  type: NonNullable<PatternType>;
+  message: string;
+  suggestion?: string;
+}
+
+const STORAGE_KEY = "daily_checkin";
+const HISTORY_KEY = "daily_checkin_history";
+
+// ── AI responses ──────────────────────────────────────────────
+
 const AI_RESPONSES: Record<CheckInMood, string[]> = {
   good: [
     "That's really lovely to hear. Lean into this energy today.",
@@ -59,7 +79,6 @@ const AI_RESPONSES: Record<CheckInMood, string[]> = {
   ],
 };
 
-/** Short, gentle suggestion lines — shown on the Today card after check-in */
 const CARD_SUGGESTIONS: Record<CheckInMood, string[]> = {
   good: [
     "Build on today's momentum",
@@ -87,8 +106,81 @@ const CARD_SUGGESTIONS: Record<CheckInMood, string[]> = {
   ],
 };
 
+// ── Pattern insight copy (multiple variants per pattern) ──────
+
+const PATTERN_MESSAGES: Record<NonNullable<PatternType>, { messages: string[]; suggestions?: string[] }> = {
+  consecutive_exhausted: {
+    messages: [
+      "The last couple of days have felt really draining. That's a lot to carry.",
+      "Exhaustion has been showing up consistently. Your body might be asking for extra care.",
+      "It's been a heavy stretch. Be especially gentle with yourself right now.",
+    ],
+    suggestions: [
+      "Keeping today very simple might help",
+      "Rest is productive on days like these",
+      "Consider clearing anything that can wait",
+    ],
+  },
+  consecutive_struggling: {
+    messages: [
+      "Looks like the last few days have felt heavier than usual.",
+      "It's been a tough stretch. You're still here, and that counts.",
+      "Hard days in a row can feel overwhelming. You don't have to carry it all at once.",
+    ],
+    suggestions: [
+      "A small reset — even a few breaths — can help",
+      "Try letting go of just one thing today",
+      "Writing down what's weighing on you might lighten the load",
+    ],
+  },
+  low_energy_week: {
+    messages: [
+      "Energy has been low a few times this week. That's worth noticing.",
+      "This week has had some heavier days. Be patient with yourself.",
+      "Low energy has shown up more than once lately. That's okay — it happens.",
+    ],
+    suggestions: [
+      "Pacing your energy today could make a difference",
+      "See if a lighter schedule helps over the next day or two",
+    ],
+  },
+  improving: {
+    messages: [
+      "Things seem to be shifting in a better direction. That's really encouraging.",
+      "You seem to be having a steadier stretch. Keep going at your own pace.",
+      "After some harder days, today feels a bit lighter. That's progress.",
+      "There's a gentle upswing happening. You're doing well.",
+    ],
+  },
+  consistent_checkins: {
+    messages: [
+      "You've been checking in consistently. That's a quiet but powerful habit.",
+      "Showing up every day — even briefly — builds something meaningful over time.",
+      "Consistency like this helps you understand yourself better. Well done.",
+    ],
+  },
+  re_engage: {
+    messages: [
+      "We haven't heard from you in a couple of days. Hope you're doing okay.",
+      "It's been a little while. Want to check in and see how today feels?",
+      "Welcome back. No pressure — just checking in when you're ready.",
+      "A few days have passed. Sometimes that happens. Let's pick up gently.",
+    ],
+    suggestions: [
+      "A quick check-in is all it takes to get back on track",
+      "Even a one-word check-in counts",
+    ],
+  },
+};
+
+// ── Helpers ───────────────────────────────────────────────────
+
 function getTodayKey(): string {
   return format(new Date(), "yyyy-MM-dd");
+}
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 function getStoredCheckIn(): CheckInData | null {
@@ -103,13 +195,131 @@ function getStoredCheckIn(): CheckInData | null {
   }
 }
 
-function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+function getHistory(): CheckInHistoryEntry[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as CheckInHistoryEntry[];
+  } catch {
+    return [];
+  }
 }
+
+function saveToHistory(date: string, mood: CheckInMood) {
+  const history = getHistory();
+  // Replace if same day exists, otherwise prepend
+  const filtered = history.filter((h) => h.date !== date);
+  const entry: CheckInHistoryEntry = {
+    date,
+    mood,
+    completedAt: new Date().toISOString(),
+  };
+  const updated = [entry, ...filtered]
+    // Keep last 14 days max
+    .slice(0, 14);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+  return updated;
+}
+
+// ── Pattern detection ─────────────────────────────────────────
+
+const LOW_MOODS: CheckInMood[] = ["struggling", "exhausted"];
+const MOOD_SCORE: Record<CheckInMood, number> = { exhausted: 1, struggling: 2, okay: 3, good: 4 };
+
+function detectPattern(history: CheckInHistoryEntry[]): PatternInsight | null {
+  const today = new Date();
+  const todayStr = getTodayKey();
+
+  // Get last 7 days of entries (not including today, which may not exist yet)
+  const recent = history
+    .filter((h) => {
+      const diff = differenceInCalendarDays(today, new Date(h.date));
+      return diff >= 0 && diff <= 7;
+    })
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  if (recent.length === 0) {
+    // Check re-engagement: any history at all but nothing in last 2 days?
+    if (history.length > 0) {
+      const lastDate = new Date(history[0].date);
+      const gap = differenceInCalendarDays(today, lastDate);
+      if (gap >= 2) {
+        return buildInsight("re_engage");
+      }
+    }
+    return null;
+  }
+
+  // Re-engagement: last check-in was 2+ days ago
+  const lastCheckIn = new Date(recent[0].date);
+  const daysSinceLast = differenceInCalendarDays(today, lastCheckIn);
+  if (daysSinceLast >= 2) {
+    return buildInsight("re_engage");
+  }
+
+  // Consecutive exhausted (2+)
+  const consecutive = getConsecutiveMoods(recent);
+  if (consecutive.mood === "exhausted" && consecutive.count >= 2) {
+    return buildInsight("consecutive_exhausted");
+  }
+
+  // Consecutive struggling (2+)
+  if (consecutive.mood === "struggling" && consecutive.count >= 2) {
+    return buildInsight("consecutive_struggling");
+  }
+
+  // Low energy week: 3+ low-mood days in past 7
+  const lowCount = recent.filter((h) => LOW_MOODS.includes(h.mood)).length;
+  if (lowCount >= 3) {
+    return buildInsight("low_energy_week");
+  }
+
+  // Improving trend: previous 2 days were low, today/latest is okay or good
+  if (recent.length >= 3) {
+    const [latest, prev1, prev2] = recent;
+    if (
+      MOOD_SCORE[latest.mood] >= 3 &&
+      MOOD_SCORE[prev1.mood] <= 2 &&
+      MOOD_SCORE[prev2.mood] <= 2
+    ) {
+      return buildInsight("improving");
+    }
+  }
+
+  // Consistent check-ins: 5+ days in last 7
+  if (recent.length >= 5) {
+    return buildInsight("consistent_checkins");
+  }
+
+  return null;
+}
+
+function getConsecutiveMoods(sorted: CheckInHistoryEntry[]): { mood: CheckInMood; count: number } {
+  if (sorted.length === 0) return { mood: "okay", count: 0 };
+  const firstMood = sorted[0].mood;
+  let count = 0;
+  for (const entry of sorted) {
+    if (entry.mood === firstMood) count++;
+    else break;
+  }
+  return { mood: firstMood, count };
+}
+
+function buildInsight(type: NonNullable<PatternType>): PatternInsight {
+  const config = PATTERN_MESSAGES[type];
+  return {
+    type,
+    message: pickRandom(config.messages),
+    suggestion: config.suggestions ? pickRandom(config.suggestions) : undefined,
+  };
+}
+
+// ── Hook ──────────────────────────────────────────────────────
 
 export function useDailyCheckIn() {
   const [checkIn, setCheckIn] = useState<CheckInData | null>(getStoredCheckIn);
   const [showModal, setShowModal] = useState(false);
+  const [history, setHistory] = useState<CheckInHistoryEntry[]>(getHistory);
 
   useEffect(() => {
     if (!checkIn) {
@@ -122,12 +332,17 @@ export function useDailyCheckIn() {
     }
   }, [checkIn]);
 
+  const patternInsight = useMemo(() => detectPattern(history), [history]);
+
   const submitCheckIn = useCallback((mood: CheckInMood): CheckInData => {
     const aiResponse = pickRandom(AI_RESPONSES[mood]);
     const suggestion = pickRandom(CARD_SUGGESTIONS[mood]);
-    const data: CheckInData = { mood, aiResponse, suggestion, timestamp: getTodayKey() };
+    const todayKey = getTodayKey();
+    const data: CheckInData = { mood, aiResponse, suggestion, timestamp: todayKey };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     setCheckIn(data);
+    const updatedHistory = saveToHistory(todayKey, mood);
+    setHistory(updatedHistory);
     return data;
   }, []);
 
@@ -138,5 +353,5 @@ export function useDailyCheckIn() {
 
   const dismissModal = useCallback(() => setShowModal(false), []);
 
-  return { checkIn, showModal, submitCheckIn, resetCheckIn, dismissModal };
+  return { checkIn, showModal, submitCheckIn, resetCheckIn, dismissModal, patternInsight, history };
 }
