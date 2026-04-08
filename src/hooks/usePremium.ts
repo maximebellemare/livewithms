@@ -20,6 +20,9 @@ export const usePremium = () => {
   // Check if premium has expired (local fallback)
   const isActive = isPremium && (!premiumUntil || new Date(premiumUntil) > new Date());
 
+  // Whether the user has a real Stripe-backed subscription (not just a manual DB flag)
+  const hasRealSubscription = isPremium && !!premiumUntil;
+
   const checkSubscription = useCallback(async () => {
     if (!user) return;
     try {
@@ -49,6 +52,7 @@ export const usePremium = () => {
     isPremium: isActive,
     isLoading,
     premiumUntil,
+    hasRealSubscription,
     checkSubscription,
   };
 };
