@@ -17,7 +17,9 @@ import PatternRecognitionGame from "@/components/cognitive/PatternRecognitionGam
 import CognitiveTrends from "@/components/cognitive/CognitiveTrends";
 import CognitiveStreakBadge from "@/components/cognitive/CognitiveStreakBadge";
 import { useBestScores } from "@/hooks/useCognitiveSessions";
+import { useDailyGameLimit } from "@/hooks/useDailyGameLimit";
 import { motion, AnimatePresence } from "framer-motion";
+import GameLimitOverlay from "@/components/cognitive/GameLimitOverlay";
 
 const GAMES = [
   { id: "memory", label: "Memory Match", icon: <Brain className="h-5 w-5" />, emoji: "🧠", desc: "Find all matching pairs with as few moves as possible.", component: <MemoryMatchGame /> },
