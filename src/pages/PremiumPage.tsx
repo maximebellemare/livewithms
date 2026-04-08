@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Crown, Sparkles, Brain, Stethoscope, Zap, BarChart3, BookOpen, Check, Star, CreditCard, Loader2, Heart } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
+import { friendlyError } from "@/lib/errorMessages";
 import PageHeader from "@/components/PageHeader";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
@@ -55,7 +56,7 @@ const PremiumPage = () => {
         window.location.href = data.url;
       }
     } catch (e: any) {
-      toast.error(e.message || "Failed to start checkout. Please try again.");
+      toast.error(friendlyError(e.message));
     } finally {
       setLoading(false);
     }

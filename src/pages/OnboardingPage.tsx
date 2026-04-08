@@ -7,6 +7,7 @@ import MedicalDisclaimerDialog from "@/components/MedicalDisclaimerDialog";
 import { useUpdateProfile } from "@/hooks/useProfile";
 import PlanComparisonCard from "@/components/premium/PlanComparisonCard";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/errorMessages";
 
 const msTypes = [
   { value: "RRMS", label: "RRMS", desc: "Relapsing-Remitting" },
@@ -147,7 +148,7 @@ const OnboardingPage = () => {
       });
       navigate("/today");
     } catch (err: any) {
-      toast.error("Failed to save profile: " + err.message);
+      toast.error(friendlyError(err.message));
     }
   };
 
