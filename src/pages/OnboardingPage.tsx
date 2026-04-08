@@ -146,6 +146,20 @@ const OnboardingPage = () => {
         age_range: ageRange || null,
         onboarding_completed: true,
       });
+
+      // Send welcome email (fire-and-forget)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        supabase.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "welcome-email",
+            recipientEmail: user.email,
+            idempotencyKey: `welcome-${user.id}`,
+            templateData: { name: displayName.trim() || undefined },
+          },
+        }).catch(() => {});
+      }
+
       navigate("/today");
     } catch (err: any) {
       toast.error(friendlyError(err.message));
