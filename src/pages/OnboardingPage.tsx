@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import AppPreview from "@/components/onboarding/AppPreview";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, ChevronLeft, Shield, CheckCircle2, Globe, Calendar, User, Sparkles, TrendingUp, Heart, Brain, Target, MapPin, Crown } from "lucide-react";
