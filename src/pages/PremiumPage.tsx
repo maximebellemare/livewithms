@@ -74,7 +74,7 @@ const PremiumPage = () => {
       }
 
       if (data?.url) {
-        window.open(data.url, "_blank", "noopener,noreferrer");
+        window.location.href = data.url;
       }
     } catch {
       toast.info("We could not open subscription management right now.");
