@@ -113,14 +113,12 @@ function ExerciseTab() {
       {/* Activity Heatmap */}
       <ExerciseHeatmap logs={logs} />
 
-      {/* AI Fitness Coach - Premium */}
-      <PremiumGate feature="AI Fitness Coach" compact>
-        <AIFitnessCoach
-          exerciseLogs={logs}
-          symptomEntries={symptomEntries}
-          msType={profile?.ms_type ?? null}
-        />
-      </PremiumGate>
+      {/* AI Fitness Coach - freemium with inline limits */}
+      <AIFitnessCoach
+        exerciseLogs={logs}
+        symptomEntries={symptomEntries}
+        msType={profile?.ms_type ?? null}
+      />
 
       {/* Quick Log Header */}
       <div className="flex items-center justify-between">
