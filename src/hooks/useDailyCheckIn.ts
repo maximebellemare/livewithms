@@ -25,10 +25,19 @@ export type PatternType =
   | "re_engage"
   | null;
 
+export type ActionKind = "breathe" | "journal" | "notice" | "checkin" | "rest" | "simplify";
+
+export interface PatternAction {
+  label: string;
+  kind: ActionKind;
+  completionMessage: string;
+}
+
 export interface PatternInsight {
   type: NonNullable<PatternType>;
   message: string;
   suggestion?: string;
+  action?: PatternAction;
 }
 
 const STORAGE_KEY = "daily_checkin";
@@ -108,7 +117,11 @@ const CARD_SUGGESTIONS: Record<CheckInMood, string[]> = {
 
 // ── Pattern insight copy (multiple variants per pattern) ──────
 
-const PATTERN_MESSAGES: Record<NonNullable<PatternType>, { messages: string[]; suggestions?: string[] }> = {
+const PATTERN_MESSAGES: Record<NonNullable<PatternType>, {
+  messages: string[];
+  suggestions?: string[];
+  actions: PatternAction[];
+}> = {
   consecutive_exhausted: {
     messages: [
       "The last couple of days have felt really draining. That's a lot to carry.",
@@ -118,7 +131,11 @@ const PATTERN_MESSAGES: Record<NonNullable<PatternType>, { messages: string[]; s
     suggestions: [
       "Keeping today very simple might help",
       "Rest is productive on days like these",
-      "Consider clearing anything that can wait",
+    ],
+    actions: [
+      { label: "Take a rest break", kind: "rest", completionMessage: "Good. Even a short pause helps your body recover." },
+      { label: "Simplify today", kind: "simplify", completionMessage: "Nice. Fewer things on your plate means more room to breathe." },
+      { label: "Take 3 slow breaths", kind: "breathe", completionMessage: "That was a good reset. Small moments of calm add up." },
     ],
   },
   consecutive_struggling: {
@@ -129,8 +146,12 @@ const PATTERN_MESSAGES: Record<NonNullable<PatternType>, { messages: string[]; s
     ],
     suggestions: [
       "A small reset — even a few breaths — can help",
-      "Try letting go of just one thing today",
       "Writing down what's weighing on you might lighten the load",
+    ],
+    actions: [
+      { label: "Pause and reset", kind: "breathe", completionMessage: "That was a good reset. Even 30 seconds of stillness matters." },
+      { label: "Write one sentence", kind: "journal", completionMessage: "Putting it into words takes courage. Well done." },
+      { label: "Focus on one thing", kind: "simplify", completionMessage: "One thing at a time. That's enough for today." },
     ],
   },
   low_energy_week: {
@@ -141,7 +162,10 @@ const PATTERN_MESSAGES: Record<NonNullable<PatternType>, { messages: string[]; s
     ],
     suggestions: [
       "Pacing your energy today could make a difference",
-      "See if a lighter schedule helps over the next day or two",
+    ],
+    actions: [
+      { label: "Plan a lighter day", kind: "simplify", completionMessage: "Smart. Pacing yourself is a real skill." },
+      { label: "Take a slow breath", kind: "breathe", completionMessage: "Small resets help you stretch your energy further." },
     ],
   },
   improving: {
@@ -151,12 +175,20 @@ const PATTERN_MESSAGES: Record<NonNullable<PatternType>, { messages: string[]; s
       "After some harder days, today feels a bit lighter. That's progress.",
       "There's a gentle upswing happening. You're doing well.",
     ],
+    actions: [
+      { label: "Notice what helped", kind: "notice", completionMessage: "Awareness like that builds on itself. Keep noticing." },
+      { label: "Keep this rhythm", kind: "notice", completionMessage: "You're in a good flow. Trust it." },
+    ],
   },
   consistent_checkins: {
     messages: [
       "You've been checking in consistently. That's a quiet but powerful habit.",
       "Showing up every day — even briefly — builds something meaningful over time.",
       "Consistency like this helps you understand yourself better. Well done.",
+    ],
+    actions: [
+      { label: "Keep going", kind: "notice", completionMessage: "Every check-in adds to your picture. You're building something." },
+      { label: "Check in again tomorrow", kind: "checkin", completionMessage: "See you tomorrow. You've got this." },
     ],
   },
   re_engage: {
@@ -168,7 +200,9 @@ const PATTERN_MESSAGES: Record<NonNullable<PatternType>, { messages: string[]; s
     ],
     suggestions: [
       "A quick check-in is all it takes to get back on track",
-      "Even a one-word check-in counts",
+    ],
+    actions: [
+      { label: "Check in now", kind: "checkin", completionMessage: "Welcome back. That's all it takes." },
     ],
   },
 };
@@ -311,6 +345,7 @@ function buildInsight(type: NonNullable<PatternType>): PatternInsight {
     type,
     message: pickRandom(config.messages),
     suggestion: config.suggestions ? pickRandom(config.suggestions) : undefined,
+    action: config.actions.length > 0 ? pickRandom(config.actions) : undefined,
   };
 }
 
