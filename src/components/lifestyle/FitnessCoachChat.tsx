@@ -72,6 +72,10 @@ export default function FitnessCoachChat({ planContext, exerciseLogs, symptomEnt
 
       const reply = typeof data === "string" ? data : data?.reply || data?.content || JSON.stringify(data);
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      const hitLimit = recordMessage();
+      if (hitLimit) {
+        setTimeout(() => setShowLimitOverlay(true), 800);
+      }
     } catch (e: any) {
       toast.error(e.message || "Failed to get a response");
     } finally {
