@@ -88,6 +88,8 @@ const TodayPage = () => {
   const navigate = useNavigate();
   const { checkIn, showModal, submitCheckIn, resetCheckIn, dismissModal, patternInsight } = useDailyCheckIn();
   const queryClient = useQueryClient();
+  const { trialExpired, isLoading: trialLoading } = useTrial();
+  const [trialDismissed, setTrialDismissed] = useState(false);
   const [fatigue, setFatigue] = useState(0);
   const [pain, setPain] = useState(0);
   const [brainFog, setBrainFog] = useState(0);
