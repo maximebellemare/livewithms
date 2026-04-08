@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { Crown, Sparkles, Brain, Stethoscope, Zap, BarChart3, BookOpen, Check, Star, CreditCard, Loader2 } from "lucide-react";
+import { Crown, Sparkles, Brain, Stethoscope, Zap, BarChart3, BookOpen, Check, Star, CreditCard, Loader2, Heart } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
 import PageHeader from "@/components/PageHeader";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
 import { usePremium, STRIPE_PRICES } from "@/hooks/usePremium";
+import { useTrial } from "@/hooks/useTrial";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
@@ -22,6 +23,7 @@ const features = [
 
 const PremiumPage = () => {
   const { isPremium, premiumUntil, hasRealSubscription, isBillingStatusLoading, checkSubscription } = usePremium();
+  const { isInTrial, trialExpired, daysRemaining } = useTrial();
   const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const [loading, setLoading] = useState(false);
   const [managingPortal, setManagingPortal] = useState(false);
@@ -94,11 +96,19 @@ const PremiumPage = () => {
           <StaggerItem>
             <div className="rounded-2xl bg-gradient-to-br from-primary/15 via-accent to-card p-6 text-center border border-primary/10">
               <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15">
-                <Crown className="h-8 w-8 text-primary" />
+                <Heart className="h-8 w-8 text-primary" />
               </div>
-              <h2 className="font-display text-xl font-bold text-foreground">LiveWithMS Premium</h2>
+              <h2 className="font-display text-xl font-bold text-foreground">
+                {trialExpired
+                  ? "Continue your progress"
+                  : isInTrial
+                  ? `${daysRemaining} day${daysRemaining !== 1 ? "s" : ""} left in your experience`
+                  : "Your personal MS companion"}
+              </h2>
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
-                Transform your tracking into actionable intelligence with AI-powered insights and clinical tools.
+                {trialExpired
+                  ? "Keep your insights, patterns, and daily support with Premium."
+                  : "Patterns, insights, and daily guidance that help you feel your best."}
               </p>
             </div>
           </StaggerItem>
@@ -247,10 +257,10 @@ const PremiumPage = () => {
                   ) : (
                     <Crown className="h-5 w-5" />
                   )}
-                  {loading ? "Opening checkout…" : "Start 14-Day Free Trial"}
+                  {loading ? "Opening checkout…" : trialExpired ? "Continue with Premium" : "Try your personal MS companion"}
                 </button>
                 <p className="text-center text-[11px] text-muted-foreground">
-                  14-day free trial • Cancel anytime
+                  Cancel anytime • No commitment
                 </p>
               </div>
             </StaggerItem>

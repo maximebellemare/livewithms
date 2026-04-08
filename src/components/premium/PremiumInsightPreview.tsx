@@ -1,6 +1,6 @@
 import { Crown, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { usePremium } from "@/hooks/usePremium";
+import { usePremiumAccess } from "@/hooks/usePremiumAccess";
 import { ReactNode } from "react";
 
 interface Props {
@@ -11,11 +11,11 @@ interface Props {
 
 /** Wraps premium insight content with a blurred overlay + unlock CTA for free users */
 const PremiumInsightPreview = ({ title, description, children }: Props) => {
-  const { isPremium, isLoading } = usePremium();
+  const { hasPremiumAccess, isLoading } = usePremiumAccess();
   const navigate = useNavigate();
 
   if (isLoading) return null;
-  if (isPremium) return <>{children}</>;
+  if (hasPremiumAccess) return <>{children}</>;
 
   return (
     <div className="relative rounded-xl overflow-hidden">

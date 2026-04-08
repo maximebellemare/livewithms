@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Crown, Lock, Sparkles } from "lucide-react";
-import { usePremium } from "@/hooks/usePremium";
+import { usePremiumAccess } from "@/hooks/usePremiumAccess";
 import { useNavigate } from "react-router-dom";
 
 interface PremiumGateProps {
@@ -11,11 +11,11 @@ interface PremiumGateProps {
 
 /** Wraps premium-only content. Shows upgrade prompt for free users. */
 const PremiumGate = ({ children, feature, compact }: PremiumGateProps) => {
-  const { isPremium, isLoading } = usePremium();
+  const { hasPremiumAccess, isLoading } = usePremiumAccess();
   const navigate = useNavigate();
 
   if (isLoading) return null;
-  if (isPremium) return <>{children}</>;
+  if (hasPremiumAccess) return <>{children}</>;
 
   if (compact) {
     return (
@@ -28,7 +28,7 @@ const PremiumGate = ({ children, feature, compact }: PremiumGateProps) => {
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">{feature || "Premium Feature"}</p>
-          <p className="text-[11px] text-muted-foreground">Upgrade to unlock</p>
+          <p className="text-[11px] text-muted-foreground">Unlock your patterns and insights</p>
         </div>
         <Crown className="h-4 w-4 text-primary" />
       </button>
@@ -44,7 +44,7 @@ const PremiumGate = ({ children, feature, compact }: PremiumGateProps) => {
         {feature || "Premium Feature"}
       </h3>
       <p className="mt-2 text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
-        Unlock AI-powered insights, clinical tools, and personalized programs with Premium.
+        Keep your insights, patterns, and daily support with Premium.
       </p>
       <button
         onClick={() => navigate("/premium")}
@@ -53,7 +53,6 @@ const PremiumGate = ({ children, feature, compact }: PremiumGateProps) => {
         <Crown className="h-4 w-4" />
         Explore Premium
       </button>
-      <p className="mt-3 text-[10px] text-muted-foreground">Starting at $19/month</p>
     </div>
   );
 };

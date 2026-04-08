@@ -50,6 +50,10 @@ import DailyCheckInModal from "@/components/DailyCheckInModal";
 import DailyCheckInCard from "@/components/DailyCheckInCard";
 import { useDailyCheckIn } from "@/hooks/useDailyCheckIn";
 import PatternInsightCard from "@/components/PatternInsightCard";
+import DailyPlanCard from "@/components/DailyPlanCard";
+import TrialBanner from "@/components/TrialBanner";
+import TrialExpiryScreen from "@/components/TrialExpiryScreen";
+import { useTrial } from "@/hooks/useTrial";
 
 import { useSaveEntry, useEntriesInRange, useTodayEntry } from "@/hooks/useEntries";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
@@ -84,6 +88,8 @@ const TodayPage = () => {
   const navigate = useNavigate();
   const { checkIn, showModal, submitCheckIn, resetCheckIn, dismissModal, patternInsight } = useDailyCheckIn();
   const queryClient = useQueryClient();
+  const { trialExpired, isLoading: trialLoading } = useTrial();
+  const [trialDismissed, setTrialDismissed] = useState(false);
   const [fatigue, setFatigue] = useState(0);
   const [pain, setPain] = useState(0);
   const [brainFog, setBrainFog] = useState(0);
@@ -354,8 +360,12 @@ const TodayPage = () => {
 
   return (
     <>
+      {trialExpired && !trialDismissed && (
+        <TrialExpiryScreen onDismiss={() => setTrialDismissed(true)} />
+      )}
       <DailyCheckInModal open={showModal} onComplete={submitCheckIn} onDismiss={dismissModal} />
       <SEOHead title="Today" description="Your daily MS symptom check-in and wellness overview." />
+      <TrialBanner />
       <PageHeader
         title="Today"
         subtitle={greetings(profile?.display_name) + " 🧡"}
@@ -471,6 +481,13 @@ const TodayPage = () => {
         {patternInsight && (
           <StaggerItem>
             <PatternInsightCard insight={patternInsight} />
+          </StaggerItem>
+        )}
+
+        {/* 0c. Daily plan — premium feature */}
+        {checkIn && (
+          <StaggerItem>
+            <DailyPlanCard mood={checkIn.mood} />
           </StaggerItem>
         )}
 

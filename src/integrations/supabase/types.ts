@@ -1627,6 +1627,7 @@ export type Database = {
           sleep_goal: number
           streak_freeze_enabled: boolean
           symptoms: string[] | null
+          trial_started_at: string | null
           updated_at: string
           user_id: string
           weekly_digest_enabled: boolean
@@ -1676,6 +1677,7 @@ export type Database = {
           sleep_goal?: number
           streak_freeze_enabled?: boolean
           symptoms?: string[] | null
+          trial_started_at?: string | null
           updated_at?: string
           user_id: string
           weekly_digest_enabled?: boolean
@@ -1725,6 +1727,7 @@ export type Database = {
           sleep_goal?: number
           streak_freeze_enabled?: boolean
           symptoms?: string[] | null
+          trial_started_at?: string | null
           updated_at?: string
           user_id?: string
           weekly_digest_enabled?: boolean
