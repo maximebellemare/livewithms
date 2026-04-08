@@ -81,6 +81,7 @@ type QuickLogMetric = "mood" | "fatigue" | "pain" | "brain_fog" | "sleep" | "mob
 
 const TodayPage = () => {
   const navigate = useNavigate();
+  const { checkIn, showModal, submitCheckIn, dismissModal } = useDailyCheckIn();
   const queryClient = useQueryClient();
   const [fatigue, setFatigue] = useState(0);
   const [pain, setPain] = useState(0);
@@ -352,6 +353,7 @@ const TodayPage = () => {
 
   return (
     <>
+      <DailyCheckInModal open={showModal} onComplete={submitCheckIn} onDismiss={dismissModal} />
       <SEOHead title="Today" description="Your daily MS symptom check-in and wellness overview." />
       <PageHeader
         title="Today"
@@ -458,6 +460,11 @@ const TodayPage = () => {
           </div>
         ) : (
         <>
+
+        {/* 0. Daily emotional check-in */}
+        <StaggerItem>
+          <DailyCheckInCard checkIn={checkIn} onComplete={submitCheckIn} />
+        </StaggerItem>
 
         {/* 1. Risk/Alert Banner — urgent items first */}
         <StaggerItem><RiskAlertBanner /></StaggerItem>
