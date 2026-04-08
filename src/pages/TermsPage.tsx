@@ -49,7 +49,7 @@ const sections = [
   },
   {
     title: "12. Contact",
-    body: "If you have questions about these Terms of Service, please reach out through the App's support channels.",
+    body: "If you have questions about these Terms of Service, please email us at support@livewithms.app.",
   },
 ];
 
@@ -65,7 +65,7 @@ const TermsPage = () => {
             <FileText className="h-5 w-5 text-primary" />
             <h2 className="font-display text-base font-semibold text-foreground">LiveWithMS Terms of Service</h2>
           </div>
-          <p className="text-xs text-muted-foreground">Last updated: February 2026</p>
+          <p className="text-xs text-muted-foreground">Last updated: April 2026</p>
         </div>
 
         {sections.map((section) => (
