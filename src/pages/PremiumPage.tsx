@@ -114,6 +114,25 @@ const PremiumPage = () => {
             </div>
           </StaggerItem>
 
+          {/* Manual refresh button */}
+          {!isPremium && !isBillingStatusLoading && (
+            <StaggerItem>
+              <button
+                onClick={async () => {
+                  setRefreshing(true);
+                  await checkSubscription();
+                  queryClient.invalidateQueries({ queryKey: ["profile"] });
+                  setRefreshing(false);
+                }}
+                disabled={refreshing}
+                className="flex items-center justify-center gap-2 w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                {refreshing ? "Checking…" : "Already subscribed? Refresh status"}
+              </button>
+            </StaggerItem>
+          )}
+
           {isPremium ? (
             <StaggerItem>
               <div className="rounded-xl bg-[hsl(var(--brand-green))]/10 border border-[hsl(var(--brand-green))]/20 p-5 text-center space-y-3">
