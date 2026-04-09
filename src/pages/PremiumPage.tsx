@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Crown, Sparkles, Brain, Stethoscope, Zap, BarChart3, BookOpen, Check, Star, CreditCard, Loader2, Heart, RefreshCw } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
 import { friendlyError } from "@/lib/errorMessages";
@@ -33,16 +33,52 @@ const PremiumPage = () => {
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => { await checkSubscription(); queryClient.invalidateQueries({ queryKey: ["profile"] }); }, [queryClient, checkSubscription]);
 
-  // Re-check subscription on page mount
   useEffect(() => { checkSubscription(); }, [checkSubscription]);
 
-  // Handle checkout cancel
   useEffect(() => {
     const checkout = searchParams.get("checkout");
     if (checkout === "cancel") {
       toast.info("No problem — you can continue with the free version.", { duration: 5000 });
     }
   }, [searchParams]);
+
+  const resolvedPremiumMessage = useMemo(() => {
+    if (!hasRealSubscription || !premiumUntil) {
+      return null;
+    }
+
+    if (cancelAtPeriodEnd) {
+      return {
+        heading: `Your Premium will end on ${new Date(premiumUntil).toLocaleDateString()}`,
+        body: "You've cancelled your subscription. You'll keep full access until this date.",
+        status: "cancelled" as const,
+      };
+    }
+
+    return {
+      heading: `Renews on ${new Date(premiumUntil).toLocaleDateString()}`,
+      body: null,
+      status: "active" as const,
+    };
+  }, [cancelAtPeriodEnd, hasRealSubscription, premiumUntil]);
+
+  useEffect(() => {
+    if (!isPremium) return;
+    console.info("[PremiumPage] billing state", {
+      isPremium,
+      premiumUntil,
+      hasRealSubscription,
+      cancelAtPeriodEnd,
+      isBillingStatusLoading,
+      uiBranch: isBillingStatusLoading
+        ? "loading"
+        : resolvedPremiumMessage?.status === "cancelled"
+          ? "cancelled"
+          : resolvedPremiumMessage?.status === "active"
+            ? "renews"
+            : "fallback",
+    });
+  }, [isPremium, premiumUntil, hasRealSubscription, cancelAtPeriodEnd, isBillingStatusLoading, resolvedPremiumMessage]);
 
   const handleCheckout = async () => {
     setLoading(true);
@@ -93,7 +129,6 @@ const PremiumPage = () => {
 
       <PullToRefresh onRefresh={handleRefresh} className="mx-auto max-w-lg px-4 py-4 pb-24">
         <StaggerContainer className="space-y-5">
-          {/* Hero */}
           <StaggerItem>
             <div className="rounded-2xl bg-gradient-to-br from-primary/15 via-accent to-card p-6 text-center border border-primary/10">
               <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15">
@@ -114,8 +149,7 @@ const PremiumPage = () => {
             </div>
           </StaggerItem>
 
-          {/* Manual refresh button */}
-          {!isPremium && !isBillingStatusLoading && (
+          {!isBillingStatusLoading && (
             <StaggerItem>
               <button
                 onClick={async () => {
@@ -128,35 +162,38 @@ const PremiumPage = () => {
                 className="flex items-center justify-center gap-2 w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
-                {refreshing ? "Checking…" : "Already subscribed? Refresh status"}
+                {refreshing ? "Checking…" : "Refresh subscription status"}
               </button>
             </StaggerItem>
           )}
 
           {isPremium ? (
             <StaggerItem>
-              <div className={`rounded-xl p-5 text-center space-y-3 ${cancelAtPeriodEnd ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-[hsl(var(--brand-green))]/10 border border-[hsl(var(--brand-green))]/20'}`}>
+              <div className={`rounded-xl p-5 text-center space-y-3 ${resolvedPremiumMessage?.status === "cancelled" ? "bg-amber-500/10 border border-amber-500/20" : "bg-[hsl(var(--brand-green))]/10 border border-[hsl(var(--brand-green))]/20"}`}>
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <Star className={`h-5 w-5 ${cancelAtPeriodEnd ? 'text-amber-500' : 'text-[hsl(var(--brand-green))]'}`} />
+                  <Star className={`h-5 w-5 ${resolvedPremiumMessage?.status === "cancelled" ? "text-amber-500" : "text-[hsl(var(--brand-green))]"}`} />
                   <span className="text-sm font-semibold text-foreground">
-                    {cancelAtPeriodEnd ? "Premium — Cancelled" : "You're a Premium member!"}
+                    {resolvedPremiumMessage?.status === "cancelled" ? "Premium — Cancelled" : "You're a Premium member!"}
                   </span>
                 </div>
-                {cancelAtPeriodEnd && premiumUntil && (
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">
-                      Your Premium will end on {new Date(premiumUntil).toLocaleDateString()}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      You've cancelled your subscription. You'll keep full access until this date.
-                    </p>
-                  </div>
-                )}
-                {!cancelAtPeriodEnd && premiumUntil && (
-                  <p className="text-xs text-muted-foreground">
-                    Renews on {new Date(premiumUntil).toLocaleDateString()}
+
+                {isBillingStatusLoading ? (
+                  <p className="text-xs text-muted-foreground/70 italic">
+                    Checking subscription details…
                   </p>
-                )}
+                ) : resolvedPremiumMessage ? (
+                  <div className="space-y-1">
+                    <p className={`text-sm ${resolvedPremiumMessage.status === "cancelled" ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                      {resolvedPremiumMessage.heading}
+                    </p>
+                    {resolvedPremiumMessage.body && (
+                      <p className="text-xs text-muted-foreground">
+                        {resolvedPremiumMessage.body}
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+
                 {hasRealSubscription ? (
                   <button
                     onClick={handleManageSubscription}
@@ -166,20 +203,15 @@ const PremiumPage = () => {
                     <CreditCard className="h-4 w-4" />
                     {managingPortal ? "Opening…" : cancelAtPeriodEnd ? "Resubscribe" : "Manage Subscription"}
                   </button>
-                ) : isBillingStatusLoading ? (
-                  <p className="text-xs text-muted-foreground/70 italic">
-                    Checking subscription details…
-                  </p>
-                ) : (
+                ) : !isBillingStatusLoading ? (
                   <p className="text-xs text-muted-foreground/70 italic">
                     No active subscription to manage yet.
                   </p>
-                )}
+                ) : null}
               </div>
             </StaggerItem>
           ) : (
             <>
-              {/* Billing toggle */}
               <StaggerItem>
                 <div className="flex items-center justify-center gap-3">
                   <button
@@ -198,7 +230,6 @@ const PremiumPage = () => {
                 </div>
               </StaggerItem>
 
-              {/* Price */}
               <StaggerItem>
                 <div className="text-center">
                   <div className="flex items-baseline justify-center gap-1">
@@ -215,7 +246,6 @@ const PremiumPage = () => {
             </>
           )}
 
-          {/* Features */}
           <StaggerItem>
             <div className="rounded-xl bg-card p-5 shadow-soft space-y-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Everything in Premium</p>
@@ -233,7 +263,6 @@ const PremiumPage = () => {
             </div>
           </StaggerItem>
 
-          {/* Free vs Premium comparison */}
           <StaggerItem>
             <div className="rounded-xl bg-card p-5 shadow-soft">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Free vs Premium</p>
@@ -275,7 +304,6 @@ const PremiumPage = () => {
             </div>
           </StaggerItem>
 
-          {/* CTA */}
           {!isPremium && (
             <StaggerItem>
               <div className="space-y-3">
@@ -304,3 +332,4 @@ const PremiumPage = () => {
 };
 
 export default PremiumPage;
+

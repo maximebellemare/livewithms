@@ -60,10 +60,18 @@ export const usePremium = () => {
     try {
       const { data, error } = await supabase.functions.invoke("check-subscription");
       if (error) {
-        // Try to parse the response body for non-2xx responses
-        console.warn("check-subscription returned error, treating as unchecked:", error);
+        console.warn("[usePremium] check-subscription returned error", error);
+        setBillingState((prev) => ({ ...prev, checked: true }));
         return;
       }
+
+      console.info("[usePremium] subscription response", {
+        subscribed: data?.subscribed,
+        customer_exists: data?.customer_exists,
+        billing_portal_eligible: data?.billing_portal_eligible,
+        subscription_end: data?.subscription_end,
+        cancel_at_period_end: data?.cancel_at_period_end,
+      });
 
       setBillingState({
         checked: true,
@@ -73,12 +81,11 @@ export const usePremium = () => {
         cancelAtPeriodEnd: Boolean(data?.cancel_at_period_end),
       });
 
-      // Invalidate profile to pick up synced is_premium
       if (data) {
         queryClient.invalidateQueries({ queryKey: ["profile"] });
       }
     } catch (e) {
-      console.error("Failed to check subscription:", e);
+      console.error("[usePremium] Failed to check subscription", e);
       setBillingState({
         checked: true,
         hasStripeCustomer: false,
@@ -99,6 +106,24 @@ export const usePremium = () => {
     checkSubscription();
     const interval = setInterval(checkSubscription, 60_000);
     return () => clearInterval(interval);
+  }, [user, checkSubscription]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshSubscription = () => {
+      if (document.visibilityState === "visible") {
+        void checkSubscription();
+      }
+    };
+
+    window.addEventListener("focus", refreshSubscription);
+    document.addEventListener("visibilitychange", refreshSubscription);
+
+    return () => {
+      window.removeEventListener("focus", refreshSubscription);
+      document.removeEventListener("visibilitychange", refreshSubscription);
+    };
   }, [user, checkSubscription]);
 
   return {
