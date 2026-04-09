@@ -5,8 +5,8 @@ import { useAuth } from "./useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const STRIPE_PRICES = {
-  monthly: "price_1T3gt7FS8l3FziwrnnmxTt3S",
-  annual: "price_1T3gxSFS8l3Fziwrr3ctpsqg",
+  monthly: "price_1TKJbXFS8l3Fziwrd8lYa2jR",
+  annual: "price_1TKJc6FS8l3FziwrkxrwoJ2O",
 } as const;
 
 type BillingState = {
