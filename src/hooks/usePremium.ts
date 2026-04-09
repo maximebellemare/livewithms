@@ -57,7 +57,11 @@ export const usePremium = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("check-subscription");
-      if (error) throw error;
+      if (error) {
+        // Try to parse the response body for non-2xx responses
+        console.warn("check-subscription returned error, treating as unchecked:", error);
+        return;
+      }
 
       setBillingState({
         checked: true,
