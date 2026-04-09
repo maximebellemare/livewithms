@@ -258,7 +258,7 @@ const PremiumPage = () => {
                   ) : (
                     <Crown className="h-5 w-5" />
                   )}
-                  {loading ? "Opening checkout…" : trialExpired ? "Continue with Premium" : "Try your personal MS companion"}
+                  {loading ? "Redirecting to secure checkout…" : trialExpired ? "Continue with Premium" : "Try your personal MS companion"}
                 </button>
                 <p className="text-center text-[11px] text-muted-foreground">
                   Cancel anytime • No commitment
