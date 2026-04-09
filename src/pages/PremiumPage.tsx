@@ -32,17 +32,13 @@ const PremiumPage = () => {
   const queryClient = useQueryClient();
   const handleRefresh = useCallback(async () => { await queryClient.invalidateQueries({ queryKey: ["premium"] }); checkSubscription(); }, [queryClient, checkSubscription]);
 
-  // Handle checkout return
+  // Handle checkout cancel
   useEffect(() => {
     const checkout = searchParams.get("checkout");
-    if (checkout === "success") {
-      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#E8751A", "#F5A623", "#FFFFFF"] });
-      toast.success("Welcome to Premium! 🎉 Your subscription is active.");
-      checkSubscription();
-    } else if (checkout === "cancel") {
-      toast.info("Checkout cancelled. No charges were made.");
+    if (checkout === "cancel") {
+      toast.info("No problem — you can continue with the free version.", { duration: 5000 });
     }
-  }, [searchParams, checkSubscription]);
+  }, [searchParams]);
 
   const handleCheckout = async () => {
     setLoading(true);
