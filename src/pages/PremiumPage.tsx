@@ -23,7 +23,7 @@ const features = [
 ];
 
 const PremiumPage = () => {
-  const { isPremium, premiumUntil, hasRealSubscription, isBillingStatusLoading, checkSubscription } = usePremium();
+  const { isPremium, premiumUntil, hasRealSubscription, cancelAtPeriodEnd, isBillingStatusLoading, checkSubscription } = usePremium();
   const { isInTrial, trialExpired, daysRemaining } = useTrial();
   const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const [loading, setLoading] = useState(false);
@@ -135,12 +135,24 @@ const PremiumPage = () => {
 
           {isPremium ? (
             <StaggerItem>
-              <div className="rounded-xl bg-[hsl(var(--brand-green))]/10 border border-[hsl(var(--brand-green))]/20 p-5 text-center space-y-3">
+              <div className={`rounded-xl p-5 text-center space-y-3 ${cancelAtPeriodEnd ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-[hsl(var(--brand-green))]/10 border border-[hsl(var(--brand-green))]/20'}`}>
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <Star className="h-5 w-5 text-[hsl(var(--brand-green))]" />
-                  <span className="text-sm font-semibold text-foreground">You're a Premium member!</span>
+                  <Star className={`h-5 w-5 ${cancelAtPeriodEnd ? 'text-amber-500' : 'text-[hsl(var(--brand-green))]'}`} />
+                  <span className="text-sm font-semibold text-foreground">
+                    {cancelAtPeriodEnd ? "Premium — Cancelled" : "You're a Premium member!"}
+                  </span>
                 </div>
-                {premiumUntil && (
+                {cancelAtPeriodEnd && premiumUntil && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">
+                      Your Premium will end on {new Date(premiumUntil).toLocaleDateString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      You've cancelled your subscription. You'll keep full access until this date.
+                    </p>
+                  </div>
+                )}
+                {!cancelAtPeriodEnd && premiumUntil && (
                   <p className="text-xs text-muted-foreground">
                     Renews on {new Date(premiumUntil).toLocaleDateString()}
                   </p>
@@ -152,7 +164,7 @@ const PremiumPage = () => {
                     className="inline-flex items-center gap-2 rounded-full bg-secondary px-5 py-2 text-sm font-medium text-foreground transition-all hover:bg-secondary/80 disabled:opacity-60"
                   >
                     <CreditCard className="h-4 w-4" />
-                    {managingPortal ? "Opening…" : "Manage Subscription"}
+                    {managingPortal ? "Opening…" : cancelAtPeriodEnd ? "Resubscribe" : "Manage Subscription"}
                   </button>
                 ) : isBillingStatusLoading ? (
                   <p className="text-xs text-muted-foreground/70 italic">
