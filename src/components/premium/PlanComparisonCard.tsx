@@ -39,26 +39,32 @@ const PlanComparisonCard = ({ compact = false }: { compact?: boolean }) => {
         <div className="grid grid-cols-[1fr_56px_56px] px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           <span>Feature</span>
           <span className="text-center">Free</span>
-          <span className="text-center text-primary">Pro</span>
+          <span className="text-center text-primary">Premium</span>
         </div>
 
-        {features.slice(0, compact ? 7 : undefined).map((f, i) => (
+        {features.slice(0, compact ? 7 : undefined).map((f) => (
           <div
             key={f.label}
             className={`grid grid-cols-[1fr_56px_56px] px-4 py-2.5 text-xs ${
-              !f.free && f.premium ? "bg-primary/[0.02]" : ""
+              f.free === "—" ? "bg-primary/[0.02]" : ""
             }`}
           >
             <span className="text-foreground">{f.label}</span>
-            <span className="flex justify-center">
-              {f.free ? (
-                <Check className="h-3.5 w-3.5 text-emerald-500" />
+            <span className="flex justify-center text-center">
+              {f.free === "✓" ? (
+                <Check className="h-3.5 w-3.5 text-[hsl(var(--brand-green))]" />
+              ) : f.free === "—" ? (
+                <span className="text-muted-foreground/40">—</span>
               ) : (
-                <X className="h-3.5 w-3.5 text-muted-foreground/40" />
+                <span className="text-muted-foreground text-[10px]">{f.free}</span>
               )}
             </span>
-            <span className="flex justify-center">
-              <Check className="h-3.5 w-3.5 text-primary" />
+            <span className="flex justify-center text-center">
+              {f.premium === "✓" ? (
+                <Check className="h-3.5 w-3.5 text-primary" />
+              ) : (
+                <span className="font-medium text-primary text-[10px]">{f.premium}</span>
+              )}
             </span>
           </div>
         ))}
