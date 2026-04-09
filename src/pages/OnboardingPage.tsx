@@ -172,7 +172,8 @@ const OnboardingPage = () => {
   const isFirst = step === 0;
   const isConsentStep = step === 1;
   const isNameStep = step === 2;
-  const skippableSteps = [2, 3, 4, 5, 6, 7]; // Name, MS Type, Symptoms, Goals, About You, Plan
+  const isPlanStep = step === 7;
+  const skippableSteps = [2, 3, 4, 5, 6]; // Name, MS Type, Symptoms, Goals, About You
   const isSkippable = skippableSteps.includes(step);
   const nextDisabled = isConsentStep && !allConsentsAccepted;
 
@@ -449,12 +450,12 @@ const OnboardingPage = () => {
     <div key="plan" className="px-6">
       <div className="flex items-center gap-2 mb-1">
         <Crown className="h-5 w-5 text-primary" />
-        <h2 className="font-display text-2xl font-semibold text-foreground">Choose Your Plan</h2>
+        <h2 className="font-display text-2xl font-semibold text-foreground">Start with 3 Days of Premium</h2>
       </div>
       <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-        Start free and upgrade anytime. Here's what you get.
+        You'll get full Premium access for 3 days. After that, you can continue with Premium or stay on the free plan.
       </p>
-      <StepTip icon={Sparkles} text="You can always upgrade later from your profile. No pressure — free gives you a great start!" />
+      <StepTip icon={Sparkles} text="No credit card needed — your trial starts automatically." />
       <div className="mt-3">
         <PlanComparisonCard compact />
       </div>
@@ -575,7 +576,9 @@ const OnboardingPage = () => {
               ? "Get Started"
               : isConsentStep
                 ? "I Agree & Continue"
-                : "Next"}
+                : isPlanStep
+                  ? "Start My 3-Day Experience ✨"
+                  : "Next"}
           {!isLast && <ChevronRight className="h-4 w-4" />}
         </button>
       </div>
