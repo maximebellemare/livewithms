@@ -14,6 +14,7 @@ type BillingState = {
   hasStripeCustomer: boolean;
   hasActiveSubscription: boolean;
   subscriptionEnd: string | null;
+  cancelAtPeriodEnd: boolean;
 };
 
 const INITIAL_BILLING_STATE: BillingState = {
@@ -21,6 +22,7 @@ const INITIAL_BILLING_STATE: BillingState = {
   hasStripeCustomer: false,
   hasActiveSubscription: false,
   subscriptionEnd: null,
+  cancelAtPeriodEnd: false,
 };
 
 const hasValidFutureDate = (value: string | null | undefined) => {
@@ -68,6 +70,7 @@ export const usePremium = () => {
         hasStripeCustomer: Boolean(data?.customer_exists),
         hasActiveSubscription: Boolean(data?.subscribed) && Boolean(data?.billing_portal_eligible),
         subscriptionEnd: data?.subscription_end ?? null,
+        cancelAtPeriodEnd: Boolean(data?.cancel_at_period_end),
       });
 
       // Invalidate profile to pick up synced is_premium
@@ -81,6 +84,7 @@ export const usePremium = () => {
         hasStripeCustomer: false,
         hasActiveSubscription: false,
         subscriptionEnd: null,
+        cancelAtPeriodEnd: false,
       });
     }
   }, [user, queryClient]);
@@ -103,6 +107,7 @@ export const usePremium = () => {
     premiumUntil,
     hasRealSubscription,
     hasBillingCustomer: billingState.hasStripeCustomer,
+    cancelAtPeriodEnd: billingState.cancelAtPeriodEnd,
     isBillingStatusLoading: !!user && !billingState.checked,
     checkSubscription,
   };

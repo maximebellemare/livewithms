@@ -91,11 +91,14 @@ serve(async (req) => {
     const billingPortalEligible = subscriptions.data.length > 0;
     let subscriptionEnd = null;
 
+    let cancelAtPeriodEnd = false;
+
     if (hasActiveSub) {
       const subscription = activeSubs[0];
       const endTs = subscription.current_period_end ?? subscription.trial_end;
       subscriptionEnd = endTs ? new Date(endTs * 1000).toISOString() : null;
-      logStep("Active/trialing subscription found", { subscriptionId: subscription.id, status: subscription.status, endDate: subscriptionEnd });
+      cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
+      logStep("Active/trialing subscription found", { subscriptionId: subscription.id, status: subscription.status, endDate: subscriptionEnd, cancelAtPeriodEnd });
 
       // Sync premium status to profiles
       await supabaseClient.from("profiles").update({
@@ -113,9 +116,10 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         subscribed: hasActiveSub,
-          customer_exists: true,
-          billing_portal_eligible: billingPortalEligible,
+        customer_exists: true,
+        billing_portal_eligible: billingPortalEligible,
         subscription_end: subscriptionEnd,
+        cancel_at_period_end: cancelAtPeriodEnd,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
