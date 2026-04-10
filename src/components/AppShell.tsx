@@ -6,7 +6,7 @@ import OfflineBanner from "./OfflineBanner";
 import OnboardingTooltips from "./OnboardingTooltips";
 import WhatsNewBanner from "./WhatsNewBanner";
 import FloatingThemeToggle from "./FloatingThemeToggle";
-import { WebViewRecoveryDock } from "./WebViewRecovery";
+
 
 interface AppShellProps {
   children: ReactNode;
@@ -30,7 +30,7 @@ const AppShell = ({ children }: AppShellProps) => {
       </main>
       <BottomNav />
       <InstallPrompt />
-      <WebViewRecoveryDock />
+      
       {showNav && <FloatingThemeToggle />}
       {showNav && <WhatsNewBanner />}
       {showNav && location.pathname === "/today" && (

@@ -28,8 +28,7 @@ import { AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import ThemeWrapper from "@/components/ThemeWrapper";
-import { WebViewLoadingScreen } from "@/components/WebViewRecovery";
-import { isReactNativeWebView, markWebViewStable } from "@/lib/webview";
+import { markWebViewStable } from "@/lib/webview";
 import AppShell from "./components/AppShell";
 import AnimatedPage from "./components/AnimatedPage";
 

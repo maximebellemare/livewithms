@@ -30,10 +30,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(newSession?.user ?? null);
       setLoading(false);
 
-      // Signal the native wrapper on critical auth events
-      if (event === "SIGNED_IN") {
-        postToNativeWebView({ type: "AUTH_SIGNED_IN", userId: newSession?.user?.id });
-      }
       if (event === "SIGNED_OUT") {
         // Nuke all cached queries so the next user starts clean
         queryClient.clear();
