@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from "react";
 import { RefreshCw, AlertTriangle } from "lucide-react";
+import { checkRealConnectivity } from "@/lib/webview";
 
 interface Props {
   children: ReactNode;
@@ -8,17 +9,25 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  isOffline: boolean;
 }
 
 class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, error: null };
+  state: State = { hasError: false, error: null, isOffline: false };
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    return { hasError: true, error, isOffline: false };
+  }
+
+  componentDidCatch() {
+    // Check if the crash was caused by a connectivity issue
+    checkRealConnectivity().then((ok) => {
+      if (!ok) this.setState({ isOffline: true });
+    });
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null, isOffline: false });
   };
 
   handleReload = () => {
@@ -37,10 +46,14 @@ class ErrorBoundary extends Component<Props, State> {
 
           <div className="space-y-2">
             <h1 className="font-display text-xl font-bold text-foreground">
-              Something didn't go as planned
+              {this.state.isOffline
+                ? "You seem to be offline"
+                : "Something didn't go as planned"}
             </h1>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              The app couldn't respond right now. You can try again or reload — your data is safe.
+              {this.state.isOffline
+                ? "Check your internet connection and try again — your data is safe."
+                : "The app couldn't respond right now. You can try again or reload — your data is safe."}
             </p>
           </div>
 

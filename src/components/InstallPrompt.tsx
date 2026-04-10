@@ -16,13 +16,15 @@ const InstallPrompt = () => {
 
   useEffect(() => {
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    // Never show install prompt inside a native WebView wrapper
+    const inWebView = !!(window as any).ReactNativeWebView || /ReactNative|Expo/i.test(navigator.userAgent);
     const standalone = (window.navigator as any).standalone === true ||
       window.matchMedia("(display-mode: standalone)").matches;
 
     setIsIos(ios);
     setIsInStandaloneMode(standalone);
 
-    if (standalone || sessionStorage.getItem(DISMISSED_KEY)) return;
+    if (standalone || inWebView || sessionStorage.getItem(DISMISSED_KEY)) return;
 
     // Android / Chrome: wait for the browser's install event
     const handler = (e: Event) => {

@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
+import { isReactNativeWebView } from "@/lib/webview";
 
 interface AuthContextType {
   user: User | null;
@@ -51,6 +52,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // --- WebView resume: refresh session when app returns from background ---
+  useEffect(() => {
+    if (!isReactNativeWebView) return;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && session) {
+        // Silently refresh the token — if it expired while backgrounded
+        // the listener will fire and update state automatically
+        supabase.auth.getSession().catch(() => {
+          // Ignore — the retry in restoreSession already handles this
+        });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [session]);
 
   const signUp = async (email: string, password: string) => {
     try {

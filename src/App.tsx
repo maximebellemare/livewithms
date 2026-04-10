@@ -73,6 +73,22 @@ const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage"));
 const SuccessPage = lazy(() => import("./pages/SuccessPage"));
 
 const queryClient = new QueryClient();
+// Configure QueryClient with WebView-safe defaults
+queryClient.setDefaultOptions({
+  queries: {
+    retry: (failureCount, error) => {
+      // Don't retry auth errors
+      if (error && typeof error === "object" && "status" in error) {
+        const status = (error as any).status;
+        if (status === 401 || status === 403) return false;
+      }
+      // Retry up to 2 times for network errors (common in WebView)
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 8000),
+    staleTime: 30_000, // 30s — reduces refetches on WebView resume
+  },
+});
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
