@@ -1,7 +1,8 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from "react";
+import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
-import { isReactNativeWebView } from "@/lib/webview";
+import { useQueryClient } from "@tanstack/react-query";
+import { isReactNativeWebView, postToNativeWebView } from "@/lib/webview";
 
 interface AuthContextType {
   user: User | null;
@@ -20,28 +21,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     // IMPORTANT: Set up the listener BEFORE restoring the session
-    // to avoid race conditions — especially in WebView environments.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
       setLoading(false);
+
+      // Signal the native wrapper on critical auth events
+      if (event === "SIGNED_IN") {
+        postToNativeWebView({ type: "AUTH_SIGNED_IN", userId: newSession?.user?.id });
+      }
+      if (event === "SIGNED_OUT") {
+        // Nuke all cached queries so the next user starts clean
+        queryClient.clear();
+        postToNativeWebView({ type: "AUTH_SIGNED_OUT" });
+      }
     });
 
-    // Restore persisted session; the listener above will also fire,
-    // but we set state here to cover the case where no change event is emitted.
-    // Restore persisted session with WebView-safe retry
+    // Restore persisted session with WebView-safe retry (up to 2 attempts)
     const restoreSession = async (attempt = 0) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
+        const { data: { session: s } } = await supabase.auth.getSession();
+        setSession(s);
+        setUser(s?.user ?? null);
         setLoading(false);
       } catch {
-        // In WebView, first load can fail transiently — retry once after 1.5s
-        if (attempt < 1) {
+        if (attempt < 2) {
           setTimeout(() => restoreSession(attempt + 1), 1500);
         } else {
           setLoading(false);
@@ -51,7 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     restoreSession();
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [queryClient]);
 
   // --- WebView resume: refresh session when app returns from background ---
   useEffect(() => {
@@ -92,15 +100,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
+      // Clear all cached data BEFORE signing out to prevent stale state
+      queryClient.clear();
       await supabase.auth.signOut();
     } catch {
       // Best-effort sign out; clear local state regardless
       setSession(null);
       setUser(null);
+      queryClient.clear();
     }
-  };
+    // Signal native wrapper to remount WebView
+    postToNativeWebView({ type: "AUTH_SIGNED_OUT" });
+  }, [queryClient]);
 
   const sendPasswordReset = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {

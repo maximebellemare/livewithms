@@ -49,3 +49,32 @@ export async function checkRealConnectivity(): Promise<boolean> {
     return navigator.onLine;
   }
 }
+
+/**
+ * Post a message to the React-Native WebView wrapper.
+ * Used to signal auth events so the native side can remount
+ * the WebView or take other recovery actions.
+ */
+export function postToNativeWebView(payload: Record<string, unknown>): void {
+  try {
+    if (isReactNativeWebView && (window as any).ReactNativeWebView?.postMessage) {
+      (window as any).ReactNativeWebView.postMessage(JSON.stringify(payload));
+    }
+  } catch {
+    // Best-effort — ignore if the bridge isn't available
+  }
+}
+
+/**
+ * Force a full page reload. In WebView this is the closest equivalent
+ * to remounting the WebView from the native side.
+ */
+export function forceFullReload(): void {
+  try {
+    // Clear caches before reload
+    if ("caches" in window) {
+      caches.keys().then((names) => names.forEach((n) => caches.delete(n)));
+    }
+  } catch { /* ignore */ }
+  window.location.replace(window.location.origin + "/auth");
+}
