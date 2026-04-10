@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Home, BarChart3, TrendingUp, NotebookPen, Phone, Users, MoreHorizontal, MessageCircle, BookOpen, AlertTriangle, FileText, CalendarDays, Pill, UserCog, Award, History, Map, Zap, Dumbbell, Heart, Brain, Sparkles, Crown, Leaf, Clock } from "lucide-react";
+import { isReactNativeWebView } from "@/lib/webview";
 import { motion, LayoutGroup, AnimatePresence } from "framer-motion";
 import { useUnreadCommunityPosts } from "@/hooks/useUnreadCommunity";
 import { useUnreadMessagesCount } from "@/hooks/useMessages";
@@ -139,7 +140,8 @@ const BottomNav = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50">
-      {/* Crisis banner */}
+      {/* Crisis banner — hide in native WebView to avoid visual clutter / double-bar effect */}
+      {!isReactNativeWebView && (
       <div className="border-t border-border/50 bg-card/90 backdrop-blur-sm" role="complementary" aria-label="Crisis resources">
         <div className="mx-auto max-w-lg flex items-center justify-center gap-1.5 px-4 py-1">
           <Phone className="h-2.5 w-2.5 text-muted-foreground/60" aria-hidden="true" />
@@ -153,6 +155,7 @@ const BottomNav = () => {
           </span>
         </div>
       </div>
+      )}
       {/* Nav tabs */}
       <nav className="border-t border-border bg-card/95 backdrop-blur-lg safe-bottom" aria-label="Main navigation">
         <LayoutGroup>
