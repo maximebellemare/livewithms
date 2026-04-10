@@ -28,8 +28,7 @@ import { AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import ThemeWrapper from "@/components/ThemeWrapper";
-import { WebViewLoadingScreen } from "@/components/WebViewRecovery";
-import { isReactNativeWebView, markWebViewStable } from "@/lib/webview";
+import { markWebViewStable } from "@/lib/webview";
 import AppShell from "./components/AppShell";
 import AnimatedPage from "./components/AnimatedPage";
 
@@ -104,21 +103,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }, [loading, profileLoading]);
 
   if (loading || profileLoading) {
-    if (isReactNativeWebView) {
-      return (
-        <WebViewLoadingScreen
-          title={user ? "Loading your app" : "Checking your session"}
-          description={
-            user
-              ? "We’re restoring your data and clearing stale mobile state if needed."
-              : "We’re opening a clean, secure session for the mobile app."
-          }
-          recoveryKey={`protected:${location.pathname}`}
-          timeoutMs={10000}
-        />
-      );
-    }
-
     return <AppLoadingSkeleton />;
   }
 
@@ -196,17 +180,6 @@ const AppRoutes = () => {
   }, [loading]);
 
   if (loading) {
-    if (isReactNativeWebView) {
-      return (
-        <WebViewLoadingScreen
-          title="Opening LiveWithMS"
-          description="We’re preparing a clean mobile session and will recover automatically if WebView state is stale."
-          recoveryKey="app-bootstrap"
-          timeoutMs={9000}
-        />
-      );
-    }
-
     return <AppLoadingSkeleton />;
   }
 
