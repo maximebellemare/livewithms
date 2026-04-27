@@ -5,6 +5,7 @@ import { logger } from "../lib/logger";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AuthProvider from "./AuthProvider";
 import ErrorState from "../components/ui/ErrorState";
+import { PremiumProvider } from "../features/premium/hooks";
 
 class RootErrorBoundary extends React.Component<PropsWithChildren, { hasError: boolean }> {
   constructor(props: PropsWithChildren) {
@@ -34,7 +35,9 @@ export default function AppProviders({ children }: PropsWithChildren) {
     <RootErrorBoundary>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <PremiumProvider>{children}</PremiumProvider>
+          </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </RootErrorBoundary>

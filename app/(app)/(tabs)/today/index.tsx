@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
 import DailyCheckInCard, {
   getEmptyCheckInDraft,
   normalizeCheckInInput,
   type DailyCheckInDraft,
 } from "../../../../components/today/DailyCheckInCard";
+import AppButton from "../../../../components/ui/AppButton";
 import ErrorState from "../../../../components/ui/ErrorState";
 import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
@@ -12,6 +14,7 @@ import LoadingState from "../../../../components/ui/LoadingState";
 import { useAuth } from "../../../../features/auth/hooks";
 import { useSaveDailyCheckIn, useTodaysCheckIn } from "../../../../features/checkins/hooks";
 import type { DailyCheckIn } from "../../../../features/checkins/types";
+import { usePremium } from "../../../../features/premium/hooks";
 import { getErrorMessage } from "../../../../lib/errors";
 
 function getTodayDateString() {
@@ -39,7 +42,9 @@ function getDraftSnapshot(draft: DailyCheckInDraft) {
 }
 
 export default function TodayScreen() {
+  const router = useRouter();
   const { user } = useAuth();
+  const { hasPremiumAccess } = usePremium();
   const today = getTodayDateString();
   const checkInQuery = useTodaysCheckIn(user?.id, today);
   const saveCheckIn = useSaveDailyCheckIn();
@@ -119,6 +124,20 @@ export default function TodayScreen() {
           <AppText style={styles.kicker}>Today&apos;s check-in</AppText>
           <AppText style={styles.date}>{today}</AppText>
         </View>
+        {!hasPremiumAccess ? (
+          <View style={styles.teaserCard}>
+            <View style={styles.teaserText}>
+              <AppText style={styles.teaserTitle}>Unlock deeper insights</AppText>
+              <AppText style={styles.teaserSubtitle}>
+                See symptom patterns more clearly and feel more in control over time.
+              </AppText>
+            </View>
+            <AppButton
+              label="See Premium"
+              onPress={() => router.push("/premium?source=today")}
+            />
+          </View>
+        ) : null}
         <DailyCheckInCard draft={draft} onChange={setDraft} saveState={saveState} />
       </ScrollView>
     </AppScreen>
@@ -140,6 +159,25 @@ const styles = StyleSheet.create({
   },
   date: {
     fontSize: 14,
+    color: "#6b7280",
+  },
+  teaserCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f1e1d4",
+    padding: 18,
+    gap: 14,
+  },
+  teaserText: {
+    gap: 6,
+  },
+  teaserTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  teaserSubtitle: {
     color: "#6b7280",
   },
 });

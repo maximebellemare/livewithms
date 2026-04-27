@@ -4,10 +4,12 @@ import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
 import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
 import { useOnboarding } from "../../features/onboarding/hooks";
+import { usePremium } from "../../features/premium/hooks";
 
 export default function CompleteScreen() {
   const router = useRouter();
   const { completeOnboarding, isCompleting } = useOnboarding();
+  const { hasPremiumAccess } = usePremium();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleNext = async () => {
@@ -20,7 +22,12 @@ export default function CompleteScreen() {
     }
 
     setErrorMessage(null);
-    router.replace("/today");
+    if (hasPremiumAccess) {
+      router.replace("/today");
+      return;
+    }
+
+    router.replace("/premium?source=onboarding");
   };
 
   return (
@@ -35,7 +42,7 @@ export default function CompleteScreen() {
       loading={isCompleting}
       errorMessage={errorMessage}
     >
-      <AppText>You’re all set. We’ll save your profile and take you to Today.</AppText>
+      <AppText>You’re all set. We’ll save your profile and show what premium adds next.</AppText>
     </OnboardingScaffold>
   );
 }
