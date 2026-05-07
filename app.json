@@ -1,5 +1,20 @@
 {
   "expo": {
-    "scheme": "livewithms"
+    "name": "LiveWithMS",
+    "version": "1.0.0",
+    "scheme": "livewithms",
+    "icon": "./assets/icon.png",
+    "ios": {
+      "bundleIdentifier": "com.livewithms.app",
+      "buildNumber": "33"
+    },
+    "android": {
+      "package": "com.livewithms.app"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e198e1a7-b565-4acd-acd5-40afc555c4e8"
+      }
+    }
   }
 }

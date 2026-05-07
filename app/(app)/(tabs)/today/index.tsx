@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "expo-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { router } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
+import PatternSummaryCard from "../../../../components/insights/PatternSummaryCard";
 import DailyCheckInCard, {
   getEmptyCheckInDraft,
   normalizeCheckInInput,
@@ -12,9 +13,9 @@ import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
 import LoadingState from "../../../../components/ui/LoadingState";
 import { useAuth } from "../../../../features/auth/hooks";
-import { useSaveDailyCheckIn, useTodaysCheckIn } from "../../../../features/checkins/hooks";
+import { useSaveDailyCheckIn, useCheckInHistory, useTodaysCheckIn } from "../../../../features/checkins/hooks";
 import type { DailyCheckIn } from "../../../../features/checkins/types";
-import { usePremium } from "../../../../features/premium/hooks";
+import { usePatternSummary } from "../../../../features/insights/hooks";
 import { getErrorMessage } from "../../../../lib/errors";
 
 function getTodayDateString() {
@@ -28,11 +29,14 @@ function getTodayDateString() {
 
 function getDraftFromCheckIn(checkIn: DailyCheckIn | null): DailyCheckInDraft {
   return {
-    mood: checkIn?.mood ?? null,
-    energy: checkIn?.energy ?? null,
-    pain: checkIn?.pain ?? null,
     fatigue: checkIn?.fatigue ?? null,
+    pain: checkIn?.pain ?? null,
+    brain_fog: checkIn?.brain_fog ?? null,
+    mood: checkIn?.mood ?? null,
     mobility: checkIn?.mobility ?? null,
+    stress: checkIn?.stress ?? null,
+    sleep_hours: checkIn?.sleep_hours != null ? String(checkIn.sleep_hours) : "",
+    water_glasses: checkIn?.water_glasses != null ? String(checkIn.water_glasses) : "",
     notes: checkIn?.notes ?? "",
   };
 }
@@ -42,19 +46,39 @@ function getDraftSnapshot(draft: DailyCheckInDraft) {
 }
 
 export default function TodayScreen() {
-  const router = useRouter();
   const { user } = useAuth();
-  const { hasPremiumAccess } = usePremium();
   const today = getTodayDateString();
   const checkInQuery = useTodaysCheckIn(user?.id, today);
+  const historyQuery = useCheckInHistory(user?.id, 7);
+  const patternSummaryQuery = usePatternSummary(historyQuery.data ?? [], 7);
   const saveCheckIn = useSaveDailyCheckIn();
   const [draft, setDraft] = useState<DailyCheckInDraft>(getEmptyCheckInDraft());
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const hydratedRef = useRef(false);
   const lastSavedSnapshotRef = useRef(getDraftSnapshot(getEmptyCheckInDraft()));
 
+  const weeklySnapshot = useMemo(() => {
+    const recentEntries = historyQuery.data ?? [];
+    if (!recentEntries.length) {
+      return "Start logging each day to build a clearer picture of your routines and symptom patterns.";
+    }
+
+    const daysLogged = recentEntries.length;
+    const averageMood =
+      recentEntries
+        .map((entry) => entry.mood)
+        .filter((value): value is number => value !== null)
+        .reduce((sum, value, _, values) => sum + value / values.length, 0) || null;
+
+    if (averageMood !== null && averageMood >= 4) {
+      return `You logged ${daysLogged} recent day${daysLogged === 1 ? "" : "s"}. Mood has looked steadier overall, which is a good sign to keep noticing what helps.`;
+    }
+
+    return `You logged ${daysLogged} recent day${daysLogged === 1 ? "" : "s"}. Keep checking in with fatigue, stress, sleep, and hydration so patterns stay easy to spot.`;
+  }, [historyQuery.data]);
+
   useEffect(() => {
-    if (!checkInQuery.isSuccess || hydratedRef.current) {
+    if (!checkInQuery.isSuccess) {
       return;
     }
 
@@ -114,30 +138,42 @@ export default function TodayScreen() {
   }
 
   return (
-    <AppScreen title="Today" subtitle="Check in with how you're feeling.">
+    <AppScreen
+      title="Today"
+      subtitle="Track how you feel, notice patterns, and build a steadier picture of daily wellness."
+    >
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.overviewCard}>
+          <AppText style={styles.overviewTitle}>Your daily wellness overview</AppText>
+          <AppText style={styles.overviewBody}>
+            Log fatigue, mood, stress, sleep, hydration, and a few symptom signals so you can
+            follow what changes over time.
+          </AppText>
+        </View>
+
+        <PatternSummaryCard
+          title="This week at a glance"
+          summary={patternSummaryQuery.data?.insight ?? weeklySnapshot}
+        />
+
+        <View style={styles.navCard}>
+          <AppText style={styles.navTitle}>Explore the app</AppText>
+          <View style={styles.navButtons}>
+            <AppButton label="Go to Track" onPress={() => router.push("/track")} variant="secondary" />
+            <AppButton label="Go to Coach" onPress={() => router.push("/coach")} variant="secondary" />
+            <AppButton label="Go to Programs" onPress={() => router.push("/programs")} variant="secondary" />
+          </View>
+        </View>
+
         <View style={styles.header}>
           <AppText style={styles.kicker}>Today&apos;s check-in</AppText>
           <AppText style={styles.date}>{today}</AppText>
         </View>
-        {!hasPremiumAccess ? (
-          <View style={styles.teaserCard}>
-            <View style={styles.teaserText}>
-              <AppText style={styles.teaserTitle}>Unlock deeper insights</AppText>
-              <AppText style={styles.teaserSubtitle}>
-                See symptom patterns more clearly and feel more in control over time.
-              </AppText>
-            </View>
-            <AppButton
-              label="See Premium"
-              onPress={() => router.push("/premium?source=today")}
-            />
-          </View>
-        ) : null}
+
         <DailyCheckInCard draft={draft} onChange={setDraft} saveState={saveState} />
       </ScrollView>
     </AppScreen>
@@ -146,7 +182,9 @@ export default function TodayScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingBottom: 32,
+    paddingTop: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 120,
     gap: 16,
   },
   header: {
@@ -161,23 +199,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6b7280",
   },
-  teaserCard: {
+  overviewCard: {
     backgroundColor: "#ffffff",
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 14,
+    gap: 8,
   },
-  teaserText: {
-    gap: 6,
-  },
-  teaserTitle: {
+  overviewTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: "#1f2937",
   },
-  teaserSubtitle: {
-    color: "#6b7280",
+  overviewBody: {
+    color: "#4b5563",
+  },
+  navCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f1e1d4",
+    padding: 18,
+    gap: 12,
+  },
+  navTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  navButtons: {
+    gap: 10,
   },
 });

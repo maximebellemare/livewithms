@@ -30,14 +30,18 @@ export default function CheckInHistoryRow({
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.row, selected && styles.rowSelected]}
+      style={({ pressed }) => [
+        styles.row,
+        selected && styles.rowSelected,
+        pressed && styles.rowPressed,
+      ]}
     >
       <View style={styles.accent} />
       <View style={styles.content}>
-        <AppText style={styles.date}>{formatCheckInDate(item.checkin_date)}</AppText>
+        <AppText style={styles.date}>{formatCheckInDate(item.date)}</AppText>
         <View style={styles.summary}>
           <AppText style={styles.metric}>Mood: {formatCheckInValue(item.mood)}</AppText>
-          <AppText style={styles.metric}>Energy: {formatCheckInValue(item.energy)}</AppText>
+          <AppText style={styles.metric}>Fatigue: {formatCheckInValue(item.fatigue)}</AppText>
         </View>
         {item.notes ? (
           <AppText style={styles.note} numberOfLines={1}>
@@ -56,11 +60,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderWidth: 1,
     borderColor: "#f1e1d4",
-    overflow: "hidden",
   },
   rowSelected: {
     backgroundColor: "#fff1e6",
     borderColor: "#e8751a",
+  },
+  rowPressed: {
+    opacity: 0.82,
   },
   accent: {
     width: 5,

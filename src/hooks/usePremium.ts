@@ -33,18 +33,7 @@ const hasValidFutureDate = (value: string | null | undefined) => {
   return !Number.isNaN(date.getTime()) && date > new Date();
 };
 
-const checkRevenueCat = async (userId: string): Promise<{ active: boolean; expiresAt: string | null }> => {
-  if (!(window as any).Capacitor) return { active: false, expiresAt: null };
-  try {
-    const { Purchases } = await import("@revenuecat/purchases-capacitor");
-    await Purchases.logIn({ appUserID: userId });
-    const { customerInfo } = await Purchases.getCustomerInfo();
-    const entitlement = customerInfo.entitlements.active["premium"];
-    if (entitlement) {
-      return {
-        active: true,
-        expiresAt: entitlement.expirationDate ?? null,
-      };
+
     }
     return { active: false, expiresAt: null };
   } catch (e) {

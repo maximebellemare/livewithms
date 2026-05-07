@@ -78,9 +78,9 @@ export function useSaveDailyCheckIn() {
             return existing;
           }
 
-          const nextItems = existing.filter((item) => item.checkin_date !== data.checkin_date);
+          const nextItems = existing.filter((item) => item.date !== data.date);
           nextItems.push(data);
-          nextItems.sort((a, b) => b.checkin_date.localeCompare(a.checkin_date));
+          nextItems.sort((a, b) => b.date.localeCompare(a.date));
 
           return nextItems;
         },

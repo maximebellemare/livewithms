@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Crown, Sparkles, Brain, Stethoscope, Zap, BarChart3, BookOpen, Check, Star, CreditCard, Loader2, Heart, RefreshCw } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
-import { friendlyError } from "@/lib/errorMessages";
 import PageHeader from "@/components/PageHeader";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
 import { StaggerContainer, StaggerItem } from "@/components/StaggeredReveal";
-import { usePremium, STRIPE_PRICES } from "@/hooks/usePremium";
+import { usePremium } from "@/hooks/usePremium";
 import { useTrial } from "@/hooks/useTrial";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 
@@ -91,75 +89,9 @@ const PremiumPage = () => {
     };
   }, [cancelAtPeriodEnd, hasRealSubscription, premiumUntil]);
 
-  const handleAppleIAP = async () => {
-    setLoading(true);
-    try {
-      const { Purchases, PACKAGE_TYPE } = await import("@revenuecat/purchases-capacitor");
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await Purchases.logIn({ appUserID: user.id });
-      }
-
-      const { current, all } = await Purchases.getOfferings();
-      const offering =
-        current ??
-        Object.values(all ?? {}).find((candidate: any) => (candidate?.availablePackages?.length ?? 0) > 0);
-
-      if (!offering) {
-        toast.error("Products not available. Please try again.");
-        setLoading(false);
-        return;
-      }
-
-      const pkg = pickPackage(offering, billing, PACKAGE_TYPE);
-
-      if (!pkg) {
-        toast.error("Product not found. Please try again.");
-        setLoading(false);
-        return;
-      }
-
-      const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkg });
-
-      if (customerInfo.entitlements.active["premium"]) {
-        toast.success("Welcome to Premium! 🎉");
-        await checkSubscription();
-        queryClient.invalidateQueries({ queryKey: ["profile"] });
-      } else {
-        toast.error("Purchase completed but could not verify. Contact support.");
-      }
-    } catch (e: any) {
-      if (e?.code === "1" || e?.message?.includes("cancelled") || e?.message?.includes("canceled")) {
-        // User cancelled — not an error
-      } else {
-        toast.error(friendlyError(e?.message));
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleCheckout = async () => {
-    if (isCapacitor) {
-      await handleAppleIAP();
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const priceId = billing === "monthly" ? STRIPE_PRICES.monthly : STRIPE_PRICES.annual;
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { priceId },
-      });
-      if (error) throw error;
-      if (data?.url) window.location.href = data.url;
-    } catch (e: any) {
-      toast.error(friendlyError(e.message));
-    } finally {
-      setLoading(false);
-    }
-  };
+  return;
+};
 
   const handleManageSubscription = async () => {
     if (!hasRealSubscription) {

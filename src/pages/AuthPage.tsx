@@ -13,14 +13,14 @@ const AuthPage = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [appleLoading, setAppleLoading] = useState(false);
+ 
 
-  const { signIn, signUp, sendPasswordReset, signInWithApple } = useAuth();
+  const { signIn, signUp, sendPasswordReset } = useAuth();
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     try {
-      const isCapacitor = !!(window as any).Capacitor;
+      const isCapacitor = false;
       const redirectUri = isCapacitor
         ? "com.livewithms.app://auth/callback"
         : window.location.origin;
@@ -35,20 +35,6 @@ const AuthPage = () => {
     } catch (e: any) {
       toast.error(friendlyError(e?.message));
       setGoogleLoading(false);
-    }
-  };
-
-  const handleAppleSignIn = async () => {
-    setAppleLoading(true);
-    try {
-      const { error } = await signInWithApple();
-      if (error) {
-        toast.error(friendlyError(error.message));
-      }
-    } catch (e: any) {
-      toast.error(friendlyError(e?.message));
-    } finally {
-      setAppleLoading(false);
     }
   };
 
@@ -154,7 +140,7 @@ const AuthPage = () => {
             </div>
 
             {/* Google Sign-In — hidden inside Capacitor, shown on web */}
-            {!(window as any).Capacitor && (
+            {false && (
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
@@ -170,23 +156,6 @@ const AuthPage = () => {
                 {googleLoading ? "Signing in…" : "Continue with Google"}
               </button>
             )}
-
-            {/* Apple Sign-In — only shown inside the iOS app */}
-            {(window as any).Capacitor && (
-              <button
-                type="button"
-                onClick={handleAppleSignIn}
-                disabled={appleLoading}
-                className="flex w-full items-center justify-center gap-3 rounded-full border border-border bg-black py-3.5 text-sm font-semibold text-white shadow-soft transition-all hover:bg-gray-900 active:scale-[0.98] disabled:opacity-60"
-              >
-                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" fill="white">
-                  <path d="M12.628 1.382c.766-.978 1.28-2.31 1.14-3.655-1.103.047-2.44.735-3.23 1.713-.71.86-1.334 2.236-1.166 3.55 1.232.094 2.49-.626 3.256-1.608zM13.75 3.46c-1.8-.107-3.33.02-4.43 1.98-1.91-.107-3.77.9-4.72 2.28-1.95 2.79-.5 6.91.68 9.18.6 1.13 1.32 2.4 2.27 2.36.91-.04 1.26-.59 2.36-.59 1.1 0 1.41.59 2.37.57.98-.02 1.6-1.13 2.2-2.26.69-1.3 1.03-2.56 1.06-2.63-.02-.01-2.04-.78-2.06-3.1-.02-1.94 1.58-2.87 1.65-2.92-.9-1.33-2.3-1.48-2.79-1.51l-.58-.04z"/>
-                </svg>
-                {appleLoading ? "Signing in…" : "Continue with Apple"}
-              </button>
-            )}
-          </>
-        )}
 
         {mode === "forgot" ? (
           <p className="mt-4 text-center text-sm text-muted-foreground">

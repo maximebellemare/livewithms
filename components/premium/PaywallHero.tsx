@@ -4,10 +4,10 @@ import AppText from "../ui/AppText";
 export default function PaywallHero() {
   return (
     <View style={styles.container}>
-      <AppText style={styles.eyebrow}>Premium</AppText>
+      <AppText style={styles.eyebrow}>LiveWithMS</AppText>
       <AppText style={styles.title}>Understand your MS patterns and feel more in control</AppText>
       <AppText style={styles.subtitle}>
-        Track symptoms, spot changes earlier, and get more guidance in one place.
+        Keep checking in, review your history, and use the app’s support tools in one place.
       </AppText>
     </View>
   );

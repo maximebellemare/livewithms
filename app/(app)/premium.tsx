@@ -1,20 +1,16 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import FeatureList from "../../components/premium/FeatureList";
+import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import PaywallHero from "../../components/premium/PaywallHero";
-import PlanOptionCard from "../../components/premium/PlanOptionCard";
 import AppButton from "../../components/ui/AppButton";
 import AppScreen from "../../components/ui/AppScreen";
 import AppText from "../../components/ui/AppText";
-import { usePremium } from "../../features/premium/hooks";
-import type { PremiumPlan } from "../../features/premium/types";
+
+const PRIVACY_POLICY_URL = "https://www.livewithms.com/policies/privacy-policy";
+const TERMS_OF_USE_URL = "https://www.livewithms.com/policies/terms-of-service";
 
 export default function PremiumScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ source?: string }>();
-  const { activateMockPremium } = usePremium();
-  const [selectedPlan, setSelectedPlan] = useState<PremiumPlan>("yearly");
 
   const handleClose = () => {
     if (params.source === "onboarding") {
@@ -24,46 +20,44 @@ export default function PremiumScreen() {
 
     router.back();
   };
+  const handlePrimary = async () => {
+    handleClose();
+  };
 
-  const handlePrimary = () => {
-    activateMockPremium();
-    router.replace("/today");
+  const openPrivacyPolicy = () => {
+    void Linking.openURL(PRIVACY_POLICY_URL);
+  };
+
+  const openTermsOfUse = () => {
+    void Linking.openURL(TERMS_OF_USE_URL);
   };
 
   return (
     <AppScreen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <PaywallHero />
-        <FeatureList />
 
-        <View style={styles.planGroup}>
-          <PlanOptionCard
-            plan="yearly"
-            title="Yearly"
-            price="$59.99 / year"
-            subtitle="More support for less each month"
-            selected={selectedPlan === "yearly"}
-            badge="Best value"
-            onPress={() => setSelectedPlan("yearly")}
-          />
-          <PlanOptionCard
-            plan="monthly"
-            title="Monthly"
-            price="$7.99 / month"
-            subtitle="A flexible way to start"
-            selected={selectedPlan === "monthly"}
-            onPress={() => setSelectedPlan("monthly")}
-          />
+        <View style={styles.infoCard}>
+          <AppText style={styles.infoTitle}>Continue your progress</AppText>
+          <AppText style={styles.infoBody}>
+            Your daily check-ins, history, wellness support, and guided content are all available
+            in the app.
+          </AppText>
         </View>
 
         <View style={styles.actions}>
-          <AppButton label="Start improving today" onPress={handlePrimary} />
+          <AppButton label="Continue" onPress={() => void handlePrimary()} />
           <AppButton label="Not now" onPress={handleClose} variant="secondary" />
         </View>
 
-        <AppText style={styles.footnote}>
-          Phase 1 mock paywall only. Purchases are not live yet.
-        </AppText>
+        <View style={styles.legalLinks}>
+          <Pressable onPress={openPrivacyPolicy} style={styles.legalButton}>
+            <AppText style={styles.legalText}>Privacy Policy</AppText>
+          </Pressable>
+          <Pressable onPress={openTermsOfUse} style={styles.legalButton}>
+            <AppText style={styles.legalText}>Terms of Use</AppText>
+          </Pressable>
+        </View>
       </ScrollView>
     </AppScreen>
   );
@@ -71,18 +65,42 @@ export default function PremiumScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingBottom: 36,
+    paddingTop: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 120,
     gap: 20,
-  },
-  planGroup: {
-    gap: 12,
   },
   actions: {
     gap: 12,
   },
-  footnote: {
-    textAlign: "center",
+  infoCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f1e1d4",
+    padding: 18,
+    gap: 8,
+  },
+  infoTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  infoBody: {
+    color: "#6b7280",
+  },
+  legalLinks: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+  },
+  legalButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  legalText: {
     color: "#6b7280",
     fontSize: 13,
+    textDecorationLine: "underline",
   },
 });

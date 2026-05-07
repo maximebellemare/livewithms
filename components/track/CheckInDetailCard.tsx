@@ -12,25 +12,21 @@ function formatCheckInDate(date: string) {
   });
 }
 
-function formatCheckInValue(value: number | null) {
-  return value === null ? "Not logged" : String(value);
+function formatCheckInValue(value: number | null, suffix = "") {
+  return value === null ? "Not logged" : `${value}${suffix}`;
 }
 
 function getCheckInInsight(item: DailyCheckIn) {
-  if ((item.mood ?? 0) >= 4) {
-    return "You felt better on this day";
-  }
-
   if ((item.fatigue ?? 0) >= 4) {
-    return "You reported high fatigue";
+    return "You reported higher fatigue on this day";
   }
 
-  if ((item.pain ?? 0) >= 4) {
-    return "You reported higher pain on this day";
+  if ((item.stress ?? 0) >= 4) {
+    return "Stress looked higher on this day";
   }
 
-  if ((item.energy ?? 0) >= 4) {
-    return "You had higher energy on this day";
+  if ((item.mood ?? 0) >= 4) {
+    return "You felt steadier on this day";
   }
 
   return "Here’s how you checked in that day";
@@ -43,17 +39,25 @@ type CheckInDetailCardProps = {
 export default function CheckInDetailCard({ item }: CheckInDetailCardProps) {
   const optionalMetrics = [
     { label: "Pain", value: item.pain },
-    { label: "Fatigue", value: item.fatigue },
+    { label: "Brain fog", value: item.brain_fog },
     { label: "Mobility", value: item.mobility },
+    { label: "Stress", value: item.stress },
+    { label: "Sleep", value: item.sleep_hours, suffix: "h" },
+    { label: "Water", value: item.water_glasses, suffix: " glasses" },
   ].filter((metric) => metric.value !== null);
 
-  const hasMissingOptionalMetrics = [item.pain, item.fatigue, item.mobility].some(
-    (value) => value === null,
-  );
+  const hasMissingOptionalMetrics = [
+    item.pain,
+    item.brain_fog,
+    item.mobility,
+    item.stress,
+    item.sleep_hours,
+    item.water_glasses,
+  ].some((value) => value === null);
 
   return (
     <View style={styles.card}>
-      <AppText style={styles.date}>{formatCheckInDate(item.checkin_date)}</AppText>
+      <AppText style={styles.date}>{formatCheckInDate(item.date)}</AppText>
       <AppText style={styles.insight}>{getCheckInInsight(item)}</AppText>
 
       <View style={styles.section}>
@@ -62,14 +66,16 @@ export default function CheckInDetailCard({ item }: CheckInDetailCardProps) {
           <AppText style={styles.metricValue}>{formatCheckInValue(item.mood)}</AppText>
         </View>
         <View style={styles.metricRow}>
-          <AppText style={styles.metricLabel}>Energy</AppText>
-          <AppText style={styles.metricValue}>{formatCheckInValue(item.energy)}</AppText>
+          <AppText style={styles.metricLabel}>Fatigue</AppText>
+          <AppText style={styles.metricValue}>{formatCheckInValue(item.fatigue)}</AppText>
         </View>
 
         {optionalMetrics.map((metric) => (
           <View key={metric.label} style={styles.metricRow}>
             <AppText style={styles.metricLabel}>{metric.label}</AppText>
-            <AppText style={styles.metricValue}>{formatCheckInValue(metric.value)}</AppText>
+            <AppText style={styles.metricValue}>
+              {formatCheckInValue(metric.value, metric.suffix)}
+            </AppText>
           </View>
         ))}
 

@@ -17,9 +17,10 @@ export default function AppButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={[
+      style={({ pressed }) => [
         styles.button,
         variant === "secondary" && styles.buttonSecondary,
+        pressed && !disabled && styles.buttonPressed,
         disabled && styles.buttonDisabled,
       ]}
     >
@@ -39,6 +40,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderWidth: 1,
     borderColor: "#e6d5c7",
+  },
+  buttonPressed: {
+    opacity: 0.82,
   },
   buttonDisabled: {
     opacity: 0.6,

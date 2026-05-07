@@ -19,8 +19,8 @@ export default function CheckInHistoryList({
         <CheckInHistoryRow
           key={item.id}
           item={item}
-          selected={item.checkin_date === selectedDate}
-          onPress={() => onSelectDate(item.checkin_date)}
+          selected={item.date === selectedDate}
+          onPress={() => onSelectDate(item.date)}
         />
       ))}
     </View>

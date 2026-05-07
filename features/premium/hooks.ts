@@ -1,20 +1,23 @@
-import { PropsWithChildren, createContext, createElement, useContext, useMemo, useState } from "react";
-import { hasPremiumAccess } from "./entitlements";
-import type { PremiumContextValue, PremiumStatus } from "./types";
+import { PropsWithChildren, createContext, createElement, useContext, useMemo } from "react";
+import type { PremiumContextValue } from "./types";
 
 const PremiumContext = createContext<PremiumContextValue | undefined>(undefined);
 
 export function PremiumProvider({ children }: PropsWithChildren) {
-  const [status, setStatus] = useState<PremiumStatus>("free");
-
   const value = useMemo<PremiumContextValue>(
     () => ({
-      status,
-      hasPremiumAccess: hasPremiumAccess(status),
-      activateMockPremium: () => setStatus("active"),
-      resetMockPremium: () => setStatus("free"),
+      status: "active",
+      currentOffering: null,
+      hasPremiumAccess: true,
+      isLoading: false,
+      isPurchasing: false,
+      isRestoring: false,
+      offeringsErrorMessage: null,
+      purchasePlan: async () => ({ success: true }),
+      restorePurchases: async () => ({ success: true }),
+      refreshPremiumStatus: async () => {},
     }),
-    [status],
+    [],
   );
 
   return createElement(PremiumContext.Provider, { value }, children);

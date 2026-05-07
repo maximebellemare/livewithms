@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { isReactNativeWebView, postToNativeWebView } from "@/lib/webview";
-import { AppleNativeSignIn } from "@/lib/appleNativeSignIn";
 
 interface AuthContextType {
   user: User | null;
@@ -14,7 +13,6 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<{ error: any }>;
   updatePassword: (newPassword: string) => Promise<{ error: any }>;
-  signInWithApple: () => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -114,59 +112,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
-  const signInWithApple = async () => {
-    try {
-      const rawNonce =
-        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-      const result = await AppleNativeSignIn.authorize({
-        nonce: rawNonce,
-        scopes: ["email", "name"],
-      });
-
-      const identityToken = result.identityToken;
-
-      if (!identityToken) {
-        return { error: { message: "Apple Sign In failed — no identity token returned." } };
-      }
-
-      const { error } = await supabase.auth.signInWithIdToken({
-        provider: "apple",
-        token: identityToken,
-        nonce: rawNonce,
-      });
-
-      if (!error && result.fullName?.givenName) {
-        const fullName = [result.fullName.givenName, result.fullName.familyName]
-          .filter(Boolean)
-          .join(" ");
-
-        await supabase.auth.updateUser({
-          data: {
-            full_name: fullName || undefined,
-            given_name: result.fullName.givenName,
-            family_name: result.fullName.familyName ?? undefined,
-          },
-        });
-      }
-
-      return { error };
-    } catch (e: any) {
-      if (
-        e?.code === "CANCELED" ||
-        e?.message?.includes("cancelled") ||
-        e?.message?.includes("canceled")
-      ) {
-        return { error: null }; // User cancelled — not an error
-      }
-      return { error: { message: e?.message || "Apple Sign In failed. Please try again." } };
-    }
-  };
-
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut, sendPasswordReset, updatePassword, signInWithApple }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut, sendPasswordReset, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );

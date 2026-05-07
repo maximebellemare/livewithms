@@ -29,7 +29,9 @@ export default function PlanOptionCard({
         </View>
         {badge ? <AppText style={styles.badge}>{badge}</AppText> : null}
       </View>
-      <AppText style={styles.price}>{price}</AppText>
+      <View style={styles.priceContainer}>
+        <AppText style={styles.price}>{price}</AppText>
+      </View>
     </Pressable>
   );
 }
@@ -41,7 +43,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ebd8ca",
     padding: 18,
-    gap: 12,
+    gap: 16,
   },
   cardSelected: {
     borderColor: "#e8751a",
@@ -78,11 +80,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    overflow: "hidden",
+  },
+  priceContainer: {
+    flexWrap: "wrap",
+    minHeight: 44,
+    justifyContent: "center",
   },
   price: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: "800",
     color: "#1f2937",
+    flexShrink: 1,
+    lineHeight: 38,
   },
 });

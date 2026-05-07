@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import AppText from "../ui/AppText";
 
@@ -14,11 +15,48 @@ export default function SymptomSliderCard({
   value,
   onChange,
 }: SymptomSliderCardProps) {
+  const [skipFeedbackVisible, setSkipFeedbackVisible] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleSkip = () => {
+    console.log("Skip tapped");
+    onChange(null);
+    setSkipFeedbackVisible(true);
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      setSkipFeedbackVisible(false);
+    }, 1500);
+  };
+
+  const handleSelect = (option: number) => {
+    setSkipFeedbackVisible(false);
+    onChange(value === option ? null : option);
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
         <AppText style={styles.label}>{label}</AppText>
-        <AppText style={styles.value}>{value ?? "Skip"}</AppText>
+        <View style={styles.headerActions}>
+          <AppText style={styles.value}>
+            {value ?? (skipFeedbackVisible ? "Skipped" : "Not logged")}
+          </AppText>
+          <Pressable onPress={handleSkip} style={({ pressed }) => [styles.skipButton, pressed && styles.skipButtonPressed]}>
+            <AppText style={styles.skipText}>Skip</AppText>
+          </Pressable>
+        </View>
       </View>
       <View style={styles.options}>
         {SCORE_OPTIONS.map((option) => {
@@ -27,8 +65,12 @@ export default function SymptomSliderCard({
           return (
             <Pressable
               key={option}
-              onPress={() => onChange(selected ? null : option)}
-              style={[styles.option, selected && styles.optionSelected]}
+              onPress={() => handleSelect(option)}
+              style={({ pressed }) => [
+                styles.option,
+                selected && styles.optionSelected,
+                pressed && styles.optionPressed,
+              ]}
             >
               <AppText style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
                 {option}
@@ -54,6 +96,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 12,
+  },
+  headerActions: {
+    alignItems: "flex-end",
+    gap: 6,
   },
   label: {
     fontSize: 16,
@@ -68,6 +115,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
+  skipButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  skipButtonPressed: {
+    opacity: 0.7,
+  },
+  skipText: {
+    fontSize: 14,
+    color: "#c25d10",
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
   option: {
     flex: 1,
     alignItems: "center",
@@ -77,6 +137,9 @@ const styles = StyleSheet.create({
     borderColor: "#e6d5c7",
     backgroundColor: "#fffaf6",
     paddingVertical: 12,
+  },
+  optionPressed: {
+    opacity: 0.82,
   },
   optionSelected: {
     borderColor: "#e8751a",
