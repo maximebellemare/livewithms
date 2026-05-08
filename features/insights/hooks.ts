@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { DailyCheckIn } from "../checkins/types";
 import { insightsApi } from "./api";
 import type {
+  BestWorstDayInsight,
   CorrelationSummary,
   HydrationEnergyInsight,
   InsightsDashboard,
@@ -13,6 +14,8 @@ import type {
   StressFatigueInsight,
   TrendDirection,
   TrendSummary,
+  WeeklyProgressOverview,
+  WeeklyProgressTrend,
   WeeklySummary,
 } from "./types";
 
@@ -123,6 +126,76 @@ function buildTrendSummary(
         label: entry.date.slice(5),
         value: entry[key] ?? null,
       })),
+  };
+}
+
+function buildWeeklyProgressTrend(
+  entries7: DailyCheckIn[],
+  config: {
+    key: "fatigue" | "mood" | "stress";
+    label: string;
+    higherIsBetter: boolean;
+  },
+): WeeklyProgressTrend {
+  const sortedEntries = entries7.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const midpoint = Math.ceil(sortedEntries.length / 2);
+  const firstHalf = sortedEntries.slice(0, midpoint);
+  const secondHalf = sortedEntries.slice(midpoint);
+  const firstHalfAverage = roundToOneDecimal(average(firstHalf.map((entry) => entry[config.key] ?? null)));
+  const secondHalfAverage = roundToOneDecimal(average(secondHalf.map((entry) => entry[config.key] ?? null)));
+
+  let indicator = "→ stable";
+
+  if (firstHalfAverage !== null && secondHalfAverage !== null) {
+    const difference = secondHalfAverage - firstHalfAverage;
+
+    if (Math.abs(difference) >= 0.35) {
+      if (config.higherIsBetter) {
+        indicator = difference > 0 ? "↑ improving" : "↓ worsening";
+      } else {
+        indicator = difference < 0 ? "↓ improving" : "↑ worsening";
+      }
+    }
+  }
+
+  return {
+    key: config.key,
+    label: config.label,
+    firstHalfAverage,
+    secondHalfAverage,
+    indicator,
+  };
+}
+
+function buildWeeklyProgressOverview(entries7: DailyCheckIn[]): WeeklyProgressOverview {
+  if (entries7.length < 4) {
+    return {
+      hasEnoughData: false,
+      trends: [],
+      message: "Track a few more days to see your trends",
+    };
+  }
+
+  return {
+    hasEnoughData: true,
+    trends: [
+      buildWeeklyProgressTrend(entries7, {
+        key: "fatigue",
+        label: "Fatigue",
+        higherIsBetter: false,
+      }),
+      buildWeeklyProgressTrend(entries7, {
+        key: "mood",
+        label: "Mood",
+        higherIsBetter: true,
+      }),
+      buildWeeklyProgressTrend(entries7, {
+        key: "stress",
+        label: "Stress",
+        higherIsBetter: false,
+      }),
+    ],
+    message: null,
   };
 }
 
@@ -447,6 +520,99 @@ function buildHydrationEnergyInsight(entries30: DailyCheckIn[]): HydrationEnergy
   };
 }
 
+function buildBestWorstDayInsight(entries30: DailyCheckIn[]): BestWorstDayInsight {
+  const scoredEntries = entries30
+    .filter(
+      (
+        entry,
+      ): entry is DailyCheckIn & {
+        mood: number;
+        fatigue: number;
+      } => entry.mood !== null && entry.fatigue !== null,
+    )
+    .map((entry) => ({
+      entry,
+      score: entry.mood - entry.fatigue,
+    }));
+
+  if (scoredEntries.length < 5) {
+    return {
+      show: false,
+      bestDay: null,
+      worstDay: null,
+      sentence: "Track more days to unlock this insight",
+      recommendation: "Try to recreate these conditions more often",
+    };
+  }
+
+  const sorted = scoredEntries.slice().sort((a, b) => b.score - a.score);
+  const best = sorted[0]?.entry ?? null;
+  const worst = sorted[sorted.length - 1]?.entry ?? null;
+
+  if (!best || !worst || best.date === worst.date) {
+    return {
+      show: false,
+      bestDay: null,
+      worstDay: null,
+      sentence: "Track more days to unlock this insight",
+      recommendation: "Try to recreate these conditions more often",
+    };
+  }
+
+  const bestDay = {
+    date: best.date,
+    sleepHours: best.sleep_hours ?? null,
+    stress: best.stress ?? null,
+    waterGlasses: best.water_glasses ?? null,
+  };
+
+  const worstDay = {
+    date: worst.date,
+    sleepHours: worst.sleep_hours ?? null,
+    stress: worst.stress ?? null,
+    waterGlasses: worst.water_glasses ?? null,
+  };
+
+  const clues: string[] = [];
+
+  if (
+    bestDay.sleepHours !== null &&
+    worstDay.sleepHours !== null &&
+    bestDay.sleepHours > worstDay.sleepHours
+  ) {
+    clues.push("more sleep");
+  }
+
+  if (
+    bestDay.stress !== null &&
+    worstDay.stress !== null &&
+    bestDay.stress < worstDay.stress
+  ) {
+    clues.push("lower stress");
+  }
+
+  if (
+    bestDay.waterGlasses !== null &&
+    worstDay.waterGlasses !== null &&
+    bestDay.waterGlasses > worstDay.waterGlasses
+  ) {
+    clues.push("better hydration");
+  }
+
+  const sentence =
+    clues.length > 0
+      ? `Your best days tend to have ${clues.join(" and ")}`
+      : "Your best days show a steadier balance of energy and mood";
+
+  return {
+    show: true,
+    bestDay,
+    worstDay,
+    sentence,
+    recommendation: "Try to recreate these conditions more often",
+  };
+}
+
 export function useInsightsDashboard(
   entries: DailyCheckIn[],
   patternSummary?: PatternSummary | null,
@@ -466,18 +632,22 @@ export function useInsightsDashboard(
       averageSleep: roundToOneDecimal(average(entries7.map((entry) => entry.sleep_hours))),
       summary: summaryText,
     };
+    const weeklyProgressOverview = buildWeeklyProgressOverview(entries7);
     const sleepFatigueInsight = buildSleepFatigueInsight(entries30);
     const stressFatigueInsight = buildStressFatigueInsight(entries30);
     const sleepMoodInsight = buildSleepMoodInsight(entries30);
     const hydrationEnergyInsight = buildHydrationEnergyInsight(entries30);
+    const bestWorstDayInsight = buildBestWorstDayInsight(entries30);
 
     return {
       hasEnoughData: entries7.length >= 3,
+      weeklyProgressOverview,
       weeklySummary,
       sleepFatigueInsight,
       stressFatigueInsight,
       sleepMoodInsight,
       hydrationEnergyInsight,
+      bestWorstDayInsight,
       trends: [
         buildTrendSummary(entries7, entries30, "fatigue", "Fatigue", false),
         buildTrendSummary(entries7, entries30, "mood", "Mood", true),

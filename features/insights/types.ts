@@ -14,6 +14,20 @@ export type WeeklySummary = {
   summary: string;
 };
 
+export type WeeklyProgressTrend = {
+  key: "fatigue" | "mood" | "stress";
+  label: string;
+  firstHalfAverage: number | null;
+  secondHalfAverage: number | null;
+  indicator: string;
+};
+
+export type WeeklyProgressOverview = {
+  hasEnoughData: boolean;
+  trends: WeeklyProgressTrend[];
+  message: string | null;
+};
+
 export type TrendPoint = {
   label: string;
   value: number | null;
@@ -75,13 +89,30 @@ export type HydrationEnergyInsight = {
   recommendation: string;
 };
 
+export type BestWorstDaySnapshot = {
+  date: string;
+  sleepHours: number | null;
+  stress: number | null;
+  waterGlasses: number | null;
+};
+
+export type BestWorstDayInsight = {
+  show: boolean;
+  bestDay: BestWorstDaySnapshot | null;
+  worstDay: BestWorstDaySnapshot | null;
+  sentence: string;
+  recommendation: string;
+};
+
 export type InsightsDashboard = {
   hasEnoughData: boolean;
+  weeklyProgressOverview: WeeklyProgressOverview;
   weeklySummary: WeeklySummary;
   sleepFatigueInsight: SleepFatigueInsight;
   stressFatigueInsight: StressFatigueInsight;
   sleepMoodInsight: SleepMoodInsight;
   hydrationEnergyInsight: HydrationEnergyInsight;
+  bestWorstDayInsight: BestWorstDayInsight;
   trends: TrendSummary[];
   correlations: CorrelationSummary[];
 };

@@ -16,6 +16,14 @@ export type PremiumOffering = {
   yearly: PremiumOfferingPackage | null;
 };
 
+export type FutureSubscriptionConfig = {
+  entitlement: "premium";
+  productIds: {
+    monthly: string;
+    yearly: string;
+  };
+};
+
 export type PremiumActionResult = {
   success: boolean;
   cancelled?: boolean;

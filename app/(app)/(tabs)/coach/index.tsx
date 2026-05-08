@@ -8,7 +8,7 @@ import ErrorState from "../../../../components/ui/ErrorState";
 import LoadingState from "../../../../components/ui/LoadingState";
 import { useAuth } from "../../../../features/auth/hooks";
 import { useSaveDailyCheckIn, useCheckInHistory, useTodaysCheckIn } from "../../../../features/checkins/hooks";
-import type { DailyCheckInInput } from "../../../../features/checkins/types";
+import type { DailyCheckIn, DailyCheckInInput } from "../../../../features/checkins/types";
 import { getErrorMessage } from "../../../../lib/errors";
 
 const NATIONAL_MS_SOCIETY_URL = "https://www.nationalmssociety.org/";
@@ -24,11 +24,90 @@ function getTodayDateString() {
   return `${year}-${month}-${day}`;
 }
 
-function buildPromptOptions() {
+function formatMetricValue(value: number | null, suffix = "") {
+  if (value === null) {
+    return "—";
+  }
+
+  return `${value}${suffix}`;
+}
+
+function buildReflection(latestEntry: DailyCheckIn) {
+  const fatigue = latestEntry.fatigue ?? 0;
+  const mood = latestEntry.mood ?? 0;
+  const stress = latestEntry.stress ?? 0;
+  const pain = latestEntry.pain ?? 0;
+  const brainFog = latestEntry.brain_fog ?? 0;
+  const sleepHours = latestEntry.sleep_hours;
+  const waterGlasses = latestEntry.water_glasses;
+  const noteText = latestEntry.notes?.trim().toLowerCase() ?? "";
+
+  if (fatigue >= 7 && sleepHours !== null && sleepHours < 6) {
+    return "Your body may be asking for recovery today. Consider lowering intensity and prioritizing rest.";
+  }
+
+  if (fatigue >= 7 && stress >= 7) {
+    return "This looks like a high-load day. Choose one priority and give yourself permission to simplify.";
+  }
+
+  if (mood !== null && mood <= 3) {
+    return "Today may need gentler support. A small grounding activity could help create a little stability.";
+  }
+
+  if (pain >= 7 || brainFog >= 7) {
+    return "Your signals look heavier today. A slower pace and fewer decisions may help the day feel more manageable.";
+  }
+
+  if ((sleepHours ?? 0) >= 7 && fatigue <= 4 && stress <= 4 && mood >= 4) {
+    return "This looks like a stronger day. Notice what supported it so you can repeat the pattern.";
+  }
+
+  if (waterGlasses !== null && waterGlasses < 4 && fatigue >= 5) {
+    return "Energy looks a little stretched today. A small reset with hydration and rest may help you steady things.";
+  }
+
+  if (noteText.includes("rest") || noteText.includes("walk") || noteText.includes("calm")) {
+    return "You already noticed something supportive today. Hold onto that and see if it helps again tomorrow.";
+  }
+
+  return "Your check-in suggests a mixed day. Keep things simple and pay attention to what helps you feel a little steadier.";
+}
+
+function buildSuggestedActions(latestEntry: DailyCheckIn) {
+  const actions: string[] = [];
+
+  if ((latestEntry.stress ?? 0) >= 7) {
+    actions.push("Take a 5-minute reset");
+  }
+
+  if ((latestEntry.fatigue ?? 0) >= 7 || (latestEntry.pain ?? 0) >= 7) {
+    actions.push("Plan a lower-demand day");
+  }
+
+  if ((latestEntry.sleep_hours ?? 0) < 6) {
+    actions.push("Protect your wind-down tonight");
+  }
+
+  if ((latestEntry.water_glasses ?? 0) < 5) {
+    actions.push("Pause for a glass of water");
+  }
+
+  if ((latestEntry.mood ?? 0) <= 3) {
+    actions.push("Choose one grounding activity");
+  }
+
+  actions.push("Write one thing that helped today");
+
+  return Array.from(new Set(actions)).slice(0, 3);
+}
+
+function buildCoachSummary(latestEntry: DailyCheckIn) {
   return [
-    "What felt most manageable today?",
-    "When did your body ask for rest?",
-    "What helped your stress settle, even a little?",
+    { label: "Fatigue", value: formatMetricValue(latestEntry.fatigue) },
+    { label: "Mood", value: formatMetricValue(latestEntry.mood) },
+    { label: "Stress", value: formatMetricValue(latestEntry.stress) },
+    { label: "Sleep", value: formatMetricValue(latestEntry.sleep_hours, "h") },
+    { label: "Hydration", value: formatMetricValue(latestEntry.water_glasses, " glasses") },
   ];
 }
 
@@ -36,77 +115,74 @@ export default function CoachScreen() {
   const { user } = useAuth();
   const today = getTodayDateString();
   const todayEntryQuery = useTodaysCheckIn(user?.id, today);
-  const recentEntriesQuery = useCheckInHistory(user?.id, 7);
+  const recentEntriesQuery = useCheckInHistory(user?.id, 30);
   const saveCheckIn = useSaveDailyCheckIn();
   const [reflection, setReflection] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const latestEntry = recentEntriesQuery.data?.[0] ?? null;
 
   useEffect(() => {
-    if (!todayEntryQuery.data) {
+    if (!latestEntry) {
       return;
     }
 
-    setReflection(todayEntryQuery.data.notes ?? "");
-  }, [todayEntryQuery.data?.updated_at]);
+    setReflection(latestEntry.notes ?? "");
+    setSaveState("idle");
+  }, [latestEntry?.updated_at]);
 
-  const promptOptions = useMemo(() => {
-    const prompts = buildPromptOptions();
-    const averageStress =
-      recentEntriesQuery.data
-        ?.map((entry) => entry.stress)
-        .filter((value): value is number => value !== null)
-        .reduce((sum, value, _, values) => sum + value / values.length, 0) ?? null;
-
-    if (averageStress !== null && averageStress >= 4) {
-      return [
-        "What helped you feel a little safer or calmer today?",
-        "What would support a gentler evening tonight?",
-        "Where did stress show up most in your day?",
-      ];
+  const coachSummary = useMemo(() => {
+    if (!latestEntry) {
+      return [];
     }
 
-    return prompts;
-  }, [recentEntriesQuery.data]);
+    return buildCoachSummary(latestEntry);
+  }, [latestEntry]);
 
-  const helperCopy = useMemo(() => {
-    const latestEntry = recentEntriesQuery.data?.[0];
-
-    if ((latestEntry?.fatigue ?? 0) >= 4) {
-      return "Fatigue has been one of the stronger signals in your recent check-ins. A shorter note about what helped or what drained you can be useful later.";
+  const coachReflection = useMemo(() => {
+    if (!latestEntry) {
+      return null;
     }
 
-    if ((latestEntry?.mood ?? 0) >= 4) {
-      return "Your recent check-ins suggest a steadier stretch. This can be a good time to note what is helping so you can return to it.";
+    return buildReflection(latestEntry);
+  }, [latestEntry]);
+
+  const suggestedActions = useMemo(() => {
+    if (!latestEntry) {
+      return [];
     }
 
-    return "Use Coach as a quiet place to reflect on your day, notice small patterns, and save a note you can look back on later.";
-  }, [recentEntriesQuery.data]);
+    return buildSuggestedActions(latestEntry);
+  }, [latestEntry]);
 
   const handleSaveReflection = async () => {
     if (!user?.id || saveState === "saving") {
       return;
     }
 
+    if (!latestEntry) {
+      setSaveState("error");
+      return;
+    }
+
     setSaveState("saving");
 
-    const currentEntry = todayEntryQuery.data;
     const input: DailyCheckInInput = {
-      fatigue: currentEntry?.fatigue ?? null,
-      pain: currentEntry?.pain ?? null,
-      brain_fog: currentEntry?.brain_fog ?? null,
-      mood: currentEntry?.mood ?? null,
-      mobility: currentEntry?.mobility ?? null,
-      stress: currentEntry?.stress ?? null,
-      sleep_hours: currentEntry?.sleep_hours ?? null,
-      water_glasses: currentEntry?.water_glasses ?? null,
+      fatigue: latestEntry.fatigue ?? null,
+      pain: latestEntry.pain ?? null,
+      brain_fog: latestEntry.brain_fog ?? null,
+      mood: latestEntry.mood ?? null,
+      mobility: latestEntry.mobility ?? null,
+      stress: latestEntry.stress ?? null,
+      sleep_hours: latestEntry.sleep_hours ?? null,
+      water_glasses: latestEntry.water_glasses ?? null,
       notes: reflection.trim() || null,
-      mood_tags: currentEntry?.mood_tags ?? [],
+      mood_tags: latestEntry.mood_tags ?? [],
     };
 
     try {
       await saveCheckIn.mutateAsync({
         userId: user.id,
-        date: today,
+        date: latestEntry.date,
         input,
       });
       setSaveState("saved");
@@ -144,7 +220,7 @@ export default function CoachScreen() {
   return (
     <AppScreen
       title="Coach"
-      subtitle="Use simple reflection prompts to notice what helped, what felt heavy, and what you may need next."
+      subtitle="A calm reflection based on your latest check-in, with a few gentle next steps."
     >
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
@@ -156,41 +232,76 @@ export default function CoachScreen() {
           </View>
         </View>
 
-        <View style={styles.card}>
-          <AppText style={styles.title}>Reflect on your day</AppText>
-          <AppText style={styles.body}>{helperCopy}</AppText>
-          <View style={styles.promptList}>
-            {promptOptions.map((prompt) => (
-              <AppButton
-                key={prompt}
-                label={prompt}
-                onPress={() => setReflection((current) => (current ? `${current}\n\n${prompt}\n` : `${prompt}\n`))}
-                variant="secondary"
-              />
-            ))}
-          </View>
-        </View>
+        {latestEntry ? (
+          <>
+            <View style={styles.card}>
+              <AppText style={styles.title}>Today’s Coach Reflection</AppText>
+              <AppText style={styles.body}>
+                Based on your latest check-in from {latestEntry.date}, here’s a gentle read on how the day looks.
+              </AppText>
+            </View>
 
-        <View style={styles.card}>
-          <AppText style={styles.title}>Today&apos;s reflection</AppText>
-          <TextInput
-            multiline
-            value={reflection}
-            onChangeText={setReflection}
-            placeholder="Write a few lines about how today felt, what helped, or what you want to remember."
-            placeholderTextColor="#9ca3af"
-            textAlignVertical="top"
-            style={styles.input}
-          />
-          <AppButton
-            label={saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save reflection"}
-            onPress={() => void handleSaveReflection()}
-            disabled={saveState === "saving"}
-          />
-          {saveState === "error" ? (
-            <AppText style={styles.errorText}>Unable to save right now. Please try again.</AppText>
-          ) : null}
-        </View>
+            <View style={styles.card}>
+              <AppText style={styles.title}>Latest check-in summary</AppText>
+              <View style={styles.summaryGrid}>
+                {coachSummary.map((item) => (
+                  <View key={item.label} style={styles.summaryPill}>
+                    <AppText style={styles.summaryLabel}>{item.label}</AppText>
+                    <AppText style={styles.summaryValue}>{item.value}</AppText>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.reflectionCard}>
+              <AppText style={styles.title}>Your reflection</AppText>
+              <AppText style={styles.reflectionBody}>{coachReflection}</AppText>
+            </View>
+
+            <View style={styles.card}>
+              <AppText style={styles.title}>Suggested actions</AppText>
+              <View style={styles.actionList}>
+                {suggestedActions.map((action) => (
+                  <View key={action} style={styles.actionPill}>
+                    <AppText style={styles.actionText}>{action}</AppText>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.card}>
+              <AppText style={styles.title}>Add your own note</AppText>
+              <TextInput
+                multiline
+                value={reflection}
+                onChangeText={(next) => {
+                  setReflection(next);
+                  if (saveState !== "saving") {
+                    setSaveState("idle");
+                  }
+                }}
+                placeholder="Write a few lines about what helped, what felt heavy, or what you want to remember."
+                placeholderTextColor="#9ca3af"
+                textAlignVertical="top"
+                style={styles.input}
+              />
+              <AppButton
+                label={saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save note"}
+                onPress={() => void handleSaveReflection()}
+                disabled={saveState === "saving"}
+              />
+              {saveState === "error" ? (
+                <AppText style={styles.errorText}>Unable to save right now. Please try again.</AppText>
+              ) : null}
+            </View>
+          </>
+        ) : (
+          <View style={styles.card}>
+            <AppText style={styles.title}>Today’s Coach Reflection</AppText>
+            <AppText style={styles.body}>Complete today’s check-in to unlock your reflection.</AppText>
+            <AppButton label="Go to Today" onPress={() => router.push("/today")} />
+          </View>
+        )}
 
         <View style={styles.card}>
           <AppText style={styles.title}>Sources</AppText>
@@ -241,8 +352,55 @@ const styles = StyleSheet.create({
   navButtons: {
     gap: 10,
   },
-  promptList: {
+  summaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
+  },
+  summaryPill: {
+    minWidth: 120,
+    flexGrow: 1,
+    backgroundColor: "#fffaf6",
+    borderRadius: 14,
+    padding: 12,
+    gap: 4,
+  },
+  summaryLabel: {
+    fontSize: 13,
+    color: "#6b7280",
+  },
+  summaryValue: {
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  reflectionCard: {
+    backgroundColor: "#fff4ec",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f2d8c4",
+    padding: 18,
+    gap: 10,
+  },
+  reflectionBody: {
+    color: "#7c4a1d",
+    lineHeight: 24,
+    fontSize: 16,
+  },
+  actionList: {
+    gap: 10,
+  },
+  actionPill: {
+    backgroundColor: "#f6f8fb",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  actionText: {
+    color: "#374151",
+    fontSize: 14,
+    lineHeight: 20,
   },
   input: {
     minHeight: 140,

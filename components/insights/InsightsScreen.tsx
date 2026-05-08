@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { useAuth } from "../../features/auth/hooks";
 import { useCheckInHistory } from "../../features/checkins/hooks";
 import { useInsightsDashboard, usePatternSummary } from "../../features/insights/hooks";
+import BestWorstDayInsightCard from "./BestWorstDayInsightCard";
 import { getErrorMessage } from "../../lib/errors";
 import CorrelationCard from "./CorrelationCard";
 import HydrationEnergyInsightCard from "./HydrationEnergyInsightCard";
@@ -11,6 +12,7 @@ import SleepFatigueInsightCard from "./SleepFatigueInsightCard";
 import SleepMoodInsightCard from "./SleepMoodInsightCard";
 import StressFatigueInsightCard from "./StressFatigueInsightCard";
 import TrendSummaryCard from "./TrendSummaryCard";
+import WeeklyProgressOverviewCard from "./WeeklyProgressOverviewCard";
 import WeeklySummaryCard from "./WeeklySummaryCard";
 import AppButton from "../ui/AppButton";
 import AppScreen from "../ui/AppScreen";
@@ -78,6 +80,7 @@ export default function InsightsScreen() {
           </View>
         ) : (
           <>
+            <WeeklyProgressOverviewCard overview={dashboard.weeklyProgressOverview} />
             <WeeklySummaryCard summary={dashboard.weeklySummary} />
             {dashboard.sleepFatigueInsight.show ? (
               <SleepFatigueInsightCard insight={dashboard.sleepFatigueInsight} />
@@ -90,6 +93,9 @@ export default function InsightsScreen() {
             ) : null}
             {dashboard.hydrationEnergyInsight.show ? (
               <HydrationEnergyInsightCard insight={dashboard.hydrationEnergyInsight} />
+            ) : null}
+            {dashboard.bestWorstDayInsight.show ? (
+              <BestWorstDayInsightCard insight={dashboard.bestWorstDayInsight} />
             ) : null}
 
             <View style={styles.section}>

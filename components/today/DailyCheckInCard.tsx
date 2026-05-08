@@ -66,7 +66,8 @@ export default function DailyCheckInCard({
   postSaveInsight,
   onViewInsights,
 }: DailyCheckInCardProps) {
-  const [showMore, setShowMore] = useState(false);
+  const [showBodySignals, setShowBodySignals] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
 
   return (
     <View style={styles.container}>
@@ -74,7 +75,7 @@ export default function DailyCheckInCard({
         <View style={styles.headerText}>
           <AppText style={styles.title}>Daily check-in</AppText>
           <AppText style={styles.subtitle}>
-            Start with the three signals that matter most today.
+            Start with the basics. Add details only if you want.
           </AppText>
         </View>
         <AppText style={styles.status}>
@@ -88,21 +89,118 @@ export default function DailyCheckInCard({
         </AppText>
       </View>
 
-      <SymptomSliderCard
-        label="Fatigue"
-        value={draft.fatigue}
-        onChange={(fatigue) => onChange({ ...draft, fatigue })}
-      />
-      <SymptomSliderCard
-        label="Mood"
-        value={draft.mood}
-        onChange={(mood) => onChange({ ...draft, mood })}
-      />
-      <SymptomSliderCard
-        label="Stress"
-        value={draft.stress}
-        onChange={(stress) => onChange({ ...draft, stress })}
-      />
+      <View style={styles.sectionCard}>
+        <View style={styles.sectionHeader}>
+          <AppText style={styles.sectionTitle}>How are you today?</AppText>
+          <AppText style={styles.sectionHelper}>Start with fatigue, mood, and stress.</AppText>
+        </View>
+
+        <SymptomSliderCard
+          label="Fatigue"
+          value={draft.fatigue}
+          onChange={(fatigue) => onChange({ ...draft, fatigue })}
+        />
+        <SymptomSliderCard
+          label="Mood"
+          value={draft.mood}
+          onChange={(mood) => onChange({ ...draft, mood })}
+        />
+        <SymptomSliderCard
+          label="Stress"
+          value={draft.stress}
+          onChange={(stress) => onChange({ ...draft, stress })}
+        />
+      </View>
+
+      <View style={styles.sectionCard}>
+        <Pressable
+          onPress={() => setShowBodySignals((current) => !current)}
+          style={({ pressed }) => [styles.sectionToggle, pressed && styles.sectionTogglePressed]}
+        >
+          <View style={styles.sectionToggleHeader}>
+            <AppText style={styles.sectionTitle}>Body signals</AppText>
+            <AppText style={styles.sectionHelper}>
+              Add pain, brain fog, mobility, sleep, and hydration if helpful.
+            </AppText>
+          </View>
+          <AppText style={styles.sectionToggleText}>{showBodySignals ? "Hide" : "Add"}</AppText>
+        </Pressable>
+
+        {showBodySignals ? (
+          <View style={styles.sectionContent}>
+            <SymptomSliderCard
+              label="Pain"
+              value={draft.pain}
+              onChange={(pain) => onChange({ ...draft, pain })}
+            />
+            <SymptomSliderCard
+              label="Brain fog"
+              value={draft.brain_fog}
+              onChange={(brain_fog) => onChange({ ...draft, brain_fog })}
+            />
+            <SymptomSliderCard
+              label="Mobility"
+              value={draft.mobility}
+              onChange={(mobility) => onChange({ ...draft, mobility })}
+            />
+
+            <View style={styles.fieldGroup}>
+              <AppText style={styles.fieldLabel}>Hours of sleep last night</AppText>
+              <TextInput
+                keyboardType="decimal-pad"
+                placeholder="e.g. 7.5"
+                placeholderTextColor="#9ca3af"
+                value={draft.sleep_hours}
+                onChangeText={(sleep_hours) => onChange({ ...draft, sleep_hours })}
+                style={styles.fieldInput}
+              />
+            </View>
+            <View style={styles.fieldGroup}>
+              <AppText style={styles.fieldLabel}>Water glasses today</AppText>
+              <TextInput
+                keyboardType="number-pad"
+                placeholder="e.g. 6"
+                placeholderTextColor="#9ca3af"
+                value={draft.water_glasses}
+                onChangeText={(water_glasses) => onChange({ ...draft, water_glasses })}
+                style={styles.fieldInput}
+              />
+            </View>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.sectionCard}>
+        <Pressable
+          onPress={() => setShowNotes((current) => !current)}
+          style={({ pressed }) => [styles.sectionToggle, pressed && styles.sectionTogglePressed]}
+        >
+          <View style={styles.sectionToggleHeader}>
+            <AppText style={styles.sectionTitle}>Notes</AppText>
+            <AppText style={styles.sectionHelper}>
+              Add symptoms or a short reflection if you want to remember more.
+            </AppText>
+          </View>
+          <AppText style={styles.sectionToggleText}>{showNotes ? "Hide" : "Add"}</AppText>
+        </Pressable>
+
+        {showNotes ? (
+          <View style={styles.sectionContent}>
+            <View style={styles.fieldGroup}>
+              <AppText style={styles.fieldLabel}>Reflection notes</AppText>
+              <TextInput
+                multiline
+                placeholder="Anything you want to remember about today?"
+                placeholderTextColor="#9ca3af"
+                value={draft.notes}
+                onChangeText={(notes) => onChange({ ...draft, notes })}
+                style={styles.notesInput}
+                textAlignVertical="top"
+              />
+            </View>
+          </View>
+        ) : null}
+      </View>
 
       <View style={styles.actionSection}>
         <AppButton
@@ -125,80 +223,6 @@ export default function DailyCheckInCard({
         ) : null}
         {saveState === "error" ? (
           <AppText style={styles.errorText}>We couldn’t save your check-in. Please try again.</AppText>
-        ) : null}
-      </View>
-
-      <View style={styles.secondaryCard}>
-        <Pressable
-          onPress={() => setShowMore((current) => !current)}
-          style={({ pressed }) => [styles.secondaryToggle, pressed && styles.secondaryTogglePressed]}
-        >
-          <View style={styles.secondaryHeader}>
-            <AppText style={styles.sectionTitle}>More details</AppText>
-            <AppText style={styles.secondarySubtitle}>
-              Sleep, hydration, symptoms, and notes
-            </AppText>
-          </View>
-          <AppText style={styles.secondaryToggleText}>{showMore ? "Hide" : "Show"}</AppText>
-        </Pressable>
-
-        {showMore ? (
-          <View style={styles.secondaryContent}>
-            <SymptomSliderCard
-              label="Pain"
-              value={draft.pain}
-              onChange={(pain) => onChange({ ...draft, pain })}
-            />
-            <SymptomSliderCard
-              label="Brain fog"
-              value={draft.brain_fog}
-              onChange={(brain_fog) => onChange({ ...draft, brain_fog })}
-            />
-            <SymptomSliderCard
-              label="Mobility"
-              value={draft.mobility}
-              onChange={(mobility) => onChange({ ...draft, mobility })}
-            />
-
-            <View style={styles.habitsCard}>
-              <AppText style={styles.sectionTitle}>Sleep and habits</AppText>
-              <View style={styles.fieldGroup}>
-                <AppText style={styles.fieldLabel}>Hours of sleep last night</AppText>
-                <TextInput
-                  keyboardType="decimal-pad"
-                  placeholder="e.g. 7.5"
-                  placeholderTextColor="#9ca3af"
-                  value={draft.sleep_hours}
-                  onChangeText={(sleep_hours) => onChange({ ...draft, sleep_hours })}
-                  style={styles.fieldInput}
-                />
-              </View>
-              <View style={styles.fieldGroup}>
-                <AppText style={styles.fieldLabel}>Water glasses today</AppText>
-                <TextInput
-                  keyboardType="number-pad"
-                  placeholder="e.g. 6"
-                  placeholderTextColor="#9ca3af"
-                  value={draft.water_glasses}
-                  onChangeText={(water_glasses) => onChange({ ...draft, water_glasses })}
-                  style={styles.fieldInput}
-                />
-              </View>
-            </View>
-
-            <View style={styles.notesCard}>
-              <AppText style={styles.sectionTitle}>Reflection notes</AppText>
-              <TextInput
-                multiline
-                placeholder="Anything you want to remember about today?"
-                placeholderTextColor="#9ca3af"
-                value={draft.notes}
-                onChangeText={(notes) => onChange({ ...draft, notes })}
-                style={styles.notesInput}
-                textAlignVertical="top"
-              />
-            </View>
-          </View>
         ) : null}
       </View>
     </View>
@@ -233,26 +257,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  habitsCard: {
-    backgroundColor: "#ffffff",
+  sectionCard: {
+    backgroundColor: "#fffaf6",
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "#f3dfd1",
     padding: 16,
-    gap: 10,
+    gap: 14,
   },
-  notesCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#f3dfd1",
-    padding: 16,
-    gap: 10,
+  sectionHeader: {
+    gap: 4,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
     color: "#1f2937",
+  },
+  sectionHelper: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#6b7280",
   },
   fieldGroup: {
     gap: 6,
@@ -275,6 +299,12 @@ const styles = StyleSheet.create({
     minHeight: 108,
     fontSize: 16,
     color: "#374151",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5d6cb",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   actionSection: {
     gap: 10,
@@ -288,38 +318,25 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 12,
   },
-  secondaryCard: {
-    backgroundColor: "#fffaf6",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#f3dfd1",
-    padding: 16,
-    gap: 14,
-  },
-  secondaryToggle: {
+  sectionToggle: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
   },
-  secondaryTogglePressed: {
+  sectionTogglePressed: {
     opacity: 0.82,
   },
-  secondaryHeader: {
+  sectionToggleHeader: {
     flex: 1,
     gap: 4,
   },
-  secondarySubtitle: {
-    fontSize: 13,
-    color: "#6b7280",
-    lineHeight: 18,
-  },
-  secondaryToggleText: {
+  sectionToggleText: {
     fontSize: 14,
     fontWeight: "700",
     color: "#c25d10",
   },
-  secondaryContent: {
+  sectionContent: {
     gap: 12,
   },
   successRow: {
