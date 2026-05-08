@@ -5,6 +5,26 @@ import type { DailyCheckIn, DailyCheckInInput } from "./types";
 const SELECT_FIELDS =
   "id, user_id, date, fatigue, pain, brain_fog, mood, mobility, stress, sleep_hours, water_glasses, notes, mood_tags, created_at, updated_at";
 
+function getNormalizedDate(value: string) {
+  if (!value) {
+    throw new Error("Missing date for check-in save");
+  }
+
+  return value.slice(0, 10);
+}
+
+function logDev(label: string, payload: unknown) {
+  if (__DEV__) {
+    console.log(label, payload);
+  }
+}
+
+function logDevError(label: string, payload: unknown) {
+  if (__DEV__) {
+    console.error(label, payload);
+  }
+}
+
 export const checkinsApi = {
   async getDailyCheckInByDate(userId: string, date: string) {
     if (!userId) {
@@ -58,43 +78,64 @@ export const checkinsApi = {
     return (data ?? []) as DailyCheckIn[];
   },
   async upsertDailyCheckIn(userId: string, date: string, input: DailyCheckInInput) {
-    if (!userId) {
-      throw new Error("Missing user id for check-in save");
-    }
-
-    if (!date) {
-      throw new Error("Missing date for check-in save");
-    }
-
     if (!env.isSupabaseConfigured) {
-      const now = new Date().toISOString();
-      return {
-        id: "mock-daily-entry",
-        user_id: userId,
-        date,
-        created_at: now,
-        updated_at: now,
-        ...input,
-      } as DailyCheckIn;
+      throw new Error("Supabase is not configured for daily entry saves");
     }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+
+    if (authError) {
+      logDevError("[daily_entries] auth error", authError);
+      throw authError;
+    }
+
+    const currentUser = authData.user;
+    logDev("[daily_entries] current user", currentUser?.id ?? null);
+
+    if (!currentUser?.id) {
+      throw new Error("Missing authenticated user for check-in save");
+    }
+
+    if (userId && currentUser.id !== userId) {
+      throw new Error("Authenticated user does not match requested check-in save");
+    }
+
+    const normalizedDate = getNormalizedDate(date);
+    const payload = {
+      user_id: currentUser.id,
+      date: normalizedDate,
+      fatigue: input.fatigue,
+      mood: input.mood,
+      stress: input.stress,
+      pain: input.pain,
+      brain_fog: input.brain_fog,
+      mobility: input.mobility,
+      sleep_hours: input.sleep_hours,
+      water_glasses: input.water_glasses,
+      notes: input.notes,
+      mood_tags: input.mood_tags ?? [],
+      ...(typeof input.spasticity === "number" ? { spasticity: input.spasticity } : {}),
+    };
+
+    logDev("[daily_entries] upsert payload", payload);
 
     const { data, error } = await supabase
       .from("daily_entries")
-      .upsert(
-        {
-          user_id: userId,
-          date,
-          ...input,
-        },
-        {
-          onConflict: "user_id,date",
-        },
-      )
-      .select(SELECT_FIELDS)
+      .upsert(payload, {
+        onConflict: "user_id,date",
+      })
+      .select("*")
       .single();
 
     if (error) {
+      logDevError("[daily_entries] upsert error", error);
       throw error;
+    }
+
+    logDev("[daily_entries] upsert result", data);
+
+    if (!data?.id || !data?.user_id || !data?.date) {
+      throw new Error("Daily entry save did not return a valid row");
     }
 
     return data as DailyCheckIn;

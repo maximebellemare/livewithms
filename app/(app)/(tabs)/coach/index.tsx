@@ -151,6 +151,7 @@ export default function CoachScreen() {
           <AppText style={styles.title}>Move between sections</AppText>
           <View style={styles.navButtons}>
             <AppButton label="Go to Today" onPress={() => router.push("/today")} variant="secondary" />
+            <AppButton label="Go to Insights" onPress={() => router.push("/insights")} variant="secondary" />
             <AppButton label="Go to Programs" onPress={() => router.push("/programs")} variant="secondary" />
           </View>
         </View>

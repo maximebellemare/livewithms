@@ -2,6 +2,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { checkinsApi } from "./api";
 import type { DailyCheckIn, DailyCheckInInput } from "./types";
 
+function mergeCheckInIntoHistory(
+  existing: DailyCheckIn[] | undefined,
+  nextItem: DailyCheckIn,
+  limit?: number,
+) {
+  const nextItems = (existing ?? []).filter((item) => item.date !== nextItem.date);
+  nextItems.push(nextItem);
+  nextItems.sort((a, b) => b.date.localeCompare(a.date));
+
+  return typeof limit === "number" ? nextItems.slice(0, limit) : nextItems;
+}
+
 export function useCheckInByDate(userId?: string, date?: string) {
   return useQuery({
     queryKey: ["daily-checkin", userId, date],
@@ -46,7 +58,7 @@ export function useCheckInHistory(userId?: string, limit = 30) {
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnMount: true,
   });
 }
 
@@ -69,25 +81,26 @@ export function useSaveDailyCheckIn() {
         data,
       );
 
+      queryClient.setQueryData<DailyCheckIn[]>(
+        ["daily-checkins", variables.userId, 30],
+        (existing) => mergeCheckInIntoHistory(existing, data, 30),
+      );
+
+      queryClient.setQueryData<DailyCheckIn[]>(
+        ["daily-checkins", variables.userId, 7],
+        (existing) => mergeCheckInIntoHistory(existing, data, 7),
+      );
+
       queryClient.setQueriesData<DailyCheckIn[] | undefined>(
         {
           queryKey: ["daily-checkins", variables.userId],
         },
-        (existing) => {
-          if (!existing) {
-            return existing;
-          }
-
-          const nextItems = existing.filter((item) => item.date !== data.date);
-          nextItems.push(data);
-          nextItems.sort((a, b) => b.date.localeCompare(a.date));
-
-          return nextItems;
-        },
+        (existing) => mergeCheckInIntoHistory(existing, data),
       );
 
       void queryClient.invalidateQueries({
         queryKey: ["daily-checkins", variables.userId],
+        refetchType: "all",
       });
     },
   });

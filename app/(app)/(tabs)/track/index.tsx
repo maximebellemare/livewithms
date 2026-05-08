@@ -18,6 +18,42 @@ import { getErrorMessage } from "../../../../lib/errors";
 const QUERY_LIMIT = 30;
 const VISIBLE_HISTORY_LIMIT = 12;
 
+function average(values: Array<number | null>) {
+  const validValues = values.filter((value): value is number => value !== null);
+  if (!validValues.length) {
+    return null;
+  }
+
+  return validValues.reduce((sum, value) => sum + value, 0) / validValues.length;
+}
+
+function getTrackSummary(entries: Array<{ fatigue: number | null; mood: number | null }>) {
+  const last7 = entries.slice(0, 7);
+  const prior7 = entries.slice(7, 14);
+
+  const averageFatigueLast7 = average(last7.map((entry) => entry.fatigue));
+  const averageFatiguePrior7 = average(prior7.map((entry) => entry.fatigue));
+  const averageMoodLast7 = average(last7.map((entry) => entry.mood));
+
+  if (averageFatigueLast7 !== null && averageFatiguePrior7 !== null) {
+    const difference = averageFatigueLast7 - averageFatiguePrior7;
+
+    if (difference <= -0.35) {
+      return "Last 7 days: fatigue trending down";
+    }
+
+    if (difference >= 0.35) {
+      return "Last 7 days: fatigue trending up";
+    }
+  }
+
+  if (averageMoodLast7 !== null && averageMoodLast7 >= 6) {
+    return "Last 7 days: mood has looked steadier";
+  }
+
+  return "Last 7 days: your check-ins are building a clearer pattern";
+}
+
 export default function TrackScreen() {
   const { user } = useAuth();
   const historyQuery = useCheckInHistory(user?.id, QUERY_LIMIT);
@@ -38,6 +74,7 @@ export default function TrackScreen() {
   );
 
   const patternSummaryQuery = usePatternSummary(visibleItems, 7);
+  const topSummary = useMemo(() => getTrackSummary(historyQuery.data ?? []), [historyQuery.data]);
 
   const selectedItem = useMemo(() => {
     const selectedFromVisible =
@@ -83,6 +120,7 @@ export default function TrackScreen() {
           <View style={styles.navButtons}>
             <AppButton label="Go to Today" onPress={() => router.push("/today")} variant="secondary" />
             <AppButton label="Go to Coach" onPress={() => router.push("/coach")} variant="secondary" />
+            <AppButton label="Go to Insights" onPress={() => router.push("/insights")} variant="secondary" />
           </View>
         </View>
 
@@ -93,6 +131,11 @@ export default function TrackScreen() {
             "Keep logging mood, fatigue, stress, sleep, and hydration to reveal clearer patterns."
           }
         />
+
+        <View style={styles.summaryCard}>
+          <AppText style={styles.summaryKicker}>Quick read</AppText>
+          <AppText style={styles.summaryText}>{topSummary}</AppText>
+        </View>
 
         <View style={styles.section}>
           <AppText style={styles.sectionTitle}>Recent days</AppText>
@@ -132,8 +175,28 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 12,
   },
+  summaryCard: {
+    backgroundColor: "#fff7f2",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f2d3bd",
+    padding: 18,
+    gap: 6,
+  },
   sectionTitle: {
     fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  summaryKicker: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#c25d10",
+    textTransform: "uppercase",
+  },
+  summaryText: {
+    fontSize: 20,
+    lineHeight: 28,
     fontWeight: "700",
     color: "#1f2937",
   },

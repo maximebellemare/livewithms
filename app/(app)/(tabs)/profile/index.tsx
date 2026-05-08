@@ -92,6 +92,7 @@ export default function ProfileScreen() {
             Move to the sections you may need most for wellness tracking, legal details, and medical sources.
           </AppText>
           <AppButton label="Go to Today" onPress={() => router.push("/today")} />
+          <AppButton label="Go to Insights" onPress={() => router.push("/insights")} variant="secondary" />
           <View style={styles.legalLinks}>
             <Pressable onPress={openPrivacyPolicy} style={styles.legalButton}>
               <AppText style={styles.legalText}>Privacy Policy</AppText>

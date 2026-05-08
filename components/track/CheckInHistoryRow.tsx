@@ -16,6 +16,70 @@ function formatCheckInValue(value: number | null) {
   return value === null ? "Not logged" : String(value);
 }
 
+function getFatigueTone(value: number | null) {
+  if (value === null) {
+    return {
+      backgroundColor: "#f7efe8",
+      borderColor: "#ead9cb",
+      textColor: "#8b6a4f",
+    };
+  }
+
+  if (value >= 7) {
+    return {
+      backgroundColor: "#fee2e2",
+      borderColor: "#fca5a5",
+      textColor: "#b91c1c",
+    };
+  }
+
+  if (value >= 4) {
+    return {
+      backgroundColor: "#ffedd5",
+      borderColor: "#fdba74",
+      textColor: "#c2410c",
+    };
+  }
+
+  return {
+    backgroundColor: "#fef3c7",
+    borderColor: "#fcd34d",
+    textColor: "#a16207",
+  };
+}
+
+function getMoodTone(value: number | null) {
+  if (value === null) {
+    return {
+      backgroundColor: "#f7efe8",
+      borderColor: "#ead9cb",
+      textColor: "#8b6a4f",
+    };
+  }
+
+  if (value >= 7) {
+    return {
+      backgroundColor: "#dbeafe",
+      borderColor: "#93c5fd",
+      textColor: "#1d4ed8",
+    };
+  }
+
+  if (value >= 4) {
+    return {
+      backgroundColor: "#e0f2fe",
+      borderColor: "#7dd3fc",
+      textColor: "#0369a1",
+    };
+  }
+
+  return {
+    backgroundColor: "#f1f5f9",
+    borderColor: "#cbd5e1",
+    textColor: "#475569",
+  };
+}
+
 type CheckInHistoryRowProps = {
   item: DailyCheckIn;
   selected: boolean;
@@ -27,6 +91,9 @@ export default function CheckInHistoryRow({
   selected,
   onPress,
 }: CheckInHistoryRowProps) {
+  const fatigueTone = getFatigueTone(item.fatigue);
+  const moodTone = getMoodTone(item.mood);
+
   return (
     <Pressable
       onPress={onPress}
@@ -40,8 +107,32 @@ export default function CheckInHistoryRow({
       <View style={styles.content}>
         <AppText style={styles.date}>{formatCheckInDate(item.date)}</AppText>
         <View style={styles.summary}>
-          <AppText style={styles.metric}>Mood: {formatCheckInValue(item.mood)}</AppText>
-          <AppText style={styles.metric}>Fatigue: {formatCheckInValue(item.fatigue)}</AppText>
+          <View
+            style={[
+              styles.metricPill,
+              {
+                backgroundColor: moodTone.backgroundColor,
+                borderColor: moodTone.borderColor,
+              },
+            ]}
+          >
+            <AppText style={[styles.metricPillText, { color: moodTone.textColor }]}>
+              Mood {formatCheckInValue(item.mood)}
+            </AppText>
+          </View>
+          <View
+            style={[
+              styles.metricPill,
+              {
+                backgroundColor: fatigueTone.backgroundColor,
+                borderColor: fatigueTone.borderColor,
+              },
+            ]}
+          >
+            <AppText style={[styles.metricPillText, { color: fatigueTone.textColor }]}>
+              Fatigue {formatCheckInValue(item.fatigue)}
+            </AppText>
+          </View>
         </View>
         {item.notes ? (
           <AppText style={styles.note} numberOfLines={1}>
@@ -74,25 +165,34 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 8,
   },
   date: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "700",
     color: "#1f2937",
   },
   summary: {
-    gap: 2,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
   },
-  metric: {
-    fontSize: 14,
-    color: "#4b5563",
+  metricPill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  metricPillText: {
+    fontSize: 13,
+    fontWeight: "700",
   },
   note: {
     fontSize: 13,
     color: "#6b7280",
     marginTop: 2,
+    lineHeight: 18,
   },
 });

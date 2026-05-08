@@ -29,6 +29,6 @@ export default function CheckInHistoryList({
 
 const styles = StyleSheet.create({
   container: {
-    gap: 10,
+    gap: 12,
   },
 });

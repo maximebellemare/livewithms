@@ -12,6 +12,10 @@ export type DailyCheckIn = {
   water_glasses: number | null;
   notes: string | null;
   mood_tags: string[];
+  symptom_tags?: string[] | null;
+  triggers?: string[] | null;
+  wins?: string[] | null;
+  spasticity?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -27,4 +31,8 @@ export type DailyCheckInInput = {
   water_glasses: number | null;
   notes: string | null;
   mood_tags: string[];
+  symptom_tags?: string[] | null;
+  triggers?: string[] | null;
+  wins?: string[] | null;
+  spasticity?: number | null;
 };
