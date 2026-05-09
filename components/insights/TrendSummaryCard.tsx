@@ -17,11 +17,11 @@ function formatAverage(value: number | null, label: string) {
 
 function getDirectionLabel(direction: TrendSummary["direction"]) {
   if (direction === "up") {
-    return "Improving";
+    return "Looking better";
   }
 
   if (direction === "down") {
-    return "Needs attention";
+    return "Needs care";
   }
 
   return "Steady";
@@ -34,25 +34,25 @@ function getTrendHighlight(trend: TrendSummary) {
 
   if (trend.key === "fatigue") {
     return trend.direction === "up"
-      ? "Fatigue has eased a little over the last 7 days."
+      ? "You may be feeling a little less weighed down lately."
       : trend.direction === "down"
-        ? "Fatigue has been a little heavier lately."
-        : "Fatigue has stayed fairly consistent.";
+        ? "You may be feeling a bit more tired lately."
+        : "Your fatigue has been fairly steady.";
   }
 
   if (trend.key === "mood") {
     return trend.direction === "up"
-      ? "Mood has felt a bit steadier this week."
+      ? "Your mood may be feeling a little steadier this week."
       : trend.direction === "down"
-        ? "Mood has dipped a little compared with your longer pattern."
-        : "Mood has stayed fairly steady.";
+        ? "Your mood may have been a little lower than usual."
+        : "Your mood has been fairly steady.";
   }
 
   return trend.direction === "up"
-    ? "Sleep has looked a little stronger this week."
+    ? "You seem to be getting a little more rest this week."
     : trend.direction === "down"
-      ? "Sleep has been lighter than your usual pattern."
-      : "Sleep has stayed fairly consistent.";
+      ? "Your sleep may have been a little lighter than usual."
+      : "Your sleep has been fairly steady.";
 }
 
 function getTrendSuggestion(trend: TrendSummary) {
@@ -62,19 +62,19 @@ function getTrendSuggestion(trend: TrendSummary) {
 
   if (trend.key === "fatigue") {
     return trend.direction === "down"
-      ? "Consider planning lighter days or steadier breaks when energy feels harder to hold."
-      : "Keep noticing which routines help you feel more stable.";
+      ? "A lighter plan or steadier breaks may help on heavier days."
+      : "Keep noticing what helps you feel more steady.";
   }
 
   if (trend.key === "mood") {
     return trend.direction === "down"
-      ? "A small supportive routine may help on lower-mood days."
-      : "Keep leaning into what is helping you feel more grounded.";
+      ? "A small supportive routine may help on lower days."
+      : "Keep leaning into what helps you feel more grounded.";
   }
 
   return trend.direction === "down"
-    ? "Try protecting your wind-down routine for a few nights."
-    : "Keep an eye on the habits that support better rest.";
+    ? "A calmer wind-down may help you settle a little more easily."
+    : "Keep noticing the habits that support better rest.";
 }
 
 export default function TrendSummaryCard({ trend }: TrendSummaryCardProps) {
@@ -86,11 +86,12 @@ export default function TrendSummaryCard({ trend }: TrendSummaryCardProps) {
       <View style={styles.header}>
         <View style={styles.headerText}>
           <AppText style={styles.title}>{trend.label}</AppText>
+          <AppText style={styles.contextText}>Based on your recent entries</AppText>
           <AppText style={styles.badge}>{getDirectionLabel(trend.direction)}</AppText>
         </View>
         <View style={styles.values}>
-          <AppText style={styles.averageText}>{formatAverage(trend.average7, "7d")}</AppText>
-          <AppText style={styles.averageText}>{formatAverage(trend.average30, "30d")}</AppText>
+          <AppText style={styles.averageText}>{formatAverage(trend.average7, "Recent")}</AppText>
+          <AppText style={styles.averageText}>{formatAverage(trend.average30, "Usual")}</AppText>
         </View>
       </View>
 
@@ -136,6 +137,10 @@ const styles = StyleSheet.create({
     color: "#c25d10",
     fontSize: 12,
     fontWeight: "700",
+  },
+  contextText: {
+    fontSize: 13,
+    color: "#6b7280",
   },
   values: {
     gap: 4,

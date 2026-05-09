@@ -27,6 +27,7 @@ export default function SleepFatigueInsightCard({ insight }: SleepFatigueInsight
     <View style={styles.card}>
       <AppText style={styles.kicker}>Last 30 days</AppText>
       <AppText style={styles.title}>Sleep &amp; Fatigue</AppText>
+      <AppText style={styles.contextText}>Based on your recent entries</AppText>
 
       <View style={styles.metricRow}>
         <View style={styles.metricCard}>
@@ -74,6 +75,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
+  },
+  contextText: {
+    fontSize: 13,
+    color: "#5f7288",
   },
   metricCard: {
     minWidth: 110,

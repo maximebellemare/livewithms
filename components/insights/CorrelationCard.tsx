@@ -6,12 +6,20 @@ type CorrelationCardProps = {
   correlation: CorrelationSummary;
 };
 
-function formatCoefficient(value: number | null) {
+function formatPatternStrength(value: number | null) {
   if (value === null) {
     return "—";
   }
 
-  return value.toFixed(2);
+  if (Math.abs(value) < 0.2) {
+    return "Early";
+  }
+
+  if (Math.abs(value) < 0.45) {
+    return "Growing";
+  }
+
+  return "Clear";
 }
 
 function getCorrelationHighlight(correlation: CorrelationSummary) {
@@ -20,24 +28,24 @@ function getCorrelationHighlight(correlation: CorrelationSummary) {
   }
 
   if (Math.abs(correlation.coefficient) < 0.2) {
-    return `There is not a clear pattern yet between ${correlation.leftLabel.toLowerCase()} and ${correlation.rightLabel.toLowerCase()}.`;
+    return `On days when ${correlation.rightLabel.toLowerCase()} changes, ${correlation.leftLabel.toLowerCase()} does not shift in a clear way yet.`;
   }
 
   if (correlation.key === "fatigue-sleep") {
     return correlation.coefficient < 0
-      ? "You feel more fatigued on lower-sleep days."
-      : "Sleep and fatigue have been moving together in an unusual way.";
+      ? "On days when sleep is lower, fatigue tends to feel higher."
+      : "Sleep and fatigue seem connected, though not always in the same direction.";
   }
 
   if (correlation.key === "fatigue-stress") {
     return correlation.coefficient > 0
-      ? "Fatigue tends to rise on higher-stress days."
-      : "Stress and fatigue are not moving together in a clear way.";
+      ? "On days when stress is higher, fatigue tends to rise too."
+      : "Stress and fatigue do not seem to move together in a clear way.";
   }
 
   return correlation.coefficient > 0
-    ? "Mood tends to feel better on higher-sleep days."
-    : "Mood and sleep are not moving together in a clear way.";
+    ? "On days when sleep is higher, mood tends to feel a little better."
+    : "Mood and sleep do not seem to move together in a clear way.";
 }
 
 function getCorrelationSuggestion(correlation: CorrelationSummary) {
@@ -46,7 +54,7 @@ function getCorrelationSuggestion(correlation: CorrelationSummary) {
   }
 
   if (correlation.key === "fatigue-sleep" && correlation.coefficient < -0.2) {
-    return "Try increasing sleep where you can and notice whether energy feels steadier the next day.";
+    return "A little more rest may help your energy feel steadier.";
   }
 
   if (correlation.key === "fatigue-stress" && correlation.coefficient > 0.2) {
@@ -54,7 +62,7 @@ function getCorrelationSuggestion(correlation: CorrelationSummary) {
   }
 
   if (correlation.key === "mood-sleep" && correlation.coefficient > 0.2) {
-    return "Protecting your bedtime routine may help support a steadier mood.";
+    return "A steadier bedtime routine may help support your mood.";
   }
 
   return "Keep logging a few more days so the pattern becomes clearer.";
@@ -67,18 +75,19 @@ export default function CorrelationCard({ correlation }: CorrelationCardProps) {
   return (
     <View style={styles.card}>
       <AppText style={styles.title}>{correlation.title}</AppText>
+      <AppText style={styles.contextText}>Based on your recent entries</AppText>
       <View style={styles.row}>
         <View style={styles.metricCard}>
-          <AppText style={styles.metricValue}>{formatCoefficient(correlation.coefficient)}</AppText>
-          <AppText style={styles.metricLabel}>Correlation</AppText>
+          <AppText style={styles.metricValue}>{formatPatternStrength(correlation.coefficient)}</AppText>
+          <AppText style={styles.metricLabel}>Pattern</AppText>
         </View>
         <View style={styles.metricCard}>
           <AppText style={styles.metricValue}>{correlation.sampleSize}</AppText>
-          <AppText style={styles.metricLabel}>Logged days</AppText>
+          <AppText style={styles.metricLabel}>Days compared</AppText>
         </View>
       </View>
       <AppText style={styles.axisText}>
-        {correlation.leftLabel} compared with {correlation.rightLabel.toLowerCase()}
+        Looking at {correlation.leftLabel.toLowerCase()} and {correlation.rightLabel.toLowerCase()} together
       </AppText>
       <AppText style={styles.summary}>{correlation.summary}</AppText>
       {highlight ? <AppText style={styles.helperText}>{highlight}</AppText> : null}
@@ -104,6 +113,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     gap: 10,
+  },
+  contextText: {
+    fontSize: 13,
+    color: "#6b7280",
   },
   metricCard: {
     flex: 1,

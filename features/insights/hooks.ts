@@ -98,17 +98,17 @@ function buildTrendSummary(
 
   if (average7 !== null && average30 !== null) {
     if (direction === "flat") {
-      summary = `${label} has stayed fairly steady between your last 7 and 30 days.`;
+      summary = `Your ${label.toLowerCase()} has felt fairly steady lately.`;
     } else if (higherIsBetter) {
       summary =
         direction === "up"
-          ? `${label} is trending a little stronger over the last 7 days.`
-          : `${label} has dipped a bit compared with your 30-day average.`;
+          ? `Lately, your ${label.toLowerCase()} has been feeling a little stronger.`
+          : `Lately, your ${label.toLowerCase()} has felt a little lower than usual.`;
     } else {
       summary =
         direction === "up"
-          ? `${label} is easing compared with your 30-day average.`
-          : `${label} has been running higher over the last 7 days.`;
+          ? `Lately, your ${label.toLowerCase()} has felt a little lighter.`
+          : `Lately, your ${label.toLowerCase()} has been a bit more noticeable.`;
     }
   }
 
@@ -259,7 +259,7 @@ function buildCorrelationSummary(
 
   if (coefficient !== null) {
     if (Math.abs(coefficient) < 0.2) {
-      summary = `There is no clear link yet between ${config.leftLabel.toLowerCase()} and ${config.rightLabel.toLowerCase()}.`;
+      summary = `There is not a strong pattern yet between ${config.leftLabel.toLowerCase()} and ${config.rightLabel.toLowerCase()}.`;
     } else if (coefficient > 0) {
       summary = config.positiveMeaning;
     } else {

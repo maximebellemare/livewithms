@@ -49,11 +49,12 @@ export default function BestWorstDayInsightCard({ insight }: BestWorstDayInsight
     <View style={styles.card}>
       <AppText style={styles.kicker}>Last 30 days</AppText>
       <AppText style={styles.title}>Your Best Days</AppText>
+      <AppText style={styles.contextText}>Based on your recent entries</AppText>
       <AppText style={styles.summary}>{insight.sentence}</AppText>
 
       <View style={styles.compareRow}>
-        <SnapshotSection title="Best" snapshot={insight.bestDay} />
-        <SnapshotSection title="Worst" snapshot={insight.worstDay} />
+        <SnapshotSection title="Best day" snapshot={insight.bestDay} />
+        <SnapshotSection title="Harder day" snapshot={insight.worstDay} />
       </View>
 
       <AppText style={styles.recommendation}>{insight.recommendation}</AppText>
@@ -85,6 +86,10 @@ const styles = StyleSheet.create({
   summary: {
     color: "#6f5418",
     lineHeight: 22,
+  },
+  contextText: {
+    fontSize: 13,
+    color: "#836f43",
   },
   compareRow: {
     flexDirection: "row",

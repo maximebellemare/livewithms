@@ -21,6 +21,7 @@ export default function WeeklyProgressOverviewCard({
     <View style={styles.card}>
       <AppText style={styles.kicker}>Weekly view</AppText>
       <AppText style={styles.title}>Your Last 7 Days</AppText>
+      <AppText style={styles.contextText}>Based on your last 7 days</AppText>
 
       {!overview.hasEnoughData ? (
         <AppText style={styles.emptyText}>Track a few more days to see your trends</AppText>
@@ -67,6 +68,10 @@ const styles = StyleSheet.create({
   emptyText: {
     color: "#6b7280",
     lineHeight: 22,
+  },
+  contextText: {
+    fontSize: 13,
+    color: "#7b6eaa",
   },
   rows: {
     gap: 10,

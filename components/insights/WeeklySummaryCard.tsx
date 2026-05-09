@@ -20,18 +20,18 @@ function getWeeklyHighlight(summary: WeeklySummary) {
   }
 
   if (summary.averageSleep !== null && summary.averageFatigue !== null && summary.averageSleep < 7) {
-    return "You seem to feel more drained on weeks with lighter sleep.";
+    return "On days with less sleep, you may be feeling a little more drained.";
   }
 
   if (summary.averageMood !== null && summary.averageMood >= 4) {
-    return "Your mood has looked a little steadier across the last few days.";
+    return "You seem to be finding a steadier rhythm in your mood lately.";
   }
 
   if (summary.averageStress !== null && summary.averageStress >= 4) {
-    return "Stress has been showing up more often in your recent check-ins.";
+    return "Stress seems to be showing up more often in your recent days.";
   }
 
-  return "Your recent check-ins are starting to show a clearer weekly rhythm.";
+  return "Your recent check-ins are starting to show a few clearer patterns.";
 }
 
 function getWeeklySuggestion(summary: WeeklySummary) {
@@ -40,18 +40,18 @@ function getWeeklySuggestion(summary: WeeklySummary) {
   }
 
   if (summary.averageSleep !== null && summary.averageSleep < 7) {
-    return "Try protecting your bedtime routine for a few nights and notice whether energy feels steadier.";
+    return "A steadier bedtime routine may help you feel a little more supported.";
   }
 
   if (summary.averageStress !== null && summary.averageStress >= 4) {
-    return "A short reset or gentler pacing may help on higher-stress days.";
+    return "A short reset or gentler pacing may help on heavier days.";
   }
 
   if (summary.averageMood !== null && summary.averageMood >= 4) {
-    return "Keep noticing what is helping on the better days so you can return to it later.";
+    return "Notice what is helping on the better days so you can come back to it.";
   }
 
-  return "Keep logging each day so your patterns stay easy to spot.";
+  return "Keep checking in so your patterns stay easy to notice.";
 }
 
 export default function WeeklySummaryCard({ summary }: WeeklySummaryCardProps) {
@@ -62,6 +62,7 @@ export default function WeeklySummaryCard({ summary }: WeeklySummaryCardProps) {
     <View style={styles.card}>
       <AppText style={styles.kicker}>Last 7 days</AppText>
       <AppText style={styles.title}>Weekly summary</AppText>
+      <AppText style={styles.contextText}>Based on your last 7 days</AppText>
       <AppText style={styles.body}>{summary.summary}</AppText>
 
       <View style={styles.metrics}>
@@ -71,15 +72,15 @@ export default function WeeklySummaryCard({ summary }: WeeklySummaryCardProps) {
         </View>
         <View style={styles.metricCard}>
           <AppText style={styles.metricValue}>{formatMetric(summary.averageFatigue)}</AppText>
-          <AppText style={styles.metricLabel}>Avg fatigue</AppText>
+          <AppText style={styles.metricLabel}>Typical fatigue</AppText>
         </View>
         <View style={styles.metricCard}>
           <AppText style={styles.metricValue}>{formatMetric(summary.averageMood)}</AppText>
-          <AppText style={styles.metricLabel}>Avg mood</AppText>
+          <AppText style={styles.metricLabel}>Typical mood</AppText>
         </View>
         <View style={styles.metricCard}>
           <AppText style={styles.metricValue}>{formatMetric(summary.averageSleep, "h")}</AppText>
-          <AppText style={styles.metricLabel}>Avg sleep</AppText>
+          <AppText style={styles.metricLabel}>Typical sleep</AppText>
         </View>
       </View>
 
@@ -112,6 +113,10 @@ const styles = StyleSheet.create({
   body: {
     color: "#7c4a1d",
     lineHeight: 22,
+  },
+  contextText: {
+    fontSize: 13,
+    color: "#8b6a4f",
   },
   metrics: {
     flexDirection: "row",
