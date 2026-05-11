@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import PatternSummaryCard from "../../../../components/insights/PatternSummaryCard";
 import DailyCheckInCard, {
   getEmptyCheckInDraft,
   normalizeCheckInInput,
@@ -17,7 +16,6 @@ import LoadingState from "../../../../components/ui/LoadingState";
 import { useAuth } from "../../../../features/auth/hooks";
 import { useSaveDailyCheckIn, useCheckInHistory, useTodaysCheckIn } from "../../../../features/checkins/hooks";
 import type { DailyCheckIn } from "../../../../features/checkins/types";
-import { usePatternSummary } from "../../../../features/insights/hooks";
 import { getErrorMessage } from "../../../../lib/errors";
 
 function getTodayDateString() {
@@ -41,6 +39,14 @@ function getGreeting() {
   }
 
   return "Good evening";
+}
+
+function formatLongDate(date: string) {
+  return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 function getPreviousDateString(date: string) {
@@ -95,51 +101,94 @@ function formatPreviousMetric(label: string, value: number | null) {
   return `${label} ${value ?? "—"}`;
 }
 
+function getSummaryItems(checkIn: DailyCheckIn) {
+  return [
+    { label: "Fatigue", value: checkIn.fatigue },
+    { label: "Mood", value: checkIn.mood },
+    { label: "Stress", value: checkIn.stress },
+    ...(checkIn.pain !== null ? [{ label: "Pain", value: checkIn.pain }] : []),
+    ...(checkIn.brain_fog !== null ? [{ label: "Brain fog", value: checkIn.brain_fog }] : []),
+    ...(checkIn.sleep_hours !== null ? [{ label: "Sleep", value: `${checkIn.sleep_hours}h` }] : []),
+  ];
+}
+
+function getGentleFocus(checkIn: DailyCheckIn | null) {
+  if (!checkIn) {
+    return {
+      title: "Start with a quick check-in",
+      body: "A short check-in helps Coach feel more personal and gives Insights more to work with.",
+    };
+  }
+
+  if ((checkIn.fatigue ?? 0) >= 4) {
+    return {
+      title: "Protect your energy",
+      body: "Keep the day simple and save your energy for what matters most.",
+    };
+  }
+
+  if ((checkIn.stress ?? 0) >= 4) {
+    return {
+      title: "Calm your nervous system",
+      body: "A short reset or a quieter pace could help the day feel less loaded.",
+    };
+  }
+
+  if ((checkIn.mood ?? 5) <= 2) {
+    return {
+      title: "One small win",
+      body: "Try to look for one gentle thing that helps you feel a little steadier.",
+    };
+  }
+
+  if ((checkIn.sleep_hours ?? 99) < 6) {
+    return {
+      title: "Lower the pressure today",
+      body: "Poor sleep can change the whole feel of a day, so lighter expectations may help.",
+    };
+  }
+
+  return {
+    title: "Notice what helped",
+    body: "If today has more room in it, pay attention to what supported that feeling.",
+  };
+}
+
 export default function TodayScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const today = getTodayDateString();
   const checkInQuery = useTodaysCheckIn(user?.id, today);
   const historyQuery = useCheckInHistory(user?.id, 30);
-  const patternSummaryQuery = usePatternSummary(historyQuery.data ?? [], 7);
   const saveCheckIn = useSaveDailyCheckIn();
   const [draft, setDraft] = useState<DailyCheckInDraft>(getEmptyCheckInDraft());
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const lastSavedSnapshotRef = useRef(getDraftSnapshot(getEmptyCheckInDraft()));
-
-  const weeklySnapshot = useMemo(() => {
-    const recentEntries = historyQuery.data ?? [];
-    if (!recentEntries.length) {
-      return "Start logging each day to build a clearer picture of your routines and symptom patterns.";
-    }
-
-    const daysLogged = recentEntries.length;
-    const averageMood =
-      recentEntries
-        .map((entry) => entry.mood)
-        .filter((value): value is number => value !== null)
-        .reduce((sum, value, _, values) => sum + value / values.length, 0) || null;
-
-    if (averageMood !== null && averageMood >= 4) {
-      return `You logged ${daysLogged} recent day${daysLogged === 1 ? "" : "s"}. Mood has looked steadier overall, which is a good sign to keep noticing what helps.`;
-    }
-
-    return `You logged ${daysLogged} recent day${daysLogged === 1 ? "" : "s"}. Keep checking in with fatigue, stress, sleep, and hydration so patterns stay easy to spot.`;
-  }, [historyQuery.data]);
   const greeting = useMemo(() => getGreeting(), []);
   const streak = useMemo(() => getCurrentStreak(historyQuery.data ?? [], today), [historyQuery.data, today]);
+  const todayEntry = checkInQuery.data ?? null;
   const previousEntry = useMemo(() => {
     const entries = historyQuery.data ?? [];
     return entries.find((entry) => entry.date < today) ?? null;
   }, [historyQuery.data, today]);
+  const summaryItems = useMemo(() => (todayEntry ? getSummaryItems(todayEntry) : []), [todayEntry]);
+  const gentleFocus = useMemo(() => getGentleFocus(todayEntry), [todayEntry]);
   const postSaveInsight = useMemo(() => {
     const entries = historyQuery.data ?? [];
     if (entries.length < 3) {
       return "Track a few days to unlock your insights";
     }
 
-    return patternSummaryQuery.data?.insight ?? weeklySnapshot;
-  }, [historyQuery.data, patternSummaryQuery.data?.insight, weeklySnapshot]);
+    if ((todayEntry?.fatigue ?? 0) >= 4 && (todayEntry?.sleep_hours ?? 0) < 6) {
+      return "Low sleep and heavier fatigue can start to form a pattern. Keep checking in so Insights can connect the dots.";
+    }
+
+    if ((todayEntry?.stress ?? 0) >= 4) {
+      return "Stress can shape the whole feel of a day. A few more check-ins will help surface clearer patterns.";
+    }
+
+    return "Your check-ins help Coach and Insights become more useful over time.";
+  }, [historyQuery.data, todayEntry?.fatigue, todayEntry?.sleep_hours, todayEntry?.stress]);
 
   useEffect(() => {
     if (!checkInQuery.isSuccess) {
@@ -222,9 +271,12 @@ export default function TodayScreen() {
       >
         <View style={styles.overviewCard}>
           <AppText style={styles.greeting}>{greeting}</AppText>
+          <AppText style={styles.todayDate}>{formatLongDate(today)}</AppText>
           <AppText style={styles.overviewTitle}>How are you feeling today?</AppText>
           <AppText style={styles.overviewBody}>
-            Start with fatigue, mood, and stress. You can add more details if you want.
+            {todayEntry
+              ? "You checked in today. You can update it anytime if things change."
+              : "A quick check-in helps Coach feel more personal and gives Insights more to work with."}
           </AppText>
         </View>
 
@@ -235,51 +287,85 @@ export default function TodayScreen() {
           </View>
         ) : null}
 
-        <View style={styles.welcomeCard}>
-          <AppText style={styles.welcomeTitle}>
-            {previousEntry ? "Welcome back" : "Let’s start your first check-in"}
-          </AppText>
-          {previousEntry ? (
-            <>
-              <AppText style={styles.welcomeBody}>Yesterday you tracked:</AppText>
-              <View style={styles.previousMetrics}>
-                <View style={styles.previousMetricPill}>
-                  <AppText style={styles.previousMetricText}>
-                    {formatPreviousMetric("Fatigue", previousEntry.fatigue)}
-                  </AppText>
+        {!todayEntry ? (
+          <View style={styles.welcomeCard}>
+            <AppText style={styles.welcomeTitle}>
+              {previousEntry ? "Welcome back" : "Let’s start your first check-in"}
+            </AppText>
+            {previousEntry ? (
+              <>
+                <AppText style={styles.welcomeBody}>Yesterday you tracked:</AppText>
+                <View style={styles.previousMetrics}>
+                  <View style={styles.previousMetricPill}>
+                    <AppText style={styles.previousMetricText}>
+                      {formatPreviousMetric("Fatigue", previousEntry.fatigue)}
+                    </AppText>
+                  </View>
+                  <View style={styles.previousMetricPill}>
+                    <AppText style={styles.previousMetricText}>
+                      {formatPreviousMetric("Mood", previousEntry.mood)}
+                    </AppText>
+                  </View>
+                  <View style={styles.previousMetricPill}>
+                    <AppText style={styles.previousMetricText}>
+                      {formatPreviousMetric("Stress", previousEntry.stress)}
+                    </AppText>
+                  </View>
                 </View>
-                <View style={styles.previousMetricPill}>
-                  <AppText style={styles.previousMetricText}>
-                    {formatPreviousMetric("Mood", previousEntry.mood)}
-                  </AppText>
-                </View>
-                <View style={styles.previousMetricPill}>
-                  <AppText style={styles.previousMetricText}>
-                    {formatPreviousMetric("Stress", previousEntry.stress)}
-                  </AppText>
-                </View>
-              </View>
+                <AppText style={styles.welcomeBody}>
+                  Add today’s check-in so Coach and Insights can stay helpful.
+                </AppText>
+              </>
+            ) : (
               <AppText style={styles.welcomeBody}>
-                Let&apos;s add today so your patterns get smarter.
+                Takes less than 30 seconds and helps build more useful Insights and Coach support.
               </AppText>
-            </>
-          ) : (
-            <AppText style={styles.welcomeBody}>Takes less than 30 seconds.</AppText>
-          )}
+            )}
+          </View>
+        ) : (
+          <View style={styles.confirmationCard}>
+            <AppText style={styles.confirmationTitle}>You checked in today</AppText>
+            <AppText style={styles.confirmationBody}>
+              Nice work. Your daily picture is saved and ready to support Coach and Insights.
+            </AppText>
+          </View>
+        )}
+
+        {todayEntry ? (
+          <View style={styles.summaryCard}>
+            <AppText style={styles.navTitle}>Daily summary</AppText>
+            <View style={styles.summaryGrid}>
+              {summaryItems.map((item) => (
+                <View key={item.label} style={styles.summaryPill}>
+                  <AppText style={styles.summaryLabel}>{item.label}</AppText>
+                  <AppText style={styles.summaryValue}>{item.value}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        <View style={styles.focusCard}>
+          <AppText style={styles.focusKicker}>Today&apos;s gentle focus</AppText>
+          <AppText style={styles.focusTitle}>{gentleFocus.title}</AppText>
+          <AppText style={styles.focusBody}>{gentleFocus.body}</AppText>
         </View>
 
-        <PatternSummaryCard
-          title="This week at a glance"
-          summary={patternSummaryQuery.data?.insight ?? weeklySnapshot}
-        />
-
         <View style={styles.navCard}>
-          <AppText style={styles.navTitle}>Explore the app</AppText>
-          <View style={styles.navButtons}>
-            <AppButton label="Go to Track" onPress={() => router.push("/track")} variant="secondary" />
-            <AppButton label="Go to Coach" onPress={() => router.push("/coach")} variant="secondary" />
-            <AppButton label="Go to Insights" onPress={() => router.push("/insights")} variant="secondary" />
-            <AppButton label="Go to Programs" onPress={() => router.push("/programs")} variant="secondary" />
+          <AppText style={styles.navTitle}>Quick links</AppText>
+          <View style={styles.quickLinks}>
+            <Pressable onPress={() => router.push("/coach")} style={({ pressed }) => [styles.quickLinkCard, pressed && styles.quickLinkPressed]}>
+              <AppText style={styles.quickLinkTitle}>Coach</AppText>
+              <AppText style={styles.quickLinkBody}>Reflect, reset, or plan tomorrow.</AppText>
+            </Pressable>
+            <Pressable onPress={() => router.push("/insights")} style={({ pressed }) => [styles.quickLinkCard, pressed && styles.quickLinkPressed]}>
+              <AppText style={styles.quickLinkTitle}>Insights</AppText>
+              <AppText style={styles.quickLinkBody}>See trends and gentle patterns.</AppText>
+            </Pressable>
+            <Pressable onPress={() => router.push("/care")} style={({ pressed }) => [styles.quickLinkCard, pressed && styles.quickLinkPressed]}>
+              <AppText style={styles.quickLinkTitle}>Care</AppText>
+              <AppText style={styles.quickLinkBody}>Keep notes, meds, and appointments together.</AppText>
+            </Pressable>
           </View>
         </View>
 
@@ -332,6 +418,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#c25d10",
     textTransform: "uppercase",
+  },
+  todayDate: {
+    fontSize: 14,
+    color: "#6b7280",
   },
   overviewTitle: {
     fontSize: 28,
@@ -404,12 +494,105 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#8b6a4f",
   },
+  confirmationCard: {
+    backgroundColor: "#eef8f0",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#d6eadc",
+    padding: 18,
+    gap: 6,
+  },
+  confirmationTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#166534",
+  },
+  confirmationBody: {
+    color: "#2f5f3c",
+    lineHeight: 22,
+  },
+  summaryCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f1e1d4",
+    padding: 18,
+    gap: 12,
+  },
+  summaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  summaryPill: {
+    minWidth: "30%",
+    backgroundColor: "#fffaf6",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  summaryLabel: {
+    fontSize: 13,
+    color: "#6b7280",
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  focusCard: {
+    backgroundColor: "#fff4ec",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f2d8c4",
+    padding: 18,
+    gap: 8,
+  },
+  focusKicker: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#c25d10",
+    textTransform: "uppercase",
+  },
+  focusTitle: {
+    fontSize: 22,
+    lineHeight: 30,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  focusBody: {
+    color: "#4b5563",
+    lineHeight: 22,
+  },
   navTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: "#1f2937",
   },
-  navButtons: {
+  quickLinks: {
     gap: 10,
+  },
+  quickLinkCard: {
+    backgroundColor: "#fffaf6",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    padding: 14,
+    gap: 4,
+  },
+  quickLinkPressed: {
+    opacity: 0.84,
+  },
+  quickLinkTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  quickLinkBody: {
+    color: "#6b7280",
+    lineHeight: 20,
   },
 });
