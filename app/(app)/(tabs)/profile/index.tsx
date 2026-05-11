@@ -93,6 +93,7 @@ export default function ProfileScreen() {
           </AppText>
           <AppButton label="Go to Today" onPress={() => router.push("/today")} />
           <AppButton label="Go to Insights" onPress={() => router.push("/insights")} variant="secondary" />
+          <AppButton label="Go to Care" onPress={() => router.push("/care")} variant="secondary" />
           <View style={styles.legalLinks}>
             <Pressable onPress={openPrivacyPolicy} style={styles.legalButton}>
               <AppText style={styles.legalText}>Privacy Policy</AppText>

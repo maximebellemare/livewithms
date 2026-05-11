@@ -99,16 +99,25 @@ export default function DailyCheckInCard({
           label="Fatigue"
           value={draft.fatigue}
           onChange={(fatigue) => onChange({ ...draft, fatigue })}
+          lowLabel="0 = No fatigue"
+          highLabel="5 = Extreme fatigue"
+          midpointLabel="Moderate"
         />
         <SymptomSliderCard
           label="Mood"
           value={draft.mood}
           onChange={(mood) => onChange({ ...draft, mood })}
+          lowLabel="0 = Very low"
+          highLabel="5 = Very good"
+          midpointLabel="Okay"
         />
         <SymptomSliderCard
           label="Stress"
           value={draft.stress}
           onChange={(stress) => onChange({ ...draft, stress })}
+          lowLabel="0 = No stress"
+          highLabel="5 = Very high stress"
+          midpointLabel="Moderate"
         />
       </View>
 
@@ -132,16 +141,25 @@ export default function DailyCheckInCard({
               label="Pain"
               value={draft.pain}
               onChange={(pain) => onChange({ ...draft, pain })}
+              lowLabel="0 = No pain"
+              highLabel="5 = Severe pain"
+              midpointLabel="Moderate"
             />
             <SymptomSliderCard
               label="Brain fog"
               value={draft.brain_fog}
               onChange={(brain_fog) => onChange({ ...draft, brain_fog })}
+              lowLabel="0 = Clear"
+              highLabel="5 = Very foggy"
+              midpointLabel="Moderate"
             />
             <SymptomSliderCard
               label="Mobility"
               value={draft.mobility}
               onChange={(mobility) => onChange({ ...draft, mobility })}
+              lowLabel="0 = No issues"
+              highLabel="5 = Severe difficulty"
+              midpointLabel="Moderate"
             />
 
             <View style={styles.fieldGroup}>

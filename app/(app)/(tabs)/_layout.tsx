@@ -53,7 +53,24 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="care/index"
+        options={{
+          title: "Care",
+          tabBarLabel: "Care",
+          href: "/care",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="medical-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="programs/index"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="health/index"
         options={{
           href: null,
         }}

@@ -6,14 +6,20 @@ type SymptomSliderCardProps = {
   label: string;
   value: number | null;
   onChange: (value: number | null) => void;
+  lowLabel: string;
+  highLabel: string;
+  midpointLabel?: string;
 };
 
-const SCORE_OPTIONS = [1, 2, 3, 4, 5];
+const SCORE_OPTIONS = [0, 1, 2, 3, 4, 5];
 
 export default function SymptomSliderCard({
   label,
   value,
   onChange,
+  lowLabel,
+  highLabel,
+  midpointLabel,
 }: SymptomSliderCardProps) {
   const [skipFeedbackVisible, setSkipFeedbackVisible] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -79,6 +85,11 @@ export default function SymptomSliderCard({
           );
         })}
       </View>
+      <View style={styles.scaleLabels}>
+        <AppText style={styles.scaleLabelLeft}>{lowLabel}</AppText>
+        {midpointLabel ? <AppText style={styles.scaleLabelCenter}>{midpointLabel}</AppText> : null}
+        <AppText style={styles.scaleLabelRight}>{highLabel}</AppText>
+      </View>
     </View>
   );
 }
@@ -114,6 +125,31 @@ const styles = StyleSheet.create({
   options: {
     flexDirection: "row",
     gap: 8,
+  },
+  scaleLabels: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  scaleLabelLeft: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#6b7280",
+  },
+  scaleLabelCenter: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#9ca3af",
+    textAlign: "center",
+  },
+  scaleLabelRight: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#6b7280",
+    textAlign: "right",
   },
   skipButton: {
     paddingVertical: 4,
