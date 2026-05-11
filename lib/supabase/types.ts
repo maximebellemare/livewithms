@@ -160,6 +160,40 @@ type CareNotesTable = {
   Relationships: [];
 };
 
+type CoachPlansTable = {
+  Row: {
+    id: string;
+    user_id: string;
+    date: string;
+    priority: string | null;
+    avoid: string | null;
+    support_action: string | null;
+    created_at: string;
+    updated_at: string;
+  };
+  Insert: {
+    id?: string;
+    user_id: string;
+    date: string;
+    priority?: string | null;
+    avoid?: string | null;
+    support_action?: string | null;
+    created_at?: string;
+    updated_at?: string;
+  };
+  Update: {
+    id?: string;
+    user_id?: string;
+    date?: string;
+    priority?: string | null;
+    avoid?: string | null;
+    support_action?: string | null;
+    created_at?: string;
+    updated_at?: string;
+  };
+  Relationships: [];
+};
+
 export type Database = Omit<GeneratedDatabase, "public"> & {
   public: Omit<GeneratedDatabase["public"], "Tables"> & {
     Tables: GeneratedDatabase["public"]["Tables"] & {
@@ -167,6 +201,7 @@ export type Database = Omit<GeneratedDatabase, "public"> & {
       appointments: AppointmentsTable;
       medications: MedicationsTable;
       care_notes: CareNotesTable;
+      coach_plans: CoachPlansTable;
     };
   };
 };
