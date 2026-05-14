@@ -1,11 +1,12 @@
 import { useEffect } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import FuturePaywallScreen from "../../components/premium/FuturePaywallScreen";
-import { ENABLE_SUBSCRIPTIONS } from "../../features/premium/config";
+import { isPremiumEnabled } from "../../features/premium/config";
 
 export default function PremiumScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ source?: string }>();
+  const subscriptionsEnabled = isPremiumEnabled();
 
   const handleClose = () => {
     if (params.source === "onboarding") {
@@ -17,12 +18,12 @@ export default function PremiumScreen() {
   };
 
   useEffect(() => {
-    if (!ENABLE_SUBSCRIPTIONS) {
+    if (!subscriptionsEnabled) {
       handleClose();
     }
-  }, []);
+  }, [subscriptionsEnabled]);
 
-  if (!ENABLE_SUBSCRIPTIONS) {
+  if (!subscriptionsEnabled) {
     return null;
   }
 

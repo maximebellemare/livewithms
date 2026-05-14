@@ -1,4 +1,4 @@
-import { PropsWithChildren, useEffect } from "react";
+import { PropsWithChildren, useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter, useSegments } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../features/auth/hooks";
@@ -35,7 +35,8 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
   const pathname = usePathname();
   const segments = useSegments();
   const queryClient = useQueryClient();
-  const { isReady, isAuthenticated, user } = useAuth();
+  const { isReady, isAuthenticated, session, user } = useAuth();
+  const redirectInFlightRef = useRef<string | null>(null);
   const shouldLoadProfile = isReady && isAuthenticated && !!user?.id;
   const profileQuery = useMyProfile(user?.id, shouldLoadProfile);
 
@@ -47,54 +48,58 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
         ? "(auth)"
         : mode === "onboarding"
           ? "(onboarding)"
-          : "(app)";
+        : "(app)";
+
+  const onboardingCompleted = profileQuery.data?.onboarding_completed ?? false;
+  const authenticatedTargetPath = useMemo(() => {
+    if (!isAuthenticated || profileQuery.isLoading || profileQuery.isError) {
+      return null;
+    }
+
+    return getAllowedPath(mode, onboardingCompleted);
+  }, [isAuthenticated, mode, onboardingCompleted, profileQuery.isError, profileQuery.isLoading]);
 
   useEffect(() => {
     if (!isReady) {
       return;
     }
 
+    let targetPath: string | null = null;
+
     if (!isAuthenticated) {
-      if (mode === "app" || mode === "onboarding") {
-        logger.info("Redirecting signed-out user", { from: pathname, to: "/sign-in" });
-        router.replace("/sign-in");
+      targetPath = mode === "app" || mode === "onboarding" ? "/sign-in" : null;
+    } else {
+      if (profileQuery.isLoading || profileQuery.isError) {
+        return;
       }
+
+      targetPath = authenticatedTargetPath;
+    }
+
+    if (!targetPath || pathname === targetPath) {
+      redirectInFlightRef.current = null;
       return;
     }
 
-    if (profileQuery.isLoading) {
+    if (redirectInFlightRef.current === targetPath) {
       return;
     }
 
-    if (profileQuery.isError) {
-      const normalizedError = normalizeError(profileQuery.error);
-      logger.error("Profile query failed during route gate", {
-        mode,
-        pathname,
-        userId: user?.id ?? null,
-        message: normalizedError.message,
-        code: normalizedError.code,
-        details: normalizedError.details,
-        hint: normalizedError.hint,
-      });
-      return;
-    }
-
-    const nextPath = getAllowedPath(mode, profileQuery.data?.onboarding_completed ?? null);
-    if (nextPath) {
-      logger.info("Redirecting authenticated user", { from: pathname, to: nextPath });
-      router.replace(nextPath);
-    }
+    redirectInFlightRef.current = targetPath;
+    logger.info("Redirecting user", { from: pathname, to: targetPath, mode, isAuthenticated, hasSession: !!session });
+    router.replace(targetPath);
   }, [
+    authenticatedTargetPath,
     isAuthenticated,
     isReady,
     mode,
     pathname,
-    profileQuery.data?.onboarding_completed,
     profileQuery.error,
     profileQuery.isError,
     profileQuery.isLoading,
     router,
+    session,
+    user?.id,
   ]);
 
   if (!isReady) {
@@ -123,10 +128,7 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
     );
   }
 
-  const onboardingCompleted = profileQuery.data?.onboarding_completed ?? false;
-  const nextPath = getAllowedPath(mode, onboardingCompleted);
-
-  if (nextPath) {
+  if (authenticatedTargetPath && pathname !== authenticatedTargetPath) {
     return <LoadingState message="Redirecting..." />;
   }
 

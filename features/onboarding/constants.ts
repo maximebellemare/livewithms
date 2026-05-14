@@ -2,12 +2,8 @@ import type { ConsentState, OnboardingStep } from "./types";
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   "welcome",
-  "consent",
-  "profile-basics",
-  "ms-profile",
   "symptoms",
   "goals",
-  "about-you",
   "plan",
   "complete",
 ];

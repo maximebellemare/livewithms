@@ -1,26 +1,118 @@
+import { useState } from "react";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { router } from "expo-router";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import AppButton from "../../../../components/ui/AppButton";
 import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
 import { useDeleteAccount } from "../../../../features/account/hooks";
 import { useAuth } from "../../../../features/auth/hooks";
+import { getCareWins, getCurrentCheckInStreak } from "../../../../features/checkins/consistency";
+import { useCheckInOverview } from "../../../../features/checkins/hooks";
+import { useGrowthState } from "../../../../features/growth/hooks";
+import { usePremium } from "../../../../features/premium/hooks";
+import { useSaveProfileStep } from "../../../../features/profile/hooks";
+import { useReminderSettings } from "../../../../features/reminders/hooks";
 import { getErrorMessage } from "../../../../lib/errors";
 
 const PRIVACY_POLICY_URL = "https://www.livewithms.com/policies/privacy-policy";
 const TERMS_OF_USE_URL = "https://www.livewithms.com/policies/terms-of-service";
+const SUPPORT_EMAIL_URL = "mailto:support@livewithms.com";
+const FEEDBACK_EMAIL_URL = "mailto:support@livewithms.com?subject=LiveWithMS%20Feedback";
 const NATIONAL_MS_SOCIETY_URL = "https://www.nationalmssociety.org/";
 const MAYO_MS_URL = "https://www.mayoclinic.org/diseases-conditions/multiple-sclerosis";
 const NHS_MS_URL = "https://www.nhs.uk/conditions/multiple-sclerosis/";
 
+type PreferenceRowProps = {
+  title: string;
+  description: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+  disabled?: boolean;
+};
+
+function PreferenceRow({ title, description, value, onValueChange, disabled = false }: PreferenceRowProps) {
+  return (
+    <View style={styles.preferenceRow}>
+      <View style={styles.preferenceCopy}>
+        <AppText style={styles.preferenceTitle}>{title}</AppText>
+        <AppText style={styles.preferenceDescription}>{description}</AppText>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+        trackColor={{ false: "#e7ddd5", true: "#f2c29f" }}
+        thumbColor={value ? "#e8751a" : "#ffffff"}
+      />
+    </View>
+  );
+}
+
+type LinkRowProps = {
+  label: string;
+  onPress: () => void;
+};
+
+function LinkRow({ label, onPress }: LinkRowProps) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.linkRow, pressed && styles.linkRowPressed]}>
+      <AppText style={styles.linkText}>{label}</AppText>
+      <AppText style={styles.linkChevron}>›</AppText>
+    </Pressable>
+  );
+}
+
+function getReminderHelperText(
+  enabled: boolean,
+  permissionStatus: "unknown" | "granted" | "denied" | "unavailable",
+  selectedTimeLabel: string,
+) {
+  if (permissionStatus === "unavailable") {
+    return "Reminders need native notification support in this build before they can be turned on.";
+  }
+
+  if (permissionStatus === "denied") {
+    return "Notifications are currently turned off. You can enable them later from iPhone Settings.";
+  }
+
+  if (enabled) {
+    return `A gentle reminder is set for ${selectedTimeLabel}.`;
+  }
+
+  return "Gentle reminders can help you build a consistent check-in routine.";
+}
+
+function getTodayDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function ProfileScreen() {
-  const { signOut } = useAuth();
+  const { user, isMockMode, signOut } = useAuth();
   const deleteAccount = useDeleteAccount();
+  const resetOnboarding = useSaveProfileStep();
+  const overviewQuery = useCheckInOverview(user?.id);
+  const reminders = useReminderSettings();
+  const premium = usePremium();
+  const [reduceMotionEnabled, setReduceMotionEnabled] = useState(false);
+  const [comfortSpacingEnabled, setComfortSpacingEnabled] = useState(true);
+  const overviewEntries = overviewQuery.data ?? [];
+  const totalCheckIns = overviewEntries.length;
+  const streak = getCurrentCheckInStreak(overviewEntries, getTodayDateString());
+  const wins = getCareWins(overviewEntries);
+  const growth = useGrowthState({
+    totalCheckIns,
+    reminderEnabled: reminders.enabled,
+  });
 
   const confirmDeleteAccount = () => {
     Alert.alert(
       "Delete account",
-      "This will permanently delete your account and app data.",
+      "Delete your account and app data permanently? This cannot be undone.",
       [
         {
           text: "Cancel",
@@ -40,124 +132,371 @@ export default function ProfileScreen() {
   const handleDeleteAccount = async () => {
     try {
       await deleteAccount.mutateAsync();
-      Alert.alert(
-        "Account deleted",
-        "Your account and app data have been permanently deleted.",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              void signOut();
-            },
+      Alert.alert("Account deleted", "Your account and app data have been permanently deleted.", [
+        {
+          text: "OK",
+          onPress: () => {
+            void signOut();
           },
-        ],
-      );
+        },
+      ]);
     } catch (error) {
       Alert.alert("Unable to delete account", getErrorMessage(error));
     }
   };
 
-  const openPrivacyPolicy = () => {
-    void Linking.openURL(PRIVACY_POLICY_URL);
+  const handleResetOnboarding = async () => {
+    if (!__DEV__ || !user?.id || resetOnboarding.isPending) {
+      return;
+    }
+
+    try {
+      await resetOnboarding.mutateAsync({
+        userId: user.id,
+        input: { onboarding_completed: false },
+      });
+      router.replace("/welcome");
+    } catch (error) {
+      Alert.alert("Unable to reset onboarding", getErrorMessage(error));
+    }
   };
 
-  const openTermsOfUse = () => {
-    void Linking.openURL(TERMS_OF_USE_URL);
+  const handleReminderToggle = (nextValue: boolean) => {
+    if (!nextValue) {
+      void reminders.disableReminders().catch((error) => {
+        Alert.alert("Unable to update reminders", getErrorMessage(error));
+      });
+      return;
+    }
+
+    Alert.alert(
+      "Gentle reminders",
+      "Gentle reminders can help you build a consistent check-in routine.",
+      [
+        {
+          text: "Not now",
+          style: "cancel",
+        },
+        {
+          text: "Continue",
+          onPress: () => {
+            void (async () => {
+              try {
+                const result = await reminders.enableReminders();
+
+                if ("status" in result) {
+                  const { status } = result;
+
+                  if (status === "denied") {
+                    Alert.alert(
+                      "Notifications are off",
+                      "You can still use the app normally. If you want reminders later, you can enable notifications in iPhone Settings.",
+                      [
+                        {
+                          text: "OK",
+                          style: "cancel",
+                        },
+                        {
+                          text: "Open Settings",
+                          onPress: () => {
+                            void Linking.openSettings();
+                          },
+                        },
+                      ],
+                    );
+                    return;
+                  }
+
+                  if (status === "unavailable") {
+                    Alert.alert(
+                      "Reminders aren’t ready yet",
+                      "This build does not have native notifications available yet, so reminders can’t be scheduled right now.",
+                    );
+                  }
+                }
+
+                if (result.ok) {
+                  await growth.recordEvent("reminder_enabled", {
+                    source: "profile",
+                    hour: reminders.hour,
+                    minute: reminders.minute,
+                  });
+                }
+              } catch (error) {
+                Alert.alert("Unable to update reminders", getErrorMessage(error));
+              }
+            })();
+          },
+        },
+      ],
+    );
   };
 
-  const openNationalMSSociety = () => {
-    void Linking.openURL(NATIONAL_MS_SOCIETY_URL);
-  };
-
-  const openMayoClinic = () => {
-    void Linking.openURL(MAYO_MS_URL);
-  };
-
-  const openNHS = () => {
-    void Linking.openURL(NHS_MS_URL);
+  const handleReminderTimeChange = (hour: number, minute: number) => {
+    void reminders.updateTime(hour, minute).catch((error) => {
+      Alert.alert("Unable to change reminder time", getErrorMessage(error));
+    });
   };
 
   return (
     <AppScreen
       title="Profile"
-      subtitle="Manage your account, privacy choices, and support options."
+      subtitle="Manage your account, preferences, and support in one calm place."
     >
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
-          <AppText style={styles.title}>Quick links</AppText>
-          <AppText style={styles.body}>
-            Move to the sections you may need most for wellness tracking, legal details, and medical sources.
-          </AppText>
-          <AppButton label="Go to Today" onPress={() => router.push("/today")} />
-          <AppButton label="Go to Insights" onPress={() => router.push("/insights")} variant="secondary" />
-          <AppButton label="Go to Care" onPress={() => router.push("/care")} variant="secondary" />
-          <View style={styles.legalLinks}>
-            <Pressable onPress={openPrivacyPolicy} style={styles.legalButton}>
-              <AppText style={styles.legalText}>Privacy Policy</AppText>
-            </Pressable>
-            <Pressable onPress={openTermsOfUse} style={styles.legalButton}>
-              <AppText style={styles.legalText}>Terms of Use</AppText>
-            </Pressable>
-            <Pressable onPress={openNationalMSSociety} style={styles.legalButton}>
-              <AppText style={styles.legalText}>Medical Sources</AppText>
-            </Pressable>
+          <AppText style={styles.sectionTitle}>Account</AppText>
+          <View style={styles.accountRow}>
+            <AppText style={styles.accountLabel}>Email</AppText>
+            <AppText style={styles.accountValue}>{user?.email ?? "Not available"}</AppText>
+          </View>
+          <View style={styles.accountRow}>
+            <AppText style={styles.accountLabel}>Account status</AppText>
+            <AppText style={styles.accountValue}>{__DEV__ && isMockMode ? "Mock mode" : "Signed in"}</AppText>
+          </View>
+        <View style={styles.accountActions}>
+            <AppButton label="Sign out" onPress={() => void signOut()} variant="secondary" />
+            {__DEV__ ? (
+              <AppButton
+                label={resetOnboarding.isPending ? "Resetting onboarding..." : "Reset Onboarding (Dev Only)"}
+                onPress={() => void handleResetOnboarding()}
+                variant="secondary"
+                disabled={resetOnboarding.isPending}
+              />
+            ) : null}
           </View>
         </View>
 
         <View style={styles.card}>
-          <AppText style={styles.title}>Account</AppText>
-          <AppText style={styles.body}>
-            Review your app access, sign out securely, or permanently delete your account.
+          <AppText style={styles.sectionTitle}>Premium</AppText>
+          <View style={styles.premiumCard}>
+            <View style={styles.premiumHeader}>
+              <View style={styles.premiumCopy}>
+                <AppText style={styles.premiumTitle}>
+                  {premium.hasPremiumAccess ? "Premium is active" : "LiveWithMS Premium"}
+                </AppText>
+                <AppText style={styles.premiumBody}>
+                  {premium.hasPremiumAccess
+                    ? "Unlimited AI Coach is ready, and your premium support stays available across the app."
+                    : "Keep the free core experience, or unlock unlimited AI Coach and more personalized support over time."}
+                </AppText>
+              </View>
+              <AppText style={[styles.premiumBadge, premium.hasPremiumAccess && styles.premiumBadgeActive]}>
+                {premium.hasPremiumAccess ? "Active" : "Optional"}
+              </AppText>
+            </View>
+            <View style={styles.premiumFeatureList}>
+              <AppText style={styles.premiumFeatureText}>• Unlimited AI Coach</AppText>
+              <AppText style={styles.premiumFeatureText}>• Advanced AI insights</AppText>
+              <AppText style={styles.premiumFeatureText}>• Deeper patterns and future guided tools</AppText>
+            </View>
+            <AppButton
+              label={premium.hasPremiumAccess ? "View Premium" : "Explore Premium"}
+              onPress={() => router.push("/premium?source=profile")}
+              variant="secondary"
+            />
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <AppText style={styles.sectionTitle}>App Preferences</AppText>
+          <AppText style={styles.sectionBody}>
+            Keep the app feeling supportive in a way that works for you. These settings are local to this device for now.
           </AppText>
-          <AppButton label="Sign out" onPress={() => void signOut()} />
-          <AppButton
-            label={deleteAccount.isPending ? "Deleting account..." : "Delete account"}
-            onPress={confirmDeleteAccount}
-            variant="secondary"
-            disabled={deleteAccount.isPending}
+          <PreferenceRow
+            title="Gentle reminders"
+            description={getReminderHelperText(
+              reminders.enabled,
+              reminders.permissionStatus,
+              reminders.selectedTimeLabel,
+            )}
+            value={reminders.enabled}
+            onValueChange={handleReminderToggle}
+            disabled={reminders.isLoading || reminders.isSaving}
+          />
+          <View style={styles.reminderCard}>
+            <View style={styles.reminderHeader}>
+              <View style={styles.reminderCopy}>
+                <AppText style={styles.preferenceTitle}>Reminder time</AppText>
+                <AppText style={styles.preferenceDescription}>
+                  Pick a calm time for one daily reminder.
+                </AppText>
+              </View>
+              <AppText style={styles.reminderTimeLabel}>{reminders.selectedTimeLabel}</AppText>
+            </View>
+            <View style={styles.timeChipRow}>
+              {reminders.timeOptions.map((option) => {
+                const isSelected =
+                  option.hour === reminders.hour && option.minute === reminders.minute;
+
+                return (
+                  <Pressable
+                    key={option.id}
+                    onPress={() => handleReminderTimeChange(option.hour, option.minute)}
+                    disabled={reminders.isLoading || reminders.isSaving}
+                    style={({ pressed }) => [
+                      styles.timeChip,
+                      isSelected && styles.timeChipSelected,
+                      pressed && !reminders.isLoading && !reminders.isSaving && styles.timeChipPressed,
+                    ]}
+                  >
+                    <AppText style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                      {option.label}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {reminders.permissionStatus === "denied" ? (
+              <Pressable
+                onPress={() => {
+                  void Linking.openSettings();
+                }}
+                style={({ pressed }) => [styles.inlineLink, pressed && styles.inlineLinkPressed]}
+              >
+                <AppText style={styles.inlineLinkText}>Open iPhone Settings</AppText>
+              </Pressable>
+            ) : null}
+          </View>
+          <PreferenceRow
+            title="Reduce motion"
+            description="Use a calmer feel with less movement where possible."
+            value={reduceMotionEnabled}
+            onValueChange={setReduceMotionEnabled}
+          />
+          <PreferenceRow
+            title="Comfort spacing"
+            description="Keep layouts feeling roomy and easy to scan."
+            value={comfortSpacingEnabled}
+            onValueChange={setComfortSpacingEnabled}
           />
         </View>
 
         <View style={styles.card}>
-          <AppText style={styles.title}>Privacy and support</AppText>
-          <AppText style={styles.body}>
-            LiveWithMS is designed to support your daily wellness tracking while keeping your
-            information tied to your personal account.
-          </AppText>
-          <AppText style={styles.body}>
-            If you need help with access, billing, or your account, contact support from the email
-            linked to your profile.
-          </AppText>
-          <View style={styles.legalLinks}>
-            <Pressable onPress={openPrivacyPolicy} style={styles.legalButton}>
-              <AppText style={styles.legalText}>Privacy Policy</AppText>
-            </Pressable>
-            <Pressable onPress={openTermsOfUse} style={styles.legalButton}>
-              <AppText style={styles.legalText}>Terms of Use</AppText>
-            </Pressable>
+          <AppText style={styles.sectionTitle}>Consistency</AppText>
+          {totalCheckIns > 0 ? (
+            <>
+              <View style={styles.consistencyGrid}>
+                <View style={styles.consistencyPill}>
+                  <AppText style={styles.consistencyValue}>{streak}</AppText>
+                  <AppText style={styles.consistencyLabel}>
+                    {streak === 1 ? "day in a row" : "days in a row"}
+                  </AppText>
+                </View>
+                <View style={styles.consistencyPill}>
+                  <AppText style={styles.consistencyValue}>{totalCheckIns}</AppText>
+                  <AppText style={styles.consistencyLabel}>
+                    {totalCheckIns === 1 ? "total check-in" : "total check-ins"}
+                  </AppText>
+                </View>
+              </View>
+              <AppText style={styles.sectionBody}>
+                {streak > 1 ? "You’ve checked in consistently." : "Small steps add up."}
+              </AppText>
+            </>
+          ) : (
+            <AppText style={styles.sectionBody}>
+              Your consistency will start to grow here one check-in at a time.
+            </AppText>
+          )}
+
+          <View style={styles.metricsCard}>
+            <AppText style={styles.preferenceTitle}>Your app rhythm</AppText>
+            <View style={styles.metricRow}>
+              <AppText style={styles.metricLabel}>Days active</AppText>
+              <AppText style={styles.metricValue}>{growth.metrics.daysActive}</AppText>
+            </View>
+            <View style={styles.metricRow}>
+              <AppText style={styles.metricLabel}>Check-in rhythm</AppText>
+              <AppText style={styles.metricValue}>
+                {growth.metrics.checkInFrequency > 0
+                  ? `${growth.metrics.checkInFrequency}/day`
+                  : "Just getting started"}
+              </AppText>
+            </View>
+            <View style={styles.metricRow}>
+              <AppText style={styles.metricLabel}>Reminders</AppText>
+              <AppText style={styles.metricValue}>
+                {growth.metrics.reminderEnabled ? "Enabled" : "Off"}
+              </AppText>
+            </View>
           </View>
         </View>
 
         <View style={styles.card}>
-          <AppText style={styles.title}>Medical disclaimer and sources</AppText>
-          <AppText style={styles.body}>
-            LiveWithMS provides wellness education and self-tracking tools only. It does not
-            provide medical advice, diagnosis, or treatment. Always speak with a qualified
-            healthcare professional about medical decisions, symptoms, medications, or treatment
-            changes.
+          <AppText style={styles.sectionTitle}>Support & Legal</AppText>
+          <AppText style={styles.sectionBody}>
+            Find the main policies, medical context, and support options here whenever you need them.
           </AppText>
-          <View style={styles.legalLinks}>
-            <Pressable onPress={openNationalMSSociety} style={styles.legalButton}>
-              <AppText style={styles.legalText}>National Multiple Sclerosis Society</AppText>
-            </Pressable>
-            <Pressable onPress={openMayoClinic} style={styles.legalButton}>
-              <AppText style={styles.legalText}>Mayo Clinic Multiple Sclerosis</AppText>
-            </Pressable>
-            <Pressable onPress={openNHS} style={styles.legalButton}>
-              <AppText style={styles.legalText}>NHS Multiple Sclerosis</AppText>
+          <LinkRow label="Health Summary" onPress={() => router.push("/health-summary")} />
+          <LinkRow label="Privacy Policy" onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)} />
+          <LinkRow label="Terms of Use" onPress={() => void Linking.openURL(TERMS_OF_USE_URL)} />
+          <LinkRow label="Medical Disclaimer" onPress={() => router.push("/medical-disclaimer")} />
+          <LinkRow label="Contact Support" onPress={() => void Linking.openURL(SUPPORT_EMAIL_URL)} />
+          <LinkRow label="Send Feedback" onPress={() => void Linking.openURL(FEEDBACK_EMAIL_URL)} />
+        </View>
+
+        <View style={styles.card}>
+          <AppText style={styles.sectionTitle}>Data & Privacy</AppText>
+          <AppText style={styles.sectionBody}>
+            Your check-ins, notes, and care tools are tied to your own account and are meant to stay private to you.
+          </AppText>
+          <AppText style={styles.sectionBody}>
+            Usage analytics help improve the app experience. No health data is sold.
+          </AppText>
+          <View style={styles.sourceLinks}>
+            <LinkRow
+              label="National Multiple Sclerosis Society"
+              onPress={() => void Linking.openURL(NATIONAL_MS_SOCIETY_URL)}
+            />
+            <LinkRow
+              label="Mayo Clinic Multiple Sclerosis"
+              onPress={() => void Linking.openURL(MAYO_MS_URL)}
+            />
+            <LinkRow
+              label="NHS Multiple Sclerosis"
+              onPress={() => void Linking.openURL(NHS_MS_URL)}
+            />
+          </View>
+
+          <View style={styles.winsSection}>
+            <AppText style={styles.preferenceTitle}>Small wins</AppText>
+            {wins.length > 0 ? (
+              <View style={styles.winsList}>
+                {wins.map((win) => (
+                  <View key={win} style={styles.winPill}>
+                    <AppText style={styles.winText}>{win}</AppText>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <AppText style={styles.preferenceDescription}>
+                Wins will show up here as you check in and reflect over time.
+              </AppText>
+            )}
+          </View>
+
+          {__DEV__ ? (
+            <LinkRow label="Analytics Debug (Dev Only)" onPress={() => router.push("/analytics-debug")} />
+          ) : null}
+
+          <View style={styles.dangerCard}>
+            <AppText style={styles.dangerTitle}>Delete account</AppText>
+            <AppText style={styles.dangerBody}>
+              If you no longer want to use LiveWithMS, you can permanently delete your account and app data.
+            </AppText>
+            <Pressable
+              onPress={confirmDeleteAccount}
+              disabled={deleteAccount.isPending}
+              style={({ pressed }) => [
+                styles.deleteButton,
+                pressed && !deleteAccount.isPending && styles.deleteButtonPressed,
+                deleteAccount.isPending && styles.deleteButtonDisabled,
+              ]}
+            >
+              <AppText style={styles.deleteButtonText}>
+                {deleteAccount.isPending ? "Deleting account..." : "Delete account"}
+              </AppText>
             </Pressable>
           </View>
         </View>
@@ -171,33 +510,297 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: 120,
-    gap: 12,
+    gap: 16,
   },
   card: {
     backgroundColor: "#ffffff",
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 10,
+    gap: 14,
   },
-  title: {
-    fontSize: 18,
+  sectionTitle: {
+    fontSize: 20,
     fontWeight: "700",
     color: "#1f2937",
   },
-  body: {
+  sectionBody: {
+    color: "#4b5563",
+    lineHeight: 22,
+  },
+  accountRow: {
+    gap: 4,
+  },
+  accountLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#c25d10",
+    textTransform: "uppercase",
+  },
+  accountValue: {
+    fontSize: 16,
+    color: "#1f2937",
+  },
+  accountActions: {
+    gap: 10,
+  },
+  consistencyGrid: {
+    gap: 10,
+  },
+  consistencyPill: {
+    borderRadius: 18,
+    backgroundColor: "#fffaf6",
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    padding: 14,
+    gap: 2,
+  },
+  consistencyValue: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  consistencyLabel: {
+    fontSize: 13,
+    color: "#6b7280",
+  },
+  metricsCard: {
+    gap: 10,
+    borderRadius: 18,
+    backgroundColor: "#fffaf6",
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    padding: 14,
+  },
+  metricRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  metricLabel: {
+    flex: 1,
+    color: "#6b7280",
+    lineHeight: 20,
+  },
+  metricValue: {
+    color: "#1f2937",
+    fontWeight: "600",
+  },
+  preferenceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+    borderRadius: 18,
+    backgroundColor: "#fffaf6",
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    padding: 14,
+  },
+  preferenceCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  preferenceTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1f2937",
+  },
+  preferenceDescription: {
+    color: "#6b7280",
+    lineHeight: 20,
+  },
+  reminderCard: {
+    gap: 12,
+    borderRadius: 18,
+    backgroundColor: "#fffaf6",
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    padding: 14,
+  },
+  premiumCard: {
+    gap: 12,
+    borderRadius: 18,
+    backgroundColor: "#fffaf6",
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    padding: 14,
+  },
+  premiumHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  premiumCopy: {
+    flex: 1,
+    gap: 6,
+  },
+  premiumTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  premiumBody: {
+    color: "#6b7280",
+    lineHeight: 20,
+  },
+  premiumBadge: {
+    borderRadius: 999,
+    backgroundColor: "#fff0e5",
+    color: "#b45309",
+    fontSize: 12,
+    fontWeight: "700",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    overflow: "hidden",
+  },
+  premiumBadgeActive: {
+    backgroundColor: "#e8f5ea",
+    color: "#166534",
+  },
+  premiumFeatureList: {
+    gap: 8,
+  },
+  premiumFeatureText: {
+    color: "#4b5563",
+    lineHeight: 20,
+  },
+  reminderHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  reminderCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  reminderTimeLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#c25d10",
+  },
+  timeChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  timeChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#e5d6cb",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  timeChipSelected: {
+    backgroundColor: "#fff0e5",
+    borderColor: "#e8751a",
+  },
+  timeChipPressed: {
+    opacity: 0.82,
+  },
+  timeChipText: {
+    fontSize: 14,
+    fontWeight: "600",
     color: "#4b5563",
   },
-  legalLinks: {
-    gap: 8,
-    marginTop: 4,
+  timeChipTextSelected: {
+    color: "#b45309",
   },
-  legalButton: {
+  inlineLink: {
     alignSelf: "flex-start",
   },
-  legalText: {
+  inlineLinkPressed: {
+    opacity: 0.82,
+  },
+  inlineLinkText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#c25d10",
+  },
+  linkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    borderRadius: 16,
+    backgroundColor: "#fffaf6",
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  linkRowPressed: {
+    opacity: 0.82,
+  },
+  linkText: {
+    flex: 1,
+    fontSize: 15,
+    color: "#374151",
+  },
+  linkChevron: {
+    fontSize: 18,
+    color: "#9ca3af",
+  },
+  sourceLinks: {
+    gap: 10,
+  },
+  winsSection: {
+    gap: 10,
+  },
+  winsList: {
+    gap: 10,
+  },
+  winPill: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    backgroundColor: "#fffaf6",
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  winText: {
     color: "#6b7280",
-    textDecorationLine: "underline",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  dangerCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f5c2c7",
+    backgroundColor: "#fff7f7",
+    padding: 16,
+    gap: 10,
+  },
+  dangerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#991b1b",
+  },
+  dangerBody: {
+    color: "#7f1d1d",
+    lineHeight: 21,
+  },
+  deleteButton: {
+    borderRadius: 14,
+    backgroundColor: "#b91c1c",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  deleteButtonPressed: {
+    opacity: 0.84,
+  },
+  deleteButtonDisabled: {
+    opacity: 0.6,
+  },
+  deleteButtonText: {
+    textAlign: "center",
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

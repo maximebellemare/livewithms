@@ -1,6 +1,10 @@
 type LogMeta = Record<string, unknown> | undefined;
 
 const write = (level: "info" | "warn" | "error", message: string, meta?: LogMeta) => {
+  if (!__DEV__ && level !== "error") {
+    return;
+  }
+
   console[level](`[livewithms] ${message}`, meta ?? {});
 };
 

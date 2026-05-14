@@ -28,7 +28,7 @@ function getDirectionLabel(direction: TrendSummary["direction"]) {
 }
 
 function getTrendHighlight(trend: TrendSummary) {
-  if (trend.average7 === null || trend.average30 === null) {
+  if (trend.averageCurrent === null) {
     return null;
   }
 
@@ -56,7 +56,7 @@ function getTrendHighlight(trend: TrendSummary) {
 }
 
 function getTrendSuggestion(trend: TrendSummary) {
-  if (trend.average7 === null || trend.average30 === null) {
+  if (trend.averageCurrent === null) {
     return null;
   }
 
@@ -70,6 +70,12 @@ function getTrendSuggestion(trend: TrendSummary) {
     return trend.direction === "down"
       ? "A small supportive routine may help on lower days."
       : "Keep leaning into what helps you feel more grounded.";
+  }
+
+  if (trend.key === "stress") {
+    return trend.direction === "down"
+      ? "A short reset may help when stress starts to build."
+      : "Keep noticing what helps your day feel a little lighter.";
   }
 
   return trend.direction === "down"
@@ -90,14 +96,21 @@ export default function TrendSummaryCard({ trend }: TrendSummaryCardProps) {
           <AppText style={styles.badge}>{getDirectionLabel(trend.direction)}</AppText>
         </View>
         <View style={styles.values}>
-          <AppText style={styles.averageText}>{formatAverage(trend.average7, "Recent")}</AppText>
-          <AppText style={styles.averageText}>{formatAverage(trend.average30, "Usual")}</AppText>
+          <AppText style={styles.averageText}>{formatAverage(trend.averageCurrent, "Average")}</AppText>
         </View>
       </View>
 
       <MiniTrendChart
         points={trend.points}
-        color={trend.key === "mood" ? "#16a34a" : trend.key === "sleep_hours" ? "#2563eb" : "#e8751a"}
+        color={
+          trend.key === "mood"
+            ? "#16a34a"
+            : trend.key === "sleep_hours"
+              ? "#2563eb"
+              : trend.key === "stress"
+                ? "#c25d10"
+                : "#e8751a"
+        }
         maxValue={trend.key === "sleep_hours" ? 12 : 10}
       />
 

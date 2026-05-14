@@ -2,7 +2,7 @@ import env from "../../lib/env";
 import { logger } from "../../lib/logger";
 import { supabase } from "../../lib/supabase/client";
 import type { DailyCheckIn } from "../checkins/types";
-import type { PatternSummary } from "./types";
+import type { AiInsightsSummary, PatternSummary } from "./types";
 
 function average(values: Array<number | null>) {
   const validValues = values.filter((value): value is number => value !== null);
@@ -114,6 +114,63 @@ export const insightsApi = {
         message: error instanceof Error ? error.message : "Unknown error",
       });
       return buildFallbackInsight(entries);
+    }
+  },
+
+  async getAiInsightsSummary(entries: DailyCheckIn[], range: 7 | 30): Promise<AiInsightsSummary> {
+    if (entries.length < 3) {
+      return {
+        summary: "Check in consistently to unlock clearer insights.",
+        helping: ["Check in consistently to unlock clearer insights."],
+        source: "fallback",
+      };
+    }
+
+    if (!env.isSupabaseConfigured) {
+      return {
+        summary:
+          "Your recent check-ins are starting to show a clearer picture of how this stretch has felt.",
+        helping: ["Consistent check-ins are making these patterns easier to spot."],
+        source: "fallback",
+      };
+    }
+
+    try {
+      const payload = entries.slice(0, range).map((entry) => ({
+        date: entry.date,
+        fatigue: entry.fatigue,
+        mood: entry.mood,
+        stress: entry.stress,
+        sleep_hours: entry.sleep_hours,
+        notes: entry.notes,
+      }));
+
+      const { data, error } = await supabase.functions.invoke("ai-insights-summary", {
+        body: {
+          entries: payload,
+          range,
+        },
+      });
+
+      if (error || !data?.summary) {
+        throw error ?? new Error("Missing AI insights summary");
+      }
+
+      return {
+        summary: data.summary as string,
+        helping: Array.isArray(data.helping) ? (data.helping as string[]) : [],
+        source: data.source === "ai" ? "ai" : "fallback",
+      };
+    } catch (error) {
+      logger.warn("AI insights summary fallback", {
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+      return {
+        summary:
+          "Your recent check-ins are starting to show a clearer picture of how this stretch has felt.",
+        helping: ["Check in consistently to unlock clearer insights."],
+        source: "fallback",
+      };
     }
   },
 };

@@ -43,6 +43,12 @@ function getCorrelationHighlight(correlation: CorrelationSummary) {
       : "Stress and fatigue do not seem to move together in a clear way.";
   }
 
+  if (correlation.key === "mood-stress") {
+    return correlation.coefficient < 0
+      ? "On days when stress is higher, mood tends to feel a little lower."
+      : "Mood and stress are moving together in an unusual way, so there may be other factors shaping the day.";
+  }
+
   return correlation.coefficient > 0
     ? "On days when sleep is higher, mood tends to feel a little better."
     : "Mood and sleep do not seem to move together in a clear way.";
@@ -65,6 +71,10 @@ function getCorrelationSuggestion(correlation: CorrelationSummary) {
     return "A steadier bedtime routine may help support your mood.";
   }
 
+  if (correlation.key === "mood-stress" && correlation.coefficient < -0.2) {
+    return "A small reset on stressful days may help protect your mood.";
+  }
+
   return "Keep logging a few more days so the pattern becomes clearer.";
 }
 
@@ -83,12 +93,10 @@ export default function CorrelationCard({ correlation }: CorrelationCardProps) {
         </View>
         <View style={styles.metricCard}>
           <AppText style={styles.metricValue}>{correlation.sampleSize}</AppText>
-          <AppText style={styles.metricLabel}>Days compared</AppText>
+          <AppText style={styles.metricLabel}>Check-ins used</AppText>
         </View>
       </View>
-      <AppText style={styles.axisText}>
-        Looking at {correlation.leftLabel.toLowerCase()} and {correlation.rightLabel.toLowerCase()} together
-      </AppText>
+      <AppText style={styles.axisText}>Looking at {correlation.leftLabel.toLowerCase()} and {correlation.rightLabel.toLowerCase()} together</AppText>
       <AppText style={styles.summary}>{correlation.summary}</AppText>
       {highlight ? <AppText style={styles.helperText}>{highlight}</AppText> : null}
       {suggestion ? <AppText style={styles.suggestionText}>{suggestion}</AppText> : null}

@@ -51,6 +51,9 @@ export default function BestWorstDayInsightCard({ insight }: BestWorstDayInsight
       <AppText style={styles.title}>Your Best Days</AppText>
       <AppText style={styles.contextText}>Based on your recent entries</AppText>
       <AppText style={styles.summary}>{insight.sentence}</AppText>
+      <AppText style={styles.helperText}>
+        Looking at your steadier days can help you spot conditions that may have made things feel a bit easier.
+      </AppText>
 
       <View style={styles.compareRow}>
         <SnapshotSection title="Best day" snapshot={insight.bestDay} />
@@ -86,6 +89,11 @@ const styles = StyleSheet.create({
   summary: {
     color: "#6f5418",
     lineHeight: 22,
+  },
+  helperText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#836f43",
   },
   contextText: {
     fontSize: 13,

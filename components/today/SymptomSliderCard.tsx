@@ -33,7 +33,6 @@ export default function SymptomSliderCard({
   }, []);
 
   const handleSkip = () => {
-    console.log("Skip tapped");
     onChange(null);
     setSkipFeedbackVisible(true);
 

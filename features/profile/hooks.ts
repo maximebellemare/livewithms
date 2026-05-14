@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { profileApi, type ProfileUpdateInput } from "./api";
+import type { Profile } from "./types";
 
 export function useMyProfile(userId?: string, enabled = true) {
   return useQuery({
@@ -28,7 +29,8 @@ export function useSaveProfileStep() {
     mutationFn: async ({ userId, input }: { userId: string; input: ProfileUpdateInput }) => {
       return profileApi.updateMyProfile(userId, input);
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData<Profile | undefined>(["profile", variables.userId], data);
       queryClient.invalidateQueries({ queryKey: ["profile", variables.userId] });
     },
   });
@@ -41,7 +43,8 @@ export function useCompleteOnboarding() {
     mutationFn: async ({ userId, input }: { userId: string; input: ProfileUpdateInput }) => {
       return profileApi.updateMyProfile(userId, input);
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData<Profile | undefined>(["profile", variables.userId], data);
       queryClient.invalidateQueries({ queryKey: ["profile", variables.userId] });
     },
   });

@@ -4,10 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import type { DailyCheckIn } from "../checkins/types";
 import { insightsApi } from "./api";
 import type {
+  AiInsightsSummary,
   BestWorstDayInsight,
   CorrelationSummary,
   HydrationEnergyInsight,
   InsightsDashboard,
+  KeyTakeaway,
   PatternSummary,
   SleepFatigueInsight,
   SleepMoodInsight,
@@ -31,7 +33,23 @@ export function usePatternSummary(entries: DailyCheckIn[], range = 7) {
     retry: false,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchOnReconnect: true,
+  });
+}
+
+export function useAiInsightsSummary(entries: DailyCheckIn[], range: 7 | 30) {
+  return useQuery({
+    queryKey: [
+      "ai-insights-summary",
+      range,
+      entries.map((entry) => `${entry.date}:${entry.updated_at}`).join("|"),
+    ],
+    queryFn: () => insightsApi.getAiInsightsSummary(entries, range),
+    enabled: entries.length >= 3,
+    retry: false,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
   });
 }
 
@@ -84,19 +102,19 @@ function calculateTrendDirection(
 }
 
 function buildTrendSummary(
-  entries7: DailyCheckIn[],
-  entries30: DailyCheckIn[],
-  key: "fatigue" | "mood" | "sleep_hours",
+  entriesCurrent: DailyCheckIn[],
+  entriesReference: DailyCheckIn[],
+  key: "fatigue" | "mood" | "sleep_hours" | "stress",
   label: string,
   higherIsBetter: boolean,
 ): TrendSummary {
-  const average7 = roundToOneDecimal(average(entries7.map((entry) => entry[key] ?? null)));
-  const average30 = roundToOneDecimal(average(entries30.map((entry) => entry[key] ?? null)));
-  const direction = calculateTrendDirection(average7, average30, higherIsBetter);
+  const averageCurrent = roundToOneDecimal(average(entriesCurrent.map((entry) => entry[key] ?? null)));
+  const averageReference = roundToOneDecimal(average(entriesReference.map((entry) => entry[key] ?? null)));
+  const direction = calculateTrendDirection(averageCurrent, averageReference, higherIsBetter);
 
   let summary = "Track a few days to unlock insights";
 
-  if (average7 !== null && average30 !== null) {
+  if (averageCurrent !== null) {
     if (direction === "flat") {
       summary = `Your ${label.toLowerCase()} has felt fairly steady lately.`;
     } else if (higherIsBetter) {
@@ -115,11 +133,10 @@ function buildTrendSummary(
   return {
     key,
     label,
-    average7,
-    average30,
+    averageCurrent,
     direction,
     summary,
-    points: entries7
+    points: entriesCurrent
       .slice()
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((entry) => ({
@@ -274,6 +291,7 @@ function buildCorrelationSummary(
     rightLabel: config.rightLabel,
     coefficient,
     sampleSize: pairs.length,
+    show: pairs.length >= 3,
     summary,
   };
 }
@@ -613,23 +631,89 @@ function buildBestWorstDayInsight(entries30: DailyCheckIn[]): BestWorstDayInsigh
   };
 }
 
+function buildKeyTakeaway(entries: DailyCheckIn[], trends: TrendSummary[]): KeyTakeaway {
+  if (entries.length < 3) {
+    return {
+      title: "Your key takeaway",
+      body: "Check in a few more times to unlock clearer patterns.",
+    };
+  }
+
+  const fatigueAverage = average(entries.map((entry) => entry.fatigue));
+  const stressAverage = average(entries.map((entry) => entry.stress));
+  const moodTrend = trends.find((trend) => trend.key === "mood");
+  const fatigueTrend = trends.find((trend) => trend.key === "fatigue");
+
+  const pairedSleepFatigue = entries.filter(
+    (
+      entry,
+    ): entry is DailyCheckIn & {
+      sleep_hours: number;
+      fatigue: number;
+    } => entry.sleep_hours !== null && entry.fatigue !== null,
+  );
+
+  const lowSleepHighFatigue =
+    pairedSleepFatigue.length >= 3 &&
+    average(pairedSleepFatigue.filter((entry) => entry.sleep_hours < 6).map((entry) => entry.fatigue)) !== null &&
+    average(pairedSleepFatigue.filter((entry) => entry.sleep_hours >= 6).map((entry) => entry.fatigue)) !== null &&
+    (average(pairedSleepFatigue.filter((entry) => entry.sleep_hours < 6).map((entry) => entry.fatigue)) ?? 0) >
+      (average(pairedSleepFatigue.filter((entry) => entry.sleep_hours >= 6).map((entry) => entry.fatigue)) ?? 0);
+
+  if (lowSleepHighFatigue) {
+    return {
+      title: "Your key takeaway",
+      body: "Sleep may be affecting your energy.",
+    };
+  }
+
+  if ((fatigueAverage ?? 0) >= 3.8 || fatigueTrend?.direction === "down") {
+    return {
+      title: "Your key takeaway",
+      body: "Your energy has been under pressure recently.",
+    };
+  }
+
+  if ((stressAverage ?? 0) >= 3.8) {
+    return {
+      title: "Your key takeaway",
+      body: "Stress may be a major driver this week.",
+    };
+  }
+
+  if (moodTrend?.direction === "up") {
+    return {
+      title: "Your key takeaway",
+      body: "Your mood has been trending upward.",
+    };
+  }
+
+  return {
+    title: "Your key takeaway",
+    body: "Keep checking in daily so your patterns become easier to spot.",
+  };
+}
+
 export function useInsightsDashboard(
   entries: DailyCheckIn[],
   patternSummary?: PatternSummary | null,
+  range: 7 | 30 = 7,
 ): InsightsDashboard {
   return useMemo(() => {
     const entries30 = filterEntriesByDays(entries, 30);
     const entries7 = filterEntriesByDays(entries, 7);
+    const entriesCurrent = filterEntriesByDays(entries, range);
+    const entriesReference = entries30;
     const summaryText =
       patternSummary?.insight ??
       "Track a few days to unlock insights";
 
     const weeklySummary: WeeklySummary = {
-      daysLogged: entries7.length,
-      averageFatigue: roundToOneDecimal(average(entries7.map((entry) => entry.fatigue))),
-      averageMood: roundToOneDecimal(average(entries7.map((entry) => entry.mood))),
-      averageStress: roundToOneDecimal(average(entries7.map((entry) => entry.stress))),
-      averageSleep: roundToOneDecimal(average(entries7.map((entry) => entry.sleep_hours))),
+      daysLogged: entriesCurrent.length,
+      averageFatigue: roundToOneDecimal(average(entriesCurrent.map((entry) => entry.fatigue))),
+      averageMood: roundToOneDecimal(average(entriesCurrent.map((entry) => entry.mood))),
+      averageStress: roundToOneDecimal(average(entriesCurrent.map((entry) => entry.stress))),
+      averageSleep: roundToOneDecimal(average(entriesCurrent.map((entry) => entry.sleep_hours))),
       summary: summaryText,
     };
     const weeklyProgressOverview = buildWeeklyProgressOverview(entries7);
@@ -638,9 +722,65 @@ export function useInsightsDashboard(
     const sleepMoodInsight = buildSleepMoodInsight(entries30);
     const hydrationEnergyInsight = buildHydrationEnergyInsight(entries30);
     const bestWorstDayInsight = buildBestWorstDayInsight(entries30);
+    const trends = [
+      buildTrendSummary(entriesCurrent, entriesReference, "fatigue", "Fatigue", false),
+      buildTrendSummary(entriesCurrent, entriesReference, "mood", "Mood", true),
+      buildTrendSummary(entriesCurrent, entriesReference, "stress", "Stress", false),
+      buildTrendSummary(entriesCurrent, entriesReference, "sleep_hours", "Sleep", true),
+    ];
+    const correlations = [
+      buildCorrelationSummary(entries30, {
+        key: "fatigue-sleep",
+        title: "Fatigue & sleep",
+        leftLabel: "Fatigue",
+        rightLabel: "Sleep",
+        leftKey: "fatigue",
+        rightKey: "sleep_hours",
+        positiveMeaning: "Sleep and fatigue seem connected, though not always in the same direction.",
+        negativeMeaning: "On days when sleep is lower, fatigue tends to feel higher.",
+      }),
+      buildCorrelationSummary(entries30, {
+        key: "fatigue-stress",
+        title: "Fatigue & stress",
+        leftLabel: "Fatigue",
+        rightLabel: "Stress",
+        leftKey: "fatigue",
+        rightKey: "stress",
+        positiveMeaning: "On days when stress is higher, fatigue tends to rise too.",
+        negativeMeaning: "Stress and fatigue do not seem to move together in a clear way.",
+      }),
+      buildCorrelationSummary(entries30, {
+        key: "mood-sleep",
+        title: "Mood & sleep",
+        leftLabel: "Mood",
+        rightLabel: "Sleep",
+        leftKey: "mood",
+        rightKey: "sleep_hours",
+        positiveMeaning: "On days when sleep is higher, mood tends to feel a little better.",
+        negativeMeaning: "Mood and sleep do not seem to move together in a clear way.",
+      }),
+      buildCorrelationSummary(entries30, {
+        key: "mood-stress",
+        title: "Mood & stress",
+        leftLabel: "Mood",
+        rightLabel: "Stress",
+        leftKey: "mood",
+        rightKey: "stress",
+        positiveMeaning: "Mood and stress are moving together in an unusual way, so other parts of your day may be influencing both.",
+        negativeMeaning: "On days when stress is higher, mood tends to feel a little lower.",
+      }),
+    ];
+    const keyTakeaway = buildKeyTakeaway(entriesCurrent, trends);
 
     return {
-      hasEnoughData: entries7.length >= 3,
+      hasEnoughData: entriesCurrent.length >= 3,
+      range,
+      entryCount: entriesCurrent.length,
+      subtitle:
+        range === 7
+          ? "A simple look at what your last week has felt like."
+          : "A broader view of how your recent month has been going.",
+      keyTakeaway,
       weeklyProgressOverview,
       weeklySummary,
       sleepFatigueInsight,
@@ -648,43 +788,8 @@ export function useInsightsDashboard(
       sleepMoodInsight,
       hydrationEnergyInsight,
       bestWorstDayInsight,
-      trends: [
-        buildTrendSummary(entries7, entries30, "fatigue", "Fatigue", false),
-        buildTrendSummary(entries7, entries30, "mood", "Mood", true),
-        buildTrendSummary(entries7, entries30, "sleep_hours", "Sleep", true),
-      ],
-      correlations: [
-        buildCorrelationSummary(entries30, {
-          key: "fatigue-sleep",
-          title: "Fatigue vs sleep",
-          leftLabel: "Fatigue",
-          rightLabel: "Sleep",
-          leftKey: "fatigue",
-          rightKey: "sleep_hours",
-          positiveMeaning: "Higher sleep and fatigue have been rising together, which may mean other factors are also shaping your energy.",
-          negativeMeaning: "More sleep tends to line up with lower fatigue across your recent check-ins.",
-        }),
-        buildCorrelationSummary(entries30, {
-          key: "fatigue-stress",
-          title: "Fatigue vs stress",
-          leftLabel: "Fatigue",
-          rightLabel: "Stress",
-          leftKey: "fatigue",
-          rightKey: "stress",
-          positiveMeaning: "Higher stress tends to show up on days when fatigue is also stronger.",
-          negativeMeaning: "Stress and fatigue are not moving together in the usual way, which may mean your days are influenced by several different factors.",
-        }),
-        buildCorrelationSummary(entries30, {
-          key: "mood-sleep",
-          title: "Mood vs sleep",
-          leftLabel: "Mood",
-          rightLabel: "Sleep",
-          leftKey: "mood",
-          rightKey: "sleep_hours",
-          positiveMeaning: "More sleep tends to line up with steadier mood in your recent check-ins.",
-          negativeMeaning: "Sleep and mood are moving in opposite directions more often, so it may help to keep an eye on what else is affecting your day.",
-        }),
-      ],
+      trends,
+      correlations,
     };
-  }, [entries, patternSummary?.insight]);
+  }, [entries, patternSummary?.insight, range]);
 }

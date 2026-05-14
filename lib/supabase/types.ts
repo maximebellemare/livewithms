@@ -194,6 +194,31 @@ type CoachPlansTable = {
   Relationships: [];
 };
 
+type CoachMessagesTable = {
+  Row: {
+    id: string;
+    user_id: string;
+    role: string;
+    content: string;
+    created_at: string;
+  };
+  Insert: {
+    id?: string;
+    user_id: string;
+    role: string;
+    content: string;
+    created_at?: string;
+  };
+  Update: {
+    id?: string;
+    user_id?: string;
+    role?: string;
+    content?: string;
+    created_at?: string;
+  };
+  Relationships: [];
+};
+
 export type Database = Omit<GeneratedDatabase, "public"> & {
   public: Omit<GeneratedDatabase["public"], "Tables"> & {
     Tables: GeneratedDatabase["public"]["Tables"] & {
@@ -202,6 +227,7 @@ export type Database = Omit<GeneratedDatabase, "public"> & {
       medications: MedicationsTable;
       care_notes: CareNotesTable;
       coach_plans: CoachPlansTable;
+      coach_messages: CoachMessagesTable;
     };
   };
 };

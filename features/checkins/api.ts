@@ -1,6 +1,7 @@
 import env from "../../lib/env";
+import { normalizeError } from "../../lib/errors";
 import { supabase } from "../../lib/supabase/client";
-import type { DailyCheckIn, DailyCheckInInput } from "./types";
+import type { CheckInOverviewEntry, DailyCheckIn, DailyCheckInInput } from "./types";
 
 const SELECT_FIELDS =
   "id, user_id, date, fatigue, pain, brain_fog, mood, mobility, stress, sleep_hours, water_glasses, notes, mood_tags, created_at, updated_at";
@@ -11,18 +12,6 @@ function getNormalizedDate(value: string) {
   }
 
   return value.slice(0, 10);
-}
-
-function logDev(label: string, payload: unknown) {
-  if (__DEV__) {
-    console.log(label, payload);
-  }
-}
-
-function logDevError(label: string, payload: unknown) {
-  if (__DEV__) {
-    console.error(label, payload);
-  }
 }
 
 export const checkinsApi = {
@@ -47,7 +36,7 @@ export const checkinsApi = {
       .maybeSingle();
 
     if (error) {
-      throw error;
+      throw normalizeError(error);
     }
 
     return (data ?? null) as DailyCheckIn | null;
@@ -72,10 +61,34 @@ export const checkinsApi = {
       .limit(limit);
 
     if (error) {
-      throw error;
+      throw normalizeError(error);
     }
 
     return (data ?? []) as DailyCheckIn[];
+  },
+  async listCheckInOverview(userId: string) {
+    if (!userId) {
+      throw new Error("Missing user id for check-in overview query");
+    }
+
+    if (!env.isSupabaseConfigured) {
+      return [] as CheckInOverviewEntry[];
+    }
+
+    const { data, error } = await supabase
+      .from("daily_entries")
+      .select("date, notes")
+      .eq("user_id", userId)
+      .order("date", { ascending: false });
+
+    if (error) {
+      throw normalizeError(error);
+    }
+
+    return (data ?? []).map((entry) => ({
+      date: String(entry.date),
+      hasReflection: typeof entry.notes === "string" && entry.notes.trim().length > 0,
+    }));
   },
   async upsertDailyCheckIn(userId: string, date: string, input: DailyCheckInInput) {
     if (!env.isSupabaseConfigured) {
@@ -85,12 +98,10 @@ export const checkinsApi = {
     const { data: authData, error: authError } = await supabase.auth.getUser();
 
     if (authError) {
-      logDevError("[daily_entries] auth error", authError);
-      throw authError;
+      throw normalizeError(authError);
     }
 
     const currentUser = authData.user;
-    logDev("[daily_entries] current user", currentUser?.id ?? null);
 
     if (!currentUser?.id) {
       throw new Error("Missing authenticated user for check-in save");
@@ -117,8 +128,6 @@ export const checkinsApi = {
       ...(typeof input.spasticity === "number" ? { spasticity: input.spasticity } : {}),
     };
 
-    logDev("[daily_entries] upsert payload", payload);
-
     const { data, error } = await supabase
       .from("daily_entries")
       .upsert(payload, {
@@ -128,11 +137,8 @@ export const checkinsApi = {
       .single();
 
     if (error) {
-      logDevError("[daily_entries] upsert error", error);
-      throw error;
+      throw normalizeError(error);
     }
-
-    logDev("[daily_entries] upsert result", data);
 
     if (!data?.id || !data?.user_id || !data?.date) {
       throw new Error("Daily entry save did not return a valid row");

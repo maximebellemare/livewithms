@@ -13,7 +13,11 @@ function formatCheckInDate(date: string) {
 }
 
 function formatCheckInValue(value: number | null) {
-  return value === null ? "Not logged" : String(value);
+  return value === null ? "Not logged" : `${value}/5`;
+}
+
+function formatSleepValue(value: number | null) {
+  return value === null ? "Not logged" : `${value}h`;
 }
 
 function getFatigueTone(value: number | null) {
@@ -25,7 +29,7 @@ function getFatigueTone(value: number | null) {
     };
   }
 
-  if (value >= 7) {
+  if (value >= 4) {
     return {
       backgroundColor: "#fee2e2",
       borderColor: "#fca5a5",
@@ -33,7 +37,7 @@ function getFatigueTone(value: number | null) {
     };
   }
 
-  if (value >= 4) {
+  if (value >= 2) {
     return {
       backgroundColor: "#ffedd5",
       borderColor: "#fdba74",
@@ -57,7 +61,7 @@ function getMoodTone(value: number | null) {
     };
   }
 
-  if (value >= 7) {
+  if (value >= 4) {
     return {
       backgroundColor: "#dbeafe",
       borderColor: "#93c5fd",
@@ -65,7 +69,7 @@ function getMoodTone(value: number | null) {
     };
   }
 
-  if (value >= 4) {
+  if (value >= 2) {
     return {
       backgroundColor: "#e0f2fe",
       borderColor: "#7dd3fc",
@@ -83,16 +87,23 @@ function getMoodTone(value: number | null) {
 type CheckInHistoryRowProps = {
   item: DailyCheckIn;
   selected: boolean;
+  activeFilter: "all" | "fatigue" | "mood" | "stress" | "sleep";
   onPress: () => void;
 };
 
 export default function CheckInHistoryRow({
   item,
   selected,
+  activeFilter,
   onPress,
 }: CheckInHistoryRowProps) {
   const fatigueTone = getFatigueTone(item.fatigue);
   const moodTone = getMoodTone(item.mood);
+  const stressTone = getFatigueTone(item.stress);
+  const sleepTone = getMoodTone(item.sleep_hours);
+
+  const isMetricHighlighted = (metric: "fatigue" | "mood" | "stress" | "sleep") =>
+    activeFilter === "all" || activeFilter === metric;
 
   return (
     <Pressable
@@ -110,6 +121,21 @@ export default function CheckInHistoryRow({
           <View
             style={[
               styles.metricPill,
+              isMetricHighlighted("fatigue") && styles.metricPillActive,
+              {
+                backgroundColor: fatigueTone.backgroundColor,
+                borderColor: fatigueTone.borderColor,
+              },
+            ]}
+          >
+            <AppText style={[styles.metricPillText, { color: fatigueTone.textColor }]}>
+              Fatigue {formatCheckInValue(item.fatigue)}
+            </AppText>
+          </View>
+          <View
+            style={[
+              styles.metricPill,
+              isMetricHighlighted("mood") && styles.metricPillActive,
               {
                 backgroundColor: moodTone.backgroundColor,
                 borderColor: moodTone.borderColor,
@@ -123,14 +149,29 @@ export default function CheckInHistoryRow({
           <View
             style={[
               styles.metricPill,
+              isMetricHighlighted("stress") && styles.metricPillActive,
               {
-                backgroundColor: fatigueTone.backgroundColor,
-                borderColor: fatigueTone.borderColor,
+                backgroundColor: stressTone.backgroundColor,
+                borderColor: stressTone.borderColor,
               },
             ]}
           >
-            <AppText style={[styles.metricPillText, { color: fatigueTone.textColor }]}>
-              Fatigue {formatCheckInValue(item.fatigue)}
+            <AppText style={[styles.metricPillText, { color: stressTone.textColor }]}>
+              Stress {formatCheckInValue(item.stress)}
+            </AppText>
+          </View>
+          <View
+            style={[
+              styles.metricPill,
+              isMetricHighlighted("sleep") && styles.metricPillActive,
+              {
+                backgroundColor: sleepTone.backgroundColor,
+                borderColor: sleepTone.borderColor,
+              },
+            ]}
+          >
+            <AppText style={[styles.metricPillText, { color: sleepTone.textColor }]}>
+              Sleep {formatSleepValue(item.sleep_hours)}
             </AppText>
           </View>
         </View>
@@ -184,6 +225,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 6,
+  },
+  metricPillActive: {
+    shadowColor: "#e8751a",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
   },
   metricPillText: {
     fontSize: 13,

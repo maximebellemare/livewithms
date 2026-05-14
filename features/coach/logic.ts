@@ -17,6 +17,11 @@ export type CoachPromptSet = {
   prompts: string[];
 };
 
+export type CoachPreviewMessage = {
+  role: "coach" | "user";
+  content: string;
+};
+
 export function formatMetricValue(value: number | null, suffix = "") {
   if (value === null) {
     return "—";
@@ -25,18 +30,26 @@ export function formatMetricValue(value: number | null, suffix = "") {
   return `${value}${suffix}`;
 }
 
+export function formatScaleValue(value: number | null) {
+  if (value === null) {
+    return "—";
+  }
+
+  return `${value}/5`;
+}
+
 export function buildCoachSummary(entry: DailyCheckIn | null) {
   if (!entry) {
     return [];
   }
 
   return [
-    { label: "Fatigue", value: formatMetricValue(entry.fatigue) },
-    { label: "Mood", value: formatMetricValue(entry.mood) },
-    { label: "Stress", value: formatMetricValue(entry.stress) },
+    { label: "Fatigue", value: formatScaleValue(entry.fatigue) },
+    { label: "Mood", value: formatScaleValue(entry.mood) },
+    { label: "Stress", value: formatScaleValue(entry.stress) },
     { label: "Sleep", value: formatMetricValue(entry.sleep_hours, "h") },
-    { label: "Pain", value: formatMetricValue(entry.pain) },
-    { label: "Brain fog", value: formatMetricValue(entry.brain_fog) },
+    { label: "Pain", value: formatScaleValue(entry.pain) },
+    { label: "Brain fog", value: formatScaleValue(entry.brain_fog) },
   ];
 }
 
@@ -72,7 +85,7 @@ export function buildCoachMessage(entry: DailyCheckIn | null): CoachMessage {
   if (mood <= 2) {
     return {
       title: "Gentle support may help today",
-      body: "Aim small. A tiny win, a reset, or one steadying routine can still count as real progress.",
+      body: "Aim small. A tiny win, a reset, or one steadying routine can still be enough for today.",
     };
   }
 
@@ -90,11 +103,11 @@ export function buildCoachMessage(entry: DailyCheckIn | null): CoachMessage {
     };
   }
 
-  return {
-    title: "Stay close to what helps",
-    body: "Today looks mixed. Keep expectations kind and pay attention to the small things that give you a bit more steadiness.",
-  };
-}
+    return {
+      title: "Stay close to what helps",
+      body: "Today looks mixed. Keep expectations kind and notice the small things that help you feel a little steadier.",
+    };
+  }
 
 export function buildCoachFocus(entry: DailyCheckIn | null): CoachFocus {
   if (!entry) {
@@ -138,10 +151,10 @@ export function buildCoachFocus(entry: DailyCheckIn | null): CoachFocus {
   }
 
   return {
-    title: "Today’s focus: notice what is working",
-    body: "When the day has more room, it’s worth paying attention to the habits or supports that helped create it.",
-  };
-}
+      title: "Today’s focus: notice what is working",
+      body: "When the day has more room, it can help to notice the habits or supports that may be helping.",
+    };
+  }
 
 export function buildSuggestedActions(entry: DailyCheckIn | null) {
   if (!entry) {
@@ -174,6 +187,35 @@ export function buildSuggestedActions(entry: DailyCheckIn | null) {
 
   return Array.from(new Set(actions)).slice(0, 3);
 }
+
+export function buildCoachConversationPreview(entry: DailyCheckIn | null): CoachPreviewMessage[] {
+  const message = buildCoachMessage(entry);
+  const focus = buildCoachFocus(entry);
+
+  if (!entry) {
+    return [
+      {
+        role: "coach",
+        content: "You can start gently here, even before your first check-in.",
+      },
+      {
+        role: "coach",
+        content: "Would you like to reflect, reset, or plan tomorrow?",
+      },
+    ];
+  }
+
+  return [
+    {
+      role: "coach",
+      content: `Based on your check-in, ${message.body.charAt(0).toLowerCase()}${message.body.slice(1)}`,
+    },
+      {
+        role: "coach",
+        content: `${focus.title.replace("Today’s focus: ", "")}. Would you like to reflect, reset, or make a small plan for later?`,
+      },
+    ];
+  }
 
 export function buildReflectionPrompts(entry: DailyCheckIn | null): CoachPromptSet {
   if (!entry) {

@@ -1,12 +1,12 @@
 {
   "expo": {
     "name": "LiveWithMS",
-    "version": "1.0.1",
-    "scheme": "livewithms",
+    "version": "1.0.5",
+    "scheme": "com.livewithms.app",
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.livewithms.app",
-      "buildNumber": "40"
+      "buildNumber": "48"
     },
     "android": {
       "package": "com.livewithms.app"
@@ -15,6 +15,9 @@
       "eas": {
         "projectId": "e198e1a7-b565-4acd-acd5-40afc555c4e8"
       }
-    }
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
   }
 }

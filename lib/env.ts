@@ -5,7 +5,7 @@ const supabaseAnonKey =
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   "";
 const revenueCatIosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || "";
-const appScheme = "livewithms" as const;
+const appScheme = "com.livewithms.app" as const;
 
 const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 const isRevenueCatConfigured = !!revenueCatIosApiKey;

@@ -5,6 +5,9 @@ import { logger } from "../../lib/logger";
 import { supabase } from "../../lib/supabase/client";
 import type { Profile } from "./types";
 
+const PROFILE_SELECT =
+  "user_id, onboarding_completed, display_name, ms_type, year_diagnosed, symptoms, goals, country, age_range";
+
 export type ProfileUpdateInput = Partial<
   Pick<
     Profile,
@@ -31,7 +34,7 @@ export const profileApi = {
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("user_id, onboarding_completed, display_name, ms_type, year_diagnosed, symptoms, goals, country, age_range")
+      .select(PROFILE_SELECT)
       .eq("user_id", userId)
       .single();
 
@@ -61,16 +64,79 @@ export const profileApi = {
       } as Profile;
     }
 
+    logger.info("Profile update starting", {
+      userId,
+      input,
+      query: "profiles.update",
+    });
+
     const { data, error } = await supabase
       .from("profiles")
       .update(input)
       .eq("user_id", userId)
-      .select("user_id, onboarding_completed, display_name, ms_type, year_diagnosed, symptoms, goals, country, age_range")
+      .select(PROFILE_SELECT)
       .single();
 
     if (error) {
-      throw error;
+      const normalizedError = normalizeError(error);
+      logger.error("Profile update failed", {
+        userId,
+        input,
+        query: "profiles.update",
+        code: normalizedError.code,
+        details: normalizedError.details,
+        hint: normalizedError.hint,
+        message: normalizedError.message,
+        error,
+      });
+
+      logger.info("Profile upsert fallback starting", {
+        userId,
+        input,
+        query: "profiles.upsert",
+      });
+
+      const { data: upsertedData, error: upsertError } = await supabase
+        .from("profiles")
+        .upsert(
+          {
+            user_id: userId,
+            ...input,
+          },
+          {
+            onConflict: "user_id",
+          },
+        )
+        .select(PROFILE_SELECT)
+        .single();
+
+      if (upsertError) {
+        const normalizedUpsertError = normalizeError(upsertError);
+        logger.error("Profile upsert fallback failed", {
+          userId,
+          input,
+          query: "profiles.upsert",
+          code: normalizedUpsertError.code,
+          details: normalizedUpsertError.details,
+          hint: normalizedUpsertError.hint,
+          message: normalizedUpsertError.message,
+          error: upsertError,
+        });
+        throw upsertError;
+      }
+
+      logger.info("Profile upsert fallback succeeded", {
+        userId,
+        payload: upsertedData,
+      });
+
+      return upsertedData as Profile;
     }
+
+    logger.info("Profile update succeeded", {
+      userId,
+      payload: data,
+    });
 
     return data as Profile;
   },

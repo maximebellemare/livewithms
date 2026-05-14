@@ -5,12 +5,14 @@ import CheckInHistoryRow from "./CheckInHistoryRow";
 type CheckInHistoryListProps = {
   items: DailyCheckIn[];
   selectedDate: string | null;
+  activeFilter: "all" | "fatigue" | "mood" | "stress" | "sleep";
   onSelectDate: (date: string) => void;
 };
 
 export default function CheckInHistoryList({
   items,
   selectedDate,
+  activeFilter,
   onSelectDate,
 }: CheckInHistoryListProps) {
   return (
@@ -20,6 +22,7 @@ export default function CheckInHistoryList({
           key={item.id}
           item={item}
           selected={item.date === selectedDate}
+          activeFilter={activeFilter}
           onPress={() => onSelectDate(item.date)}
         />
       ))}

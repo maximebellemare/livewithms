@@ -1,4 +1,5 @@
 import env from "../../lib/env";
+import { normalizeError } from "../../lib/errors";
 import { supabase } from "../../lib/supabase/client";
 import type { CareNote, CareNoteInput } from "./types";
 
@@ -28,7 +29,7 @@ async function getAuthenticatedCareNotesUser(userId: string) {
   const { data: authData, error: authError } = await supabase.auth.getUser();
 
   if (authError) {
-    throw authError;
+    throw normalizeError(authError);
   }
 
   const currentUser = authData.user;
@@ -61,7 +62,7 @@ export const careNotesApi = {
       .order("updated_at", { ascending: false });
 
     if (error) {
-      throw error;
+      throw normalizeError(error);
     }
 
     return (data ?? []).map((row) =>
@@ -105,7 +106,7 @@ export const careNotesApi = {
       .single();
 
     if (error) {
-      throw error;
+      throw normalizeError(error);
     }
 
     return mapCareNoteRow(
@@ -152,7 +153,7 @@ export const careNotesApi = {
       .single();
 
     if (error) {
-      throw error;
+      throw normalizeError(error);
     }
 
     return mapCareNoteRow(
@@ -186,7 +187,7 @@ export const careNotesApi = {
       .eq("user_id", currentUser.id);
 
     if (error) {
-      throw error;
+      throw normalizeError(error);
     }
   },
 };

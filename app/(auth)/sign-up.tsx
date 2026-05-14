@@ -61,7 +61,7 @@ export default function SignUpScreen() {
       showConfirmPassword
       footer={<AppButton label="Back to sign in" onPress={() => router.replace("/sign-in")} />}
     >
-      {isMockMode ? (
+      {__DEV__ && isMockMode ? (
         <AppText style={{ color: "#b45309" }}>
           Real sign-up requires Supabase env. Mock mode is for routing only.
         </AppText>

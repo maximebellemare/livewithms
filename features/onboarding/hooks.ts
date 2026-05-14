@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../auth/hooks";
 import { useCompleteOnboarding, useMyProfile, useSaveProfileStep } from "../profile/hooks";
 import type { ProfileUpdateInput } from "../profile/api";
+import { normalizeError } from "../../lib/errors";
+import { trackEvent } from "../../lib/events";
+import { logger } from "../../lib/logger";
 import type { ConsentState, OnboardingDraft } from "./types";
 
 const EMPTY_DRAFT: OnboardingDraft = {
@@ -61,25 +64,54 @@ export function useOnboarding() {
 
   async function completeOnboarding(): Promise<boolean> {
     if (!user?.id || completeOnboardingMutation.isPending) {
+      logger.error("Complete onboarding blocked", {
+        userId: user?.id ?? null,
+        isPending: completeOnboardingMutation.isPending,
+      });
       return false;
     }
 
+    const input: ProfileUpdateInput = {
+      onboarding_completed: true,
+      display_name: draft.display_name || null,
+      ms_type: draft.ms_type || null,
+      year_diagnosed: draft.year_diagnosed || null,
+      symptoms: draft.symptoms ?? [],
+      goals: draft.goals ?? [],
+      country: draft.country || null,
+      age_range: draft.age_range || null,
+    };
+
     try {
-      await completeOnboardingMutation.mutateAsync({
+      logger.info("Completing onboarding", {
         userId: user.id,
-        input: {
-          onboarding_completed: true,
-          display_name: draft.display_name || null,
-          ms_type: draft.ms_type || null,
-          year_diagnosed: draft.year_diagnosed || null,
-          symptoms: draft.symptoms ?? [],
-          goals: draft.goals ?? [],
-          country: draft.country || null,
-          age_range: draft.age_range || null,
-        },
+        input,
+      });
+
+      const payload = await completeOnboardingMutation.mutateAsync({
+        userId: user.id,
+        input,
+      });
+
+      logger.info("Onboarding completion succeeded", {
+        userId: user.id,
+        payload,
+      });
+      await trackEvent("onboarding_completed", {
+        userId: user.id,
       });
       return true;
-    } catch {
+    } catch (error) {
+      const normalizedError = normalizeError(error);
+      logger.error("Onboarding completion failed", {
+        userId: user.id,
+        input,
+        code: normalizedError.code,
+        details: normalizedError.details,
+        hint: normalizedError.hint,
+        message: normalizedError.message,
+        error,
+      });
       return false;
     }
   }

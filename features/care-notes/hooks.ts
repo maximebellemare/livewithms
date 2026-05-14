@@ -16,7 +16,8 @@ export function useCareNotes(userId?: string) {
     retry: false,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchOnReconnect: true,
+    refetchOnMount: false,
   });
 }
 

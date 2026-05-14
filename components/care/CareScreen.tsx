@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { router } from "expo-router";
-import { Alert, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import AppButton from "../ui/AppButton";
 import AppScreen from "../ui/AppScreen";
 import AppText from "../ui/AppText";
@@ -22,8 +23,19 @@ import {
 } from "../../features/care-notes/hooks";
 import type { CareNote, CareNoteInput } from "../../features/care-notes/types";
 import { useCreateMedication, useMedications } from "../../features/medications/hooks";
-import type { MedicationInput } from "../../features/medications/types";
+import type { Medication, MedicationInput } from "../../features/medications/types";
 import { getErrorMessage } from "../../lib/errors";
+
+const MEDICATION_FREQUENCY_OPTIONS = [
+  "Once daily",
+  "Twice daily",
+  "Three times daily",
+  "Every morning",
+  "Every evening",
+  "As needed",
+  "Weekly",
+  "Custom",
+] as const;
 
 function getTodayDateString() {
   const now = new Date();
@@ -69,6 +81,93 @@ function formatAppointmentDateLong(date: string) {
   });
 }
 
+function formatAppointmentDateInput(date: string) {
+  if (!date) {
+    return "Choose a date";
+  }
+
+  const parsed = new Date(`${date}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Choose a date";
+  }
+
+  return parsed.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatAppointmentTimeInput(time: string) {
+  if (!time) {
+    return "Choose a time";
+  }
+
+  const [hourText = "0", minuteText = "0"] = time.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+
+  if (Number.isNaN(hour) || Number.isNaN(minute)) {
+    return time;
+  }
+
+  const parsed = new Date();
+  parsed.setHours(hour, minute, 0, 0);
+
+  return parsed.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function buildPickerDateFromAppointment(date: string, time: string) {
+  const fallback = new Date();
+  fallback.setSeconds(0, 0);
+
+  if (!date) {
+    return fallback;
+  }
+
+  const isoTime = time && time.includes(":") ? `${time}:00` : "12:00:00";
+  const parsed = new Date(`${date}T${isoTime}`);
+
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+}
+
+function formatTimeForStorage(date: Date) {
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  return `${hour}:${minute}`;
+}
+
+function getInitialFrequencyOption(frequency: string) {
+  if (!frequency) {
+    return "Once daily";
+  }
+
+  return MEDICATION_FREQUENCY_OPTIONS.includes(frequency as (typeof MEDICATION_FREQUENCY_OPTIONS)[number])
+    ? (frequency as (typeof MEDICATION_FREQUENCY_OPTIONS)[number])
+    : "Custom";
+}
+
+function formatShortDateFromIso(dateString: string) {
+  return new Date(dateString).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function getNotePreview(note: string, maxLength = 110) {
+  const trimmed = note.trim();
+
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, maxLength).trimEnd()}…`;
+}
+
 export default function CareScreen() {
   const { user } = useAuth();
   const appointmentsQuery = useAppointments(user?.id);
@@ -87,12 +186,16 @@ export default function CareScreen() {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
+  const [activePicker, setActivePicker] = useState<"date" | "time" | null>(null);
+  const [appointmentPickerDate, setAppointmentPickerDate] = useState(() => buildPickerDateFromAppointment("", ""));
+  const [pickerDraftDate, setPickerDraftDate] = useState(() => buildPickerDateFromAppointment("", ""));
   const [provider, setProvider] = useState("");
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
   const [medicationName, setMedicationName] = useState("");
   const [medicationDosage, setMedicationDosage] = useState("");
   const [medicationFrequency, setMedicationFrequency] = useState("");
+  const [selectedMedicationFrequencyOption, setSelectedMedicationFrequencyOption] = useState<(typeof MEDICATION_FREQUENCY_OPTIONS)[number]>("Once daily");
   const [medicationNotes, setMedicationNotes] = useState("");
   const [showCareNoteForm, setShowCareNoteForm] = useState(false);
   const [editingCareNoteId, setEditingCareNoteId] = useState<string | null>(null);
@@ -105,6 +208,11 @@ export default function CareScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [medicationErrorMessage, setMedicationErrorMessage] = useState<string | null>(null);
   const [careNoteErrorMessage, setCareNoteErrorMessage] = useState<string | null>(null);
+  const isInitialLoading =
+    (appointmentsQuery.isLoading && !appointmentsQuery.data) ||
+    (medicationsQuery.isLoading && !medicationsQuery.data) ||
+    (careNotesQuery.isLoading && !careNotesQuery.data);
+  const [showInactiveMedications, setShowInactiveMedications] = useState(false);
 
   const upcomingAppointments = useMemo(() => {
     const today = getTodayDateString();
@@ -118,10 +226,25 @@ export default function CareScreen() {
     return sortAppointmentsByDateTime(items, false);
   }, [appointmentsQuery.data]);
 
+  const medications = medicationsQuery.data ?? [];
+  const activeMedications = useMemo(
+    () => medications.filter((medication) => medication.active),
+    [medications],
+  );
+  const inactiveMedications = useMemo(
+    () => medications.filter((medication) => !medication.active),
+    [medications],
+  );
+  const recentCareNote = careNotesQuery.data?.[0] ?? null;
+  const nextAppointment = upcomingAppointments[0] ?? null;
+
   const resetAppointmentForm = () => {
     setTitle("");
     setDate("");
     setTime("");
+    setActivePicker(null);
+    setAppointmentPickerDate(buildPickerDateFromAppointment("", ""));
+    setPickerDraftDate(buildPickerDateFromAppointment("", ""));
     setProvider("");
     setLocation("");
     setNotes("");
@@ -132,7 +255,50 @@ export default function CareScreen() {
     setMedicationName("");
     setMedicationDosage("");
     setMedicationFrequency("");
+    setSelectedMedicationFrequencyOption("Once daily");
     setMedicationNotes("");
+  };
+
+  const handleDateChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (!selectedDate) {
+      return;
+    }
+
+    setPickerDraftDate(selectedDate);
+  };
+
+  const handleTimeChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (!selectedDate) {
+      return;
+    }
+
+    setPickerDraftDate(selectedDate);
+  };
+
+  const openAppointmentPicker = (mode: "date" | "time") => {
+    const nextDate = buildPickerDateFromAppointment(date, time);
+    setAppointmentPickerDate(nextDate);
+    setPickerDraftDate(nextDate);
+    setActivePicker(mode);
+  };
+
+  const closeAppointmentPicker = () => {
+    setActivePicker(null);
+  };
+
+  const confirmAppointmentPicker = () => {
+    const nextDate = pickerDraftDate;
+    setAppointmentPickerDate(nextDate);
+
+    if (activePicker === "date") {
+      setDate(nextDate.toISOString().slice(0, 10));
+    }
+
+    if (activePicker === "time") {
+      setTime(formatTimeForStorage(nextDate));
+    }
+
+    setActivePicker(null);
   };
 
   const resetCareNoteForm = () => {
@@ -186,6 +352,13 @@ export default function CareScreen() {
     setTitle(appointment.title);
     setDate(appointment.appointment_date);
     setTime(appointment.appointment_time ?? "");
+    const pickerDate = buildPickerDateFromAppointment(
+      appointment.appointment_date,
+      appointment.appointment_time ?? "",
+    );
+    setActivePicker(null);
+    setAppointmentPickerDate(pickerDate);
+    setPickerDraftDate(pickerDate);
     setProvider(appointment.provider ?? "");
     setLocation(appointment.location ?? "");
     setNotes(appointment.notes ?? "");
@@ -248,10 +421,15 @@ export default function CareScreen() {
     setMedicationErrorMessage(null);
     setMedicationMessage(null);
 
+    const effectiveFrequency =
+      selectedMedicationFrequencyOption === "Custom"
+        ? medicationFrequency
+        : selectedMedicationFrequencyOption;
+
     const input: MedicationInput = {
       name: medicationName,
       dosage: medicationDosage || null,
-      frequency: medicationFrequency,
+      frequency: effectiveFrequency,
       notes: medicationNotes || null,
     };
 
@@ -265,6 +443,17 @@ export default function CareScreen() {
       setMedicationMessage("Medication added.");
     } catch (error) {
       setMedicationErrorMessage(getErrorMessage(error));
+    }
+  };
+
+  const handleMedicationFrequencyOptionPress = (
+    option: (typeof MEDICATION_FREQUENCY_OPTIONS)[number],
+  ) => {
+    setSelectedMedicationFrequencyOption(option);
+    if (option !== "Custom") {
+      setMedicationFrequency(option);
+    } else {
+      setMedicationFrequency("");
     }
   };
 
@@ -364,7 +553,7 @@ export default function CareScreen() {
     return <ErrorState message="You need to be signed in to view Care." />;
   }
 
-  if (appointmentsQuery.isLoading || medicationsQuery.isLoading || careNotesQuery.isLoading) {
+  if (isInitialLoading) {
     return <LoadingState message="Loading Care..." />;
   }
 
@@ -397,8 +586,8 @@ export default function CareScreen() {
 
   return (
     <AppScreen
-      title="Care"
-      subtitle="Keep track of appointments, medications, and important health notes."
+      title="Care organizer"
+      subtitle="Keep appointments, medications, and notes in one place."
     >
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.heroCard}>
@@ -406,6 +595,65 @@ export default function CareScreen() {
           <AppText style={styles.body}>
             Keep the essentials close by so appointments, medications, and important reminders feel easier to manage.
           </AppText>
+        </View>
+
+        <View style={styles.summaryGrid}>
+          <View style={styles.summaryCard}>
+            <AppText style={styles.summaryLabel}>Next appointment</AppText>
+            {nextAppointment ? (
+              <>
+                <AppText style={styles.summaryTitle}>{nextAppointment.title}</AppText>
+                <AppText style={styles.summaryBody}>
+                  {formatAppointmentDateLong(nextAppointment.appointment_date)}
+                  {nextAppointment.appointment_time ? ` · ${nextAppointment.appointment_time}` : ""}
+                </AppText>
+                {nextAppointment.provider ? (
+                  <AppText style={styles.summaryBody}>{nextAppointment.provider}</AppText>
+                ) : (
+                  <AppText style={styles.summaryHint}>Nothing scheduled yet? Add your next visit.</AppText>
+                )}
+              </>
+            ) : (
+              <>
+                <AppText style={styles.summaryEmptyTitle}>No upcoming appointments yet.</AppText>
+                <AppText style={styles.summaryHint}>Add one so it’s easier to stay organized.</AppText>
+              </>
+            )}
+          </View>
+
+          <View style={styles.summaryCard}>
+            <AppText style={styles.summaryLabel}>Active medications</AppText>
+            <AppText style={styles.summaryCount}>{activeMedications.length}</AppText>
+            <AppText style={styles.summaryBody}>
+              {activeMedications.length === 0
+                ? "No medications added yet."
+                : activeMedications.length === 1
+                  ? activeMedications[0]?.name ?? "1 medication"
+                  : `${activeMedications.length} medications currently listed`}
+            </AppText>
+          </View>
+
+          <View style={styles.summaryCard}>
+            <AppText style={styles.summaryLabel}>Recent care note</AppText>
+            {recentCareNote ? (
+              <>
+                <AppText style={styles.summaryTitle}>{recentCareNote.title || "Care note"}</AppText>
+                <AppText style={styles.summaryBody}>{getNotePreview(recentCareNote.body, 90)}</AppText>
+                <AppText style={styles.summaryHint}>
+                  Updated {formatShortDateFromIso(recentCareNote.updated_at)}
+                </AppText>
+              </>
+            ) : (
+              <>
+                <AppText style={styles.summaryEmptyTitle}>No care notes yet.</AppText>
+                <AppText style={styles.summaryHint}>Keep questions and reminders here when you need them.</AppText>
+              </>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.quickLinksCard}>
+          <AppText style={styles.sectionTitle}>Quick links</AppText>
           <View style={styles.navButtons}>
             <AppButton label="Go to Today" onPress={() => router.push("/today")} variant="secondary" />
             <AppButton label="Go to Profile" onPress={() => router.push("/profile")} variant="secondary" />
@@ -439,23 +687,31 @@ export default function CareScreen() {
               </View>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Date</AppText>
-                <TextInput
-                  value={date}
-                  onChangeText={setDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#9ca3af"
-                  style={styles.input}
-                />
+                <Pressable
+                  onPress={() => openAppointmentPicker("date")}
+                  style={({ pressed }) => [
+                    styles.selectionField,
+                    pressed && styles.selectionFieldPressed,
+                  ]}
+                >
+                  <AppText style={date ? styles.selectionValue : styles.selectionPlaceholder}>
+                    {formatAppointmentDateInput(date)}
+                  </AppText>
+                </Pressable>
               </View>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Time</AppText>
-                <TextInput
-                  value={time}
-                  onChangeText={setTime}
-                  placeholder="2:30 PM"
-                  placeholderTextColor="#9ca3af"
-                  style={styles.input}
-                />
+                <Pressable
+                  onPress={() => openAppointmentPicker("time")}
+                  style={({ pressed }) => [
+                    styles.selectionField,
+                    pressed && styles.selectionFieldPressed,
+                  ]}
+                >
+                  <AppText style={time ? styles.selectionValue : styles.selectionPlaceholder}>
+                    {formatAppointmentTimeInput(time)}
+                  </AppText>
+                </Pressable>
               </View>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Provider</AppText>
@@ -510,7 +766,7 @@ export default function CareScreen() {
           {upcomingAppointments.length === 0 ? (
             <View style={styles.emptyState}>
               <AppText style={styles.body}>No upcoming appointments yet.</AppText>
-              <AppText style={styles.emptyHint}>Add your next visit so everything is in one place.</AppText>
+              <AppText style={styles.emptyHint}>Add one so it’s easier to stay organized.</AppText>
             </View>
           ) : (
             <View style={styles.list}>
@@ -553,7 +809,10 @@ export default function CareScreen() {
 
           <AppText style={styles.sectionLabel}>Past appointments</AppText>
           {pastAppointments.length === 0 ? (
-            <AppText style={styles.body}>No past appointments yet.</AppText>
+            <View style={styles.emptyState}>
+              <AppText style={styles.body}>No past appointments yet.</AppText>
+              <AppText style={styles.emptyHint}>Completed visits will settle here over time.</AppText>
+            </View>
           ) : (
             <View style={styles.list}>
               {pastAppointments.map((appointment) => (
@@ -631,13 +890,41 @@ export default function CareScreen() {
               </View>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Frequency</AppText>
-                <TextInput
-                  value={medicationFrequency}
-                  onChangeText={setMedicationFrequency}
-                  placeholder="Daily"
-                  placeholderTextColor="#9ca3af"
-                  style={styles.input}
-                />
+                <View style={styles.frequencyOptions}>
+                  {MEDICATION_FREQUENCY_OPTIONS.map((option) => {
+                    const isSelected = selectedMedicationFrequencyOption === option;
+
+                    return (
+                      <Pressable
+                        key={option}
+                        onPress={() => handleMedicationFrequencyOptionPress(option)}
+                        style={({ pressed }) => [
+                          styles.frequencyChip,
+                          isSelected && styles.frequencyChipSelected,
+                          pressed && styles.frequencyChipPressed,
+                        ]}
+                      >
+                        <AppText
+                          style={[
+                            styles.frequencyChipText,
+                            isSelected && styles.frequencyChipTextSelected,
+                          ]}
+                        >
+                          {option}
+                        </AppText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {selectedMedicationFrequencyOption === "Custom" ? (
+                  <TextInput
+                    value={medicationFrequency}
+                    onChangeText={setMedicationFrequency}
+                    placeholder="Describe the schedule"
+                    placeholderTextColor="#9ca3af"
+                    style={styles.input}
+                  />
+                ) : null}
               </View>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Notes</AppText>
@@ -662,13 +949,20 @@ export default function CareScreen() {
 
           {medicationMessage ? <AppText style={styles.successText}>{medicationMessage}</AppText> : null}
 
-          {(medicationsQuery.data ?? []).length === 0 ? (
-            <AppText style={styles.body}>No medications added yet.</AppText>
+          <AppText style={styles.sectionLabel}>Active medications</AppText>
+          {activeMedications.length === 0 ? (
+            <View style={styles.emptyState}>
+              <AppText style={styles.body}>No medications added yet.</AppText>
+              <AppText style={styles.emptyHint}>Keep dosage and frequency here for quick reference.</AppText>
+            </View>
           ) : (
             <View style={styles.list}>
-              {medicationsQuery.data?.map((medication) => (
+              {activeMedications.map((medication) => (
                 <View key={medication.id} style={styles.itemCard}>
-                  <AppText style={styles.itemTitle}>{medication.name}</AppText>
+                  <View style={styles.medicationHeader}>
+                    <AppText style={styles.itemTitle}>{medication.name}</AppText>
+                    <AppText style={[styles.badge, styles.badgeActive]}>Active</AppText>
+                  </View>
                   <AppText style={styles.itemMeta}>
                     {medication.dosage ? `${medication.dosage} · ` : ""}
                     {medication.frequency}
@@ -678,6 +972,38 @@ export default function CareScreen() {
               ))}
             </View>
           )}
+
+          {inactiveMedications.length > 0 ? (
+            <View style={styles.inactiveSection}>
+              <Pressable
+                onPress={() => setShowInactiveMedications((current) => !current)}
+                style={({ pressed }) => [styles.collapseRow, pressed && styles.collapseRowPressed]}
+              >
+                <AppText style={styles.sectionLabel}>Inactive medications</AppText>
+                <AppText style={styles.collapseLabel}>
+                  {showInactiveMedications ? "Hide" : `Show ${inactiveMedications.length}`}
+                </AppText>
+              </Pressable>
+
+              {showInactiveMedications ? (
+                <View style={styles.list}>
+                  {inactiveMedications.map((medication) => (
+                    <View key={medication.id} style={styles.itemCard}>
+                      <View style={styles.medicationHeader}>
+                        <AppText style={styles.itemTitle}>{medication.name}</AppText>
+                        <AppText style={[styles.badge, styles.badgeInactive]}>Inactive</AppText>
+                      </View>
+                      <AppText style={styles.itemMeta}>
+                        {medication.dosage ? `${medication.dosage} · ` : ""}
+                        {medication.frequency}
+                      </AppText>
+                      {medication.notes ? <AppText style={styles.itemNotes}>{medication.notes}</AppText> : null}
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.card}>
@@ -766,7 +1092,7 @@ export default function CareScreen() {
                       {note.category ? <AppText style={styles.categoryChip}>{note.category}</AppText> : null}
                     </View>
                   </View>
-                  <AppText style={styles.itemNotes}>{note.body}</AppText>
+                  <AppText style={styles.itemNotes}>{getNotePreview(note.body, 180)}</AppText>
                   <AppText style={styles.noteMeta}>
                     Updated {new Date(note.updated_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                   </AppText>
@@ -785,6 +1111,36 @@ export default function CareScreen() {
           )}
         </View>
       </ScrollView>
+      <Modal
+        visible={activePicker !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={closeAppointmentPicker}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Pressable onPress={closeAppointmentPicker} style={styles.modalAction}>
+                <AppText style={styles.modalActionText}>Cancel</AppText>
+              </Pressable>
+              <AppText style={styles.modalTitle}>
+                {activePicker === "date" ? "Choose a date" : "Choose a time"}
+              </AppText>
+              <Pressable onPress={confirmAppointmentPicker} style={styles.modalAction}>
+                <AppText style={styles.modalActionText}>Done</AppText>
+              </Pressable>
+            </View>
+            {activePicker ? (
+              <DateTimePicker
+                value={pickerDraftDate}
+                mode={activePicker}
+                display="spinner"
+                onChange={activePicker === "date" ? handleDateChange : handleTimeChange}
+              />
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </AppScreen>
   );
 }
@@ -803,6 +1159,25 @@ const styles = StyleSheet.create({
     borderColor: "#f2d8c4",
     padding: 18,
     gap: 10,
+  },
+  summaryGrid: {
+    gap: 12,
+  },
+  summaryCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f1e1d4",
+    padding: 18,
+    gap: 8,
+  },
+  quickLinksCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f1e1d4",
+    padding: 18,
+    gap: 12,
   },
   card: {
     backgroundColor: "#ffffff",
@@ -826,6 +1201,41 @@ const styles = StyleSheet.create({
   body: {
     color: "#4b5563",
     lineHeight: 22,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  summaryLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    color: "#c25d10",
+  },
+  summaryTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  summaryCount: {
+    fontSize: 30,
+    fontWeight: "700",
+    color: "#1f2937",
+    lineHeight: 38,
+  },
+  summaryBody: {
+    color: "#4b5563",
+    lineHeight: 20,
+  },
+  summaryHint: {
+    color: "#6b7280",
+    lineHeight: 20,
+  },
+  summaryEmptyTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1f2937",
   },
   navButtons: {
     gap: 10,
@@ -867,6 +1277,92 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#1f2937",
   },
+  selectionField: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5d6cb",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+  },
+  selectionFieldPressed: {
+    opacity: 0.88,
+  },
+  selectionValue: {
+    fontSize: 16,
+    color: "#1f2937",
+  },
+  selectionPlaceholder: {
+    fontSize: 16,
+    color: "#9ca3af",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(31, 41, 55, 0.22)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f1e1d4",
+    paddingTop: 12,
+    paddingBottom: 8,
+    overflow: "hidden",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  modalTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  modalAction: {
+    minWidth: 56,
+    paddingVertical: 8,
+  },
+  modalActionText: {
+    color: "#c25d10",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  frequencyOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  frequencyChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#ead8ca",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  frequencyChipSelected: {
+    borderColor: "#e8751a",
+    backgroundColor: "#fff4ec",
+  },
+  frequencyChipPressed: {
+    opacity: 0.88,
+  },
+  frequencyChipText: {
+    color: "#6b7280",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  frequencyChipTextSelected: {
+    color: "#9a4a11",
+  },
   notesInput: {
     minHeight: 96,
     borderRadius: 12,
@@ -901,6 +1397,23 @@ const styles = StyleSheet.create({
   list: {
     gap: 10,
   },
+  inactiveSection: {
+    gap: 10,
+  },
+  collapseRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  collapseRowPressed: {
+    opacity: 0.82,
+  },
+  collapseLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#c25d10",
+  },
   itemCard: {
     backgroundColor: "#fffaf6",
     borderRadius: 16,
@@ -918,6 +1431,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
+    gap: 12,
+  },
+  medicationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 12,
   },
   datePill: {
@@ -957,6 +1476,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#c25d10",
     fontWeight: "600",
+  },
+  badge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    fontSize: 12,
+    fontWeight: "700",
+    overflow: "hidden",
+  },
+  badgeActive: {
+    backgroundColor: "#e8f7ec",
+    color: "#166534",
+  },
+  badgeInactive: {
+    backgroundColor: "#f3f4f6",
+    color: "#4b5563",
   },
   detailText: {
     color: "#4b5563",

@@ -1,6 +1,14 @@
 export type PremiumPlan = "monthly" | "yearly";
 
 export type PremiumStatus = "free" | "active";
+export type PremiumFeatureKey =
+  | "unlimited_ai_coach"
+  | "advanced_ai_insights"
+  | "deep_correlations"
+  | "guided_programs"
+  | "export_reports";
+
+export type PremiumFeatureFlags = Record<PremiumFeatureKey, boolean>;
 
 export type PremiumOfferingPackage = {
   plan: PremiumPlan;
@@ -22,6 +30,7 @@ export type FutureSubscriptionConfig = {
     monthly: string;
     yearly: string;
   };
+  features: PremiumFeatureFlags;
 };
 
 export type PremiumActionResult = {
@@ -31,14 +40,18 @@ export type PremiumActionResult = {
 };
 
 export type PremiumContextValue = {
+  subscriptionsEnabled: boolean;
   status: PremiumStatus;
   hasPremiumAccess: boolean;
+  premiumFeatureFlags: PremiumFeatureFlags;
   currentOffering: PremiumOffering | null;
   isLoading: boolean;
   isPurchasing: boolean;
   isRestoring: boolean;
   offeringsErrorMessage: string | null;
+  debugPremiumOverrideActive: boolean;
   purchasePlan: (plan: PremiumPlan) => Promise<PremiumActionResult>;
   restorePurchases: () => Promise<PremiumActionResult>;
   refreshPremiumStatus: () => Promise<void>;
+  setDebugPremiumOverride: (enabled: boolean) => Promise<void>;
 };

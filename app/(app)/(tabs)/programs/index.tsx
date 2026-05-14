@@ -1,63 +1,108 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import AppButton from "../../../../components/ui/AppButton";
 import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
+import { useAuth } from "../../../../features/auth/hooks";
+import { useCheckInOverview } from "../../../../features/checkins/hooks";
+import { useGrowthState } from "../../../../features/growth/hooks";
 
-type Program = {
+type ToolSection = "Calm" | "Energy" | "Planning" | "Reflection";
+
+type ProgramTool = {
   id: string;
   title: string;
-  description: string;
+  section: ToolSection;
+  whenToUse: string;
   durationLabel: string;
-  durationSeconds: number;
+  durationSeconds?: number;
+  description: string;
   steps: string[];
+  completionMessage: string;
 };
 
-const PROGRAMS: Program[] = [
+const TOOLS: ProgramTool[] = [
   {
-    id: "reset",
-    title: "5-minute reset",
-    description: "A short reset to help you slow things down and steady your energy.",
-    durationLabel: "5 minutes",
-    durationSeconds: 5 * 60,
+    id: "breathing-reset",
+    title: "60-second breathing reset",
+    section: "Calm",
+    whenToUse: "When your body feels tense or your mind feels busy.",
+    durationLabel: "1 minute",
+    durationSeconds: 60,
+    description: "A short breathing cue to help the moment feel a little less intense.",
     steps: [
-      "Sit or stand in a comfortable position.",
-      "Let your shoulders drop and unclench your jaw.",
-      "Take a slow breath in for 4 and out for 6.",
-      "Notice one thing that feels supportive right now.",
-      "Choose one small next step for the rest of your day.",
+      "Let your shoulders soften and place both feet on the floor if you can.",
+      "Breathe in gently for 4.",
+      "Breathe out a little longer for 6.",
+      "Repeat slowly until the timer ends.",
     ],
+    completionMessage: "You took one small step today.",
   },
   {
-    id: "breathing",
-    title: "Breathing exercise",
-    description: "A simple breathing pattern to help create a little more calm.",
+    id: "body-scan",
+    title: "2-minute body scan",
+    section: "Calm",
+    whenToUse: "When you need to check in without pushing yourself.",
+    durationLabel: "2 minutes",
+    durationSeconds: 120,
+    description: "A gentle scan to notice tension, effort, and what your body may need.",
+    steps: [
+      "Notice your jaw, shoulders, hands, and stomach one by one.",
+      "Ask: what feels tight, tired, or tender right now?",
+      "See if one part of your body can soften even 5%.",
+      "End by choosing the gentlest next step for the next hour.",
+    ],
+    completionMessage: "You took one small step today.",
+  },
+  {
+    id: "low-energy-checklist",
+    title: "Low-energy day checklist",
+    section: "Energy",
+    whenToUse: "When fatigue is high and the day needs to feel smaller.",
+    durationLabel: "2 minutes",
+    description: "A quick reminder of what helps on heavier days.",
+    steps: [
+      "Pick only one priority for today.",
+      "Move one non-urgent task out of the way.",
+      "Keep water, snacks, and anything supportive nearby.",
+      "Choose rest before you fully crash, not after.",
+    ],
+    completionMessage: "You took one small step today.",
+  },
+  {
+    id: "one-priority-planner",
+    title: "One-priority planner",
+    section: "Planning",
+    whenToUse: "When everything feels important and you need a clearer next step.",
+    durationLabel: "2 minutes",
+    description: "A small planning reset to make the day feel more manageable.",
+    steps: [
+      "Name the one thing that matters most today.",
+      "Write down one thing that can wait.",
+      "Choose one support action that makes the priority easier.",
+      "Give yourself permission to stop once the main thing is done.",
+    ],
+    completionMessage: "You took one small step today.",
+  },
+  {
+    id: "hard-moment-reflection",
+    title: "Hard moment reflection",
+    section: "Reflection",
+    whenToUse: "When you want to process the day without overthinking it.",
     durationLabel: "3 minutes",
-    durationSeconds: 3 * 60,
+    description: "A short reflection to make a hard moment feel clearer and a little lighter.",
     steps: [
-      "Breathe in gently through your nose for 4.",
-      "Pause for a moment if it feels comfortable.",
-      "Exhale slowly for 6.",
-      "Repeat at a pace that feels easy, not forced.",
-      "When you finish, notice whether your body feels even slightly softer.",
+      "What felt hardest today?",
+      "What helped, even a little?",
+      "What can you let go of before tonight?",
+      "What would make tomorrow 5% easier?",
     ],
-  },
-  {
-    id: "calm",
-    title: "Calm your nervous system",
-    description: "A few grounding steps for days that feel overstimulating or heavy.",
-    durationLabel: "4 minutes",
-    durationSeconds: 4 * 60,
-    steps: [
-      "Place both feet on the floor or notice your body being supported.",
-      "Name 3 things you can see and 2 things you can feel.",
-      "Take one slower exhale than your inhale.",
-      "Relax your hands, forehead, and shoulders.",
-      "Remind yourself: this moment can be taken one step at a time.",
-    ],
+    completionMessage: "You took one small step today.",
   },
 ];
+
+const SECTIONS: ToolSection[] = ["Calm", "Energy", "Planning", "Reflection"];
 
 function formatTime(secondsRemaining: number) {
   const minutes = Math.floor(secondsRemaining / 60);
@@ -67,11 +112,25 @@ function formatTime(secondsRemaining: number) {
 }
 
 export default function ProgramsScreen() {
+  const scrollRef = useRef<ScrollView>(null);
+  const { user } = useAuth();
+  const overviewQuery = useCheckInOverview(user?.id);
+  const growth = useGrowthState({
+    totalCheckIns: overviewQuery.data?.length ?? 0,
+  });
+  const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
   const [activeTimerId, setActiveTimerId] = useState<string | null>(null);
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
+  const [completedToolId, setCompletedToolId] = useState<string | null>(null);
+  const [completedToolIds, setCompletedToolIds] = useState<string[]>([]);
 
-  const activeProgram = useMemo(
-    () => PROGRAMS.find((program) => program.id === activeTimerId) ?? null,
+  const selectedTool = useMemo(
+    () => TOOLS.find((tool) => tool.id === selectedToolId) ?? null,
+    [selectedToolId],
+  );
+
+  const activeTool = useMemo(
+    () => TOOLS.find((tool) => tool.id === activeTimerId) ?? null,
     [activeTimerId],
   );
 
@@ -81,6 +140,10 @@ export default function ProgramsScreen() {
     }
 
     if (secondsRemaining <= 0) {
+      setCompletedToolId(activeTimerId);
+      setCompletedToolIds((current) =>
+        current.includes(activeTimerId) ? current : [...current, activeTimerId],
+      );
       setActiveTimerId(null);
       setSecondsRemaining(null);
       return;
@@ -93,66 +156,179 @@ export default function ProgramsScreen() {
     return () => clearTimeout(timeoutId);
   }, [activeTimerId, secondsRemaining]);
 
-  const startTimer = (program: Program) => {
-    setActiveTimerId(program.id);
-    setSecondsRemaining(program.durationSeconds);
+  useEffect(() => {
+    if (!selectedToolId) {
+      return;
+    }
+
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [selectedToolId]);
+
+  const groupedTools = useMemo(
+    () =>
+      SECTIONS.map((section) => ({
+        section,
+        items: TOOLS.filter((tool) => tool.section === section),
+      })),
+    [],
+  );
+
+  const startTool = (tool: ProgramTool) => {
+    setCompletedToolId(null);
+
+    if (tool.durationSeconds) {
+      setActiveTimerId(tool.id);
+      setSecondsRemaining(tool.durationSeconds);
+    }
   };
 
-  const clearTimer = () => {
+  const completeTool = (tool: ProgramTool) => {
+    setCompletedToolId(tool.id);
+    setCompletedToolIds((current) => (current.includes(tool.id) ? current : [...current, tool.id]));
+    if (activeTimerId === tool.id) {
+      setActiveTimerId(null);
+      setSecondsRemaining(null);
+    }
+
+    void growth.recordEvent("program_completed", {
+      toolId: tool.id,
+    });
+    void growth.maybePromptForReview();
+  };
+
+  const stopTimer = () => {
     setActiveTimerId(null);
     setSecondsRemaining(null);
   };
 
+  const isSelectedToolCompleted = selectedTool ? completedToolIds.includes(selectedTool.id) : false;
+
   return (
     <AppScreen
-      title="Programs"
-      subtitle="Simple guided tools for steadier days, calmer moments, and a little more support."
+      title="Support tools"
+      subtitle="Small exercises for hard moments, low energy days, and daily reset."
     >
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.heroCard}>
+          <AppText style={styles.heroTitle}>A calm library for harder days</AppText>
+          <AppText style={styles.heroBody}>
+            Pick one small tool that matches the moment. You do not need to do everything.
+          </AppText>
+        </View>
+
         <View style={styles.navCard}>
-          <AppText style={styles.cardTitle}>Move between sections</AppText>
+          <AppText style={styles.cardTitle}>Quick links</AppText>
           <View style={styles.navButtons}>
             <AppButton label="Go to Coach" onPress={() => router.push("/coach")} variant="secondary" />
             <AppButton label="Go to Today" onPress={() => router.push("/today")} variant="secondary" />
           </View>
         </View>
 
-        <View style={styles.introCard}>
-          <AppText style={styles.cardTitle}>A few gentle tools</AppText>
-          <AppText style={styles.cardBody}>
-            Pick one that fits your day. These are meant to feel light, supportive, and easy to return to.
-          </AppText>
-        </View>
-
-        {activeProgram && secondsRemaining !== null ? (
+        {activeTool && secondsRemaining !== null ? (
           <View style={styles.timerCard}>
-            <AppText style={styles.timerTitle}>{activeProgram.title}</AppText>
+            <AppText style={styles.timerKicker}>In progress</AppText>
+            <AppText style={styles.timerTitle}>{activeTool.title}</AppText>
             <AppText style={styles.timerValue}>{formatTime(secondsRemaining)}</AppText>
-            <AppText style={styles.timerBody}>Take the next few minutes slowly. There’s no need to rush.</AppText>
-            <AppButton label="Stop timer" onPress={clearTimer} variant="secondary" />
+            <AppText style={styles.timerBody}>
+              Stay with the next gentle step. There is no need to rush this.
+            </AppText>
+            <AppButton label="Stop timer" onPress={stopTimer} variant="secondary" />
           </View>
         ) : null}
 
-        {PROGRAMS.map((program) => (
-          <View key={program.id} style={styles.programCard}>
-            <View style={styles.programHeader}>
-              <View style={styles.programHeaderText}>
-                <AppText style={styles.programTitle}>{program.title}</AppText>
-                <AppText style={styles.programDuration}>{program.durationLabel}</AppText>
+        {selectedTool && completedToolId === selectedTool.id ? (
+          <View style={styles.completionCard}>
+            <AppText style={styles.completionTitle}>You took one small step today.</AppText>
+            <AppText style={styles.completionBody}>
+              Even a short reset can change the feel of a moment.
+            </AppText>
+          </View>
+        ) : null}
+
+        {selectedTool ? (
+          <View style={styles.detailCard}>
+            <View style={styles.detailHeader}>
+              <View style={styles.detailHeaderText}>
+                <AppText style={styles.detailSectionLabel}>{selectedTool.section}</AppText>
+                <AppText style={styles.detailTitle}>{selectedTool.title}</AppText>
               </View>
-              <AppButton label="Start timer" onPress={() => startTimer(program)} variant="secondary" />
+              <Pressable
+                onPress={() => setSelectedToolId(null)}
+                style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed]}
+              >
+                <AppText style={styles.closeButtonText}>Close</AppText>
+              </Pressable>
             </View>
 
-            <AppText style={styles.programDescription}>{program.description}</AppText>
+            <View style={styles.metaRow}>
+              <View style={styles.metaPill}>
+                <AppText style={styles.metaPillText}>{selectedTool.durationLabel}</AppText>
+              </View>
+              <View style={styles.metaPill}>
+                <AppText style={styles.metaPillText}>When to use it</AppText>
+              </View>
+            </View>
+
+            <AppText style={styles.whenToUse}>{selectedTool.whenToUse}</AppText>
+            <AppText style={styles.detailBody}>{selectedTool.description}</AppText>
 
             <View style={styles.stepsList}>
-              {program.steps.map((step, index) => (
-                <View key={step} style={styles.stepRow}>
+              {selectedTool.steps.map((step, index) => (
+                <View key={`${selectedTool.id}-${index}`} style={styles.stepRow}>
                   <View style={styles.stepBadge}>
                     <AppText style={styles.stepBadgeText}>{index + 1}</AppText>
                   </View>
                   <AppText style={styles.stepText}>{step}</AppText>
                 </View>
+              ))}
+            </View>
+
+            <View style={styles.detailActions}>
+              <AppButton
+                label={isSelectedToolCompleted ? "Completed" : selectedTool.durationSeconds ? "Start" : "Mark complete"}
+                onPress={() =>
+                  isSelectedToolCompleted
+                    ? null
+                    : selectedTool.durationSeconds
+                      ? startTool(selectedTool)
+                      : completeTool(selectedTool)
+                }
+                disabled={isSelectedToolCompleted}
+              />
+              <AppButton
+                label={isSelectedToolCompleted ? "Completed" : "Complete"}
+                onPress={() => (isSelectedToolCompleted ? null : completeTool(selectedTool))}
+                variant="secondary"
+                disabled={isSelectedToolCompleted}
+              />
+            </View>
+          </View>
+        ) : null}
+
+        {groupedTools.map(({ section, items }) => (
+          <View key={section} style={styles.section}>
+            <AppText style={styles.sectionTitle}>{section}</AppText>
+            <View style={styles.sectionList}>
+              {items.map((tool) => (
+                <Pressable
+                  key={tool.id}
+                  onPress={() => setSelectedToolId(tool.id)}
+                  style={({ pressed }) => [styles.toolCard, pressed && styles.toolCardPressed]}
+                >
+                  <View style={styles.toolTopRow}>
+                    <AppText style={styles.toolTitle}>{tool.title}</AppText>
+                    <AppText style={styles.toolDuration}>{tool.durationLabel}</AppText>
+                  </View>
+                  <AppText style={styles.toolWhenToUse}>{tool.whenToUse}</AppText>
+                  <AppText style={styles.toolDescription}>{tool.description}</AppText>
+                  <View style={styles.toolFooter}>
+                    <AppText style={styles.toolOpenLabel}>Open tool</AppText>
+                  </View>
+                </Pressable>
               ))}
             </View>
           </View>
@@ -167,7 +343,25 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: 120,
-    gap: 16,
+    gap: 18,
+  },
+  heroCard: {
+    backgroundColor: "#fff4ec",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#f2d8c4",
+    padding: 18,
+    gap: 8,
+  },
+  heroTitle: {
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  heroBody: {
+    color: "#4b5563",
+    lineHeight: 22,
   },
   navCard: {
     backgroundColor: "#ffffff",
@@ -180,21 +374,24 @@ const styles = StyleSheet.create({
   navButtons: {
     gap: 10,
   },
-  introCard: {
-    backgroundColor: "#fff4ec",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#f2d8c4",
-    padding: 18,
-    gap: 8,
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2937",
   },
   timerCard: {
     backgroundColor: "#eef7f3",
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: "#d6e9dd",
     padding: 18,
     gap: 10,
+  },
+  timerKicker: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#166534",
+    textTransform: "uppercase",
   },
   timerTitle: {
     fontSize: 20,
@@ -203,7 +400,7 @@ const styles = StyleSheet.create({
   },
   timerValue: {
     fontSize: 34,
-    lineHeight: 42,
+    lineHeight: 46,
     fontWeight: "800",
     color: "#166534",
   },
@@ -211,45 +408,98 @@ const styles = StyleSheet.create({
     color: "#4b5563",
     lineHeight: 22,
   },
-  programCard: {
-    backgroundColor: "#ffffff",
+  completionCard: {
+    backgroundColor: "#f7fbf7",
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#d7ead7",
+    padding: 16,
+    gap: 6,
+  },
+  completionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#166534",
+  },
+  completionBody: {
+    color: "#3f5f46",
+    lineHeight: 21,
+  },
+  detailCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
+    gap: 14,
+  },
+  detailHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     gap: 12,
   },
-  programHeader: {
-    gap: 12,
-  },
-  programHeaderText: {
+  detailHeaderText: {
+    flex: 1,
     gap: 4,
   },
-  cardTitle: {
-    fontSize: 18,
+  detailSectionLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#c25d10",
+    textTransform: "uppercase",
+  },
+  detailTitle: {
+    fontSize: 24,
+    lineHeight: 32,
     fontWeight: "700",
     color: "#1f2937",
   },
-  cardBody: {
+  closeButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#ead9cb",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  closeButtonPressed: {
+    opacity: 0.82,
+  },
+  closeButtonText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#8b6a4f",
+  },
+  metaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  metaPill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  metaPillText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#8b6a4f",
+  },
+  whenToUse: {
     color: "#4b5563",
     lineHeight: 22,
-  },
-  programTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1f2937",
-  },
-  programDuration: {
-    fontSize: 13,
-    color: "#c25d10",
     fontWeight: "600",
   },
-  programDescription: {
+  detailBody: {
     color: "#4b5563",
     lineHeight: 22,
   },
   stepsList: {
-    gap: 10,
+    gap: 12,
   },
   stepRow: {
     flexDirection: "row",
@@ -274,5 +524,60 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "#374151",
     lineHeight: 21,
+  },
+  detailActions: {
+    gap: 10,
+  },
+  section: {
+    gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  sectionList: {
+    gap: 12,
+  },
+  toolCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f1e1d4",
+    padding: 16,
+    gap: 8,
+  },
+  toolCardPressed: {
+    opacity: 0.84,
+  },
+  toolTopRow: {
+    gap: 4,
+  },
+  toolTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  toolDuration: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#c25d10",
+  },
+  toolWhenToUse: {
+    color: "#4b5563",
+    lineHeight: 21,
+    fontWeight: "600",
+  },
+  toolDescription: {
+    color: "#6b7280",
+    lineHeight: 21,
+  },
+  toolFooter: {
+    paddingTop: 4,
+  },
+  toolOpenLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#c25d10",
   },
 });

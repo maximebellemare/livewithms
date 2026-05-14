@@ -36,3 +36,8 @@ export type DailyCheckInInput = {
   wins?: string[] | null;
   spasticity?: number | null;
 };
+
+export type CheckInOverviewEntry = {
+  date: string;
+  hasReflection: boolean;
+};

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { checkinsApi } from "./api";
-import type { DailyCheckIn, DailyCheckInInput } from "./types";
+import type { CheckInOverviewEntry, DailyCheckIn, DailyCheckInInput } from "./types";
 
 function mergeCheckInIntoHistory(
   existing: DailyCheckIn[] | undefined,
@@ -33,7 +33,7 @@ export function useCheckInByDate(userId?: string, date?: string) {
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchOnReconnect: true,
     refetchOnMount: false,
   });
 }
@@ -57,8 +57,28 @@ export function useCheckInHistory(userId?: string, limit = 30) {
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: true,
+    refetchOnReconnect: true,
+    refetchOnMount: false,
+  });
+}
+
+export function useCheckInOverview(userId?: string) {
+  return useQuery({
+    queryKey: ["daily-checkin-overview", userId],
+    queryFn: () => {
+      if (!userId) {
+        throw new Error("Missing user id for check-in overview query");
+      }
+
+      return checkinsApi.listCheckInOverview(userId);
+    },
+    enabled: !!userId,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    refetchOnMount: false,
   });
 }
 
@@ -98,8 +118,25 @@ export function useSaveDailyCheckIn() {
         (existing) => mergeCheckInIntoHistory(existing, data),
       );
 
+      queryClient.setQueryData<CheckInOverviewEntry[] | undefined>(
+        ["daily-checkin-overview", variables.userId],
+        (existing) => {
+          const nextEntries = (existing ?? []).filter((entry) => entry.date !== data.date);
+          nextEntries.push({
+            date: data.date,
+            hasReflection: typeof data.notes === "string" && data.notes.trim().length > 0,
+          });
+          nextEntries.sort((left, right) => right.date.localeCompare(left.date));
+          return nextEntries;
+        },
+      );
+
       void queryClient.invalidateQueries({
         queryKey: ["daily-checkins", variables.userId],
+        refetchType: "all",
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["daily-checkin-overview", variables.userId],
         refetchType: "all",
       });
     },

@@ -236,6 +236,7 @@ export default function DailyCheckInCard({
               </View>
             </View>
             <AppText style={styles.savedInsight}>{postSaveInsight}</AppText>
+            <AppText style={styles.savedReturnText}>See you tomorrow.</AppText>
             <AppButton label="View Insights" onPress={onViewInsights} variant="secondary" />
           </View>
         ) : null}
@@ -393,6 +394,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     color: "#6b7280",
+  },
+  savedReturnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#4b5563",
   },
   errorText: {
     fontSize: 14,

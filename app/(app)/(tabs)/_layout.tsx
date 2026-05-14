@@ -66,7 +66,12 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="programs/index"
         options={{
-          href: null,
+          title: "Programs",
+          tabBarLabel: "Programs",
+          href: "/programs",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="sparkles-outline" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen

@@ -1,8 +1,9 @@
 import env from "../../lib/env";
+import { normalizeError } from "../../lib/errors";
 import { supabase } from "../../lib/supabase/client";
 import type { Medication, MedicationInput } from "./types";
 
-const SELECT_FIELDS = "id, user_id, name, dosage, schedule_type, notes, created_at";
+const SELECT_FIELDS = "id, user_id, name, dosage, schedule_type, notes, active, created_at, updated_at";
 
 function mapMedicationRow(row: {
   id: string;
@@ -11,7 +12,9 @@ function mapMedicationRow(row: {
   dosage: string | null;
   schedule_type: string;
   notes: string | null;
+  active: boolean;
   created_at: string;
+  updated_at: string;
 }): Medication {
   return {
     id: row.id,
@@ -20,7 +23,9 @@ function mapMedicationRow(row: {
     dosage: row.dosage,
     frequency: row.schedule_type,
     notes: row.notes,
+    active: row.active,
     created_at: row.created_at,
+    updated_at: row.updated_at,
   };
 }
 
@@ -38,11 +43,11 @@ export const medicationsApi = {
       .from("medications")
       .select(SELECT_FIELDS)
       .eq("user_id", userId)
-      .eq("active", true)
+      .order("active", { ascending: false })
       .order("created_at", { ascending: false });
 
     if (error) {
-      throw error;
+      throw normalizeError(error);
     }
 
     return (data ?? []).map((row) =>
@@ -54,7 +59,9 @@ export const medicationsApi = {
           dosage: string | null;
           schedule_type: string;
           notes: string | null;
+          active: boolean;
           created_at: string;
+          updated_at: string;
         },
       ),
     );
@@ -68,7 +75,7 @@ export const medicationsApi = {
     const { data: authData, error: authError } = await supabase.auth.getUser();
 
     if (authError) {
-      throw authError;
+      throw normalizeError(authError);
     }
 
     const currentUser = authData.user;
@@ -108,7 +115,7 @@ export const medicationsApi = {
       .single();
 
     if (error) {
-      throw error;
+      throw normalizeError(error);
     }
 
     return mapMedicationRow(
@@ -119,7 +126,9 @@ export const medicationsApi = {
         dosage: string | null;
         schedule_type: string;
         notes: string | null;
+        active: boolean;
         created_at: string;
+        updated_at: string;
       },
     );
   },

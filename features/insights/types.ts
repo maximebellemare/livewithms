@@ -3,6 +3,12 @@ export type PatternSummary = {
   source: "ai" | "fallback";
 };
 
+export type AiInsightsSummary = {
+  summary: string;
+  helping: string[];
+  source: "ai" | "fallback";
+};
+
 export type TrendDirection = "up" | "down" | "flat";
 
 export type WeeklySummary = {
@@ -36,8 +42,7 @@ export type TrendPoint = {
 export type TrendSummary = {
   key: string;
   label: string;
-  average7: number | null;
-  average30: number | null;
+  averageCurrent: number | null;
   direction: TrendDirection;
   summary: string;
   points: TrendPoint[];
@@ -50,7 +55,13 @@ export type CorrelationSummary = {
   rightLabel: string;
   coefficient: number | null;
   sampleSize: number;
+  show: boolean;
   summary: string;
+};
+
+export type KeyTakeaway = {
+  title: string;
+  body: string;
 };
 
 export type SleepFatigueInsight = {
@@ -106,6 +117,10 @@ export type BestWorstDayInsight = {
 
 export type InsightsDashboard = {
   hasEnoughData: boolean;
+  range: 7 | 30;
+  entryCount: number;
+  subtitle: string;
+  keyTakeaway: KeyTakeaway;
   weeklyProgressOverview: WeeklyProgressOverview;
   weeklySummary: WeeklySummary;
   sleepFatigueInsight: SleepFatigueInsight;

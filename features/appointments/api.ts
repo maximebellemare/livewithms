@@ -1,4 +1,5 @@
 import env from "../../lib/env";
+import { normalizeError } from "../../lib/errors";
 import { supabase } from "../../lib/supabase/client";
 import type { Appointment, AppointmentInput } from "./types";
 
@@ -59,7 +60,7 @@ export const appointmentsApi = {
       .order("appointment_time", { ascending: true });
 
     if (error) {
-      throw error;
+      throw normalizeError(error);
     }
 
     return (data ?? []).map((row) =>
@@ -88,7 +89,7 @@ export const appointmentsApi = {
     const { data: authData, error: authError } = await supabase.auth.getUser();
 
     if (authError) {
-      throw authError;
+      throw normalizeError(authError);
     }
 
     const currentUser = authData.user;
@@ -109,6 +110,7 @@ export const appointmentsApi = {
       provider: input.provider?.trim() || null,
       location: input.location?.trim() || null,
       notes: input.notes?.trim() || null,
+      // Keep legacy columns in sync until generated Supabase types fully match the newer schema.
       date: normalizeDate(input.appointment_date),
       time: input.appointment_time?.trim() || null,
     };
@@ -124,7 +126,7 @@ export const appointmentsApi = {
       .single();
 
     if (error) {
-      throw error;
+      throw normalizeError(error);
     }
 
     return mapAppointmentRow(
@@ -155,7 +157,7 @@ export const appointmentsApi = {
     const { data: authData, error: authError } = await supabase.auth.getUser();
 
     if (authError) {
-      throw authError;
+      throw normalizeError(authError);
     }
 
     const currentUser = authData.user;
@@ -194,7 +196,7 @@ export const appointmentsApi = {
       .single();
 
     if (error) {
-      throw error;
+      throw normalizeError(error);
     }
 
     return mapAppointmentRow(
@@ -225,7 +227,7 @@ export const appointmentsApi = {
     const { data: authData, error: authError } = await supabase.auth.getUser();
 
     if (authError) {
-      throw authError;
+      throw normalizeError(authError);
     }
 
     const currentUser = authData.user;
@@ -245,7 +247,7 @@ export const appointmentsApi = {
       .eq("user_id", currentUser.id);
 
     if (error) {
-      throw error;
+      throw normalizeError(error);
     }
   },
 };

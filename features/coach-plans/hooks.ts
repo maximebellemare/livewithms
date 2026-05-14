@@ -21,6 +21,7 @@ export function useCoachPlan(userId?: string, date?: string) {
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    refetchOnMount: false,
   });
 }
 

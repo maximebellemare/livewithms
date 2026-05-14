@@ -5,7 +5,9 @@ export type Medication = {
   dosage: string | null;
   frequency: string;
   notes: string | null;
+  active: boolean;
   created_at: string;
+  updated_at: string;
 };
 
 export type MedicationInput = {
