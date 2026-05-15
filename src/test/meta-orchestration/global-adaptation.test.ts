@@ -61,4 +61,107 @@ describe("meta orchestration global adaptation", () => {
     expect(typeof result.constitutionalValidation.valid).toBe("boolean");
     expect(result.userRightsFramework.length).toBeGreaterThan(0);
   });
+
+  it("returns stewardship governance signals", () => {
+    const result = orchestrateAdaptiveSystems({
+      adaptiveStatePrimary: "STABLE",
+      burden: "moderate",
+      reflectionCount: 1,
+      hasAiVisible: true,
+      activeSystems: [
+        "ai-trust",
+        "system-coherence",
+        "ethical-governance",
+        "human-centered-ai",
+        "product-constitution",
+        "future-ai-governance",
+      ],
+    });
+
+    expect(result.governancePrinciples.length).toBeGreaterThan(0);
+    expect(typeof result.stewardshipIntegrity.valid).toBe("boolean");
+    expect(result.futureIntegrityRules.length).toBeGreaterThan(0);
+    expect(typeof result.longTermTrust.stable).toBe("boolean");
+  });
+
+  it("returns finalization and maturity signals", () => {
+    const result = orchestrateAdaptiveSystems({
+      adaptiveStatePrimary: "STABLE",
+      burden: "moderate",
+      reflectionCount: 1,
+      hasAiVisible: true,
+      activeSystems: [
+        "ai-trust",
+        "system-coherence",
+        "ethical-governance",
+        "human-centered-ai",
+        "product-constitution",
+        "future-ai-governance",
+        "platform-stewardship",
+      ],
+    });
+
+    expect(typeof result.finalizationIdentity.stable).toBe("boolean");
+    expect(typeof result.featureCompression.needsCompression).toBe("boolean");
+    expect(result.refinementPriorities.length).toBeGreaterThan(0);
+    expect(typeof result.platformMaturity.stable).toBe("boolean");
+    expect(typeof result.longevityIntegrity.valid).toBe("boolean");
+    expect(result.enoughnessBoundaries.length).toBeGreaterThan(0);
+  });
+
+  it("returns final human quality calibration signals", () => {
+    const result = orchestrateAdaptiveSystems({
+      adaptiveStatePrimary: "STABLE",
+      burden: "moderate",
+      reflectionCount: 1,
+      hasAiVisible: true,
+      activeSystems: [
+        "ai-trust",
+        "system-coherence",
+        "ethical-governance",
+        "human-centered-ai",
+        "product-constitution",
+        "future-ai-governance",
+        "platform-stewardship",
+        "platform-finalization",
+      ],
+    });
+
+    expect(result.humanQualityChecks.length).toBeGreaterThan(0);
+    expect(typeof result.calmnessConsistency.valid).toBe("boolean");
+    expect(typeof result.emotionalSharpness.sharp).toBe("boolean");
+    expect(typeof result.subtleFriction.needsReduction).toBe("boolean");
+    expect(typeof result.mentalLightness.calm).toBe("boolean");
+    expect(typeof result.toneConsistency.valid).toBe("boolean");
+    expect(typeof result.edgeCaseSoftening).toBe("string");
+    expect(typeof result.overRefinement.overRefined).toBe("boolean");
+  });
+
+  it("returns perpetual refinement and continuity signals", () => {
+    const result = orchestrateAdaptiveSystems({
+      adaptiveStatePrimary: "STABLE",
+      burden: "moderate",
+      reflectionCount: 1,
+      hasAiVisible: true,
+      activeSystems: [
+        "ai-trust",
+        "system-coherence",
+        "ethical-governance",
+        "human-centered-ai",
+        "product-constitution",
+        "future-ai-governance",
+        "platform-stewardship",
+        "platform-finalization",
+        "human-quality-calibration",
+      ],
+    });
+
+    expect(result.perpetualRefinementPriorities.length).toBeGreaterThan(0);
+    expect(typeof result.innovationNecessity.valid).toBe("boolean");
+    expect(result.accessibilityMaintenance.length).toBeGreaterThan(0);
+    expect(typeof result.escalationPressure.elevated).toBe("boolean");
+    expect(result.humaneObservation.length).toBeGreaterThan(0);
+    expect(typeof result.longTermDependability.stable).toBe("boolean");
+    expect(typeof result.timelessHumanity.valid).toBe("boolean");
+  });
 });

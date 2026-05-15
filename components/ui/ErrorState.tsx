@@ -2,6 +2,9 @@ import { StyleSheet, View } from "react-native";
 import AppButton from "./AppButton";
 import AppText from "./AppText";
 import { colors, radii, shadows } from "./design";
+import { deriveEmotionallySafeErrors } from "../../lib/operational-excellence/calm-error-states/deriveEmotionallySafeErrors";
+import { preventTechnicalOverwhelm } from "../../lib/operational-excellence/calm-error-states/preventTechnicalOverwhelm";
+import { preserveDependableBehavior } from "../../lib/operational-excellence/invisible-reliability/preserveDependableBehavior";
 
 type ErrorStateProps = {
   title?: string;
@@ -14,12 +17,16 @@ export default function ErrorState({
   message,
   onRetry,
 }: ErrorStateProps) {
+  const safeError = deriveEmotionallySafeErrors({ category: "unknown", retryable: Boolean(onRetry) });
+
   return (
     <View style={styles.container}>
       <View style={styles.card}>
         <AppText style={styles.title}>{title}</AppText>
-        <AppText style={styles.message}>{message}</AppText>
-        {onRetry ? <AppButton label="Try again" onPress={onRetry} /> : null}
+        <AppText style={styles.message}>
+          {preserveDependableBehavior(preventTechnicalOverwhelm(message))}
+        </AppText>
+        {onRetry ? <AppButton label={safeError.retryLabel} onPress={onRetry} /> : null}
       </View>
     </View>
   );

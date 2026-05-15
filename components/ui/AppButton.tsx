@@ -1,5 +1,8 @@
 import { Pressable, StyleSheet, Text } from "react-native";
 import { colors, radii, shadows } from "./design";
+import { deriveInteractionSoftness } from "../../lib/humane-micro-moments/calm-interactions/deriveInteractionSoftness";
+import { preventOverfamiliarity } from "../../lib/humane-micro-moments/quiet-warmth/preventOverfamiliarity";
+import { preventDopamineUX } from "../../lib/humane-micro-moments/non-performative-delight/preventDopamineUX";
 
 type AppButtonProps = {
   label: string;
@@ -14,6 +17,7 @@ export default function AppButton({
   disabled = false,
   variant = "primary",
 }: AppButtonProps) {
+  const softness = deriveInteractionSoftness({ emphasis: variant === "secondary" ? "soft" : "standard" });
   return (
     <Pressable
       onPress={onPress}
@@ -21,11 +25,13 @@ export default function AppButton({
       style={({ pressed }) => [
         styles.button,
         variant === "secondary" && styles.buttonSecondary,
-        pressed && !disabled && styles.buttonPressed,
+        pressed && !disabled && [styles.buttonPressed, { opacity: softness.buttonOpacityPressed }],
         disabled && styles.buttonDisabled,
       ]}
     >
-      <Text style={[styles.label, variant === "secondary" && styles.labelSecondary]}>{label}</Text>
+      <Text style={[styles.label, variant === "secondary" && styles.labelSecondary]}>
+        {preventDopamineUX(preventOverfamiliarity(label))}
+      </Text>
     </Pressable>
   );
 }
@@ -47,7 +53,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
   },
   buttonPressed: {
-    opacity: 0.88,
+    opacity: deriveInteractionSoftness({ emphasis: "standard" }).buttonOpacityPressed,
   },
   buttonDisabled: {
     opacity: 0.58,

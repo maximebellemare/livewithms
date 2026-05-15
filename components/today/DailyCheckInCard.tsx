@@ -4,6 +4,13 @@ import AppButton from "../ui/AppButton";
 import type { DailyCheckInInput } from "../../features/checkins/types";
 import AppText from "../ui/AppText";
 import SymptomSliderCard from "./SymptomSliderCard";
+import { deriveEmotionallySafeErrors } from "../../lib/operational-excellence/calm-error-states/deriveEmotionallySafeErrors";
+import { softenSaveMoments } from "../../lib/humane-micro-moments/friction-softening/softenSaveMoments";
+import { deriveGentleRecoveryFlows } from "../../lib/humane-micro-moments/friction-softening/deriveGentleRecoveryFlows";
+import { deriveSubtleHumanWarmth } from "../../lib/humane-micro-moments/quiet-warmth/deriveSubtleHumanWarmth";
+import { preventOverfamiliarity } from "../../lib/humane-micro-moments/quiet-warmth/preventOverfamiliarity";
+import { deriveLowStimulationFeedback } from "../../lib/humane-micro-moments/sensory-refinement/deriveLowStimulationFeedback";
+import { preserveSubtleReliefMoments } from "../../lib/humane-micro-moments/non-performative-delight/preserveSubtleReliefMoments";
 
 const SLEEP_PRESETS = ["5", "6", "7", "8"];
 const WATER_PRESETS = ["4", "6", "8"];
@@ -84,6 +91,8 @@ export default function DailyCheckInCard({
 }: DailyCheckInCardProps) {
   const [showBodySignals, setShowBodySignals] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const saveErrorCopy = deriveEmotionallySafeErrors({ category: "sync", retryable: true });
+  const saveWarmth = deriveSubtleHumanWarmth({ surface: "save" });
   const reduced = compressionMode === "reduced";
   const visibleNoteStarters = NOTE_STARTERS.slice(0, noteStarterLimit);
 
@@ -316,17 +325,27 @@ export default function DailyCheckInCard({
               <View style={styles.successCopy}>
                 <AppText style={styles.successText}>Saved</AppText>
                 <AppText style={styles.successSubtext}>
-                  {reduced ? "That is enough for today" : "Small steps count"}
+                  {softenSaveMoments(reduced ? "That is enough for today" : "Small steps count")}
                 </AppText>
               </View>
             </View>
             <AppText style={styles.savedInsight}>{postSaveInsight}</AppText>
-            <AppText style={styles.savedReturnText}>{saveFooterText ?? "See you tomorrow."}</AppText>
+            <AppText style={styles.savedReturnText}>
+              {preserveSubtleReliefMoments(
+                preventOverfamiliarity(
+                  `${softenSaveMoments(saveFooterText ?? "See you tomorrow.")} ${deriveGentleRecoveryFlows({ state: "saved" })} ${saveWarmth}`.trim(),
+                ),
+              )}
+            </AppText>
             <AppButton label="View Insights" onPress={onViewInsights} variant="secondary" />
           </View>
         ) : null}
         {saveState === "error" ? (
-          <AppText style={styles.errorText}>We couldn’t save your check-in. Please try again.</AppText>
+          <AppText style={styles.errorText}>
+            {preserveSubtleReliefMoments(
+              `${saveErrorCopy.message} ${deriveGentleRecoveryFlows({ state: "error" })}`.trim(),
+            )}
+          </AppText>
         ) : null}
       </View>
     </View>

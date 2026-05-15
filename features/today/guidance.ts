@@ -115,6 +115,17 @@ import { deriveInterventionLimits } from "../../lib/preventive-safety/escalation
 import { validateNonClinicalBehavior } from "../../lib/preventive-safety/escalation-boundaries/validateNonClinicalBehavior";
 import { preserveCalmSafetyTone } from "../../lib/preventive-safety/dignity-preserving-safety/preserveCalmSafetyTone";
 import { preventAlarmistUX } from "../../lib/preventive-safety/dignity-preserving-safety/preventAlarmistUX";
+import { deriveFailureSoftening } from "../../lib/operational-excellence/graceful-failures/deriveFailureSoftening";
+import { preserveEmotionalContinuity } from "../../lib/operational-excellence/graceful-failures/preserveEmotionalContinuity";
+import { deriveOfflineSupport } from "../../lib/operational-excellence/offline-continuity/deriveOfflineSupport";
+import { preserveLowConnectionUsability } from "../../lib/operational-excellence/offline-continuity/preserveLowConnectionUsability";
+import { preventTechnicalOverwhelm } from "../../lib/operational-excellence/calm-error-states/preventTechnicalOverwhelm";
+import { deriveQuietSyncConfidence } from "../../lib/operational-excellence/sync-trust/deriveQuietSyncConfidence";
+import { preventSyncAnxiety } from "../../lib/operational-excellence/sync-trust/preventSyncAnxiety";
+import { deriveBatteryAwareBehavior } from "../../lib/operational-excellence/low-resource-adaptation/deriveBatteryAwareBehavior";
+import { deriveLowResourceSimplification } from "../../lib/operational-excellence/low-resource-adaptation/deriveLowResourceSimplification";
+import { deriveOperationalCalmness } from "../../lib/operational-excellence/invisible-reliability/deriveOperationalCalmness";
+import { preserveDependableBehavior } from "../../lib/operational-excellence/invisible-reliability/preserveDependableBehavior";
 
 export type TodayGuidanceAction = {
   label: string;
@@ -755,6 +766,60 @@ function applyPreventiveSafety(
   };
 }
 
+function applyOperationalExcellence(
+  guidance: TodayGuidance,
+  todayEntry: DailyCheckIn | null,
+  adaptiveProfile: AdaptiveProfile | null,
+): TodayGuidance {
+  const resourcePressure =
+    adaptiveProfile?.lowEnergyMode || (todayEntry?.fatigue ?? 0) >= 4 || (todayEntry?.stress ?? 0) >= 4
+      ? "constrained"
+      : "normal";
+  const batteryAware = deriveBatteryAwareBehavior({
+    batteryState: resourcePressure === "constrained" ? "low" : "normal",
+    resourcePressure,
+  });
+  const reliabilityAddon = [
+    deriveOperationalCalmness({
+      hasFailure: resourcePressure === "constrained",
+      isOfflineLike: false,
+      hasPendingSync: false,
+    }),
+    deriveQuietSyncConfidence({
+      hasPendingSync: false,
+      isOfflineLike: false,
+    }),
+    deriveOfflineSupport({
+      isOfflineLike: false,
+      hasCachedContent: true,
+    }),
+    resourcePressure === "constrained"
+      ? deriveLowResourceSimplification({ resourcePressure })
+      : batteryAware.note,
+    deriveFailureSoftening({
+      category: resourcePressure === "constrained" ? "network" : "unknown",
+      retryable: true,
+    }).message,
+  ]
+    .filter(Boolean)
+    .slice(0, resourcePressure === "constrained" ? 2 : 1)
+    .join(" ");
+
+  return {
+    ...guidance,
+    body: preserveDependableBehavior(
+      preventSyncAnxiety(
+        preserveLowConnectionUsability(
+          preserveEmotionalContinuity(
+            preventTechnicalOverwhelm(`${guidance.body} ${reliabilityAddon}`.trim()),
+          ),
+        ),
+      ),
+    ),
+    actions: guidance.actions.slice(0, resourcePressure === "constrained" ? 1 : guidance.actions.length),
+  };
+}
+
 function finalizeGuidance(
   guidance: TodayGuidance,
   todayEntry: DailyCheckIn | null,
@@ -762,14 +827,18 @@ function finalizeGuidance(
   memory: PersonalizationMemory | null,
 ) {
   return applyPreventiveSafety(
-    applyEcosystemIntelligence(
-      applyGlobalAccessibility(
-        applyPersonalizationIntelligence(
-          applyCrossPlatformContinuity(
-            applyAmbientSupport(
-              applyAudioSupport(
-                applyCognitiveSupport(
-                  applyLearningSupport(guidance, todayEntry, adaptiveProfile),
+    applyOperationalExcellence(
+      applyEcosystemIntelligence(
+        applyGlobalAccessibility(
+          applyPersonalizationIntelligence(
+            applyCrossPlatformContinuity(
+              applyAmbientSupport(
+                applyAudioSupport(
+                  applyCognitiveSupport(
+                    applyLearningSupport(guidance, todayEntry, adaptiveProfile),
+                    todayEntry,
+                    adaptiveProfile,
+                  ),
                   todayEntry,
                   adaptiveProfile,
                 ),
@@ -779,15 +848,15 @@ function finalizeGuidance(
               todayEntry,
               adaptiveProfile,
             ),
-            todayEntry,
             adaptiveProfile,
+            memory,
           ),
+          todayEntry,
           adaptiveProfile,
           memory,
         ),
         todayEntry,
         adaptiveProfile,
-        memory,
       ),
       todayEntry,
       adaptiveProfile,

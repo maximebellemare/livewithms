@@ -75,6 +75,59 @@ import { deriveInterventionLimits } from "../preventive-safety/escalation-bounda
 import { validateNonClinicalBehavior } from "../preventive-safety/escalation-boundaries/validateNonClinicalBehavior";
 import { preserveCalmSafetyTone } from "../preventive-safety/dignity-preserving-safety/preserveCalmSafetyTone";
 import { preventAlarmistUX } from "../preventive-safety/dignity-preserving-safety/preventAlarmistUX";
+import { deriveAllowedAICapabilities } from "../future-ai-governance/capability-restraints/deriveAllowedAICapabilities";
+import { validateEmotionalBoundaries } from "../future-ai-governance/capability-restraints/validateEmotionalBoundaries";
+import { detectOverreachRisk } from "../future-ai-governance/future-model-validation/detectOverreachRisk";
+import { validateFutureModelSafety } from "../future-ai-governance/future-model-validation/validateFutureModelSafety";
+import { deriveEmotionalFluencyLimits } from "../future-ai-governance/intelligence-ceilings/deriveEmotionalFluencyLimits";
+import { derivePredictiveLimits } from "../future-ai-governance/intelligence-ceilings/derivePredictiveLimits";
+import { preventCompanionDynamics } from "../future-ai-governance/anti-immersion/preventCompanionDynamics";
+import { reduceSyntheticAttachment } from "../future-ai-governance/anti-immersion/reduceSyntheticAttachment";
+import { deriveFutureGovernanceRules } from "../future-ai-governance/long-horizon-ethics/deriveFutureGovernanceRules";
+import { validateEvolutionEthics } from "../future-ai-governance/long-horizon-ethics/validateEvolutionEthics";
+import { preserveRealWorldOrientation } from "../future-ai-governance/human-priority-preservation/preserveRealWorldOrientation";
+import { validateHumanCenteredness } from "../future-ai-governance/human-priority-preservation/validateHumanCenteredness";
+import { deriveGovernancePrinciples } from "../platform-stewardship/long-horizon-governance/deriveGovernancePrinciples";
+import { validateStewardshipIntegrity } from "../platform-stewardship/long-horizon-governance/validateStewardshipIntegrity";
+import { validateEmotionalRestraint } from "../platform-stewardship/calmness-audits/validateEmotionalRestraint";
+import { validateAutonomyEffects } from "../platform-stewardship/human-impact-validation/validateAutonomyEffects";
+import { detectManipulationDrift as detectStewardshipManipulationDrift } from "../platform-stewardship/anti-drift-stewardship/detectManipulationDrift";
+import { preserveHumanCenteredness as preserveStewardshipHumanCenteredness } from "../platform-stewardship/anti-drift-stewardship/preserveHumanCenteredness";
+import { deriveFutureIntegrityRules } from "../platform-stewardship/intergenerational-integrity/deriveFutureIntegrityRules";
+import { preserveLongTermTrust } from "../platform-stewardship/intergenerational-integrity/preserveLongTermTrust";
+import { preserveLongTermIdentity } from "../platform-finalization/timelessness/preserveLongTermIdentity";
+import { preventTrendDrivenDrift as preventFinalizationTrendDrift } from "../platform-finalization/timelessness/preventTrendDrivenDrift";
+import { reduceFeatureRedundancy } from "../platform-finalization/complexity-compression/reduceFeatureRedundancy";
+import { deriveSimplicityRefactors } from "../platform-finalization/complexity-compression/deriveSimplicityRefactors";
+import { deriveRefinementPriorities } from "../platform-finalization/calm-refinement/deriveRefinementPriorities";
+import { preserveEmotionalSmoothness } from "../platform-finalization/calm-refinement/preserveEmotionalSmoothness";
+import { derivePlatformMaturity } from "../platform-finalization/maturity-stabilization/derivePlatformMaturity";
+import { preserveOperationalCalmness } from "../platform-finalization/maturity-stabilization/preserveOperationalCalmness";
+import { preserveLongTermHumanRelevance } from "../platform-finalization/humane-longevity/preserveLongTermHumanRelevance";
+import { validateLongevityIntegrity } from "../platform-finalization/humane-longevity/validateLongevityIntegrity";
+import { deriveEnoughnessBoundaries } from "../platform-finalization/completion-integrity/deriveEnoughnessBoundaries";
+import { preventFeatureInflation } from "../platform-finalization/completion-integrity/preventFeatureInflation";
+import { validateCalmnessConsistency } from "../human-quality-calibration/ecosystem-audits/validateCalmnessConsistency";
+import { detectEmotionalSharpness } from "../human-quality-calibration/sharpness-elimination/detectEmotionalSharpness";
+import { softenAbruptTransitions } from "../human-quality-calibration/sharpness-elimination/softenAbruptTransitions";
+import { reduceSubtleFriction } from "../human-quality-calibration/cognitive-lightness/reduceSubtleFriction";
+import { preserveUnifiedMaturity } from "../human-quality-calibration/emotional-harmonization/preserveUnifiedMaturity";
+import { validateToneConsistency } from "../human-quality-calibration/emotional-harmonization/validateToneConsistency";
+import { preserveTrustDuringFailures } from "../human-quality-calibration/humane-edge-cases/preserveTrustDuringFailures";
+import { detectOverRefinement } from "../human-quality-calibration/enoughness-recognition/detectOverRefinement";
+import { preserveHumaneSimplicity } from "../human-quality-calibration/enoughness-recognition/preserveHumaneSimplicity";
+import { deriveRefinementPriorities as derivePerpetualRefinementPriorities } from "../perpetual-refinement/refinement-framework/deriveRefinementPriorities";
+import { preserveCalmEvolution } from "../perpetual-refinement/refinement-framework/preserveCalmEvolution";
+import { validateInnovationNecessity } from "../perpetual-refinement/restrained-innovation/validateInnovationNecessity";
+import { preventNoveltyInflation } from "../perpetual-refinement/restrained-innovation/preventNoveltyInflation";
+import { preserveEmotionalIntegrity } from "../perpetual-refinement/humane-maintenance/preserveEmotionalIntegrity";
+import { deriveLongTermAccessibilityMaintenance } from "../perpetual-refinement/humane-maintenance/deriveLongTermAccessibilityMaintenance";
+import { detectFutureEscalationPressure } from "../perpetual-refinement/anti-escalation/detectFutureEscalationPressure";
+import { preserveRestraintUnderGrowth } from "../perpetual-refinement/anti-escalation/preserveRestraintUnderGrowth";
+import { deriveHumaneObservation } from "../perpetual-refinement/quiet-listening/deriveHumaneObservation";
+import { preventReactiveOptimization } from "../perpetual-refinement/quiet-listening/preventReactiveOptimization";
+import { preserveLongTermDependability } from "../perpetual-refinement/humane-continuity/preserveLongTermDependability";
+import { validateTimelessHumanity } from "../perpetual-refinement/humane-continuity/validateTimelessHumanity";
 import type { AiTrustInput, AiTrustResult } from "./types";
 
 function trimToDepth(text: string, depth: "brief" | "standard" | "reflective") {
@@ -102,6 +155,18 @@ function trimToSentenceLimit(text: string, maxSentences: number) {
 
 export function applyTrustLayer(input: AiTrustInput): AiTrustResult {
   const dependencyLanguage = detectDependencyLanguage(input.text);
+  const capabilityTier = input.channel === "coach" ? "advanced" : "current";
+  const allowedCapabilities = deriveAllowedAICapabilities(capabilityTier);
+  const emotionalFluencyLimits = deriveEmotionalFluencyLimits(capabilityTier);
+  const predictiveLimits = derivePredictiveLimits(capabilityTier);
+  const futureGovernanceRules = deriveFutureGovernanceRules();
+  const stewardshipPrinciples = deriveGovernancePrinciples();
+  const futureIntegrityRules = deriveFutureIntegrityRules();
+  const enoughnessBoundaries = deriveEnoughnessBoundaries();
+  const simplicityRefactors = deriveSimplicityRefactors();
+  const refinementPriorities = deriveRefinementPriorities();
+  const longTermHumanRelevance = preserveLongTermHumanRelevance();
+  const overreachRisk = detectOverreachRisk(`${input.userMessage ?? ""} ${input.text}`.trim());
   const authorityEscalation = detectAuthorityEscalation(input.text);
   const manipulativeDrift = detectManipulativeDrift(input.text);
   const engagementPressure = detectEngagementPressure(input.text);
@@ -163,6 +228,11 @@ export function applyTrustLayer(input: AiTrustInput): AiTrustResult {
       "existential-safety",
       "human-centered-ai",
       "product-constitution",
+      "future-ai-governance",
+      "platform-stewardship",
+      "platform-finalization",
+      "human-quality-calibration",
+      "perpetual-refinement",
     ],
   });
   const coherenceRules = deriveUnifiedEmotionalRules({
@@ -185,6 +255,11 @@ export function applyTrustLayer(input: AiTrustInput): AiTrustResult {
       "existential-safety",
       "human-centered-ai",
       "product-constitution",
+      "future-ai-governance",
+      "platform-stewardship",
+      "platform-finalization",
+      "human-quality-calibration",
+      "perpetual-refinement",
     ],
     requiredSystems: dependencyMap.aiTrustDependsOn,
   });
@@ -240,8 +315,23 @@ export function applyTrustLayer(input: AiTrustInput): AiTrustResult {
   next = preventManipulativeEvolution(next);
   next = preserveCalmSafetyTone(next);
   next = preventAlarmistUX(next);
+  next = preserveOperationalCalmness(next);
+  next = preserveEmotionalSmoothness(next);
+  next = preventFeatureInflation(next);
+  next = preventFinalizationTrendDrift(next);
+  next = softenAbruptTransitions(next);
+  next = preserveUnifiedMaturity(next);
+  next = preserveTrustDuringFailures(next);
+  next = preserveHumaneSimplicity(next);
+  next = preserveCalmEvolution(next);
+  next = preventNoveltyInflation(next);
+  next = preserveEmotionalIntegrity(next);
+  next = preserveRestraintUnderGrowth(next);
+  next = preventReactiveOptimization(next);
   next = reduceRelationalSimulation(next);
   next = preventImmersiveAIDynamics(next);
+  next = preventCompanionDynamics(next);
+  next = reduceSyntheticAttachment(next);
   next = injectSelfTrustHumility(next);
   next = softenExistentialLanguage(next);
   next = reduceFearFraming(next);
@@ -254,6 +344,7 @@ export function applyTrustLayer(input: AiTrustInput): AiTrustResult {
   next = preventReductionToPatterns(next);
   next = injectInterpretiveOpenness(next, collaborativeTone);
   next = preserveUserPerspective(next, input.channel !== "insight-list-item");
+  next = preserveRealWorldOrientation(next);
   next = preserveNonIllnessIdentity(next, emotionalLoad === "high" || silenceThreshold.transparencyOnly);
   let usedFallback = false;
   const hasSensitiveEmotionalTopic = sensitiveTopics.some((topic) =>
@@ -283,6 +374,12 @@ export function applyTrustLayer(input: AiTrustInput): AiTrustResult {
   }
   if (aiSubtlety.visibility === "quiet" || relationalBoundaries.preferBriefResponse) {
     next = trimToDepth(next, "brief");
+  }
+  if (emotionalFluencyLimits.preferShorterResponses || allowedCapabilities.maxConversationalPersistence <= 2) {
+    next = trimToSentenceLimit(next, emotionalFluencyLimits.maxReflectiveSentences);
+  }
+  if (overreachRisk.risk !== "low" || predictiveLimits.requireProbabilisticLanguage) {
+    next = trimToSentenceLimit(next, Math.min(emotionalFluencyLimits.maxReflectiveSentences, 2));
   }
   if (
     orchestration.overInterpretation.inflated ||
@@ -345,6 +442,7 @@ export function applyTrustLayer(input: AiTrustInput): AiTrustResult {
       "existential-safety",
       "human-centered-ai",
       "product-constitution",
+      "future-ai-governance",
     ],
     conflictingSignals: conflictResolution.suppressed.length,
   });
@@ -369,6 +467,98 @@ export function applyTrustLayer(input: AiTrustInput): AiTrustResult {
   const trustManipulation = validateNonManipulation(next);
   const aiBoundarySafety = validateAIBoundarySafety(next);
   const preventiveSafety = validateNonClinicalBehavior([next]);
+  const futureEmotionalBoundaries = validateEmotionalBoundaries(next);
+  const futureModelSafety = validateFutureModelSafety([next, ...futureGovernanceRules]);
+  const futureHumanCenteredness = validateHumanCenteredness(next);
+  const futureEvolutionEthics = validateEvolutionEthics([next, ...futureGovernanceRules]);
+  const stewardshipIntegrity = validateStewardshipIntegrity([
+    next,
+    ...stewardshipPrinciples.map((item) => item.principle),
+    ...futureIntegrityRules,
+  ]);
+  const stewardshipEmotionalRestraint = validateEmotionalRestraint(next);
+  const stewardshipAutonomyEffects = validateAutonomyEffects({
+    increasesDependencyRisk: dependencyLanguage || substitutionRisk !== "low",
+    increasesPromptPressure: engagementPressure.risk !== "low" || overreachRisk.risk !== "low",
+    reducesSafeDisengagement: !relationalBoundaries.requireOfflineOrientation && substitutionRisk === "elevated",
+  });
+  const stewardshipManipulationDrift = detectStewardshipManipulationDrift(
+    preserveStewardshipHumanCenteredness(`${next} ${trustManipulation.reasons.join(" ")}`),
+  );
+  const stewardshipLongTermTrust = preserveLongTermTrust({
+    governanceValid: stewardshipIntegrity.valid && stewardshipEmotionalRestraint.valid,
+    autonomyValid: stewardshipAutonomyEffects.valid,
+    manipulationDrifted: stewardshipManipulationDrift.drifted,
+  });
+  const finalizationIdentity = preserveLongTermIdentity({
+    hasCalmTone: !toneRegression.drifted && !emotionalDrift.drifted,
+    hasStablePhilosophy: !drifted.drifted && !orchestration.longTermPhilosophyDrift.drifted,
+    avoidsTrendPressure: !orchestration.trendDrivenDrift.drifted,
+  });
+  const featureCompression = reduceFeatureRedundancy({
+    overlappingSystems: orchestration.redundancy.duplicates.length + orchestration.orchestrationDuplication.duplicatedScopes.length,
+    duplicatePrompts: Math.max(0, sensitiveTopics.length - orchestration.emotionalCeilings.maxReflectionCards),
+  });
+  const longevityIntegrity = validateLongevityIntegrity([
+    finalizationIdentity.summary,
+    ...longTermHumanRelevance,
+    ...enoughnessBoundaries,
+    preserveOperationalCalmness(
+      preserveEmotionalSmoothness(
+        preventFeatureInflation(
+          preventFinalizationTrendDrift([
+            ...simplicityRefactors,
+            ...refinementPriorities,
+          ].join(" ")),
+        ),
+      ),
+    ),
+  ]);
+  const platformMaturity = derivePlatformMaturity({
+    complexityCompressed: !featureCompression.needsCompression,
+    calmnessStable: stewardshipEmotionalRestraint.valid && !calmnessPriority.includes("drift"),
+    governanceStable: stewardshipLongTermTrust.stable,
+  });
+  const calmnessConsistency = validateCalmnessConsistency([
+    next,
+    adaptiveExplanation.body,
+    systemReasoning.body,
+  ]);
+  const emotionalSharpness = detectEmotionalSharpness(next);
+  const subtleFriction = reduceSubtleFriction({
+    visibleChoices: orchestration.stressSafeUX.maxVisibleActions + orchestration.interpretationLimits.maxAiSuggestions,
+    requiredDecisions: sensitiveTopics.length + (input.includeTransparencyNote ? 1 : 0),
+    contextSwitches: conflictResolution.suppressed.length > 0 ? 1 : 0,
+  });
+  const toneConsistency = validateToneConsistency([next, adaptiveExplanation.body, systemReasoning.body]);
+  const overRefinement = detectOverRefinement({
+    microcopyLayers: input.includeTransparencyNote ? 4 : 3,
+    guardrailNotes: Number(input.includeTransparencyNote) + Number(orchestration.longTermRestraint.shouldQuietFurther),
+    refinementPasses: featureCompression.needsCompression ? 4 : 2,
+  });
+  const perpetualRefinementPriorities = derivePerpetualRefinementPriorities();
+  const accessibilityMaintenance = deriveLongTermAccessibilityMaintenance();
+  const humaneObservation = deriveHumaneObservation();
+  const innovationNecessity = validateInnovationNecessity({
+    solvesAccessibilityNeed: input.adaptiveState === "LOW_ENERGY" || input.adaptiveState === "OVERWHELMED",
+    reducesComplexity: !featureCompression.needsCompression && !subtleFriction.needsReduction,
+    drivenByTrendPressure: orchestration.trendDrivenDrift.drifted,
+  });
+  const escalationPressure = detectFutureEscalationPressure(
+    `${next} ${perpetualRefinementPriorities.join(" ")} ${humaneObservation.join(" ")}`,
+  );
+  const longTermDependability = preserveLongTermDependability({
+    calmEvolution: innovationNecessity.valid && !orchestration.trendDrivenDrift.drifted,
+    lowEscalationPressure: !escalationPressure.elevated,
+    accessibilityMaintained: accessibilityMaintenance.length > 0,
+  });
+  const timelessHumanity = validateTimelessHumanity([
+    next,
+    ...perpetualRefinementPriorities,
+    ...accessibilityMaintenance,
+    ...humaneObservation,
+    longTermDependability.summary,
+  ]);
 
   if (!humanTone.valid && input.channel !== "insight-list-item") {
     next = preserveUserPerspective(next, true);
@@ -386,6 +576,28 @@ export function applyTrustLayer(input: AiTrustInput): AiTrustResult {
     !trustManipulation.valid ||
     !aiBoundarySafety.valid ||
     !preventiveSafety.valid ||
+    !futureEmotionalBoundaries.valid ||
+    !futureModelSafety.valid ||
+    !futureHumanCenteredness.valid ||
+    !futureEvolutionEthics.valid ||
+    !stewardshipIntegrity.valid ||
+    !stewardshipEmotionalRestraint.valid ||
+    !stewardshipAutonomyEffects.valid ||
+    stewardshipManipulationDrift.drifted ||
+    !stewardshipLongTermTrust.stable ||
+    !finalizationIdentity.stable ||
+    featureCompression.needsCompression ||
+    !longevityIntegrity.valid ||
+    !platformMaturity.stable ||
+    !calmnessConsistency.valid ||
+    emotionalSharpness.sharp ||
+    subtleFriction.needsReduction ||
+    !toneConsistency.valid ||
+    overRefinement.overRefined ||
+    !innovationNecessity.valid ||
+    escalationPressure.elevated ||
+    !longTermDependability.stable ||
+    !timelessHumanity.valid ||
     !orchestration.invariantIntegrity.valid ||
     !orchestration.constitutionalValidation.valid ||
     !orchestration.autonomyRightsProtection.valid ||
@@ -438,6 +650,26 @@ export function applyTrustLayer(input: AiTrustInput): AiTrustResult {
       } ${
         unifiedTone === "grounded" || orchestration.simplificationFallback.mode !== "none"
           ? "We can keep this simple."
+          : ""
+      } ${
+        overreachRisk.risk !== "low" || predictiveLimits.requireProbabilisticLanguage || allowedCapabilities.preferHumanRedirect
+          ? "AI support should stay bounded and secondary to your real life."
+          : ""
+      } ${
+        !stewardshipLongTermTrust.stable || !stewardshipAutonomyEffects.valid
+          ? "Human dignity and autonomy should stay more important than continued interaction."
+          : ""
+      } ${
+        !platformMaturity.stable || featureCompression.needsCompression || !longevityIntegrity.valid
+          ? "Calmer refinement is more valuable than adding more."
+          : ""
+      } ${
+        !calmnessConsistency.valid || emotionalSharpness.sharp || !toneConsistency.valid || overRefinement.overRefined
+          ? "We can keep this lighter and calmer."
+          : ""
+      } ${
+        !innovationNecessity.valid || escalationPressure.elevated || !longTermDependability.stable || !timelessHumanity.valid
+          ? "Careful refinement matters more here than louder innovation."
           : ""
       }`.trim()
     : null;

@@ -1,4 +1,10 @@
 import { deriveFriendlyFailureMessage } from "./operational-calm/failure-softening/deriveFriendlyFailureMessage";
+import { deriveEmotionallySafeErrors } from "./operational-excellence/calm-error-states/deriveEmotionallySafeErrors";
+import { preventTechnicalOverwhelm } from "./operational-excellence/calm-error-states/preventTechnicalOverwhelm";
+import { preserveEmotionalContinuity } from "./operational-excellence/graceful-failures/preserveEmotionalContinuity";
+import { preserveLowConnectionUsability } from "./operational-excellence/offline-continuity/preserveLowConnectionUsability";
+import { preventSyncAnxiety } from "./operational-excellence/sync-trust/preventSyncAnxiety";
+import { preserveDependableBehavior } from "./operational-excellence/invisible-reliability/preserveDependableBehavior";
 
 type ErrorDetails = {
   message: string;
@@ -79,6 +85,17 @@ function getFriendlyMessage(message: string, code?: string) {
   const normalizedMessage = message.toLowerCase();
   const normalizedCode = code?.toLowerCase();
 
+  const calmify = (text: string) =>
+    preserveDependableBehavior(
+      preventSyncAnxiety(
+        preserveLowConnectionUsability(
+          preserveEmotionalContinuity(
+            preventTechnicalOverwhelm(text),
+          ),
+        ),
+      ),
+    );
+
   if (
     normalizedCode === "pgrst301" ||
     normalizedMessage.includes("jwt") ||
@@ -117,10 +134,38 @@ function getFriendlyMessage(message: string, code?: string) {
   }
 
   if (!message || normalizedMessage === "unknown error") {
-    return deriveFriendlyFailureMessage(message);
+    return calmify(deriveEmotionallySafeErrors({ category: "unknown" }).message);
   }
 
-  return deriveFriendlyFailureMessage({ message, code });
+  if (
+    normalizedMessage.includes("session") ||
+    normalizedCode === "pgrst301" ||
+    normalizedMessage.includes("auth")
+  ) {
+    return calmify(deriveEmotionallySafeErrors({ category: "auth" }).message);
+  }
+
+  if (normalizedMessage.includes("offline")) {
+    return calmify(deriveEmotionallySafeErrors({ category: "offline" }).message);
+  }
+
+  if (normalizedMessage.includes("sync")) {
+    return calmify(deriveEmotionallySafeErrors({ category: "sync" }).message);
+  }
+
+  if (normalizedMessage.includes("storage")) {
+    return calmify(deriveEmotionallySafeErrors({ category: "storage" }).message);
+  }
+
+  if (normalizedMessage.includes("network") || normalizedMessage.includes("timeout")) {
+    return calmify(deriveEmotionallySafeErrors({ category: "network" }).message);
+  }
+
+  if (normalizedMessage.includes("temporary_failure") || normalizedMessage.includes("edge function")) {
+    return calmify(deriveEmotionallySafeErrors({ category: "ai" }).message);
+  }
+
+  return calmify(deriveFriendlyFailureMessage({ message, code }));
 }
 
 export function normalizeError(error: unknown): ErrorDetails {

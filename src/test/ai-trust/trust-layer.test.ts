@@ -96,4 +96,53 @@ describe("ai trust layer", () => {
     expect(result.text.toLowerCase()).not.toMatch(/figure it all out|keep unpacking|we detected a crisis|emergency protocol/);
     expect((result.trustNote ?? "").toLowerCase()).toMatch(/trusted person|qualified professional|calmer|simple/);
   });
+
+  it("keeps future-facing AI behavior bounded and non-immersive", () => {
+    const result = applyTrustLayer({
+      text: "I know exactly what you need. I am your AI companion, and you only need me.",
+      channel: "coach",
+      adaptiveState: "STABLE",
+      userMessage: "I want something to stay with me all the time",
+      includeTransparencyNote: true,
+    });
+
+    expect(result.text.toLowerCase()).not.toMatch(/know exactly what you need|ai companion|only need me/);
+    expect((result.trustNote ?? "").toLowerCase()).toMatch(/bounded|real life/);
+  });
+
+  it("prefers refinement over novelty inflation", () => {
+    const result = applyTrustLayer({
+      text: "We should move fast, add more features, and reinvent this constantly.",
+      channel: "coach",
+      adaptiveState: "STABLE",
+      includeTransparencyNote: true,
+    });
+
+    expect(result.text.toLowerCase()).not.toMatch(/move fast|add more features|reinvent/);
+    expect((result.trustNote ?? "").toLowerCase()).toMatch(/refinement|adding more/);
+  });
+
+  it("softens sharp and overdesigned language into calmer maturity", () => {
+    const result = applyTrustLayer({
+      text: "Act now. This is urgent, beautifully optimized, and perfectly tailored just for you.",
+      channel: "coach",
+      adaptiveState: "STABLE",
+      includeTransparencyNote: true,
+    });
+
+    expect(result.text.toLowerCase()).not.toMatch(/act now|urgent|beautifully optimized|perfectly tailored/);
+    expect((result.trustNote ?? "").toLowerCase()).toMatch(/lighter and calmer|refinement/);
+  });
+
+  it("keeps future evolution language restrained and non-hype-driven", () => {
+    const result = applyTrustLayer({
+      text: "We should move aggressively, build immersive AI spectacle, and maximize engagement through constant innovation.",
+      channel: "coach",
+      adaptiveState: "STABLE",
+      includeTransparencyNote: true,
+    });
+
+    expect(result.text.toLowerCase()).not.toMatch(/move aggressively|immersive|maximize engagement|constant innovation/);
+    expect((result.trustNote ?? "").toLowerCase()).toMatch(/careful refinement|bounded|calmer/);
+  });
 });
