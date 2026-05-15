@@ -5,6 +5,14 @@ import type { DailyCheckInInput } from "../../features/checkins/types";
 import AppText from "../ui/AppText";
 import SymptomSliderCard from "./SymptomSliderCard";
 
+const SLEEP_PRESETS = ["5", "6", "7", "8"];
+const WATER_PRESETS = ["4", "6", "8"];
+const NOTE_STARTERS = [
+  "What felt hardest today?",
+  "What helped even a little?",
+  "What do I need more of lately?",
+];
+
 export type DailyCheckInDraft = {
   fatigue: number | null;
   pain: number | null;
@@ -24,6 +32,10 @@ type DailyCheckInCardProps = {
   onSave: () => void;
   postSaveInsight: string;
   onViewInsights: () => void;
+  saveFooterText?: string;
+  supportMode?: "default" | "low-energy";
+  compressionMode?: "standard" | "reduced";
+  noteStarterLimit?: number;
 };
 
 export function normalizeCheckInInput(draft: DailyCheckInDraft): DailyCheckInInput {
@@ -65,9 +77,21 @@ export default function DailyCheckInCard({
   onSave,
   postSaveInsight,
   onViewInsights,
+  saveFooterText,
+  supportMode = "default",
+  compressionMode = "standard",
+  noteStarterLimit = NOTE_STARTERS.length,
 }: DailyCheckInCardProps) {
   const [showBodySignals, setShowBodySignals] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const reduced = compressionMode === "reduced";
+  const visibleNoteStarters = NOTE_STARTERS.slice(0, noteStarterLimit);
+
+  const addNoteStarter = (starter: string) => {
+    const prefix = draft.notes.trim().length ? `${draft.notes.trim()}\n` : "";
+    onChange({ ...draft, notes: `${prefix}${starter}\n` });
+    setShowNotes(true);
+  };
 
   return (
     <View style={styles.container}>
@@ -75,7 +99,11 @@ export default function DailyCheckInCard({
         <View style={styles.headerText}>
           <AppText style={styles.title}>Daily check-in</AppText>
           <AppText style={styles.subtitle}>
-            Start with the basics. Add details only if you want.
+            {supportMode === "low-energy"
+              ? "Keep this short if you need to. The basics are enough today."
+              : reduced
+                ? "Start with the basics. You can leave the extras for another time."
+                : "Start with the basics. Add details only if you want."}
           </AppText>
         </View>
         <AppText style={styles.status}>
@@ -92,7 +120,13 @@ export default function DailyCheckInCard({
       <View style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
           <AppText style={styles.sectionTitle}>How are you today?</AppText>
-          <AppText style={styles.sectionHelper}>Start with fatigue, mood, and stress.</AppText>
+          <AppText style={styles.sectionHelper}>
+            {supportMode === "low-energy"
+              ? "Start with the clearest signals and skip the rest if needed."
+              : reduced
+                ? "Start with fatigue, mood, and stress. That may be enough."
+                : "Start with fatigue, mood, and stress."}
+          </AppText>
         </View>
 
         <SymptomSliderCard
@@ -129,7 +163,9 @@ export default function DailyCheckInCard({
           <View style={styles.sectionToggleHeader}>
             <AppText style={styles.sectionTitle}>Body signals</AppText>
             <AppText style={styles.sectionHelper}>
-              Add pain, brain fog, mobility, sleep, and hydration if helpful.
+              {reduced
+                ? "Add more only if it feels useful."
+                : "Add pain, brain fog, mobility, sleep, and hydration if helpful."}
             </AppText>
           </View>
           <AppText style={styles.sectionToggleText}>{showBodySignals ? "Hide" : "Add"}</AppText>
@@ -164,6 +200,23 @@ export default function DailyCheckInCard({
 
             <View style={styles.fieldGroup}>
               <AppText style={styles.fieldLabel}>Hours of sleep last night</AppText>
+              <View style={styles.quickChoices}>
+                {SLEEP_PRESETS.map((option) => (
+                  <Pressable
+                    key={option}
+                    onPress={() => onChange({ ...draft, sleep_hours: option })}
+                    style={({ pressed }) => [
+                      styles.quickChoice,
+                      draft.sleep_hours === option && styles.quickChoiceActive,
+                      pressed && styles.quickChoicePressed,
+                    ]}
+                  >
+                    <AppText style={[styles.quickChoiceText, draft.sleep_hours === option && styles.quickChoiceTextActive]}>
+                      {option}h
+                    </AppText>
+                  </Pressable>
+                ))}
+              </View>
               <TextInput
                 keyboardType="decimal-pad"
                 placeholder="e.g. 7.5"
@@ -175,6 +228,23 @@ export default function DailyCheckInCard({
             </View>
             <View style={styles.fieldGroup}>
               <AppText style={styles.fieldLabel}>Water glasses today</AppText>
+              <View style={styles.quickChoices}>
+                {WATER_PRESETS.map((option) => (
+                  <Pressable
+                    key={option}
+                    onPress={() => onChange({ ...draft, water_glasses: option })}
+                    style={({ pressed }) => [
+                      styles.quickChoice,
+                      draft.water_glasses === option && styles.quickChoiceActive,
+                      pressed && styles.quickChoicePressed,
+                    ]}
+                  >
+                    <AppText style={[styles.quickChoiceText, draft.water_glasses === option && styles.quickChoiceTextActive]}>
+                      {option}
+                    </AppText>
+                  </Pressable>
+                ))}
+              </View>
               <TextInput
                 keyboardType="number-pad"
                 placeholder="e.g. 6"
@@ -196,7 +266,9 @@ export default function DailyCheckInCard({
           <View style={styles.sectionToggleHeader}>
             <AppText style={styles.sectionTitle}>Notes</AppText>
             <AppText style={styles.sectionHelper}>
-              Add symptoms or a short reflection if you want to remember more.
+              {reduced
+                ? "Add a note only if it helps to remember today."
+                : "Add symptoms or a short reflection if you want to remember more."}
             </AppText>
           </View>
           <AppText style={styles.sectionToggleText}>{showNotes ? "Hide" : "Add"}</AppText>
@@ -204,11 +276,22 @@ export default function DailyCheckInCard({
 
         {showNotes ? (
           <View style={styles.sectionContent}>
+            <View style={styles.noteStarterList}>
+              {visibleNoteStarters.map((starter) => (
+                <Pressable
+                  key={starter}
+                  onPress={() => addNoteStarter(starter)}
+                  style={({ pressed }) => [styles.noteStarterChip, pressed && styles.quickChoicePressed]}
+                >
+                  <AppText style={styles.noteStarterText}>{starter}</AppText>
+                </Pressable>
+              ))}
+            </View>
             <View style={styles.fieldGroup}>
               <AppText style={styles.fieldLabel}>Reflection notes</AppText>
               <TextInput
                 multiline
-                placeholder="Anything you want to remember about today?"
+                placeholder={reduced ? "A few words, if helpful." : "Anything you want to remember about today?"}
                 placeholderTextColor="#9ca3af"
                 value={draft.notes}
                 onChangeText={(notes) => onChange({ ...draft, notes })}
@@ -222,7 +305,7 @@ export default function DailyCheckInCard({
 
       <View style={styles.actionSection}>
         <AppButton
-          label={saveState === "saving" ? "Saving..." : "Save Check-In"}
+          label={saveState === "saving" ? "Saving..." : reduced ? "Save" : "Save Check-In"}
           onPress={onSave}
           disabled={saveState === "saving"}
         />
@@ -232,11 +315,13 @@ export default function DailyCheckInCard({
               <AppText style={styles.successBadge}>✓</AppText>
               <View style={styles.successCopy}>
                 <AppText style={styles.successText}>Saved</AppText>
-                <AppText style={styles.successSubtext}>You&apos;re building your baseline</AppText>
+                <AppText style={styles.successSubtext}>
+                  {reduced ? "That is enough for today" : "Small steps count"}
+                </AppText>
               </View>
             </View>
             <AppText style={styles.savedInsight}>{postSaveInsight}</AppText>
-            <AppText style={styles.savedReturnText}>See you tomorrow.</AppText>
+            <AppText style={styles.savedReturnText}>{saveFooterText ?? "See you tomorrow."}</AppText>
             <AppButton label="View Insights" onPress={onViewInsights} variant="secondary" />
           </View>
         ) : null}
@@ -300,6 +385,34 @@ const styles = StyleSheet.create({
   fieldGroup: {
     gap: 6,
   },
+  quickChoices: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  quickChoice: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#ead9cb",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  quickChoiceActive: {
+    borderColor: "#e8751a",
+    backgroundColor: "#fff0e2",
+  },
+  quickChoicePressed: {
+    opacity: 0.86,
+  },
+  quickChoiceText: {
+    color: "#8b6a4f",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  quickChoiceTextActive: {
+    color: "#9a4a11",
+  },
   fieldLabel: {
     fontSize: 14,
     color: "#4b5563",
@@ -357,6 +470,25 @@ const styles = StyleSheet.create({
   },
   sectionContent: {
     gap: 12,
+  },
+  noteStarterList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  noteStarterChip: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  noteStarterText: {
+    color: "#8b6a4f",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
   successRow: {
     flexDirection: "row",

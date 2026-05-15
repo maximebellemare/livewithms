@@ -1,15 +1,18 @@
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import AppText from "./AppText";
+import { colors, radii, shadows } from "./design";
 
 type LoadingStateProps = {
   message?: string;
 };
 
-export default function LoadingState({ message = "Loading..." }: LoadingStateProps) {
+export default function LoadingState({ message = "Getting things ready..." }: LoadingStateProps) {
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color="#e8751a" />
-      <AppText style={styles.message}>{message}</AppText>
+      <View style={styles.card}>
+        <ActivityIndicator size="large" color={colors.accent} />
+        <AppText style={styles.message}>{message}</AppText>
+      </View>
     </View>
   );
 }
@@ -20,10 +23,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
-    backgroundColor: "#fff7f2",
+    backgroundColor: colors.page,
+  },
+  card: {
+    minWidth: 240,
+    maxWidth: 360,
     gap: 12,
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radii.cardLarge,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 22,
+    paddingVertical: 20,
+    ...shadows.soft,
   },
   message: {
-    color: "#6b7280",
+    color: colors.textMuted,
+    textAlign: "center",
   },
 });

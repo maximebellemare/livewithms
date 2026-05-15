@@ -1,4 +1,5 @@
-import type { ReminderPermissionStatus } from "./types";
+import type { ReminderContentTone, ReminderPermissionStatus } from "./types";
+import { REMINDER_PLANS } from "./plans";
 
 type NotificationsModule = {
   getPermissionsAsync: () => Promise<{ status?: string; granted?: boolean; ios?: { status?: number } }>;
@@ -77,8 +78,13 @@ export async function requestReminderPermission(): Promise<ReminderPermissionSta
   }
 }
 
-export async function scheduleDailyReminder(hour: number, minute: number) {
+export async function scheduleDailyReminder(
+  hour: number,
+  minute: number,
+  tone: ReminderContentTone = "daily-checkin",
+) {
   const Notifications = loadNotificationsModule();
+  const defaultPlan = REMINDER_PLANS.find((plan) => plan.key === tone) ?? REMINDER_PLANS.find((plan) => plan.key === "daily-checkin");
 
   if (!Notifications) {
     return null;
@@ -86,8 +92,8 @@ export async function scheduleDailyReminder(hour: number, minute: number) {
 
   return Notifications.scheduleNotificationAsync({
     content: {
-      title: "How are you feeling today?",
-      body: "A quick check-in can help you notice patterns.",
+      title: defaultPlan?.title ?? "How are you feeling today?",
+      body: defaultPlan?.body ?? "A quick check-in can help you notice patterns.",
       sound: true,
     },
     trigger: {

@@ -1,12 +1,7 @@
 import type { ConsentState, OnboardingStep } from "./types";
+import { APP_CONFIG } from "../../lib/app-config";
 
-export const ONBOARDING_STEPS: OnboardingStep[] = [
-  "welcome",
-  "symptoms",
-  "goals",
-  "plan",
-  "complete",
-];
+export const ONBOARDING_STEPS: OnboardingStep[] = [...APP_CONFIG.onboarding.steps] as OnboardingStep[];
 
 export const CONSENT_ITEMS: Array<{
   id: keyof ConsentState;

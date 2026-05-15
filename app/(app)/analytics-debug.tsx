@@ -5,12 +5,16 @@ import AppButton from "../../components/ui/AppButton";
 import AppScreen from "../../components/ui/AppScreen";
 import AppText from "../../components/ui/AppText";
 import { useAuth } from "../../features/auth/hooks";
+import { clearQueuedCheckIns, loadQueuedCheckIns } from "../../features/checkins/offline";
 import { useCheckInOverview } from "../../features/checkins/hooks";
 import { useGrowthState } from "../../features/growth/hooks";
+import { usePremium } from "../../features/premium/hooks";
 import { useMyProfile } from "../../features/profile/hooks";
 import { useReminderSettings } from "../../features/reminders/hooks";
 import { clearAnalyticsSnapshot, loadAnalyticsSnapshot, type AnalyticsEvent } from "../../lib/events";
 import { getErrorMessage } from "../../lib/errors";
+import { queryClient } from "../../lib/query-client";
+import { flushQueuedCheckInSaves } from "../../features/checkins/api";
 
 type AnalyticsSnapshotState = {
   recentEvents: AnalyticsEvent[];
@@ -22,6 +26,7 @@ export default function AnalyticsDebugScreen() {
   const overviewQuery = useCheckInOverview(user?.id);
   const profileQuery = useMyProfile(user?.id);
   const reminders = useReminderSettings();
+  const premium = usePremium();
   const growth = useGrowthState({
     totalCheckIns: overviewQuery.data?.length ?? 0,
     reminderEnabled: reminders.enabled,
@@ -30,6 +35,7 @@ export default function AnalyticsDebugScreen() {
     recentEvents: [],
     eventCounts: {},
   });
+  const [queuedSyncCount, setQueuedSyncCount] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(true);
 
   useEffect(() => {
@@ -46,10 +52,12 @@ export default function AnalyticsDebugScreen() {
 
     try {
       const nextSnapshot = await loadAnalyticsSnapshot();
+      const queuedSync = await loadQueuedCheckIns();
       setSnapshot({
         recentEvents: nextSnapshot.recentEvents,
         eventCounts: nextSnapshot.eventCounts as Record<string, number>,
       });
+      setQueuedSyncCount(queuedSync.length);
     } finally {
       setIsRefreshing(false);
     }
@@ -58,11 +66,29 @@ export default function AnalyticsDebugScreen() {
   const handleClear = async () => {
     try {
       await clearAnalyticsSnapshot();
+      await clearQueuedCheckIns();
+      queryClient.clear();
       await refreshSnapshot();
     } catch (error) {
       Alert.alert("Unable to clear analytics", getErrorMessage(error));
     }
   };
+
+  const handleFlushSync = async () => {
+    try {
+      await flushQueuedCheckInSaves();
+      await refreshSnapshot();
+    } catch (error) {
+      Alert.alert("Unable to flush queued sync", getErrorMessage(error));
+    }
+  };
+
+  const diagnosticsCounts = Object.entries(snapshot.eventCounts).filter(([name]) =>
+    name.includes("failed") ||
+    name.includes("slow") ||
+    name.includes("retry") ||
+    name.includes("sync"),
+  );
 
   if (!__DEV__) {
     return null;
@@ -79,10 +105,24 @@ export default function AnalyticsDebugScreen() {
           <AppText style={styles.rowText}>Onboarding completed: {profileQuery.data?.onboarding_completed ? "Yes" : "No"}</AppText>
           <AppText style={styles.rowText}>Reminders enabled: {reminders.enabled ? "Yes" : "No"}</AppText>
           <AppText style={styles.rowText}>Reminder time: {reminders.selectedTimeLabel}</AppText>
+          <AppText style={styles.rowText}>Adaptive reminder tone: {reminders.adaptiveReminderTone}</AppText>
           <AppText style={styles.rowText}>Days active: {growth.metrics.daysActive}</AppText>
           <AppText style={styles.rowText}>Last active: {growth.metrics.lastActiveAt ?? "—"}</AppText>
           <AppText style={styles.rowText}>Check-in rhythm: {growth.metrics.checkInFrequency || 0}/day</AppText>
           <AppText style={styles.rowText}>First-week engagement: {growth.metrics.firstWeekEngaged ? "Yes" : "No"}</AppText>
+          <AppText style={styles.rowText}>Premium status: {premium.status}</AppText>
+          <AppText style={styles.rowText}>Queued sync saves: {queuedSyncCount}</AppText>
+        </View>
+
+        <View style={styles.card}>
+          <AppText style={styles.sectionTitle}>Diagnostics</AppText>
+          {diagnosticsCounts.length ? (
+            diagnosticsCounts.map(([name, count]) => (
+              <AppText key={name} style={styles.rowText}>{name}: {count}</AppText>
+            ))
+          ) : (
+            <AppText style={styles.emptyText}>No diagnostic signals recorded yet.</AppText>
+          )}
         </View>
 
         <View style={styles.card}>
@@ -103,6 +143,9 @@ export default function AnalyticsDebugScreen() {
               <View key={event.id} style={styles.eventCard}>
                 <AppText style={styles.eventName}>{event.name}</AppText>
                 <AppText style={styles.eventTime}>{event.occurredAt}</AppText>
+                <AppText style={styles.eventTime}>
+                  Category: {typeof event.metadata?.category === "string" ? event.metadata.category : "—"}
+                </AppText>
                 <AppText style={styles.eventMeta}>{JSON.stringify(event.metadata)}</AppText>
               </View>
             ))
@@ -113,7 +156,14 @@ export default function AnalyticsDebugScreen() {
 
         <View style={styles.actions}>
           <AppButton label={isRefreshing ? "Refreshing..." : "Refresh"} onPress={() => void refreshSnapshot()} disabled={isRefreshing} />
-          <AppButton label="Clear local analytics" variant="secondary" onPress={() => void handleClear()} />
+          <AppButton label="Flush queued sync" variant="secondary" onPress={() => void handleFlushSync()} />
+          <AppButton
+            label={premium.isLoading ? "Refreshing Premium..." : "Refresh premium status"}
+            variant="secondary"
+            onPress={() => void premium.refreshPremiumStatus().then(refreshSnapshot)}
+            disabled={premium.isLoading}
+          />
+          <AppButton label="Reset local cache" variant="secondary" onPress={() => void handleClear()} />
         </View>
       </ScrollView>
     </AppScreen>

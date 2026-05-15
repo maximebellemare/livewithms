@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text } from "react-native";
+import { colors, radii, shadows } from "./design";
 
 type AppButtonProps = {
   label: string;
@@ -31,31 +32,34 @@ export default function AppButton({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: "#e8751a",
-    borderRadius: 14,
-    minHeight: 52,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    backgroundColor: colors.accent,
+    borderRadius: radii.button,
+    minHeight: 54,
+    paddingHorizontal: 18,
+    paddingVertical: 15,
     justifyContent: "center",
+    ...shadows.soft,
   },
   buttonSecondary: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#e6d5c7",
+    borderColor: colors.borderSoft,
+    shadowOpacity: 0,
   },
   buttonPressed: {
-    opacity: 0.82,
+    opacity: 0.88,
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.58,
   },
   label: {
     color: "#ffffff",
     fontSize: 16,
-    fontWeight: "600",
+    lineHeight: 20,
+    fontWeight: "700",
     textAlign: "center",
   },
   labelSecondary: {
-    color: "#374151",
+    color: colors.text,
   },
 });

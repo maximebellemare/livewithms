@@ -3,6 +3,7 @@ import * as StoreReview from "expo-store-review";
 import type { AppEventName } from "../../lib/events";
 import { trackEvent } from "../../lib/events";
 import {
+  addRecentAction,
   getRetentionMetrics,
   incrementEventCount,
   isCelebrationAvailable,
@@ -47,7 +48,7 @@ export function useGrowthState(options: { totalCheckIns?: number; reminderEnable
 
   const recordEvent = useCallback(async (eventName: AppEventName, metadata?: Record<string, unknown>) => {
     trackEvent(eventName, metadata);
-    await persistState((current) => incrementEventCount(current, eventName));
+    await persistState((current) => addRecentAction(incrementEventCount(current, eventName), eventName));
   }, [persistState]);
 
   const maybePromptForReview = useCallback(async (

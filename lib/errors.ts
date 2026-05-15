@@ -1,9 +1,13 @@
+import { deriveFriendlyFailureMessage } from "./operational-calm/failure-softening/deriveFriendlyFailureMessage";
+
 type ErrorDetails = {
   message: string;
   code?: string;
   details?: string;
   hint?: string;
 };
+
+export type ErrorCategory = "network" | "ai" | "subscription" | "sync" | "storage" | "onboarding" | "auth" | "unknown";
 
 function getRawErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -20,6 +24,55 @@ function getRawErrorMessage(error: unknown) {
   }
 
   return "";
+}
+
+export function isNetworkLikeError(error: unknown) {
+  const message = getRawErrorMessage(error).toLowerCase();
+
+  return (
+    message.includes("network request failed") ||
+    message.includes("failed to fetch") ||
+    message.includes("offline") ||
+    message.includes("timeout") ||
+    message.includes("timed out") ||
+    message.includes("network")
+  );
+}
+
+export function categorizeError(error: unknown): ErrorCategory {
+  const details = normalizeError(error);
+  const message = details.message.toLowerCase();
+  const code = details.code?.toLowerCase() ?? "";
+
+  if (message.includes("sign in again") || message.includes("session")) {
+    return "auth";
+  }
+
+  if (message.includes("network") || message.includes("try again in a moment")) {
+    return "network";
+  }
+
+  if (message.includes("feature is taking a pause") || message.includes("busy right now")) {
+    return "ai";
+  }
+
+  if (message.includes("purchase") || message.includes("pricing") || code.includes("revenue")) {
+    return "subscription";
+  }
+
+  if (message.includes("onboarding")) {
+    return "onboarding";
+  }
+
+  if (message.includes("sync")) {
+    return "sync";
+  }
+
+  if (message.includes("storage")) {
+    return "storage";
+  }
+
+  return "unknown";
 }
 
 function getFriendlyMessage(message: string, code?: string) {
@@ -64,10 +117,10 @@ function getFriendlyMessage(message: string, code?: string) {
   }
 
   if (!message || normalizedMessage === "unknown error") {
-    return "Something did not go as planned. Please try again.";
+    return deriveFriendlyFailureMessage(message);
   }
 
-  return message;
+  return deriveFriendlyFailureMessage({ message, code });
 }
 
 export function normalizeError(error: unknown): ErrorDetails {

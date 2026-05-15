@@ -6,13 +6,34 @@ import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
 import { useDeleteAccount } from "../../../../features/account/hooks";
 import { useAuth } from "../../../../features/auth/hooks";
-import { getCareWins, getCurrentCheckInStreak } from "../../../../features/checkins/consistency";
+import { getCareWins, getCheckInsInLastDays, getCurrentCheckInStreak } from "../../../../features/checkins/consistency";
 import { useCheckInOverview } from "../../../../features/checkins/hooks";
 import { useGrowthState } from "../../../../features/growth/hooks";
 import { usePremium } from "../../../../features/premium/hooks";
 import { useSaveProfileStep } from "../../../../features/profile/hooks";
 import { useReminderSettings } from "../../../../features/reminders/hooks";
 import { getErrorMessage } from "../../../../lib/errors";
+import { preventPsychologicalSegmentation } from "../../../../lib/ethical-insights/anti-profiling/preventPsychologicalSegmentation";
+import { validateNonExploitativeAnalytics } from "../../../../lib/ethical-insights/anti-profiling/validateNonExploitativeAnalytics";
+import { deriveAccessibilityMetrics } from "../../../../lib/ethical-insights/calm-analytics/deriveAccessibilityMetrics";
+import { deriveCalmnessMetrics } from "../../../../lib/ethical-insights/calm-analytics/deriveCalmnessMetrics";
+import { deriveResearchParticipation } from "../../../../lib/ethical-insights/human-centered-research/deriveResearchParticipation";
+import { validateEthicalResearchUse } from "../../../../lib/ethical-insights/human-centered-research/validateEthicalResearchUse";
+import { deriveAnonymizedPatterns } from "../../../../lib/ethical-insights/population-patterns/deriveAnonymizedPatterns";
+import { deriveHumanReadableTransparency } from "../../../../lib/ethical-insights/transparent-governance/deriveHumanReadableTransparency";
+import { validateOptOutClarity } from "../../../../lib/ethical-insights/transparent-governance/validateOptOutClarity";
+import { trackEvent } from "../../../../lib/events";
+import { derivePremiumValue } from "../../../../lib/premium-ecosystem/calm-premium/derivePremiumValue";
+import { preserveFreeUserDignity } from "../../../../lib/premium-ecosystem/calm-premium/preserveFreeUserDignity";
+import { preventEmotionalConversion } from "../../../../lib/premium-ecosystem/ethical-monetization/preventEmotionalConversion";
+import { derivePauseSupport } from "../../../../lib/legacy-integrity/graceful-pauses/derivePauseSupport";
+import { preserveCalmDisengagement } from "../../../../lib/legacy-integrity/graceful-pauses/preserveCalmDisengagement";
+import { deriveHealthyDistance } from "../../../../lib/legacy-integrity/healthy-completion/deriveHealthyDistance";
+import { preventRetentionClinginess } from "../../../../lib/legacy-integrity/healthy-completion/preventRetentionClinginess";
+import { deriveDeletionClarity } from "../../../../lib/legacy-integrity/data-ownership/deriveDeletionClarity";
+import { validateOwnershipTransparency } from "../../../../lib/legacy-integrity/data-ownership/validateOwnershipTransparency";
+import { deriveGentleReturnFlows } from "../../../../lib/legacy-integrity/calm-reentry/deriveGentleReturnFlows";
+import { preventGuiltReactivation } from "../../../../lib/legacy-integrity/calm-reentry/preventGuiltReactivation";
 
 const PRIVACY_POLICY_URL = "https://www.livewithms.com/policies/privacy-policy";
 const TERMS_OF_USE_URL = "https://www.livewithms.com/policies/terms-of-service";
@@ -79,7 +100,7 @@ function getReminderHelperText(
     return `A gentle reminder is set for ${selectedTimeLabel}.`;
   }
 
-  return "Gentle reminders can help you build a consistent check-in routine.";
+  return "Gentle reminders are optional, flexible, and there when a little support helps.";
 }
 
 function getTodayDateString() {
@@ -89,6 +110,11 @@ function getTodayDateString() {
   const day = String(now.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+async function openTrackedLink(url: string, eventName: "feedback_email_opened" | "support_email_opened") {
+  await trackEvent(eventName);
+  await Linking.openURL(url);
 }
 
 export default function ProfileScreen() {
@@ -103,16 +129,64 @@ export default function ProfileScreen() {
   const overviewEntries = overviewQuery.data ?? [];
   const totalCheckIns = overviewEntries.length;
   const streak = getCurrentCheckInStreak(overviewEntries, getTodayDateString());
+  const weeklyCheckIns = getCheckInsInLastDays(overviewEntries, getTodayDateString(), 7);
   const wins = getCareWins(overviewEntries);
   const growth = useGrowthState({
     totalCheckIns,
     reminderEnabled: reminders.enabled,
   });
+  const premiumValue = derivePremiumValue();
+  const legacyPause = derivePauseSupport({
+    lowEngagement: weeklyCheckIns === 0,
+    wantsDistance: totalCheckIns > 0,
+  });
+  const legacyDistance = deriveHealthyDistance({
+    totalCheckIns,
+    wantsLessIllnessCentrality: totalCheckIns > 0,
+  });
+  const legacyReturn = deriveGentleReturnFlows({
+    hasHistory: totalCheckIns > 0,
+  });
+  const ownershipLines = [
+    legacyPause.body,
+    legacyDistance,
+    deriveDeletionClarity(),
+    legacyReturn,
+  ].map((line) =>
+    preventGuiltReactivation(
+      preventRetentionClinginess(
+        preserveCalmDisengagement(line),
+      ),
+    ),
+  );
+  const safeOwnershipLines = validateOwnershipTransparency(ownershipLines).valid ? ownershipLines : [deriveDeletionClarity()];
+  const transparencyLines = deriveHumanReadableTransparency().map((line) =>
+    preventPsychologicalSegmentation(line),
+  );
+  const safeTransparencyLines =
+    validateNonExploitativeAnalytics(transparencyLines).valid && validateOptOutClarity(transparencyLines).valid
+      ? transparencyLines
+      : ["Any grouped insight work should stay low-resolution, optional where appropriate, and never exploit distress."];
+  const researchParticipation = deriveResearchParticipation();
+  const safeResearchLines = validateEthicalResearchUse(researchParticipation.lines).valid
+    ? researchParticipation.lines
+    : ["Future research participation should stay transparent, optional, and easy to decline."];
+  const anonymizedPatternLine = deriveAnonymizedPatterns({
+    topic: "calmness",
+    dominantPattern: "simpler support during heavier stretches",
+    cohortSize: 72,
+  });
+  const calmnessMetricLine = deriveCalmnessMetrics()[0]?.purpose;
+  const accessibilityMetricLine = deriveAccessibilityMetrics()[0]?.purpose;
 
   const confirmDeleteAccount = () => {
     Alert.alert(
       "Delete account",
-      "Delete your account and app data permanently? This cannot be undone.",
+      preventGuiltReactivation(
+        preserveCalmDisengagement(
+          "Delete your account and app data permanently? This cannot be undone, and stepping away is okay if you need less of this now.",
+        ),
+      ),
       [
         {
           text: "Cancel",
@@ -132,7 +206,7 @@ export default function ProfileScreen() {
   const handleDeleteAccount = async () => {
     try {
       await deleteAccount.mutateAsync();
-      Alert.alert("Account deleted", "Your account and app data have been permanently deleted.", [
+      Alert.alert("Account deleted", "Your account and app data have been permanently deleted. You do not need to keep anything active here for your experience to remain yours.", [
         {
           text: "OK",
           onPress: () => {
@@ -233,9 +307,17 @@ export default function ProfileScreen() {
   };
 
   const handleReminderTimeChange = (hour: number, minute: number) => {
-    void reminders.updateTime(hour, minute).catch((error) => {
-      Alert.alert("Unable to change reminder time", getErrorMessage(error));
-    });
+    void reminders
+      .updateTime(hour, minute)
+      .then(async () => {
+        await growth.recordEvent("reminder_time_changed", {
+          hour,
+          minute,
+        });
+      })
+      .catch((error) => {
+        Alert.alert("Unable to change reminder time", getErrorMessage(error));
+      });
   };
 
   return (
@@ -278,7 +360,11 @@ export default function ProfileScreen() {
                 <AppText style={styles.premiumBody}>
                   {premium.hasPremiumAccess
                     ? "Unlimited AI Coach is ready, and your premium support stays available across the app."
-                    : "Keep the free core experience, or unlock unlimited AI Coach and more personalized support over time."}
+                    : preserveFreeUserDignity(
+                        preventEmotionalConversion(
+                          "Keep the free core experience, or unlock unlimited AI Coach and more personalized support over time.",
+                        ),
+                      )}
                 </AppText>
               </View>
               <AppText style={[styles.premiumBadge, premium.hasPremiumAccess && styles.premiumBadgeActive]}>
@@ -286,9 +372,9 @@ export default function ProfileScreen() {
               </AppText>
             </View>
             <View style={styles.premiumFeatureList}>
-              <AppText style={styles.premiumFeatureText}>• Unlimited AI Coach</AppText>
-              <AppText style={styles.premiumFeatureText}>• Advanced AI insights</AppText>
-              <AppText style={styles.premiumFeatureText}>• Deeper patterns and future guided tools</AppText>
+              {premiumValue.lines.map((line) => (
+                <AppText key={line} style={styles.premiumFeatureText}>• {line}</AppText>
+              ))}
             </View>
             <AppButton
               label={premium.hasPremiumAccess ? "View Premium" : "Explore Premium"}
@@ -380,7 +466,7 @@ export default function ProfileScreen() {
                 <View style={styles.consistencyPill}>
                   <AppText style={styles.consistencyValue}>{streak}</AppText>
                   <AppText style={styles.consistencyLabel}>
-                    {streak === 1 ? "day in a row" : "days in a row"}
+                    {streak === 1 ? "day streak" : "day streak"}
                   </AppText>
                 </View>
                 <View style={styles.consistencyPill}>
@@ -389,9 +475,17 @@ export default function ProfileScreen() {
                     {totalCheckIns === 1 ? "total check-in" : "total check-ins"}
                   </AppText>
                 </View>
+                <View style={styles.consistencyPill}>
+                  <AppText style={styles.consistencyValue}>{weeklyCheckIns}</AppText>
+                  <AppText style={styles.consistencyLabel}>days this week</AppText>
+                </View>
               </View>
               <AppText style={styles.sectionBody}>
-                {streak > 1 ? "You’ve checked in consistently." : "Small steps add up."}
+                {weeklyCheckIns >= 5
+                  ? "You’ve been returning steadily this week."
+                  : streak > 1
+                    ? "You’ve checked in consistently."
+                    : "Small steps add up."}
               </AppText>
             </>
           ) : (
@@ -432,8 +526,21 @@ export default function ProfileScreen() {
           <LinkRow label="Privacy Policy" onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)} />
           <LinkRow label="Terms of Use" onPress={() => void Linking.openURL(TERMS_OF_USE_URL)} />
           <LinkRow label="Medical Disclaimer" onPress={() => router.push("/medical-disclaimer")} />
-          <LinkRow label="Contact Support" onPress={() => void Linking.openURL(SUPPORT_EMAIL_URL)} />
-          <LinkRow label="Send Feedback" onPress={() => void Linking.openURL(FEEDBACK_EMAIL_URL)} />
+          <LinkRow label="Contact Support" onPress={() => void openTrackedLink(SUPPORT_EMAIL_URL, "support_email_opened")} />
+          <LinkRow label="Send Feedback" onPress={() => void openTrackedLink(FEEDBACK_EMAIL_URL, "feedback_email_opened")} />
+        </View>
+
+        <View style={styles.card}>
+          <AppText style={styles.sectionTitle}>Pause & Ownership</AppText>
+          <AppText style={styles.sectionBody}>
+            Use the app when it helps. Step back when it does not. Your history belongs to you, not to the platform.
+          </AppText>
+          {safeOwnershipLines.map((line) => (
+            <AppText key={line} style={styles.sectionBody}>
+              • {line}
+            </AppText>
+          ))}
+          <LinkRow label="Open Health Summary" onPress={() => router.push("/health-summary")} />
         </View>
 
         <View style={styles.card}>
@@ -441,9 +548,19 @@ export default function ProfileScreen() {
           <AppText style={styles.sectionBody}>
             Your check-ins, notes, and care tools are tied to your own account and are meant to stay private to you.
           </AppText>
-          <AppText style={styles.sectionBody}>
-            Usage analytics help improve the app experience. No health data is sold.
-          </AppText>
+          {safeTransparencyLines.map((line) => (
+            <AppText key={line} style={styles.sectionBody}>
+              {line}
+            </AppText>
+          ))}
+          <AppText style={styles.sectionBody}>{anonymizedPatternLine}</AppText>
+          {calmnessMetricLine ? <AppText style={styles.sectionBody}>{calmnessMetricLine}</AppText> : null}
+          {accessibilityMetricLine ? <AppText style={styles.sectionBody}>{accessibilityMetricLine}</AppText> : null}
+          {safeResearchLines.map((line) => (
+            <AppText key={line} style={styles.sectionBody}>
+              {line}
+            </AppText>
+          ))}
           <View style={styles.sourceLinks}>
             <LinkRow
               label="National Multiple Sclerosis Society"

@@ -1,4 +1,5 @@
 import env from "../../lib/env";
+import { getCachedJson, setCachedJson } from "../../lib/local-cache";
 import { normalizeError } from "../../lib/errors";
 import { supabase } from "../../lib/supabase/client";
 import type { Appointment, AppointmentInput } from "./types";
@@ -42,6 +43,10 @@ function mapAppointmentRow(row: {
   };
 }
 
+function getAppointmentsCacheKey(userId: string) {
+  return `cache.appointments.${userId}`;
+}
+
 export const appointmentsApi = {
   async listAppointments(userId: string) {
     if (!userId) {
@@ -52,33 +57,43 @@ export const appointmentsApi = {
       return [] as Appointment[];
     }
 
-    const { data, error } = await supabase
-      .from("appointments")
-      .select(SELECT_FIELDS)
-      .eq("user_id", userId)
-      .order("appointment_date", { ascending: true })
-      .order("appointment_time", { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from("appointments")
+        .select(SELECT_FIELDS)
+        .eq("user_id", userId)
+        .order("appointment_date", { ascending: true })
+        .order("appointment_time", { ascending: true });
 
-    if (error) {
-      throw normalizeError(error);
+      if (error) {
+        throw normalizeError(error);
+      }
+
+      const rows = (data ?? []).map((row) =>
+        mapAppointmentRow(
+          row as {
+            id: string;
+            user_id: string;
+            title: string;
+            appointment_date: string;
+            appointment_time: string | null;
+            provider: string | null;
+            location: string | null;
+            notes: string | null;
+            created_at: string;
+            updated_at: string;
+          },
+        ),
+      );
+      await setCachedJson(getAppointmentsCacheKey(userId), rows);
+      return rows;
+    } catch (error) {
+      const cached = await getCachedJson<Appointment[]>(getAppointmentsCacheKey(userId));
+      if (cached) {
+        return cached;
+      }
+      throw error;
     }
-
-    return (data ?? []).map((row) =>
-      mapAppointmentRow(
-        row as {
-          id: string;
-          user_id: string;
-          title: string;
-          appointment_date: string;
-          appointment_time: string | null;
-          provider: string | null;
-          location: string | null;
-          notes: string | null;
-          created_at: string;
-          updated_at: string;
-        },
-      ),
-    );
   },
 
   async createAppointment(userId: string, input: AppointmentInput) {

@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import AppText from "./AppText";
+import { colors, radii, shadows } from "./design";
 
 type EmptyStateProps = {
   title: string;
@@ -20,20 +21,23 @@ export default function EmptyState({ title, message, action }: EmptyStateProps) 
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
     padding: 24,
-    backgroundColor: "#fff7f2",
     gap: 12,
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radii.cardLarge,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.soft,
   },
   title: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1f2937",
+    color: colors.text,
+    textAlign: "center",
   },
   message: {
     textAlign: "center",
-    color: "#6b7280",
+    color: colors.textMuted,
   },
 });

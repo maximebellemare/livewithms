@@ -3,12 +3,15 @@ import { appSecureStore } from "../../lib/secure-store";
 import type { CelebrationKey, GrowthState, RetentionMetrics } from "./types";
 
 const GROWTH_STATE_KEY = "livewithms.growth-state";
+let cachedGrowthState: GrowthState | null = null;
+let cachedGrowthStateSerialized: string | null = null;
 
 export const DEFAULT_GROWTH_STATE: GrowthState = {
   firstOpenedAt: null,
   lastActiveAt: null,
   activeDates: [],
   eventCounts: {},
+  recentActions: [],
   seenCelebrations: {},
   reviewPromptedAt: null,
 };
@@ -18,24 +21,45 @@ function getTodayDateString() {
 }
 
 export async function loadGrowthState(): Promise<GrowthState> {
+  if (cachedGrowthState) {
+    return markActiveToday(cachedGrowthState);
+  }
+
   const raw = await appSecureStore.getItem(GROWTH_STATE_KEY);
 
   if (!raw) {
-    return markActiveToday(DEFAULT_GROWTH_STATE);
+    const nextState = markActiveToday(DEFAULT_GROWTH_STATE);
+    cachedGrowthState = nextState;
+    cachedGrowthStateSerialized = JSON.stringify(nextState);
+    return nextState;
   }
 
   try {
-    return markActiveToday({
+    const nextState = markActiveToday({
       ...DEFAULT_GROWTH_STATE,
       ...(JSON.parse(raw) as Partial<GrowthState>),
     });
+    cachedGrowthState = nextState;
+    cachedGrowthStateSerialized = JSON.stringify(nextState);
+    return nextState;
   } catch {
-    return markActiveToday(DEFAULT_GROWTH_STATE);
+    const nextState = markActiveToday(DEFAULT_GROWTH_STATE);
+    cachedGrowthState = nextState;
+    cachedGrowthStateSerialized = JSON.stringify(nextState);
+    return nextState;
   }
 }
 
 export async function saveGrowthState(state: GrowthState) {
-  await appSecureStore.setItem(GROWTH_STATE_KEY, JSON.stringify(state));
+  const serialized = JSON.stringify(state);
+  cachedGrowthState = state;
+
+  if (cachedGrowthStateSerialized === serialized) {
+    return;
+  }
+
+  cachedGrowthStateSerialized = serialized;
+  await appSecureStore.setItem(GROWTH_STATE_KEY, serialized);
 }
 
 export function markActiveToday(state: GrowthState): GrowthState {
@@ -59,6 +83,19 @@ export function incrementEventCount(state: GrowthState, eventName: AppEventName)
       ...state.eventCounts,
       [eventName]: currentCount + 1,
     },
+  };
+}
+
+export function addRecentAction(state: GrowthState, eventName: AppEventName): GrowthState {
+  return {
+    ...state,
+    recentActions: [
+      ...state.recentActions,
+      {
+        eventName,
+        occurredAt: new Date().toISOString(),
+      },
+    ].slice(-8),
   };
 }
 

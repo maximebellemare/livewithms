@@ -15,6 +15,8 @@ export type ReminderTimeOption = {
   minute: number;
 };
 
+export type ReminderContentTone = "daily-checkin" | "gentle-nudge" | "consistency-support";
+
 export type ReminderEnableResult =
   | { ok: true }
   | { ok: false; status: ReminderPermissionStatus };

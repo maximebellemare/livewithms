@@ -10,6 +10,10 @@ export type GrowthState = {
   lastActiveAt: string | null;
   activeDates: string[];
   eventCounts: Partial<Record<AppEventName, number>>;
+  recentActions: Array<{
+    eventName: AppEventName;
+    occurredAt: string;
+  }>;
   seenCelebrations: Partial<Record<CelebrationKey, boolean>>;
   reviewPromptedAt: string | null;
 };

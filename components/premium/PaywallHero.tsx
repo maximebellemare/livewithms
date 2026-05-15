@@ -1,13 +1,14 @@
 import { StyleSheet, View } from "react-native";
 import AppText from "../ui/AppText";
+import { colors } from "../ui/design";
 
 export default function PaywallHero() {
   return (
     <View style={styles.container}>
-      <AppText style={styles.eyebrow}>LiveWithMS</AppText>
-      <AppText style={styles.title}>Understand your MS patterns and feel more in control</AppText>
+      <AppText style={styles.eyebrow}>LiveWithMS Premium</AppText>
+      <AppText style={styles.title}>Deeper support, at a steadier pace</AppText>
       <AppText style={styles.subtitle}>
-        Keep checking in, review your history, and use the app’s support tools in one place.
+        Keep the free core experience, or add more personalized support if you want a little more depth. Premium is optional.
       </AppText>
     </View>
   );
@@ -15,10 +16,10 @@ export default function PaywallHero() {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 10,
+    gap: 12,
   },
   eyebrow: {
-    color: "#e8751a",
+    color: colors.accent,
     fontWeight: "700",
     fontSize: 14,
   },
@@ -26,10 +27,10 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 36,
     fontWeight: "800",
-    color: "#1f2937",
+    color: colors.text,
   },
   subtitle: {
-    color: "#6b7280",
+    color: colors.textMuted,
     fontSize: 16,
     lineHeight: 24,
   },

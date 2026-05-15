@@ -1,4 +1,5 @@
-import { StyleSheet, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import type { TrendSummary } from "../../features/insights/types";
 import AppText from "../ui/AppText";
 import MiniTrendChart from "./MiniTrendChart";
@@ -6,14 +7,6 @@ import MiniTrendChart from "./MiniTrendChart";
 type TrendSummaryCardProps = {
   trend: TrendSummary;
 };
-
-function formatAverage(value: number | null, label: string) {
-  if (value === null) {
-    return `${label}: —`;
-  }
-
-  return `${label}: ${value.toFixed(1)}`;
-}
 
 function getDirectionLabel(direction: TrendSummary["direction"]) {
   if (direction === "up") {
@@ -48,6 +41,30 @@ function getTrendHighlight(trend: TrendSummary) {
         : "Your mood has been fairly steady.";
   }
 
+  if (trend.key === "stress") {
+    return trend.direction === "up"
+      ? "Stress may be feeling a little lighter lately."
+      : trend.direction === "down"
+        ? "Stress may have felt a little more noticeable lately."
+        : "Your stress has been fairly steady.";
+  }
+
+  if (trend.key === "pain") {
+    return trend.direction === "up"
+      ? "Pain may have felt a little lighter lately."
+      : trend.direction === "down"
+        ? "Pain may have been a little more noticeable lately."
+        : "Your pain has been fairly steady.";
+  }
+
+  if (trend.key === "brain_fog") {
+    return trend.direction === "up"
+      ? "Brain fog may have felt a little lighter lately."
+      : trend.direction === "down"
+        ? "Brain fog may have been a little more noticeable lately."
+        : "Your brain fog has been fairly steady.";
+  }
+
   return trend.direction === "up"
     ? "You seem to be getting a little more rest this week."
     : trend.direction === "down"
@@ -78,45 +95,71 @@ function getTrendSuggestion(trend: TrendSummary) {
       : "Keep noticing what helps your day feel a little lighter.";
   }
 
+  if (trend.key === "pain") {
+    return trend.direction === "down"
+      ? "A gentler pace may help when pain feels more present."
+      : "Keep noticing what seems to help your body feel a little more comfortable.";
+  }
+
+  if (trend.key === "brain_fog") {
+    return trend.direction === "down"
+      ? "A simpler plan may help on foggier days."
+      : "Keep noticing what helps your thinking feel a little clearer.";
+  }
+
   return trend.direction === "down"
     ? "A calmer wind-down may help you settle a little more easily."
     : "Keep noticing the habits that support better rest.";
 }
 
 export default function TrendSummaryCard({ trend }: TrendSummaryCardProps) {
+  const [expanded, setExpanded] = useState(trend.key === "fatigue" || trend.key === "mood");
   const highlight = getTrendHighlight(trend);
   const suggestion = getTrendSuggestion(trend);
+  const chartMaxValue = trend.key === "sleep_hours" ? 12 : 5;
+  const accentColor =
+    trend.key === "mood"
+      ? "#16a34a"
+      : trend.key === "sleep_hours"
+        ? "#2563eb"
+        : trend.key === "stress"
+          ? "#c25d10"
+          : trend.key === "pain"
+            ? "#dc2626"
+            : trend.key === "brain_fog"
+              ? "#7c3aed"
+              : "#e8751a";
 
   return (
     <View style={styles.card}>
-      <View style={styles.header}>
+      <Pressable onPress={() => setExpanded((current) => !current)} style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}>
         <View style={styles.headerText}>
           <AppText style={styles.title}>{trend.label}</AppText>
           <AppText style={styles.contextText}>Based on your recent entries</AppText>
           <AppText style={styles.badge}>{getDirectionLabel(trend.direction)}</AppText>
         </View>
         <View style={styles.values}>
-          <AppText style={styles.averageText}>{formatAverage(trend.averageCurrent, "Average")}</AppText>
+          <AppText style={styles.averageNumber}>{trend.averageCurrent === null ? "—" : trend.averageCurrent.toFixed(1)}</AppText>
+          <AppText style={styles.averageText}>
+            Average {trend.key === "sleep_hours" ? "hours" : "/5"}
+          </AppText>
+          <AppText style={styles.expandHint}>{expanded ? "Hide details" : "Show details"}</AppText>
         </View>
-      </View>
+      </Pressable>
 
       <MiniTrendChart
         points={trend.points}
-        color={
-          trend.key === "mood"
-            ? "#16a34a"
-            : trend.key === "sleep_hours"
-              ? "#2563eb"
-              : trend.key === "stress"
-                ? "#c25d10"
-                : "#e8751a"
-        }
-        maxValue={trend.key === "sleep_hours" ? 12 : 10}
+        color={accentColor}
+        maxValue={chartMaxValue}
       />
 
       <AppText style={styles.summary}>{trend.summary}</AppText>
-      {highlight ? <AppText style={styles.helperText}>{highlight}</AppText> : null}
-      {suggestion ? <AppText style={styles.suggestionText}>{suggestion}</AppText> : null}
+      {expanded ? (
+        <>
+          {highlight ? <AppText style={styles.helperText}>{highlight}</AppText> : null}
+          {suggestion ? <AppText style={styles.suggestionText}>{suggestion}</AppText> : null}
+        </>
+      ) : null}
     </View>
   );
 }
@@ -131,9 +174,15 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   header: {
-    gap: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  headerPressed: {
+    opacity: 0.82,
   },
   headerText: {
+    flex: 1,
     gap: 6,
   },
   title: {
@@ -156,11 +205,23 @@ const styles = StyleSheet.create({
     color: "#6b7280",
   },
   values: {
+    alignItems: "flex-end",
     gap: 4,
+  },
+  averageNumber: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: "700",
+    color: "#1f2937",
   },
   averageText: {
     fontSize: 14,
     color: "#6b7280",
+  },
+  expandHint: {
+    fontSize: 12,
+    color: "#c25d10",
+    fontWeight: "600",
   },
   summary: {
     color: "#4b5563",

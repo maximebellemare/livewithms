@@ -1,8 +1,10 @@
 import { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppButton from "../ui/AppButton";
 import AppScreen from "../ui/AppScreen";
 import AppText from "../ui/AppText";
+import { colors, spacing } from "../ui/design";
 import StepProgress from "./StepProgress";
 
 type OnboardingScaffoldProps = {
@@ -34,37 +36,83 @@ export default function OnboardingScaffold({
   errorMessage,
   children,
 }: OnboardingScaffoldProps) {
+  const insets = useSafeAreaInsets();
+
   return (
     <AppScreen title={title} subtitle={subtitle}>
-      <StepProgress step={step} totalSteps={totalSteps} />
-      <View style={styles.body}>{children}</View>
-      {errorMessage ? <AppText style={styles.error}>{errorMessage}</AppText> : null}
-      <View style={styles.actions}>
-        {onBack ? <AppButton label={backLabel} onPress={onBack} disabled={loading} /> : null}
-        {onNext ? (
-          <AppButton
-            label={loading ? "Saving..." : nextLabel}
-            onPress={() => {
-              if (loading || nextDisabled) return;
-              void onNext();
-            }}
-            disabled={loading || nextDisabled}
-          />
-        ) : null}
-      </View>
+      <KeyboardAvoidingView
+        style={styles.keyboard}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom: 24,
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <StepProgress step={step} totalSteps={totalSteps} />
+          <View style={styles.body}>{children}</View>
+        </ScrollView>
+
+        <View
+          style={[
+            styles.footer,
+            {
+              paddingBottom: Math.max(insets.bottom, 12),
+            },
+          ]}
+        >
+          {errorMessage ? <AppText style={styles.error}>{errorMessage}</AppText> : null}
+          <View style={styles.actions}>
+            {onBack ? <AppButton label={backLabel} onPress={onBack} disabled={loading} variant="secondary" /> : null}
+            {onNext ? (
+              <AppButton
+                label={loading ? "Saving..." : nextLabel}
+                onPress={() => {
+                  if (loading || nextDisabled) return;
+                  void onNext();
+                }}
+                disabled={loading || nextDisabled}
+              />
+            ) : null}
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  body: {
+  keyboard: {
     flex: 1,
-    gap: 16,
   },
-  actions: {
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.screenX,
+    paddingTop: 4,
+    gap: 18,
+  },
+  body: {
+    gap: 18,
+  },
+  footer: {
+    borderTopWidth: 1,
+    borderTopColor: "#f1e1d4",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: spacing.screenX,
+    paddingTop: 14,
     gap: 10,
   },
+  actions: {
+    gap: 12,
+  },
   error: {
-    color: "#b91c1c",
+    color: colors.errorText,
+    lineHeight: 21,
   },
 });

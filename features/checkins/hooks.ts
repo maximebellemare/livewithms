@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { checkinsApi } from "./api";
+import { checkinsApi, updateCheckInCaches } from "./api";
 import type { CheckInOverviewEntry, DailyCheckIn, DailyCheckInInput } from "./types";
 
 function mergeCheckInIntoHistory(
@@ -96,6 +96,7 @@ export function useSaveDailyCheckIn() {
       input: DailyCheckInInput;
     }) => checkinsApi.upsertDailyCheckIn(userId, date, input),
     onSuccess: (data, variables) => {
+      void updateCheckInCaches(variables.userId, data);
       queryClient.setQueryData<DailyCheckIn | null>(
         ["daily-checkin", variables.userId, variables.date],
         data,

@@ -7,7 +7,19 @@ import PaywallHero from "./PaywallHero";
 import PlanOptionCard from "./PlanOptionCard";
 import { usePremium } from "../../features/premium/hooks";
 import type { PremiumPlan } from "../../features/premium/types";
-import { trackEvent } from "../../lib/events";
+import { trackEvent, trackRetryTriggered } from "../../lib/events";
+import { derivePremiumValue } from "../../lib/premium-ecosystem/calm-premium/derivePremiumValue";
+import { preserveFreeUserDignity } from "../../lib/premium-ecosystem/calm-premium/preserveFreeUserDignity";
+import { deriveAccessibilityPrograms } from "../../lib/premium-ecosystem/financial-accessibility/deriveAccessibilityPrograms";
+import { deriveRegionalSensitivity } from "../../lib/premium-ecosystem/financial-accessibility/deriveRegionalSensitivity";
+import { preventEmotionalConversion } from "../../lib/premium-ecosystem/ethical-monetization/preventEmotionalConversion";
+import { validateMonetizationEthics } from "../../lib/premium-ecosystem/ethical-monetization/validateMonetizationEthics";
+import { deriveUpgradeTiming } from "../../lib/premium-ecosystem/low-pressure-upgrades/deriveUpgradeTiming";
+import { preventConversionPressure } from "../../lib/premium-ecosystem/low-pressure-upgrades/preventConversionPressure";
+import { deriveBillingTransparency } from "../../lib/premium-ecosystem/subscription-calmness/deriveBillingTransparency";
+import { preserveGracefulDowngrades } from "../../lib/premium-ecosystem/subscription-calmness/preserveGracefulDowngrades";
+import { deriveLongTermPremiumValue } from "../../lib/premium-ecosystem/sustainable-value/deriveLongTermPremiumValue";
+import { preventArtificialScarcity } from "../../lib/premium-ecosystem/sustainable-value/preventArtificialScarcity";
 
 const PRIVACY_POLICY_URL = "https://www.livewithms.com/policies/privacy-policy";
 const TERMS_OF_USE_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
@@ -19,6 +31,17 @@ type FuturePaywallScreenProps = {
 export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProps) {
   const premium = usePremium();
   const [selectedPlan, setSelectedPlan] = useState<PremiumPlan>("yearly");
+  const premiumValue = derivePremiumValue();
+  const upgradeTiming = deriveUpgradeTiming({
+    source: "premium-screen",
+    isLoading: premium.isLoading,
+    hasRecentFailure: Boolean(premium.offeringsErrorMessage),
+  });
+  const safeMonetization = validateMonetizationEthics([
+    premiumValue.summary,
+    deriveLongTermPremiumValue(),
+    deriveAccessibilityPrograms(),
+  ]).valid;
 
   useEffect(() => {
     void trackEvent("paywall_viewed", {
@@ -36,10 +59,12 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
 
   const primaryPackage = premium.currentOffering?.[selectedPlan] ?? null;
   const showPlans = !premium.hasPremiumAccess;
+  const monthlyPrice = premium.currentOffering?.monthly?.priceString ?? "Unavailable";
+  const yearlyPrice = premium.currentOffering?.yearly?.priceString ?? "Unavailable";
   const purchaseLabel = premium.isPurchasing
     ? "Starting purchase..."
     : primaryPackage
-      ? `Continue with ${selectedPlan === "yearly" ? "Yearly" : "Monthly"}`
+      ? preventConversionPressure(`Continue with ${selectedPlan === "yearly" ? "Yearly" : "Monthly"}`)
       : "Pricing unavailable right now";
 
   const handlePurchase = async () => {
@@ -91,35 +116,51 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
     }
   };
 
+  const handleSelectPlan = (plan: PremiumPlan) => {
+    setSelectedPlan(plan);
+    void trackEvent("subscription_plan_selected", {
+      plan,
+      source: "premium-screen",
+    });
+  };
+
   return (
-    <AppScreen title="LiveWithMS Premium" subtitle="A calm upgrade for deeper personalized support, while the core app stays free.">
+    <AppScreen title="LiveWithMS Premium" subtitle="An optional upgrade for deeper support, while the calm core experience stays free.">
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <PaywallHero />
 
         <View style={styles.valueCard}>
           <AppText style={styles.valueTitle}>What stays free</AppText>
           <AppText style={styles.valueBody}>
-            Daily check-ins, basic tracking, reminders, Programs, Care, and core insights all stay part of the free app.
+            {preserveFreeUserDignity(
+              "Daily check-ins, basic tracking, reminders, Programs, Care, and core insights all stay part of the free app.",
+            )}
           </AppText>
         </View>
 
         <View style={styles.valueCard}>
-          <AppText style={styles.valueTitle}>What Premium adds</AppText>
+          <AppText style={styles.valueTitle}>{premiumValue.title}</AppText>
           <View style={styles.bulletList}>
-            <AppText style={styles.bulletText}>• Unlimited AI Coach conversations</AppText>
-            <AppText style={styles.bulletText}>• More personalized AI insight support over time</AppText>
-            <AppText style={styles.bulletText}>• Future guided programs and deeper summaries</AppText>
+            {premiumValue.lines.map((line) => (
+              <AppText key={line} style={styles.bulletText}>• {preventEmotionalConversion(line)}</AppText>
+            ))}
           </View>
           <AppText style={styles.valueBody}>
-            Premium helps support continued development while unlocking more personalized support.
+            {preventEmotionalConversion(premiumValue.summary)}
           </AppText>
+          <AppText style={styles.valueBody}>
+            {safeMonetization
+              ? "Premium is meant to be an optional enhancement, not something you need to use the core app well."
+              : "Premium remains optional, and the free app should still feel supportive."}
+          </AppText>
+          <AppText style={styles.valueBody}>{deriveLongTermPremiumValue()}</AppText>
         </View>
 
         {premium.hasPremiumAccess ? (
           <View style={styles.activeCard}>
             <AppText style={styles.activeTitle}>Premium is active</AppText>
             <AppText style={styles.activeBody}>
-              Unlimited AI Coach is available now, and your future premium features will unlock here automatically as they are added.
+              Unlimited AI Coach is available now, and your premium support can stay available without changing the tone of the rest of the app.
             </AppText>
             <AppButton
               label={premium.isLoading ? "Refreshing..." : "Refresh Premium Status"}
@@ -136,7 +177,7 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
               <View style={styles.statusCard}>
                 <AppText style={styles.statusTitle}>Checking current pricing…</AppText>
                 <AppText style={styles.statusBody}>
-                  This can take a moment while the App Store and RevenueCat refresh.
+                  This can take a moment while the App Store refreshes in the background.
                 </AppText>
               </View>
             ) : null}
@@ -148,11 +189,14 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
                   {premium.offeringsErrorMessage}
                 </AppText>
                 <AppText style={styles.statusBody}>
-                  If Apple’s paid applications setup is still finishing, pricing can take a little time to appear.
+                  If Apple’s setup is still finishing, pricing can take a little time to appear. The rest of the app still works normally in the meantime.
                 </AppText>
                 <AppButton
                   label={premium.isLoading ? "Retrying..." : "Try again"}
-                  onPress={() => void premium.refreshPremiumStatus()}
+                  onPress={() => {
+                    void trackRetryTriggered("premium-refresh");
+                    void premium.refreshPremiumStatus();
+                  }}
                   variant="secondary"
                   disabled={premium.isLoading}
                 />
@@ -160,41 +204,72 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
             ) : null}
 
             <View style={styles.comparisonCard}>
+              <AppText style={styles.comparisonTitle}>Choose the pace that fits</AppText>
+              <AppText style={styles.comparisonBody}>
+                {upgradeTiming === "defer"
+                  ? "You do not need to decide right away. Pricing can wait until it feels clearer."
+                  : "Monthly stays flexible. Yearly is simpler if you expect to use the app regularly."}
+              </AppText>
+              <View style={styles.pricingSnapshot}>
+                <View style={styles.pricingPill}>
+                  <AppText style={styles.pricingLabel}>Monthly</AppText>
+                  <AppText style={styles.pricingValue}>{monthlyPrice}</AppText>
+                </View>
+                <View style={styles.pricingPill}>
+                  <AppText style={styles.pricingLabel}>Yearly</AppText>
+                  <AppText style={styles.pricingValue}>{yearlyPrice}</AppText>
+                  <AppText style={styles.pricingHint}>{preventArtificialScarcity("Best value over time")}</AppText>
+                </View>
+              </View>
               <AppText style={styles.comparisonTitle}>Feature comparison</AppText>
               <View style={styles.comparisonRow}>
                 <AppText style={styles.comparisonLabel}>Free</AppText>
-                <AppText style={styles.comparisonValue}>Daily check-ins, reminders, Programs, Care, and core insights</AppText>
+                <AppText style={styles.comparisonValue}>Check-ins, reminders, Programs, Care, and core insights</AppText>
               </View>
               <View style={styles.comparisonRow}>
                 <AppText style={styles.comparisonLabel}>Premium</AppText>
-                <AppText style={styles.comparisonValue}>Unlimited AI Coach, deeper insight support, and future guided tools</AppText>
+                <AppText style={styles.comparisonValue}>Unlimited AI Coach plus deeper insights, personalization, and future guided tools</AppText>
               </View>
+              <AppText style={styles.comparisonBody}>{deriveAccessibilityPrograms()}</AppText>
+              <AppText style={styles.comparisonBody}>{deriveRegionalSensitivity()}</AppText>
             </View>
 
             <PlanOptionCard
               plan="yearly"
               title="Yearly"
-              price={premium.currentOffering?.yearly?.priceString ?? "Unavailable"}
+              price={yearlyPrice}
               subtitle="A steadier option if you want support throughout the year."
+              detail="Lower-friction choice if you want the app to stay with you across changing weeks."
               badge="Best value"
               selected={selectedPlan === "yearly"}
-              onPress={() => setSelectedPlan("yearly")}
+              onPress={() => handleSelectPlan("yearly")}
             />
 
             <PlanOptionCard
               plan="monthly"
               title="Monthly"
-              price={premium.currentOffering?.monthly?.priceString ?? "Unavailable"}
+              price={monthlyPrice}
               subtitle="Best if you want a simple month-to-month option."
+              detail="A flexible starting point if you want to try Premium without a longer commitment."
               selected={selectedPlan === "monthly"}
-              onPress={() => setSelectedPlan("monthly")}
+              onPress={() => handleSelectPlan("monthly")}
             />
           </>
         ) : null}
 
         <View style={styles.disclosureCard}>
+          <AppText style={styles.disclosureTitle}>Restore and privacy</AppText>
+          <Pressable style={styles.restoreCallout} onPress={() => void handleRestore()}>
+            <AppText style={styles.restoreCalloutText}>Restore Purchases</AppText>
+          </Pressable>
           <AppText style={styles.disclosureText}>
-            Auto-renewal applies unless cancelled at least 24 hours before the end of the current period. Cancel anytime in your App Store account settings.
+            {deriveBillingTransparency()}
+          </AppText>
+          <AppText style={styles.disclosureText}>
+            {preserveGracefulDowngrades()}
+          </AppText>
+          <AppText style={styles.disclosureText}>
+            Your check-ins and wellness data stay yours. Premium changes access, not your control over the app.
           </AppText>
         </View>
 
@@ -210,9 +285,6 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
           )}
           <Pressable style={styles.secondaryButton} onPress={onClose}>
             <AppText style={styles.secondaryText}>Not now</AppText>
-          </Pressable>
-          <Pressable style={styles.secondaryButton} onPress={() => void handleRestore()}>
-            <AppText style={styles.secondaryText}>Restore Purchases</AppText>
           </Pressable>
         </View>
 
@@ -323,6 +395,39 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
   },
+  comparisonBody: {
+    color: "#6b7280",
+    lineHeight: 20,
+  },
+  pricingSnapshot: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  pricingPill: {
+    flex: 1,
+    backgroundColor: "#fffaf6",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    padding: 14,
+    gap: 4,
+  },
+  pricingLabel: {
+    color: "#c25d10",
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  pricingValue: {
+    color: "#1f2937",
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  pricingHint: {
+    color: "#8b6a4f",
+    fontSize: 12,
+    lineHeight: 18,
+  },
   comparisonRow: {
     gap: 4,
   },
@@ -342,11 +447,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f3dfd1",
     padding: 16,
+    gap: 8,
+  },
+  disclosureTitle: {
+    color: "#1f2937",
+    fontSize: 15,
+    fontWeight: "700",
   },
   disclosureText: {
     color: "#6b7280",
     lineHeight: 20,
     fontSize: 13,
+  },
+  restoreCallout: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#ead9cb",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  restoreCalloutText: {
+    color: "#8b6a4f",
+    fontSize: 13,
+    fontWeight: "700",
   },
   actions: {
     gap: 12,

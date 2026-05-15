@@ -1,4 +1,5 @@
 import env from "../../lib/env";
+import { getCachedJson, setCachedJson } from "../../lib/local-cache";
 import { normalizeError } from "../../lib/errors";
 import { supabase } from "../../lib/supabase/client";
 import type { Medication, MedicationInput } from "./types";
@@ -29,6 +30,10 @@ function mapMedicationRow(row: {
   };
 }
 
+function getMedicationsCacheKey(userId: string) {
+  return `cache.medications.${userId}`;
+}
+
 export const medicationsApi = {
   async listMedications(userId: string) {
     if (!userId) {
@@ -39,32 +44,42 @@ export const medicationsApi = {
       return [] as Medication[];
     }
 
-    const { data, error } = await supabase
-      .from("medications")
-      .select(SELECT_FIELDS)
-      .eq("user_id", userId)
-      .order("active", { ascending: false })
-      .order("created_at", { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from("medications")
+        .select(SELECT_FIELDS)
+        .eq("user_id", userId)
+        .order("active", { ascending: false })
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      throw normalizeError(error);
+      if (error) {
+        throw normalizeError(error);
+      }
+
+      const rows = (data ?? []).map((row) =>
+        mapMedicationRow(
+          row as {
+            id: string;
+            user_id: string;
+            name: string;
+            dosage: string | null;
+            schedule_type: string;
+            notes: string | null;
+            active: boolean;
+            created_at: string;
+            updated_at: string;
+          },
+        ),
+      );
+      await setCachedJson(getMedicationsCacheKey(userId), rows);
+      return rows;
+    } catch (error) {
+      const cached = await getCachedJson<Medication[]>(getMedicationsCacheKey(userId));
+      if (cached) {
+        return cached;
+      }
+      throw error;
     }
-
-    return (data ?? []).map((row) =>
-      mapMedicationRow(
-        row as {
-          id: string;
-          user_id: string;
-          name: string;
-          dosage: string | null;
-          schedule_type: string;
-          notes: string | null;
-          active: boolean;
-          created_at: string;
-          updated_at: string;
-        },
-      ),
-    );
   },
 
   async createMedication(userId: string, input: MedicationInput) {

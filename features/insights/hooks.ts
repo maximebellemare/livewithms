@@ -2,6 +2,15 @@ import { useMemo } from "react";
 import { subDays } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import type { DailyCheckIn } from "../checkins/types";
+import { deriveCollaborativeTone } from "../../lib/self-trust/agency-language/deriveCollaborativeTone";
+import { injectInterpretiveOpenness } from "../../lib/self-trust/agency-preserving-insights/injectInterpretiveOpenness";
+import { preserveUserPerspective } from "../../lib/self-trust/agency-preserving-insights/preserveUserPerspective";
+import { injectInterpretiveHumility } from "../../lib/self-trust/interpretation-humility/injectInterpretiveHumility";
+import { preventForcedPositivity } from "../../lib/existential-safety/grounded-perspective/preventForcedPositivity";
+import { preserveNonIllnessIdentity } from "../../lib/existential-safety/identity-preservation/preserveNonIllnessIdentity";
+import { reduceIllnessCentrality } from "../../lib/existential-safety/identity-preservation/reduceIllnessCentrality";
+import { reduceFearFraming } from "../../lib/existential-safety/language-softening/reduceFearFraming";
+import { softenExistentialLanguage } from "../../lib/existential-safety/language-softening/softenExistentialLanguage";
 import { insightsApi } from "./api";
 import type {
   AiInsightsSummary,
@@ -104,7 +113,7 @@ function calculateTrendDirection(
 function buildTrendSummary(
   entriesCurrent: DailyCheckIn[],
   entriesReference: DailyCheckIn[],
-  key: "fatigue" | "mood" | "sleep_hours" | "stress",
+  key: "fatigue" | "mood" | "sleep_hours" | "stress" | "pain" | "brain_fog",
   label: string,
   higherIsBetter: boolean,
 ): TrendSummary {
@@ -129,6 +138,24 @@ function buildTrendSummary(
           : `Lately, your ${label.toLowerCase()} has been a bit more noticeable.`;
     }
   }
+
+  summary = preserveUserPerspective(
+    injectInterpretiveOpenness(
+      preventForcedPositivity(
+        preserveNonIllnessIdentity(
+          reduceIllnessCentrality(
+            reduceFearFraming(softenExistentialLanguage(injectInterpretiveHumility(summary))),
+          ),
+          false,
+        ),
+      ),
+      deriveCollaborativeTone({
+        adaptiveStatePrimary: "STABLE",
+        channel: "insight-summary",
+      }),
+    ),
+    false,
+  );
 
   return {
     key,
@@ -727,6 +754,8 @@ export function useInsightsDashboard(
       buildTrendSummary(entriesCurrent, entriesReference, "mood", "Mood", true),
       buildTrendSummary(entriesCurrent, entriesReference, "stress", "Stress", false),
       buildTrendSummary(entriesCurrent, entriesReference, "sleep_hours", "Sleep", true),
+      buildTrendSummary(entriesCurrent, entriesReference, "pain", "Pain", false),
+      buildTrendSummary(entriesCurrent, entriesReference, "brain_fog", "Brain fog", false),
     ];
     const correlations = [
       buildCorrelationSummary(entries30, {

@@ -3,6 +3,8 @@ import { StyleSheet, View } from "react-native";
 import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
 import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
+import { useOnboarding } from "../../features/onboarding/hooks";
+import { getPersonalizedOnboardingGuidance } from "../../features/onboarding/personalization";
 
 const EXPECTATION_POINTS = [
   {
@@ -15,12 +17,18 @@ const EXPECTATION_POINTS = [
   },
   {
     title: "AI Coach",
-    body: "It offers supportive reflection, not medical advice or diagnosis.",
+    body: "It offers supportive reflection. It is not medical advice, diagnosis, or therapy.",
+  },
+  {
+    title: "Premium",
+    body: "If you ever choose it later, it simply adds deeper AI support. Your core tracking stays free.",
   },
 ];
 
 export default function PlanScreen() {
   const router = useRouter();
+  const { draft } = useOnboarding();
+  const guidance = getPersonalizedOnboardingGuidance(draft);
 
   return (
     <OnboardingScaffold
@@ -37,6 +45,14 @@ export default function PlanScreen() {
           <AppText style={styles.heroTitle}>You are building awareness, not doing this perfectly.</AppText>
           <AppText style={styles.heroBody}>
             A few consistent check-ins can support reflection, pattern spotting, and steadier decisions.
+          </AppText>
+        </View>
+
+        <View style={styles.guidanceCard}>
+          <AppText style={styles.guidanceTitle}>{guidance.title}</AppText>
+          <AppText style={styles.guidanceBody}>{guidance.body}</AppText>
+          <AppText style={styles.guidanceNote}>
+            You stay in control of what you track, what you share, and which tools you use.
           </AppText>
         </View>
 
@@ -89,5 +105,27 @@ const styles = StyleSheet.create({
   toolBody: {
     color: "#4b5563",
     lineHeight: 22,
+  },
+  guidanceCard: {
+    backgroundColor: "#f7fbf7",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#d7ead7",
+    padding: 18,
+    gap: 8,
+  },
+  guidanceTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  guidanceBody: {
+    color: "#4b5563",
+    lineHeight: 22,
+  },
+  guidanceNote: {
+    color: "#6b7280",
+    lineHeight: 20,
+    fontSize: 13,
   },
 });

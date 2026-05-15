@@ -2,6 +2,7 @@ import { PropsWithChildren } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AppText from "./AppText";
+import { colors, spacing } from "./design";
 
 type AppScreenProps = PropsWithChildren<{
   title?: string;
@@ -27,29 +28,29 @@ export default function AppScreen({ children, title, subtitle }: AppScreenProps)
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff7f2",
+    backgroundColor: colors.page,
   },
   container: {
     flex: 1,
-    paddingTop: 24,
+    paddingTop: spacing.screenTop,
   },
   header: {
-    paddingHorizontal: 20,
-    gap: 8,
+    paddingHorizontal: spacing.screenX,
+    gap: 10,
   },
   title: {
-    fontSize: 38,
-    lineHeight: 46,
+    fontSize: 36,
+    lineHeight: 44,
     fontWeight: "700",
-    color: "#1f2937",
+    color: colors.text,
   },
   subtitle: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#6b7280",
+    fontSize: 15,
+    lineHeight: 23,
+    color: colors.textMuted,
   },
   content: {
     flex: 1,
-    paddingTop: 16,
+    paddingTop: 18,
   },
 });

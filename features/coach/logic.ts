@@ -1,4 +1,11 @@
 import type { DailyCheckIn } from "../checkins/types";
+import type { AdaptiveProfile } from "../adaptive/types";
+import type {
+  ComplexityTolerance,
+  PromptStylePreference,
+  ReflectionDepthPreference,
+  ReflectionTone,
+} from "../../lib/personalization/types";
 
 export type CoachActionKey = "reflect" | "reset" | "plan";
 
@@ -20,6 +27,11 @@ export type CoachPromptSet = {
 export type CoachPreviewMessage = {
   role: "coach" | "user";
   content: string;
+};
+
+export type ReflectionTheme = {
+  label: string;
+  count: number;
 };
 
 export function formatMetricValue(value: number | null, suffix = "") {
@@ -91,8 +103,8 @@ export function buildCoachMessage(entry: DailyCheckIn | null): CoachMessage {
 
   if (pain >= 4 || brainFog >= 4) {
     return {
-      title: "Your signals look heavier today",
-      body: "Reduce decision load where you can and lean on whatever makes the day feel steadier.",
+      title: "This may be a lower-clarity day",
+      body: "When pain or brain fog feel heavier, fewer decisions and simpler expectations can help the day feel more manageable.",
     };
   }
 
@@ -159,7 +171,7 @@ export function buildCoachFocus(entry: DailyCheckIn | null): CoachFocus {
 export function buildSuggestedActions(entry: DailyCheckIn | null) {
   if (!entry) {
     return [
-      "Try a 60-second reset",
+      "Try a short reset",
       "Reflect on what would help tonight",
       "Make tomorrow feel 5% easier",
     ];
@@ -168,19 +180,23 @@ export function buildSuggestedActions(entry: DailyCheckIn | null) {
   const actions: string[] = [];
 
   if ((entry.stress ?? 0) >= 4) {
-    actions.push("Take a calm reset");
+    actions.push("Try a calm reset");
   }
 
   if ((entry.fatigue ?? 0) >= 4 || (entry.pain ?? 0) >= 4) {
-    actions.push("Choose one clear priority");
+    actions.push("Use the low-energy checklist");
+  }
+
+  if ((entry.brain_fog ?? 0) >= 4) {
+    actions.push("Keep decisions minimal today");
   }
 
   if ((entry.mood ?? 0) <= 2) {
-    actions.push("Look for one small win");
+    actions.push("Try a short reflection");
   }
 
   if ((entry.sleep_hours ?? 0) < 6) {
-    actions.push("Plan a softer evening");
+    actions.push("Do a body scan before tonight");
   }
 
   actions.push("Write one thing to carry into tomorrow");
@@ -217,15 +233,44 @@ export function buildCoachConversationPreview(entry: DailyCheckIn | null): Coach
     ];
   }
 
-export function buildReflectionPrompts(entry: DailyCheckIn | null): CoachPromptSet {
+export function buildReflectionPrompts(
+  entry: DailyCheckIn | null,
+  adaptiveProfile?: AdaptiveProfile | null,
+  preferences?: {
+    reflectionDepthPreference?: ReflectionDepthPreference;
+    promptStylePreference?: PromptStylePreference;
+    reflectionTonePreference?: ReflectionTone;
+    complexityTolerance?: ComplexityTolerance;
+  } | null,
+): CoachPromptSet {
+  const prefersShort =
+    preferences?.reflectionDepthPreference === "brief" || preferences?.complexityTolerance === "lower";
+  const prefersOpenEnded = preferences?.promptStylePreference === "open-ended";
+  const prefersStructured = preferences?.promptStylePreference === "structured";
+
   if (!entry) {
+    if (adaptiveProfile?.engagementPattern === "gentle-reengagement") {
+      return {
+        title: "A gentle return",
+        prompts: prefersShort
+          ? ["What feels most present lately?", "What would feel easiest to return to?"]
+          : [
+              "What has felt most present lately?",
+              "What support would feel easiest to return to?",
+              "What would make tomorrow feel 5% more manageable?",
+            ],
+      };
+    }
+
     return {
       title: "A few gentle prompts",
-      prompts: [
-        "What felt hardest today?",
-        "What helped even a little?",
-        "What would make tomorrow 5% easier?",
-      ],
+      prompts: prefersShort
+        ? ["What felt hardest today?", "What helped even a little?"]
+        : [
+            "What felt hardest today?",
+            "What helped even a little?",
+            prefersOpenEnded ? "What feels worth noticing before tomorrow?" : "What would make tomorrow 5% easier?",
+          ],
     };
   }
 
@@ -237,21 +282,53 @@ export function buildReflectionPrompts(entry: DailyCheckIn | null): CoachPromptS
   if (fatigue >= 4 && sleepHours < 6) {
     return {
       title: "Tonight’s reflection",
-      prompts: [
-        "Where did your energy feel most stretched today?",
-        "What could help you rest earlier tonight?",
-        "What can you let go of before tomorrow starts?",
-      ],
+      prompts: prefersShort
+        ? ["Where did your energy feel most stretched?", "What can you let go of tonight?"]
+        : [
+            "Where did your energy feel most stretched today?",
+            "What could help you rest earlier tonight?",
+            "What can you let go of before tomorrow starts?",
+          ],
     };
   }
 
   if (stress >= 4) {
     return {
       title: "A steadier reset",
+      prompts: prefersStructured
+        ? [
+            "What felt most loaded today?",
+            "What helped your body settle, even briefly?",
+            "What is one thing you can simplify tomorrow?",
+          ]
+        : [
+            "What felt most loaded today?",
+            "Where did things soften, even briefly?",
+            prefersShort ? "What can stay simple next?" : "What is one thing you can simplify tomorrow?",
+          ],
+    };
+  }
+
+  if (adaptiveProfile?.fatigueTrend === "high") {
+    return {
+      title: "A lower-energy check-in",
+      prompts: prefersShort
+        ? ["Where has energy felt most limited lately?", "What do you need less of this week?"]
+        : [
+            "Where did your energy feel most limited lately?",
+            "What has helped protect even a small amount of energy?",
+            "What do you need less of this week?",
+          ],
+    };
+  }
+
+  if ((entry?.brain_fog ?? 0) >= 4 || adaptiveProfile?.brainFogTrend === "high") {
+    return {
+      title: "A simpler reflection",
       prompts: [
-        "What felt most loaded today?",
-        "What helped your body settle, even briefly?",
-        "What is one thing you can simplify tomorrow?",
+        "What is hardest to hold in your head right now?",
+        "What feels easiest to let be simple today?",
+        ...(prefersShort ? [] : ["What one thing matters most for the rest of the day?"]),
       ],
     };
   }
@@ -259,20 +336,68 @@ export function buildReflectionPrompts(entry: DailyCheckIn | null): CoachPromptS
   if (mood <= 2) {
     return {
       title: "A gentler check-in",
-      prompts: [
-        "What felt especially heavy today?",
-        "Was there one moment that felt even a little better?",
-        "What support would feel kindest tomorrow?",
-      ],
+      prompts: prefersShort
+        ? ["What felt especially heavy today?", "What support would feel kindest next?"]
+        : [
+            "What felt especially heavy today?",
+            "Was there one moment that felt even a little better?",
+            "What support would feel kindest tomorrow?",
+          ],
     };
   }
 
   return {
     title: "A simple reflection",
-    prompts: [
-      "What helped even a little today?",
-      "What do you want to remember from this day?",
-      "What would make tomorrow 5% easier?",
-    ],
+    prompts: prefersStructured
+      ? [
+          "What helped even a little today?",
+          "What do you need more of lately?",
+          ...(prefersShort ? [] : ["What do you want to remember from this day?"]),
+          "What would make tomorrow 5% easier?",
+        ]
+      : [
+          "What helped even a little today?",
+          prefersOpenEnded ? "What feels worth carrying forward from this day?" : "What do you need more of lately?",
+          ...(prefersShort ? [] : ["What do you want to remember from this day?"]),
+          ...(preferences?.reflectionTonePreference === "emotionally-reflective"
+            ? ["What feeling feels most worth naming before the day ends?"]
+            : []),
+        ],
   };
+}
+
+export function buildReflectionStarter(prompt: string) {
+  if (prompt.endsWith("?")) {
+    return `${prompt}\n`;
+  }
+
+  return `${prompt} `;
+}
+
+const THEME_KEYWORDS: Array<{ label: string; matches: string[] }> = [
+  { label: "stress", matches: ["stress", "overwhelm", "overwhelmed", "loaded", "pressure", "tense"] },
+  { label: "fatigue", matches: ["fatigue", "tired", "exhausted", "energy", "drained"] },
+  { label: "sleep", matches: ["sleep", "rest", "rested", "awake", "insomnia"] },
+  { label: "pain", matches: ["pain", "ache", "aching", "sore", "spasm", "spasticity"] },
+  { label: "support", matches: ["helped", "support", "kind", "gentle", "steady"] },
+  { label: "planning", matches: ["plan", "priority", "schedule", "organize", "organization"] },
+];
+
+export function getRecurringReflectionThemes(reflections: string[]): ReflectionTheme[] {
+  const counts = new Map<string, number>();
+
+  for (const reflection of reflections) {
+    const text = reflection.toLowerCase();
+
+    for (const theme of THEME_KEYWORDS) {
+      if (theme.matches.some((match) => text.includes(match))) {
+        counts.set(theme.label, (counts.get(theme.label) ?? 0) + 1);
+      }
+    }
+  }
+
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 3)
+    .map(([label, count]) => ({ label, count }));
 }

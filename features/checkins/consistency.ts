@@ -32,6 +32,17 @@ export function getCurrentCheckInStreak(entries: CheckInOverviewEntry[], today: 
   return streak;
 }
 
+export function getCheckInsInLastDays(entries: CheckInOverviewEntry[], today: string, days: number) {
+  const todayDate = new Date(`${today}T12:00:00`);
+  const cutoffDate = new Date(todayDate);
+  cutoffDate.setDate(todayDate.getDate() - (days - 1));
+
+  return entries.filter((entry) => {
+    const entryDate = new Date(`${entry.date}T12:00:00`);
+    return entryDate >= cutoffDate && entryDate <= todayDate;
+  }).length;
+}
+
 export function getLatestMilestone(totalCheckIns: number) {
   return [...MILESTONES].reverse().find((milestone) => totalCheckIns >= milestone) ?? null;
 }

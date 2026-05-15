@@ -25,6 +25,9 @@ import type { CareNote, CareNoteInput } from "../../features/care-notes/types";
 import { useCreateMedication, useMedications } from "../../features/medications/hooks";
 import type { Medication, MedicationInput } from "../../features/medications/types";
 import { getErrorMessage } from "../../lib/errors";
+import { logger } from "../../lib/logger";
+import { trackRetryTriggered } from "../../lib/events";
+import { useSlowScreenDiagnostics } from "../../lib/observability";
 
 const MEDICATION_FREQUENCY_OPTIONS = [
   "Once daily",
@@ -212,6 +215,7 @@ export default function CareScreen() {
     (appointmentsQuery.isLoading && !appointmentsQuery.data) ||
     (medicationsQuery.isLoading && !medicationsQuery.data) ||
     (careNotesQuery.isLoading && !careNotesQuery.data);
+  useSlowScreenDiagnostics("care", isInitialLoading);
   const [showInactiveMedications, setShowInactiveMedications] = useState(false);
 
   const upcomingAppointments = useMemo(() => {
@@ -279,10 +283,18 @@ export default function CareScreen() {
     const nextDate = buildPickerDateFromAppointment(date, time);
     setAppointmentPickerDate(nextDate);
     setPickerDraftDate(nextDate);
+    logger.info("Appointment picker opened", {
+      mode,
+      date,
+      time,
+    });
     setActivePicker(mode);
   };
 
   const closeAppointmentPicker = () => {
+    logger.info("Appointment picker closed", {
+      mode: activePicker,
+    });
     setActivePicker(null);
   };
 
@@ -298,6 +310,12 @@ export default function CareScreen() {
       setTime(formatTimeForStorage(nextDate));
     }
 
+    logger.info("Appointment picker confirmed", {
+      mode: activePicker,
+      nextDate: nextDate.toISOString(),
+      storedDate: activePicker === "date" ? nextDate.toISOString().slice(0, 10) : date,
+      storedTime: activePicker === "time" ? formatTimeForStorage(nextDate) : time,
+    });
     setActivePicker(null);
   };
 
@@ -561,7 +579,10 @@ export default function CareScreen() {
     return (
       <ErrorState
         message={getErrorMessage(appointmentsQuery.error)}
-        onRetry={() => void appointmentsQuery.refetch()}
+        onRetry={() => {
+          void trackRetryTriggered("care-appointments-query");
+          void appointmentsQuery.refetch();
+        }}
       />
     );
   }
@@ -570,7 +591,10 @@ export default function CareScreen() {
     return (
       <ErrorState
         message={getErrorMessage(medicationsQuery.error)}
-        onRetry={() => void medicationsQuery.refetch()}
+        onRetry={() => {
+          void trackRetryTriggered("care-medications-query");
+          void medicationsQuery.refetch();
+        }}
       />
     );
   }
@@ -579,7 +603,10 @@ export default function CareScreen() {
     return (
       <ErrorState
         message={getErrorMessage(careNotesQuery.error)}
-        onRetry={() => void careNotesQuery.refetch()}
+        onRetry={() => {
+          void trackRetryTriggered("care-notes-query");
+          void careNotesQuery.refetch();
+        }}
       />
     );
   }
@@ -1114,7 +1141,9 @@ export default function CareScreen() {
       <Modal
         visible={activePicker !== null}
         transparent
-        animationType="fade"
+        animationType="slide"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
         onRequestClose={closeAppointmentPicker}
       >
         <View style={styles.modalOverlay}>
@@ -1136,6 +1165,7 @@ export default function CareScreen() {
                 mode={activePicker}
                 display="spinner"
                 onChange={activePicker === "date" ? handleDateChange : handleTimeChange}
+                style={styles.modalPicker}
               />
             ) : null}
           </View>
@@ -1299,16 +1329,19 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(31, 41, 55, 0.22)",
-    justifyContent: "center",
-    padding: 20,
+    justifyContent: "flex-end",
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
   modalCard: {
     backgroundColor: "#ffffff",
-    borderRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     borderWidth: 1,
     borderColor: "#f1e1d4",
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 16,
+    minHeight: 320,
     overflow: "hidden",
   },
   modalHeader: {
@@ -1334,6 +1367,10 @@ const styles = StyleSheet.create({
     color: "#c25d10",
     fontSize: 15,
     fontWeight: "600",
+  },
+  modalPicker: {
+    minHeight: 220,
+    alignSelf: "stretch",
   },
   frequencyOptions: {
     flexDirection: "row",

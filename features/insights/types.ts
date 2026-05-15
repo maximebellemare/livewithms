@@ -6,6 +6,8 @@ export type PatternSummary = {
 export type AiInsightsSummary = {
   summary: string;
   helping: string[];
+  suggestions: string[];
+  disclaimer?: string;
   source: "ai" | "fallback";
 };
 

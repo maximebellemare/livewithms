@@ -1,12 +1,14 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import type { PremiumPlan } from "../../features/premium/types";
 import AppText from "../ui/AppText";
+import { colors, radii, shadows } from "../ui/design";
 
 type PlanOptionCardProps = {
   plan: PremiumPlan;
   title: string;
   price: string;
   subtitle: string;
+  detail?: string;
   selected: boolean;
   badge?: string;
   onPress: () => void;
@@ -16,6 +18,7 @@ export default function PlanOptionCard({
   title,
   price,
   subtitle,
+  detail,
   selected,
   badge,
   onPress,
@@ -31,6 +34,7 @@ export default function PlanOptionCard({
       </View>
       <View style={styles.priceContainer}>
         <AppText style={styles.price}>{price}</AppText>
+        {detail ? <AppText style={styles.detail}>{detail}</AppText> : null}
       </View>
     </Pressable>
   );
@@ -38,20 +42,17 @@ export default function PlanOptionCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: "#ebd8ca",
+    borderColor: colors.border,
     padding: 18,
     gap: 16,
+    ...shadows.soft,
   },
   cardSelected: {
-    borderColor: "#e8751a",
-    backgroundColor: "#fff1e6",
-    shadowColor: "#e8751a",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
   },
   header: {
     flexDirection: "row",
@@ -66,20 +67,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1f2937",
+    color: colors.text,
   },
   subtitle: {
-    color: "#6b7280",
+    color: colors.textMuted,
     fontSize: 14,
+    lineHeight: 20,
   },
   badge: {
-    backgroundColor: "#e8751a",
+    backgroundColor: colors.accent,
     color: "#ffffff",
     fontSize: 12,
     fontWeight: "700",
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 999,
+    borderRadius: radii.pill,
   },
   priceContainer: {
     flexWrap: "wrap",
@@ -89,8 +91,14 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 32,
     fontWeight: "800",
-    color: "#1f2937",
+    color: colors.text,
     flexShrink: 1,
     lineHeight: 38,
+  },
+  detail: {
+    marginTop: 4,
+    color: colors.textWarm,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

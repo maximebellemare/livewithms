@@ -1,4 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { applyTrustLayer } from "../../../lib/ai-trust/applyTrustLayer";
+import { detectSensitiveTopics } from "../../../lib/ai-trust/escalation-guardrails/detectSensitiveTopics";
+import { deriveSafeResponseDepth } from "../../../lib/ai-trust/emotional-safety/deriveSafeResponseDepth";
+import type { AiTrustAdaptiveState } from "../../../lib/ai-trust/types";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,6 +16,38 @@ type CoachContext = {
   stress: number | null;
   sleep_hours: number | null;
   recent_reflection: string | null;
+  fatigue_average_7d: number | null;
+  mood_average_7d: number | null;
+  stress_average_7d: number | null;
+  sleep_average_7d: number | null;
+  current_streak: number;
+  weekly_checkins: number;
+  reminder_enabled: boolean;
+  recent_reflections: string[];
+  adaptive_stress_trend?: "elevated" | "steady" | "lighter" | "unknown";
+  adaptive_sleep_trend?: "low" | "steady" | "rested" | "unknown";
+  adaptive_fatigue_trend?: "high" | "steady" | "lighter" | "unknown";
+  adaptive_engagement_pattern?: "steady" | "gentle-reengagement" | "new" | "unknown";
+  lifecycle_stage?: "new" | "first-week" | "active" | "inconsistent" | "returning" | "long-term";
+  reactivation_gap_days?: number | null;
+  onboarding_goals?: string[];
+  onboarding_symptoms?: string[];
+  preferred_support_style?: "calm" | "practical" | "reflective" | "steady";
+  preferred_program_tags?: string[];
+  coach_tone_preference?: "calm" | "practical" | "reflective" | "steady" | "observational";
+  reflection_tone_preference?:
+    | "practical-grounding"
+    | "emotionally-reflective"
+    | "observational"
+    | "gentle-encouragement"
+    | "concise-stabilization";
+  reflection_depth_preference?: "brief" | "balanced" | "deeper";
+  prompt_style_preference?: "structured" | "open-ended" | "gentle-observational";
+  complexity_tolerance?: "lower" | "balanced" | "higher";
+  preferred_density?: "minimal" | "standard" | "reflective";
+  preferred_checkin_windows?: string[];
+  engagement_rhythm?: "light" | "steady" | "sporadic";
+  recovery_rhythm?: "quick-reset" | "gradual-return" | "quiet-reentry";
 };
 
 type CoachMode = "reflect" | "calm" | "practical" | "encouragement";
@@ -36,6 +72,7 @@ const MAX_CONTEXT_MESSAGE_LENGTH = 220;
 const MAX_REFLECTION_LENGTH = 180;
 const MAX_USER_MESSAGE_LENGTH = 700;
 const MAX_ASSISTANT_CONTENT_LENGTH = 900;
+const MAX_RECENT_REFLECTIONS = 2;
 
 const SYSTEM_PROMPT = `You are LiveWithMS Coach, a calm reflection companion inside a multiple sclerosis self-tracking app.
 
@@ -43,6 +80,8 @@ Your role:
 - Help the user reflect, notice patterns, and choose one small supportive next step.
 - Sound calm, grounded, practical, and emotionally safe.
 - Keep replies short, clear, and easy to read.
+- Use the user’s recent patterns only when they genuinely help the response feel more specific.
+- Avoid generic wellness clichés, repetitive phrasing, or empty encouragement.
 
 Formatting:
 - Usually reply in 2-4 short paragraphs.
@@ -53,10 +92,12 @@ Formatting:
 Safety boundaries:
 - Do not provide medical advice, diagnosis, medication instructions, treatment recommendations, or certainty claims.
 - Do not act like a therapist, doctor, crisis counselor, or emergency service.
+- Be transparent that you are supportive AI guidance for reflection, not a medical or mental health professional.
 - If the user asks a medical question, say you cannot give medical guidance and suggest speaking with a qualified healthcare professional.
 - If the user mentions self-harm, suicide, wanting to die, or immediate danger, encourage immediate crisis or emergency support and do not provide harmful guidance.
 - If the user sounds hopeless, overwhelmed, or in extreme distress, keep the reply short, steady, and encourage reaching out to real-world support.
 - Avoid dependency language, guilt, pressure, dramatic wording, or manipulative emotional framing.
+- Avoid sounding like the user needs you, relies on you, or should return for reassurance.
 
 Tone:
 - Calm
@@ -64,6 +105,7 @@ Tone:
 - Supportive
 - Practical
 - Non-clinical
+- Emotionally aware without sounding like therapy
 
 Close gently:
 - When helpful, end with one reflection question or one small next step.
@@ -119,10 +161,110 @@ function normalizeContext(context?: Partial<CoachContext>): CoachContext {
     mood: typeof context?.mood === "number" ? context.mood : null,
     stress: typeof context?.stress === "number" ? context.stress : null,
     sleep_hours: typeof context?.sleep_hours === "number" ? context.sleep_hours : null,
+    fatigue_average_7d: typeof context?.fatigue_average_7d === "number" ? context.fatigue_average_7d : null,
+    mood_average_7d: typeof context?.mood_average_7d === "number" ? context.mood_average_7d : null,
+    stress_average_7d: typeof context?.stress_average_7d === "number" ? context.stress_average_7d : null,
+    sleep_average_7d: typeof context?.sleep_average_7d === "number" ? context.sleep_average_7d : null,
+    current_streak: typeof context?.current_streak === "number" ? context.current_streak : 0,
+    weekly_checkins: typeof context?.weekly_checkins === "number" ? context.weekly_checkins : 0,
+    reminder_enabled: Boolean(context?.reminder_enabled),
     recent_reflection:
       typeof context?.recent_reflection === "string" && context.recent_reflection.trim().length > 0
         ? truncateContent(context.recent_reflection, MAX_REFLECTION_LENGTH)
         : null,
+    recent_reflections: Array.isArray(context?.recent_reflections)
+      ? context.recent_reflections
+          .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+          .map((item) => truncateContent(item, MAX_REFLECTION_LENGTH))
+          .slice(0, MAX_RECENT_REFLECTIONS)
+      : [],
+    adaptive_stress_trend: context?.adaptive_stress_trend ?? "unknown",
+    adaptive_sleep_trend: context?.adaptive_sleep_trend ?? "unknown",
+    adaptive_fatigue_trend: context?.adaptive_fatigue_trend ?? "unknown",
+    adaptive_engagement_pattern: context?.adaptive_engagement_pattern ?? "unknown",
+    lifecycle_stage:
+      context?.lifecycle_stage === "new" ||
+      context?.lifecycle_stage === "first-week" ||
+      context?.lifecycle_stage === "active" ||
+      context?.lifecycle_stage === "inconsistent" ||
+      context?.lifecycle_stage === "returning" ||
+      context?.lifecycle_stage === "long-term"
+        ? context.lifecycle_stage
+        : "new",
+    reactivation_gap_days: typeof context?.reactivation_gap_days === "number" ? context.reactivation_gap_days : null,
+    onboarding_goals: Array.isArray(context?.onboarding_goals)
+      ? context.onboarding_goals.filter((item): item is string => typeof item === "string").slice(0, 3)
+      : [],
+    onboarding_symptoms: Array.isArray(context?.onboarding_symptoms)
+      ? context.onboarding_symptoms.filter((item): item is string => typeof item === "string").slice(0, 3)
+      : [],
+    preferred_support_style:
+      context?.preferred_support_style === "calm" ||
+      context?.preferred_support_style === "practical" ||
+      context?.preferred_support_style === "reflective" ||
+      context?.preferred_support_style === "steady"
+        ? context.preferred_support_style
+        : "steady",
+    preferred_program_tags: Array.isArray(context?.preferred_program_tags)
+      ? context.preferred_program_tags.filter((item): item is string => typeof item === "string").slice(0, 3)
+      : [],
+    coach_tone_preference:
+      context?.coach_tone_preference === "calm" ||
+      context?.coach_tone_preference === "practical" ||
+      context?.coach_tone_preference === "reflective" ||
+      context?.coach_tone_preference === "steady" ||
+      context?.coach_tone_preference === "observational"
+        ? context.coach_tone_preference
+        : "steady",
+    reflection_tone_preference:
+      context?.reflection_tone_preference === "practical-grounding" ||
+      context?.reflection_tone_preference === "emotionally-reflective" ||
+      context?.reflection_tone_preference === "observational" ||
+      context?.reflection_tone_preference === "gentle-encouragement" ||
+      context?.reflection_tone_preference === "concise-stabilization"
+        ? context.reflection_tone_preference
+        : "observational",
+    reflection_depth_preference:
+      context?.reflection_depth_preference === "brief" ||
+      context?.reflection_depth_preference === "balanced" ||
+      context?.reflection_depth_preference === "deeper"
+        ? context.reflection_depth_preference
+        : "balanced",
+    prompt_style_preference:
+      context?.prompt_style_preference === "structured" ||
+      context?.prompt_style_preference === "open-ended" ||
+      context?.prompt_style_preference === "gentle-observational"
+        ? context.prompt_style_preference
+        : "gentle-observational",
+    complexity_tolerance:
+      context?.complexity_tolerance === "lower" ||
+      context?.complexity_tolerance === "balanced" ||
+      context?.complexity_tolerance === "higher"
+        ? context.complexity_tolerance
+        : "balanced",
+    preferred_density:
+      context?.preferred_density === "minimal" ||
+      context?.preferred_density === "standard" ||
+      context?.preferred_density === "reflective"
+        ? context.preferred_density
+        : "standard",
+    preferred_checkin_windows: Array.isArray(context?.preferred_checkin_windows)
+      ? context.preferred_checkin_windows
+          .filter((item): item is string => item === "morning" || item === "midday" || item === "evening")
+          .slice(0, 2)
+      : [],
+    engagement_rhythm:
+      context?.engagement_rhythm === "light" ||
+      context?.engagement_rhythm === "steady" ||
+      context?.engagement_rhythm === "sporadic"
+        ? context.engagement_rhythm
+        : "light",
+    recovery_rhythm:
+      context?.recovery_rhythm === "quick-reset" ||
+      context?.recovery_rhythm === "gradual-return" ||
+      context?.recovery_rhythm === "quiet-reentry"
+        ? context.recovery_rhythm
+        : "quiet-reentry",
   };
 }
 
@@ -154,6 +296,34 @@ function buildModeInstruction(mode: CoachMode) {
   }
 }
 
+function deriveTrustAdaptiveState(context: CoachContext): AiTrustAdaptiveState {
+  if (
+    context.adaptive_fatigue_trend === "high" ||
+    context.adaptive_sleep_trend === "low" ||
+    context.reactivation_gap_days !== null && context.reactivation_gap_days >= 6
+  ) {
+    return "LOW_ENERGY";
+  }
+
+  if (context.adaptive_stress_trend === "elevated" && (context.stress ?? 0) >= 4) {
+    return "OVERWHELMED";
+  }
+
+  if (context.adaptive_engagement_pattern === "gentle-reengagement" || context.lifecycle_stage === "returning") {
+    return "WITHDRAWN";
+  }
+
+  if (
+    context.recent_reflections.length >= 2 ||
+    context.preferred_support_style === "reflective" ||
+    context.reflection_depth_preference === "deeper"
+  ) {
+    return "REFLECTIVE";
+  }
+
+  return "STABLE";
+}
+
 function buildContextLine(context: CoachContext) {
   const parts: string[] = [];
 
@@ -182,6 +352,154 @@ function buildRecentReflectionLine(context: CoachContext) {
   }
 
   return `Recent reflection: ${context.recent_reflection}`;
+}
+
+function buildPatternLine(context: CoachContext) {
+  const parts: string[] = [];
+
+  if (context.fatigue_average_7d !== null) {
+    parts.push(`7-day fatigue ${context.fatigue_average_7d}/5`);
+  }
+
+  if (context.mood_average_7d !== null) {
+    parts.push(`7-day mood ${context.mood_average_7d}/5`);
+  }
+
+  if (context.stress_average_7d !== null) {
+    parts.push(`7-day stress ${context.stress_average_7d}/5`);
+  }
+
+  if (context.sleep_average_7d !== null) {
+    parts.push(`7-day sleep ${context.sleep_average_7d}h`);
+  }
+
+  return parts.length > 0 ? `Recent pattern context: ${parts.join(", ")}.` : "";
+}
+
+function buildLifecycleLine(context: CoachContext) {
+  const parts: string[] = [];
+
+  if (context.lifecycle_stage) {
+    parts.push(`lifecycle stage ${context.lifecycle_stage}`);
+  }
+
+  if (typeof context.reactivation_gap_days === "number" && context.reactivation_gap_days >= 6) {
+    parts.push(`recent return after about ${context.reactivation_gap_days} days`);
+  }
+
+  return parts.length ? `Lifecycle context: ${parts.join(", ")}.` : "";
+}
+
+function buildConsistencyLine(context: CoachContext) {
+  const parts: string[] = [];
+
+  if (context.current_streak > 0) {
+    parts.push(`current streak ${context.current_streak} day${context.current_streak === 1 ? "" : "s"}`);
+  }
+
+  if (context.weekly_checkins > 0) {
+    parts.push(`${context.weekly_checkins} check-in${context.weekly_checkins === 1 ? "" : "s"} this week`);
+  }
+
+  if (context.reminder_enabled) {
+    parts.push("reminders enabled");
+  }
+
+  return parts.length > 0 ? `Consistency context: ${parts.join(", ")}.` : "";
+}
+
+function buildAdaptiveLine(context: CoachContext) {
+  const parts: string[] = [];
+
+  if (context.adaptive_stress_trend && context.adaptive_stress_trend !== "unknown") {
+    parts.push(`stress trend ${context.adaptive_stress_trend}`);
+  }
+
+  if (context.adaptive_sleep_trend && context.adaptive_sleep_trend !== "unknown") {
+    parts.push(`sleep trend ${context.adaptive_sleep_trend}`);
+  }
+
+  if (context.adaptive_fatigue_trend && context.adaptive_fatigue_trend !== "unknown") {
+    parts.push(`fatigue trend ${context.adaptive_fatigue_trend}`);
+  }
+
+  if (context.adaptive_engagement_pattern && context.adaptive_engagement_pattern !== "unknown") {
+    parts.push(`engagement ${context.adaptive_engagement_pattern}`);
+  }
+
+  return parts.length > 0 ? `Adaptive context: ${parts.join(", ")}.` : "";
+}
+
+function buildOnboardingProfileLine(context: CoachContext) {
+  const parts: string[] = [];
+
+  if (context.onboarding_goals?.length) {
+    parts.push(`support priorities: ${context.onboarding_goals.join(", ")}`);
+  }
+
+  if (context.onboarding_symptoms?.length) {
+    parts.push(`harder areas lately: ${context.onboarding_symptoms.join(", ")}`);
+  }
+
+  if (context.preferred_support_style && context.preferred_support_style !== "steady") {
+    parts.push(`preferred support style: ${context.preferred_support_style}`);
+  }
+
+  if (context.preferred_program_tags?.length) {
+    parts.push(`preferred support tools: ${context.preferred_program_tags.join(", ")}`);
+  }
+
+  return parts.length ? `Onboarding profile: ${parts.join(". ")}.` : "";
+}
+
+function buildPreferenceLine(context: CoachContext) {
+  const parts: string[] = [];
+
+  if (context.coach_tone_preference && context.coach_tone_preference !== "steady") {
+    parts.push(`preferred coach tone: ${context.coach_tone_preference}`);
+  }
+
+  if (context.reflection_tone_preference && context.reflection_tone_preference !== "observational") {
+    parts.push(`reflection tone: ${context.reflection_tone_preference}`);
+  }
+
+  if (context.reflection_depth_preference && context.reflection_depth_preference !== "balanced") {
+    parts.push(`reflection depth: ${context.reflection_depth_preference}`);
+  }
+
+  if (context.prompt_style_preference && context.prompt_style_preference !== "gentle-observational") {
+    parts.push(`prompt style: ${context.prompt_style_preference}`);
+  }
+
+  if (context.complexity_tolerance && context.complexity_tolerance !== "balanced") {
+    parts.push(`complexity tolerance: ${context.complexity_tolerance}`);
+  }
+
+  if (context.preferred_density && context.preferred_density !== "standard") {
+    parts.push(`preferred density: ${context.preferred_density}`);
+  }
+
+  if (context.engagement_rhythm && context.engagement_rhythm !== "light") {
+    parts.push(`engagement rhythm: ${context.engagement_rhythm}`);
+  }
+
+  if (context.recovery_rhythm && context.recovery_rhythm !== "quiet-reentry") {
+    parts.push(`recovery rhythm: ${context.recovery_rhythm}`);
+  }
+
+  if (context.preferred_checkin_windows?.length) {
+    parts.push(`comfortable check-in windows: ${context.preferred_checkin_windows.join(", ")}`);
+  }
+
+  return parts.length ? `Personalization preferences: ${parts.join(". ")}.` : "";
+}
+
+function buildRecentReflectionsLine(context: CoachContext) {
+  if (!context.recent_reflections.length) {
+    return "";
+  }
+
+  return `Recent reflections: ${context.recent_reflections.join(" | ")}`;
 }
 
 function buildCrisisReply() {
@@ -293,6 +611,10 @@ Deno.serve(async (req) => {
     }
 
     let assistantContent = "";
+    const trustAdaptiveState = deriveTrustAdaptiveState(context);
+    const depth = deriveSafeResponseDepth(trustAdaptiveState, detectSensitiveTopics(message));
+    const maxTokens = depth === "brief" ? 110 : depth === "reflective" ? 170 : 140;
+    const includeTransparencyNote = !((recentMessages ?? []).some((entry) => entry.role === "assistant"));
 
     if (safetyMode === "crisis") {
       assistantContent = buildCrisisReply();
@@ -300,6 +622,15 @@ Deno.serve(async (req) => {
       assistantContent = buildMedicalBoundaryReply();
     } else {
       const contextBlock = [buildContextLine(context), buildRecentReflectionLine(context)]
+        .concat([
+          buildPatternLine(context),
+          buildLifecycleLine(context),
+          buildConsistencyLine(context),
+          buildAdaptiveLine(context),
+          buildOnboardingProfileLine(context),
+          buildPreferenceLine(context),
+          buildRecentReflectionsLine(context),
+        ])
         .filter(Boolean)
         .join("\n");
 
@@ -331,7 +662,7 @@ Deno.serve(async (req) => {
             model,
             messages,
             temperature: 0.5,
-            max_tokens: 120,
+            max_tokens: maxTokens,
           }),
           signal: abortController.signal,
         });
@@ -384,6 +715,17 @@ Deno.serve(async (req) => {
         clearTimeout(timeout);
       }
     }
+
+    const trustedResponse = applyTrustLayer({
+      text: assistantContent,
+      channel: "coach",
+      adaptiveState: trustAdaptiveState,
+      userMessage: message,
+      includeTransparencyNote,
+    });
+    assistantContent = trustedResponse.trustNote
+      ? `${trustedResponse.text}\n\n${trustedResponse.trustNote}`
+      : trustedResponse.text;
 
     const userMessage = await insertMessage(adminClient, {
       user_id: user.id,

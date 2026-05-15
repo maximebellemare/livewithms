@@ -5,18 +5,20 @@ import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
 import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
 import { useOnboarding } from "../../features/onboarding/hooks";
+import { getPersonalizedOnboardingGuidance } from "../../features/onboarding/personalization";
 
 export default function CompleteScreen() {
   const router = useRouter();
-  const { completeOnboarding, isCompleting } = useOnboarding();
+  const { completeOnboarding, draft, isCompleting } = useOnboarding();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const guidance = getPersonalizedOnboardingGuidance(draft);
 
   const handleNext = async () => {
     if (isCompleting) return;
 
     const ok = await completeOnboarding();
     if (!ok) {
-      setErrorMessage("Unable to finish onboarding. Please try again.");
+      setErrorMessage("We could not finish this step just yet. Please try again.");
       return;
     }
 
@@ -27,7 +29,7 @@ export default function CompleteScreen() {
   return (
     <OnboardingScaffold
       title="You’re ready"
-      subtitle="Start with one simple check-in and let the rest build from there."
+      subtitle="Start with one simple check-in. The rest can build gently from there."
       step={5}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
@@ -38,18 +40,19 @@ export default function CompleteScreen() {
     >
       <View style={styles.stack}>
         <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>A gentle first step is enough.</AppText>
+          <AppText style={styles.heroTitle}>{guidance.title}</AppText>
           <AppText style={styles.heroBody}>
-            Today will guide you into your first check-in so Coach and Insights can start to feel more personal.
+            {guidance.body}
           </AppText>
         </View>
 
         <View style={styles.infoCard}>
           <AppText style={styles.infoTitle}>What happens next</AppText>
           <AppText style={styles.infoBody}>You’ll land in Today for your first check-in.</AppText>
-          <AppText style={styles.infoBody}>After that, you can try a short reflection or calm reset in Coach.</AppText>
-          <AppText style={styles.infoBody}>The first 3 check-ins help the app start to feel personal.</AppText>
+          <AppText style={styles.infoBody}>{guidance.nextSecondary}</AppText>
+          <AppText style={styles.infoBody}>The first few check-ins help Insights start to feel clearer.</AppText>
           <AppText style={styles.infoBody}>Small daily steps can reveal meaningful patterns over time.</AppText>
+          <AppText style={styles.infoBody}>AI support stays optional and is meant for reflection, not medical or mental health care.</AppText>
         </View>
       </View>
     </OnboardingScaffold>

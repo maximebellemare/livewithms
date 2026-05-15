@@ -1,12 +1,13 @@
 import { appSecureStore } from "../../lib/secure-store";
 import type { ReminderSettings } from "./types";
+import { APP_CONFIG } from "../../lib/app-config";
 
 const REMINDER_SETTINGS_KEY = "livewithms.reminder-settings";
 
 export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
   enabled: false,
-  hour: 19,
-  minute: 0,
+  hour: APP_CONFIG.reminders.defaultHour,
+  minute: APP_CONFIG.reminders.defaultMinute,
   permissionStatus: "unknown",
   notificationId: null,
 };

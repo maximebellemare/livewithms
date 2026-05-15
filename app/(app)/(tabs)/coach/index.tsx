@@ -16,12 +16,14 @@ import AppText from "../../../../components/ui/AppText";
 import ErrorState from "../../../../components/ui/ErrorState";
 import LoadingState from "../../../../components/ui/LoadingState";
 import {
+  buildReflectionStarter,
   buildCoachConversationPreview,
   buildCoachFocus,
   buildCoachMessage,
   buildCoachSummary,
   buildReflectionPrompts,
   buildSuggestedActions,
+  getRecurringReflectionThemes,
   type CoachActionKey,
 } from "../../../../features/coach/logic";
 import { useCoachMessages, useSendCoachMessage } from "../../../../features/coach-messages/hooks";
@@ -29,14 +31,32 @@ import type { CoachMode } from "../../../../features/coach-messages/types";
 import { useCoachPlan, useSaveCoachPlan } from "../../../../features/coach-plans/hooks";
 import type { CoachPlanInput } from "../../../../features/coach-plans/types";
 import { useGrowthState } from "../../../../features/growth/hooks";
+import { usePersonalizationMemory } from "../../../../features/personalization-memory/hooks";
 import { usePremium } from "../../../../features/premium/hooks";
 import { canAccessPremiumFeature } from "../../../../features/premium/entitlements";
 import { FREE_DAILY_AI_COACH_MESSAGES } from "../../../../features/premium/config";
 import { incrementAiCoachUsage, loadAiCoachUsage } from "../../../../features/premium/usage";
+import { getProgramToolById } from "../../../../features/programs/catalog";
+import { useProgramProgress } from "../../../../features/programs/hooks";
 import { useAuth } from "../../../../features/auth/hooks";
 import { useCheckInHistory, useSaveDailyCheckIn, useTodaysCheckIn } from "../../../../features/checkins/hooks";
 import type { DailyCheckIn, DailyCheckInInput } from "../../../../features/checkins/types";
+import { getCheckInsInLastDays, getCurrentCheckInStreak } from "../../../../features/checkins/consistency";
+import { useMyProfile } from "../../../../features/profile/hooks";
+import { useReminderSettings } from "../../../../features/reminders/hooks";
 import { getErrorMessage } from "../../../../lib/errors";
+import { trackCoachFeedback } from "../../../../lib/events";
+import { buildAdaptiveProfile } from "../../../../features/adaptive/logic";
+import { categorizeError } from "../../../../lib/errors";
+import { trackRetrySucceeded, trackRetryTriggered } from "../../../../lib/events";
+import { useSlowScreenDiagnostics } from "../../../../lib/observability";
+import { buildLifecycleProfile } from "../../../../features/lifecycle/logic";
+import {
+  clearPendingReflection,
+  loadPendingReflection,
+  preservePendingReflection,
+} from "../../../../lib/operational-calm/continuity-preservation/preservePendingReflection";
+import { generateCalmWaitingCopy } from "../../../../lib/operational-calm/latency-softening/generateCalmWaitingCopy";
 
 const NATIONAL_MS_SOCIETY_URL = "https://www.nationalmssociety.org/";
 const MAYO_MS_URL = "https://www.mayoclinic.org/diseases-conditions/multiple-sclerosis";
@@ -103,10 +123,20 @@ function buildCheckInInputForReflection(
   };
 }
 
+function average(values: Array<number | null>) {
+  const valid = values.filter((value): value is number => typeof value === "number");
+  if (!valid.length) {
+    return null;
+  }
+
+  return Math.round((valid.reduce((sum, value) => sum + value, 0) / valid.length) * 10) / 10;
+}
+
 export default function CoachScreen() {
   const { user } = useAuth();
   const today = getDateString();
   const tomorrow = getDateString(1);
+  const profileQuery = useMyProfile(user?.id);
   const todayEntryQuery = useTodaysCheckIn(user?.id, today);
   const recentEntriesQuery = useCheckInHistory(user?.id, 14);
   const tomorrowPlanQuery = useCoachPlan(user?.id, tomorrow);
@@ -115,7 +145,9 @@ export default function CoachScreen() {
   const saveCoachPlan = useSaveCoachPlan();
   const sendCoachMessage = useSendCoachMessage(user?.id);
   const growth = useGrowthState();
+  const reminders = useReminderSettings();
   const premium = usePremium();
+  const programProgress = useProgramProgress();
 
   const [activeAction, setActiveAction] = useState<CoachActionKey>("reflect");
   const [reflection, setReflection] = useState("");
@@ -123,6 +155,7 @@ export default function CoachScreen() {
   const [chatInput, setChatInput] = useState("");
   const [chatError, setChatError] = useState<string | null>(null);
   const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
+  const [ratedCoachMessageIds, setRatedCoachMessageIds] = useState<string[]>([]);
   const [reflectionState, setReflectionState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [planState, setPlanState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [resetRunning, setResetRunning] = useState(false);
@@ -136,22 +169,53 @@ export default function CoachScreen() {
   const [dailyCoachUsage, setDailyCoachUsage] = useState(0);
   const [isLoadingDailyCoachUsage, setIsLoadingDailyCoachUsage] = useState(true);
   const chatScrollRef = useRef<ScrollView>(null);
+  const draftInputRef = useRef("");
 
   const todayEntry = todayEntryQuery.data ?? null;
   const latestEntry = recentEntriesQuery.data?.[0] ?? null;
   const coachEntry = todayEntry ?? latestEntry ?? null;
   const coachMessages = coachMessagesQuery.data ?? [];
+  const recentEntries = recentEntriesQuery.data ?? [];
   const isInitialLoading =
     (todayEntryQuery.isLoading && !todayEntryQuery.data) ||
     (recentEntriesQuery.isLoading && !recentEntriesQuery.data) ||
     (tomorrowPlanQuery.isLoading && !tomorrowPlanQuery.data);
   const isChatInitialLoading = coachMessagesQuery.isLoading && !coachMessagesQuery.data;
+  useSlowScreenDiagnostics("coach", isInitialLoading || isChatInitialLoading);
 
   useEffect(() => {
-    setReflection(todayEntry?.notes ?? "");
-    setReflectionState("idle");
-    setReflectionError(null);
-  }, [todayEntry?.updated_at]);
+    let cancelled = false;
+
+    void (async () => {
+      const localDraft = user?.id ? await loadPendingReflection(user.id, "coach-reflection") : null;
+      if (cancelled) {
+        return;
+      }
+
+      setReflection(localDraft?.text ?? todayEntry?.notes ?? "");
+      setReflectionState("idle");
+      setReflectionError(null);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [todayEntry?.updated_at, todayEntry?.notes, user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const localDraft = user?.id ? await loadPendingReflection(user.id, "coach-chat") : null;
+      if (!cancelled && localDraft?.text) {
+        setChatInput((current) => current || localDraft.text);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     setPriority(tomorrowPlanQuery.data?.priority ?? "");
@@ -213,20 +277,20 @@ export default function CoachScreen() {
   const coachMessage = useMemo(() => buildCoachMessage(coachEntry), [coachEntry]);
   const coachFocus = useMemo(() => buildCoachFocus(coachEntry), [coachEntry]);
   const coachSummary = useMemo(() => buildCoachSummary(todayEntry), [todayEntry]);
-  const reflectionPrompts = useMemo(() => buildReflectionPrompts(coachEntry), [coachEntry]);
   const suggestedActions = useMemo(() => buildSuggestedActions(coachEntry), [coachEntry]);
   const conversationPreview = useMemo(() => buildCoachConversationPreview(coachEntry), [coachEntry]);
   const chatLoadingLabel = useMemo(() => {
+    const calmCopy = generateCalmWaitingCopy("steady");
     switch (coachMode) {
       case "calm":
-        return "Settling...";
+        return "Settling gently...";
       case "practical":
-        return "Organizing...";
+        return "Organizing quietly...";
       case "encouragement":
-        return "Encouraging...";
+        return "Finding a steadier angle...";
       case "reflect":
       default:
-        return "Reflecting...";
+        return calmCopy;
     }
   }, [coachMode]);
 
@@ -238,6 +302,105 @@ export default function CoachScreen() {
   const remainingFreeMessages = Math.max(0, FREE_DAILY_AI_COACH_MESSAGES - dailyCoachUsage);
   const hasReachedFreeCoachLimit =
     !hasUnlimitedAiCoach && dailyCoachUsage >= FREE_DAILY_AI_COACH_MESSAGES;
+  const recentOverviewEntries = useMemo(
+    () => recentEntries.map((entry) => ({ date: entry.date, hasReflection: Boolean(entry.notes?.trim()) })),
+    [recentEntries],
+  );
+  const currentStreak = useMemo(() => getCurrentCheckInStreak(recentOverviewEntries, today), [recentOverviewEntries, today]);
+  const weeklyCheckIns = useMemo(() => getCheckInsInLastDays(recentOverviewEntries, today, 7), [recentOverviewEntries, today]);
+  const baseAdaptiveProfile = useMemo(
+    () => buildAdaptiveProfile(recentEntries, weeklyCheckIns),
+    [recentEntries, weeklyCheckIns],
+  );
+  const personalizationMemory = usePersonalizationMemory({
+    onboardingGoals: profileQuery.data?.goals ?? [],
+    onboardingSymptoms: profileQuery.data?.symptoms ?? [],
+    recentEntries,
+    adaptiveProfile: baseAdaptiveProfile,
+    reminderSettings: {
+      enabled: reminders.enabled,
+      hour: reminders.hour,
+      minute: reminders.minute,
+      permissionStatus: reminders.permissionStatus,
+      notificationId: reminders.notificationId,
+    },
+    growthState: growth.state,
+    programProgress: programProgress.progress,
+  });
+  const adaptiveProfile = useMemo(
+    () => buildAdaptiveProfile(recentEntries, weeklyCheckIns, personalizationMemory.memory),
+    [personalizationMemory.memory, recentEntries, weeklyCheckIns],
+  );
+  const lifecycleProfile = useMemo(
+    () =>
+      buildLifecycleProfile({
+        firstOpenedAt: growth.state?.firstOpenedAt ?? null,
+        activeDates: growth.state?.activeDates ?? [],
+        totalCheckIns: recentEntries.length,
+        weeklyCheckIns,
+      }),
+    [growth.state?.activeDates, growth.state?.firstOpenedAt, recentEntries.length, weeklyCheckIns],
+  );
+  const reflectionPrompts = useMemo(
+    () =>
+      buildReflectionPrompts(coachEntry, adaptiveProfile, {
+        reflectionDepthPreference: personalizationMemory.memory.reflectionDepthPreference,
+        promptStylePreference: personalizationMemory.memory.promptStylePreference,
+        reflectionTonePreference: personalizationMemory.memory.reflectionTonePreference,
+        complexityTolerance: personalizationMemory.memory.complexityTolerance,
+      }),
+    [
+      adaptiveProfile,
+      coachEntry,
+      personalizationMemory.memory.complexityTolerance,
+      personalizationMemory.memory.promptStylePreference,
+      personalizationMemory.memory.reflectionDepthPreference,
+      personalizationMemory.memory.reflectionTonePreference,
+    ],
+  );
+  const recentReflections = useMemo(
+    () =>
+      recentEntries
+        .map((entry) => entry.notes?.trim() ?? "")
+        .filter((note) => note.length > 0)
+        .slice(0, 2),
+    [recentEntries],
+  );
+  const reflectionThemes = useMemo(
+    () => getRecurringReflectionThemes(recentReflections),
+    [recentReflections],
+  );
+  const reflectionHistory = useMemo(
+    () =>
+      recentEntries
+        .filter((entry) => typeof entry.notes === "string" && entry.notes.trim().length > 0)
+        .slice(0, 3)
+        .map((entry) => ({
+          date: entry.date,
+          preview: entry.notes?.trim().length > 120 ? `${entry.notes.trim().slice(0, 120).trimEnd()}…` : entry.notes?.trim() ?? "",
+        })),
+    [recentEntries],
+  );
+  const latestAssistantMessage = useMemo(
+    () => [...coachMessages].reverse().find((message) => message.role === "assistant") ?? null,
+    [coachMessages],
+  );
+  const suggestedProgramTool = useMemo(
+    () => getProgramToolById(adaptiveProfile.suggestedProgram),
+    [adaptiveProfile.suggestedProgram],
+  );
+  const hasRatedLatestAssistantMessage = latestAssistantMessage
+    ? ratedCoachMessageIds.includes(latestAssistantMessage.id)
+    : false;
+  const recentAverages = useMemo(
+    () => ({
+      fatigue: average(recentEntries.slice(0, 7).map((entry) => entry.fatigue)),
+      mood: average(recentEntries.slice(0, 7).map((entry) => entry.mood)),
+      stress: average(recentEntries.slice(0, 7).map((entry) => entry.stress)),
+      sleep: average(recentEntries.slice(0, 7).map((entry) => entry.sleep_hours)),
+    }),
+    [recentEntries],
+  );
 
   const coachContext = useMemo(
     () => ({
@@ -246,9 +409,102 @@ export default function CoachScreen() {
       stress: todayEntry?.stress ?? null,
       sleep_hours: todayEntry?.sleep_hours ?? null,
       recent_reflection: todayEntry?.notes ?? latestEntry?.notes ?? null,
+      fatigue_average_7d: recentAverages.fatigue,
+      mood_average_7d: recentAverages.mood,
+      stress_average_7d: recentAverages.stress,
+      sleep_average_7d: recentAverages.sleep,
+      current_streak: currentStreak,
+      weekly_checkins: weeklyCheckIns,
+      reminder_enabled: reminders.enabled,
+      recent_reflections: recentReflections,
+      adaptive_stress_trend: adaptiveProfile.stressTrend,
+      adaptive_sleep_trend: adaptiveProfile.sleepTrend,
+      adaptive_fatigue_trend: adaptiveProfile.fatigueTrend,
+      adaptive_engagement_pattern: adaptiveProfile.engagementPattern,
+      lifecycle_stage: lifecycleProfile.stage,
+      reactivation_gap_days: lifecycleProfile.previousActiveGapDays,
+      onboarding_goals: profileQuery.data?.goals ?? [],
+      onboarding_symptoms: profileQuery.data?.symptoms ?? [],
+      preferred_support_style: personalizationMemory.memory.preferredSupportStyle,
+      preferred_program_tags: personalizationMemory.memory.preferredProgramTags ?? [],
+      coach_tone_preference: personalizationMemory.memory.coachTonePreference,
+      reflection_tone_preference: personalizationMemory.memory.reflectionTonePreference,
+      reflection_depth_preference: personalizationMemory.memory.reflectionDepthPreference,
+      prompt_style_preference: personalizationMemory.memory.promptStylePreference,
+      complexity_tolerance: personalizationMemory.memory.complexityTolerance,
+      preferred_density: personalizationMemory.memory.preferredDensity,
+      preferred_checkin_windows: personalizationMemory.memory.preferredCheckinWindows ?? [],
+      engagement_rhythm: personalizationMemory.memory.engagementRhythm,
+      recovery_rhythm: personalizationMemory.memory.recoveryRhythm,
     }),
-    [latestEntry?.notes, todayEntry?.fatigue, todayEntry?.mood, todayEntry?.notes, todayEntry?.sleep_hours, todayEntry?.stress],
+    [
+      currentStreak,
+      latestEntry?.notes,
+      lifecycleProfile.previousActiveGapDays,
+      lifecycleProfile.stage,
+      personalizationMemory.memory.coachTonePreference,
+      personalizationMemory.memory.complexityTolerance,
+      personalizationMemory.memory.engagementRhythm,
+      personalizationMemory.memory.preferredCheckinWindows,
+      personalizationMemory.memory.preferredDensity,
+      recentAverages.fatigue,
+      recentAverages.mood,
+      recentAverages.sleep,
+      recentAverages.stress,
+      recentReflections,
+      reminders.enabled,
+      adaptiveProfile.engagementPattern,
+      adaptiveProfile.fatigueTrend,
+      adaptiveProfile.sleepTrend,
+      adaptiveProfile.stressTrend,
+      profileQuery.data?.goals,
+      profileQuery.data?.symptoms,
+      personalizationMemory.memory.preferredProgramTags,
+      personalizationMemory.memory.preferredSupportStyle,
+      personalizationMemory.memory.promptStylePreference,
+      personalizationMemory.memory.recoveryRhythm,
+      personalizationMemory.memory.reflectionDepthPreference,
+      personalizationMemory.memory.reflectionTonePreference,
+      todayEntry?.fatigue,
+      todayEntry?.mood,
+      todayEntry?.notes,
+      todayEntry?.sleep_hours,
+      todayEntry?.stress,
+      weeklyCheckIns,
+    ],
   );
+
+  useEffect(() => {
+    draftInputRef.current = chatInput;
+  }, [chatInput]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    void preservePendingReflection(user.id, reflection, "coach-reflection");
+  }, [reflection, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    void preservePendingReflection(user.id, chatInput, "coach-chat");
+  }, [chatInput, user?.id]);
+
+  useEffect(() => {
+    return () => {
+      const pendingDraft = draftInputRef.current.trim();
+      if (pendingDraft.length > 0) {
+        void growth.recordEvent("ai_coach_conversation_abandoned", {
+          hasDraft: true,
+          draftLength: pendingDraft.length,
+        });
+      }
+    };
+  }, [growth]);
 
   const handleSendCoachMessage = async (messageOverride?: string) => {
     const nextMessage = (messageOverride ?? chatInput).trim();
@@ -267,6 +523,14 @@ export default function CoachScreen() {
 
     setChatError(null);
     setLastFailedMessage(null);
+    const startedAt = Date.now();
+    const isRetry = typeof messageOverride === "string" && messageOverride.trim().length > 0;
+
+    if (isRetry) {
+      await trackRetryTriggered("ai-coach-send", {
+        mode: coachMode,
+      });
+    }
 
     try {
       await sendCoachMessage.mutateAsync({
@@ -277,12 +541,32 @@ export default function CoachScreen() {
       await growth.recordEvent("ai_coach_message_sent", {
         mode: coachMode,
       });
+      await growth.recordEvent("ai_coach_response_received", {
+        mode: coachMode,
+        durationMs: Date.now() - startedAt,
+      });
+      if (Date.now() - startedAt > 7000) {
+        await growth.recordEvent("ai_coach_response_slow", {
+          mode: coachMode,
+          durationMs: Date.now() - startedAt,
+        });
+      }
+      if (isRetry) {
+        await trackRetrySucceeded("ai-coach-send", {
+          mode: coachMode,
+        });
+      }
       if (!hasUnlimitedAiCoach) {
         const nextUsage = await incrementAiCoachUsage();
         setDailyCoachUsage(nextUsage.count);
       }
+      await clearPendingReflection(user.id, "coach-chat");
       setChatInput("");
     } catch (error) {
+      await growth.recordEvent("ai_coach_response_failed", {
+        mode: coachMode,
+        category: categorizeError(error),
+      });
       const messageText = getErrorMessage(error);
       setChatError(
         messageText === "AI Coach is temporarily unavailable."
@@ -307,6 +591,10 @@ export default function CoachScreen() {
         date: today,
         input: buildCheckInInputForReflection(todayEntry, reflection),
       });
+      await growth.recordEvent("reflection_saved", {
+        source: "coach",
+      });
+      await clearPendingReflection(user.id, "coach-reflection");
       setReflectionState("saved");
     } catch (error) {
       setReflectionError(getErrorMessage(error));
@@ -355,6 +643,19 @@ export default function CoachScreen() {
     setResetRunning(false);
     setResetCompleted(false);
     setResetSecondsLeft(60);
+  };
+
+  const handleCoachFeedback = async (helpful: boolean) => {
+    if (!latestAssistantMessage || hasRatedLatestAssistantMessage) {
+      return;
+    }
+
+    setRatedCoachMessageIds((current) => [...current, latestAssistantMessage.id]);
+    await trackCoachFeedback(helpful, {
+      mode: coachMode,
+      messageId: latestAssistantMessage.id,
+      source: "coach-screen",
+    });
   };
 
   if (!user?.id) {
@@ -450,7 +751,9 @@ export default function CoachScreen() {
             <AppText style={styles.body}>
               Share a thought, a hard moment, or what you want help noticing. Coach will keep the response short, calm, and practical.
             </AppText>
-            <AppText style={styles.supportNote}>Your messages stay private and Coach is here for reflection, not medical advice.</AppText>
+            <AppText style={styles.supportNote}>
+              Your messages stay private. Coach is here for reflection and gentle guidance, not medical advice, diagnosis, or therapy.
+            </AppText>
             <View style={styles.usageCard}>
               <AppText style={styles.usageTitle}>
                 {hasUnlimitedAiCoach
@@ -462,7 +765,9 @@ export default function CoachScreen() {
               <AppText style={styles.usageBody}>
                 {hasUnlimitedAiCoach
                   ? "Thank you for supporting continued development."
-                  : "Daily check-ins, tracking, reminders, Programs, Care, and basic insights stay free."}
+                  : lifecycleProfile.shouldSoftenPremiumPrompts
+                    ? "Take your time with the free app first. Daily check-ins, tracking, reminders, Programs, Care, and basic insights stay free."
+                    : "Daily check-ins, tracking, reminders, Programs, Care, and basic insights stay free."}
               </AppText>
             </View>
             {growth.getCelebrationAvailable("first_coach_conversation") ? (
@@ -508,9 +813,16 @@ export default function CoachScreen() {
             ) : coachMessagesQuery.isError ? (
               <View style={styles.inlineState}>
                 <AppText style={styles.errorText}>
-                  Coach is having trouble loading right now. You can still reflect, reset, or plan ahead.
+                  Coach is having trouble loading right now. You can still reflect, reset, or plan ahead while things settle.
                 </AppText>
-                <AppButton label="Retry" variant="secondary" onPress={() => void coachMessagesQuery.refetch()} />
+                <AppButton
+                  label="Retry"
+                  variant="secondary"
+                  onPress={() => {
+                    void trackRetryTriggered("coach-messages-query");
+                    void coachMessagesQuery.refetch();
+                  }}
+                />
               </View>
             ) : coachMessages.length ? (
               <View style={styles.chatShell}>
@@ -560,8 +872,35 @@ export default function CoachScreen() {
                 <AppText style={styles.body}>
                   You can ask Coach to help you reflect, make sense of today, or find one calmer next step.
                 </AppText>
+                <AppText style={styles.supportNote}>
+                  You can use Coach lightly. It is here to support awareness, not to take over decisions for you.
+                </AppText>
               </View>
             )}
+
+            {latestAssistantMessage && !sendCoachMessage.isPending && !hasRatedLatestAssistantMessage ? (
+              <View style={styles.feedbackCard}>
+                <AppText style={styles.feedbackTitle}>Was this helpful?</AppText>
+                <View style={styles.feedbackActions}>
+                  <Pressable
+                    onPress={() => {
+                      void handleCoachFeedback(true);
+                    }}
+                    style={({ pressed }) => [styles.feedbackChip, pressed && styles.actionCardPressed]}
+                  >
+                    <AppText style={styles.feedbackChipText}>Helpful</AppText>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      void handleCoachFeedback(false);
+                    }}
+                    style={({ pressed }) => [styles.feedbackChip, pressed && styles.actionCardPressed]}
+                  >
+                    <AppText style={styles.feedbackChipText}>Not helpful</AppText>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
 
             <View style={styles.fieldGroup}>
               <AppText style={styles.fieldLabel}>Message Coach</AppText>
@@ -601,12 +940,15 @@ export default function CoachScreen() {
             />
             {hasReachedFreeCoachLimit ? (
               <AppText style={styles.limitNote}>
-                Free AI Coach access refreshes daily. Premium keeps Coach available whenever you need it.
+                Free AI Coach access refreshes daily. Premium keeps Coach available whenever you want more space to reflect.
               </AppText>
             ) : null}
             {chatError ? (
               <View style={styles.inlineState}>
                 <AppText style={styles.errorText}>{chatError}</AppText>
+                <AppText style={styles.body}>
+                  You can still use Calm Reset, write a reflection, or come back later.
+                </AppText>
                 <View style={styles.fallbackActions}>
                   <AppButton label="Open Calm Reset" variant="secondary" onPress={() => setActiveAction("reset")} />
                   <AppButton label="Save a reflection" variant="secondary" onPress={() => setActiveAction("reflect")} />
@@ -638,6 +980,16 @@ export default function CoachScreen() {
             ))}
           </View>
           </View>
+
+          {suggestedProgramTool ? (
+            <View style={styles.card}>
+              <AppText style={styles.title}>A gentle support tool</AppText>
+              <AppText style={styles.body}>
+                {suggestedProgramTool.title} may fit what this week has looked like. You can come back to it whenever it feels useful.
+              </AppText>
+              <AppButton label="Open in Programs" variant="secondary" onPress={() => router.push("/programs")} />
+            </View>
+          ) : null}
 
           {todayEntry ? (
             <View style={styles.card}>
@@ -689,14 +1041,37 @@ export default function CoachScreen() {
             <View style={styles.card}>
             <AppText style={styles.contextLabel}>Reflections</AppText>
             <AppText style={styles.title}>{reflectionPrompts.title}</AppText>
+            <AppText style={styles.reflectionIntro}>
+              Start with a few words. You do not need to capture everything for this to be useful.
+            </AppText>
             <View style={styles.promptList}>
               {reflectionPrompts.prompts.map((prompt) => (
-                <View key={prompt} style={styles.promptRow}>
-                  <AppText style={styles.promptBullet}>•</AppText>
-                  <AppText style={styles.promptText}>{prompt}</AppText>
-                </View>
+                <Pressable
+                  key={prompt}
+                  onPress={() => {
+                    setReflection((current) => `${current}${current.trim().length ? "\n" : ""}${buildReflectionStarter(prompt)}`);
+                    if (reflectionState !== "saving") {
+                      setReflectionState("idle");
+                    }
+                  }}
+                  style={({ pressed }) => [styles.promptChip, pressed && styles.promptChipPressed]}
+                >
+                  <AppText style={styles.promptChipText}>{prompt}</AppText>
+                </Pressable>
               ))}
             </View>
+            {reflectionThemes.length ? (
+              <View style={styles.reflectionThemesCard}>
+                <AppText style={styles.reflectionThemesTitle}>Themes you&apos;ve been naming lately</AppText>
+                <View style={styles.reflectionThemesList}>
+                  {reflectionThemes.map((theme) => (
+                    <View key={theme.label} style={styles.reflectionThemePill}>
+                      <AppText style={styles.reflectionThemeText}>{theme.label}</AppText>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
             <TextInput
               multiline
               value={reflection}
@@ -711,6 +1086,17 @@ export default function CoachScreen() {
               textAlignVertical="top"
               style={styles.notesInput}
             />
+            {reflectionHistory.length ? (
+              <View style={styles.reflectionHistoryCard}>
+                <AppText style={styles.reflectionThemesTitle}>Recent reflections</AppText>
+                {reflectionHistory.map((item) => (
+                  <View key={`${item.date}-${item.preview}`} style={styles.reflectionHistoryRow}>
+                    <AppText style={styles.reflectionHistoryDate}>{item.date}</AppText>
+                    <AppText style={styles.reflectionHistoryText}>{item.preview}</AppText>
+                  </View>
+                ))}
+              </View>
+            ) : null}
             <AppButton
               label={
                 reflectionState === "saving"
@@ -724,9 +1110,9 @@ export default function CoachScreen() {
             />
             {reflectionState === "saved" ? (
               <View style={styles.successCard}>
-                <AppText style={styles.successTitle}>You showed up today</AppText>
+                <AppText style={styles.successTitle}>You made space for yourself</AppText>
                 <AppText style={styles.successBody}>
-                  Your reflection is saved. You can come back whenever it helps.
+                  Your reflection is saved. Even a few honest lines can make patterns easier to understand later.
                 </AppText>
               </View>
             ) : null}
@@ -1190,30 +1576,90 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   promptList: {
-    gap: 8,
-  },
-  promptRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
-  promptBullet: {
-    color: "#c25d10",
-    fontWeight: "700",
+  promptChip: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  promptText: {
-    flex: 1,
+  promptChipPressed: {
+    opacity: 0.86,
+  },
+  promptChipText: {
+    color: "#8b6a4f",
+    lineHeight: 20,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  reflectionIntro: {
+    color: "#6b7280",
+    lineHeight: 21,
+  },
+  reflectionThemesCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    padding: 14,
+    gap: 10,
+  },
+  reflectionThemesTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  reflectionThemesList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  reflectionThemePill: {
+    borderRadius: 999,
+    backgroundColor: "#fff0e2",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  reflectionThemeText: {
+    color: "#9a4a11",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  reflectionHistoryCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    padding: 14,
+    gap: 10,
+  },
+  reflectionHistoryRow: {
+    gap: 4,
+  },
+  reflectionHistoryDate: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#8b6a4f",
+  },
+  reflectionHistoryText: {
     color: "#4b5563",
     lineHeight: 20,
   },
   notesInput: {
-    minHeight: 120,
+    minHeight: 140,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "#e5d6cb",
     backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     fontSize: 16,
+    lineHeight: 23,
     color: "#1f2937",
   },
   input: {
@@ -1275,6 +1721,35 @@ const styles = StyleSheet.create({
   successBody: {
     color: "#2f5f3c",
     lineHeight: 20,
+  },
+  feedbackCard: {
+    gap: 10,
+    borderRadius: 16,
+    backgroundColor: "#fffaf6",
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    padding: 14,
+  },
+  feedbackTitle: {
+    color: "#6b7280",
+    fontSize: 14,
+  },
+  feedbackActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  feedbackChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#ead9cb",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  feedbackChipText: {
+    color: "#8b6a4f",
+    fontWeight: "700",
   },
   errorText: {
     color: "#b91c1c",

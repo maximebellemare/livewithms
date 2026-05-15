@@ -1,4 +1,5 @@
 import env from "../../lib/env";
+import { getCachedJson, setCachedJson } from "../../lib/local-cache";
 import { normalizeError } from "../../lib/errors";
 import { supabase } from "../../lib/supabase/client";
 import type { CareNote, CareNoteInput } from "./types";
@@ -23,6 +24,10 @@ function mapCareNoteRow(row: {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
+}
+
+function getCareNotesCacheKey(userId: string) {
+  return `cache.care-notes.${userId}`;
 }
 
 async function getAuthenticatedCareNotesUser(userId: string) {
@@ -55,29 +60,39 @@ export const careNotesApi = {
       return [] as CareNote[];
     }
 
-    const { data, error } = await supabase
-      .from("care_notes")
-      .select(SELECT_FIELDS)
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from("care_notes")
+        .select(SELECT_FIELDS)
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false });
 
-    if (error) {
-      throw normalizeError(error);
+      if (error) {
+        throw normalizeError(error);
+      }
+
+      const rows = (data ?? []).map((row) =>
+        mapCareNoteRow(
+          row as {
+            id: string;
+            user_id: string;
+            title: string | null;
+            body: string;
+            category: string | null;
+            created_at: string;
+            updated_at: string;
+          },
+        ),
+      );
+      await setCachedJson(getCareNotesCacheKey(userId), rows);
+      return rows;
+    } catch (error) {
+      const cached = await getCachedJson<CareNote[]>(getCareNotesCacheKey(userId));
+      if (cached) {
+        return cached;
+      }
+      throw error;
     }
-
-    return (data ?? []).map((row) =>
-      mapCareNoteRow(
-        row as {
-          id: string;
-          user_id: string;
-          title: string | null;
-          body: string;
-          category: string | null;
-          created_at: string;
-          updated_at: string;
-        },
-      ),
-    );
   },
 
   async createCareNote(userId: string, input: CareNoteInput) {

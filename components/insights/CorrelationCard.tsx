@@ -1,4 +1,5 @@
-import { StyleSheet, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import type { CorrelationSummary } from "../../features/insights/types";
 import AppText from "../ui/AppText";
 
@@ -79,13 +80,19 @@ function getCorrelationSuggestion(correlation: CorrelationSummary) {
 }
 
 export default function CorrelationCard({ correlation }: CorrelationCardProps) {
+  const [expanded, setExpanded] = useState(false);
   const highlight = getCorrelationHighlight(correlation);
   const suggestion = getCorrelationSuggestion(correlation);
 
   return (
     <View style={styles.card}>
-      <AppText style={styles.title}>{correlation.title}</AppText>
-      <AppText style={styles.contextText}>Based on your recent entries</AppText>
+      <Pressable onPress={() => setExpanded((current) => !current)} style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}>
+        <View style={styles.headerText}>
+          <AppText style={styles.title}>{correlation.title}</AppText>
+          <AppText style={styles.contextText}>Based on your recent entries</AppText>
+        </View>
+        <AppText style={styles.expandHint}>{expanded ? "Hide details" : "Show details"}</AppText>
+      </Pressable>
       <View style={styles.row}>
         <View style={styles.metricCard}>
           <AppText style={styles.metricValue}>{formatPatternStrength(correlation.coefficient)}</AppText>
@@ -98,8 +105,12 @@ export default function CorrelationCard({ correlation }: CorrelationCardProps) {
       </View>
       <AppText style={styles.axisText}>Looking at {correlation.leftLabel.toLowerCase()} and {correlation.rightLabel.toLowerCase()} together</AppText>
       <AppText style={styles.summary}>{correlation.summary}</AppText>
-      {highlight ? <AppText style={styles.helperText}>{highlight}</AppText> : null}
-      {suggestion ? <AppText style={styles.suggestionText}>{suggestion}</AppText> : null}
+      {expanded ? (
+        <>
+          {highlight ? <AppText style={styles.helperText}>{highlight}</AppText> : null}
+          {suggestion ? <AppText style={styles.suggestionText}>{suggestion}</AppText> : null}
+        </>
+      ) : null}
     </View>
   );
 }
@@ -117,6 +128,24 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
     color: "#1f2937",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  headerText: {
+    flex: 1,
+    gap: 4,
+  },
+  headerPressed: {
+    opacity: 0.82,
+  },
+  expandHint: {
+    fontSize: 12,
+    color: "#c25d10",
+    fontWeight: "600",
   },
   row: {
     flexDirection: "row",

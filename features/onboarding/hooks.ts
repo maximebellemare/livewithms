@@ -3,9 +3,15 @@ import { useAuth } from "../auth/hooks";
 import { useCompleteOnboarding, useMyProfile, useSaveProfileStep } from "../profile/hooks";
 import type { ProfileUpdateInput } from "../profile/api";
 import { normalizeError } from "../../lib/errors";
-import { trackEvent } from "../../lib/events";
+import { trackDiagnosticEvent, trackEvent } from "../../lib/events";
 import { logger } from "../../lib/logger";
 import type { ConsentState, OnboardingDraft } from "./types";
+import {
+  getSelectedOnboardingFocus,
+  getSelectedOnboardingFocuses,
+  getSelectedOnboardingPriorities,
+  getSelectedOnboardingPriority,
+} from "./personalization";
 
 const EMPTY_DRAFT: OnboardingDraft = {
   display_name: "",
@@ -99,10 +105,19 @@ export function useOnboarding() {
       });
       await trackEvent("onboarding_completed", {
         userId: user.id,
+        focus: getSelectedOnboardingFocus(draft) ?? "unknown",
+        priority: getSelectedOnboardingPriority(draft) ?? "unknown",
+        focusCount: getSelectedOnboardingFocuses(draft).length,
+        priorityCount: getSelectedOnboardingPriorities(draft).length,
+        focuses: getSelectedOnboardingFocuses(draft).join("|") || "unknown",
+        priorities: getSelectedOnboardingPriorities(draft).join("|") || "unknown",
       });
       return true;
     } catch (error) {
       const normalizedError = normalizeError(error);
+      await trackDiagnosticEvent("onboarding_completion_failed", {
+        code: normalizedError.code ?? "unknown",
+      });
       logger.error("Onboarding completion failed", {
         userId: user.id,
         input,

@@ -1,21 +1,52 @@
 import { appSecureStore } from "./secure-store";
 
 export type AppEventName =
+  | "daily_open"
+  | "lifecycle_stage_viewed"
+  | "reactivation_detected"
   | "onboarding_started"
+  | "onboarding_branch_selected"
+  | "onboarding_priority_selected"
   | "onboarding_completed"
+  | "onboarding_completion_failed"
   | "first_check_in"
   | "check_in_completed"
+  | "streak_continued"
+  | "reflection_saved"
+  | "insight_viewed"
   | "ai_coach_message_sent"
+  | "ai_coach_response_received"
+  | "ai_coach_response_failed"
+  | "ai_coach_response_slow"
+  | "ai_coach_conversation_abandoned"
+  | "ai_coach_feedback_submitted"
   | "ai_insight_generated"
+  | "ai_insight_request_failed"
+  | "ai_insight_fallback_used"
+  | "ai_insight_feedback_submitted"
   | "reminder_enabled"
+  | "reminder_time_changed"
+  | "reminder_enable_failed"
+  | "reminder_schedule_failed"
   | "program_completed"
   | "export_used"
   | "review_prompt_shown"
+  | "feedback_email_opened"
+  | "support_email_opened"
   | "paywall_viewed"
+  | "subscription_plan_selected"
   | "upgrade_clicked"
   | "purchase_started"
   | "purchase_completed"
-  | "restore_completed";
+  | "purchase_failed"
+  | "restore_completed"
+  | "restore_failed"
+  | "premium_status_refresh_failed"
+  | "offline_sync_failed"
+  | "sync_flush_succeeded"
+  | "retry_triggered"
+  | "retry_succeeded"
+  | "slow_screen_observed";
 
 export type AnalyticsEvent = {
   id: string;
@@ -178,4 +209,47 @@ export async function clearAnalyticsSnapshot() {
   } catch {
     // Keep analytics failures silent so product usage is never disrupted.
   }
+}
+
+export async function trackCoachFeedback(helpful: boolean, metadata?: Record<string, unknown>) {
+  await trackEvent("ai_coach_feedback_submitted", {
+    helpful,
+    ...metadata,
+  });
+}
+
+export async function trackInsightFeedback(helpful: boolean, metadata?: Record<string, unknown>) {
+  await trackEvent("ai_insight_feedback_submitted", {
+    helpful,
+    ...metadata,
+  });
+}
+
+export async function trackDiagnosticEvent(
+  name:
+    | "onboarding_completion_failed"
+    | "premium_status_refresh_failed"
+    | "restore_failed"
+    | "purchase_failed"
+    | "offline_sync_failed"
+    | "ai_insight_request_failed"
+    | "reminder_enable_failed"
+    | "reminder_schedule_failed",
+  metadata?: Record<string, unknown>,
+) {
+  await trackEvent(name, metadata);
+}
+
+export async function trackRetryTriggered(context: string, metadata?: Record<string, unknown>) {
+  await trackEvent("retry_triggered", {
+    context,
+    ...metadata,
+  });
+}
+
+export async function trackRetrySucceeded(context: string, metadata?: Record<string, unknown>) {
+  await trackEvent("retry_succeeded", {
+    context,
+    ...metadata,
+  });
 }

@@ -18,7 +18,7 @@ export default function WelcomeScreen() {
   return (
     <OnboardingScaffold
       title="Welcome to LiveWithMS"
-      subtitle="A calm daily companion for noticing patterns and feeling more supported."
+      subtitle="A calm daily companion for noticing patterns, one small check-in at a time."
       step={1}
       totalSteps={ONBOARDING_STEPS.length}
       onNext={() => router.push("/symptoms")}
@@ -26,16 +26,19 @@ export default function WelcomeScreen() {
     >
       <View style={styles.stack}>
         <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>Small daily steps can reveal meaningful patterns.</AppText>
+          <AppText style={styles.heroTitle}>Small check-ins can make hard days easier to understand.</AppText>
           <AppText style={styles.heroBody}>
-            LiveWithMS helps you notice how you are doing, one day at a time.
+            LiveWithMS helps you notice how you are doing, without asking for more than you can give on a hard day.
           </AppText>
         </View>
 
         <View style={styles.infoCard}>
           <AppText style={styles.infoTitle}>Private by design</AppText>
           <AppText style={styles.infoBody}>
-            Your check-ins and notes stay connected to your account so you can track honestly and come back to them over time.
+            Your check-ins and notes stay connected to your account so you can come back later and build a steadier picture over time.
+          </AppText>
+          <AppText style={styles.infoBody}>
+            In the next few steps, we’ll lightly tailor the app around what feels most useful right now. You can always use the app in a flexible, low-pressure way.
           </AppText>
         </View>
       </View>
