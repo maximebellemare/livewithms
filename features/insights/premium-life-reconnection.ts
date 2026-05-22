@@ -106,7 +106,7 @@ export function derivePremiumLifeReconnectionSummary(
 
   if (recentMood !== null && recentMood <= 2.5) {
     atAGlance.push("Life may be feeling quieter or farther away lately without needing to stay that way all at once.");
-    shutdown.push("It is okay if life feels quieter right now.");
+    shutdown.push("Life may feel quieter right now.");
     reengagement.push("You may not need to reconnect with everything at once.");
   }
 

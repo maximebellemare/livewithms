@@ -90,11 +90,11 @@ export function deriveWeeklyMeaning(entries: DailyCheckIn[]) {
   }
 
   if (!observations.length) {
-    observations.push("A few small patterns are starting to take shape this week.");
+    observations.push("This pattern is still early.");
   }
 
   if (!suggestions.length) {
-    suggestions.push("A short check-in can stay simple if that is what fits this week.");
+    suggestions.push("A few more check-ins may help reveal clearer patterns.");
   }
 
   return {
@@ -155,5 +155,5 @@ export function deriveSmallNextSteps(
 }
 
 export function deriveLocalAiFallbackMessage() {
-  return "AI insights are taking a moment. Here’s a simple local summary for now.";
+  return "AI insights are taking a moment. A simpler local summary is shown for now.";
 }

@@ -119,7 +119,7 @@ export function derivePremiumSelfReconnectionSupportSummary(
   }
 
   if (recentMood !== null && recentMood <= 2.6) {
-    identityPressure.push("It is okay if reconnection feels slower right now.");
+    identityPressure.push("Reconnection may feel slower right now.");
     ordinaryLife.push("Ordinary life can still hold smaller forms of familiarity, even when you feel less like yourself than you want.");
   }
 

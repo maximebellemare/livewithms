@@ -265,7 +265,7 @@ const fatigueDays: ProgramDay[] = [
   {
     title: "Permission to rest",
     instructions: "Say to yourself: 'Resting is productive. I don't need to earn it.' Sit with that for a moment.",
-    supportLine: "Rest guilt is common with MS. It's okay to let it go.",
+    supportLine: "Rest guilt is common with MS. Let it loosen a little.",
   },
   {
     title: "Energy audit",

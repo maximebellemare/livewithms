@@ -49,6 +49,9 @@ const blobToBase64 = (blob: Blob): Promise<string> =>
     reader.readAsDataURL(blob);
   });
 
+const getErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : "Something went wrong.";
+
 const ReportsPage = () => {
   const queryClient = useQueryClient();
   const today = new Date();
@@ -74,7 +77,7 @@ const ReportsPage = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const reportFileName = `LiveWithMS-Report-${format(new Date(), "yyyy-MM-dd")}.pdf`;
+  const reportFileName = `LiveWithMS-Report-${format(new Date(), "yyyy-MM-dd")}.html`;
 
   useEffect(() => {
     setReportBlob(null);
@@ -92,6 +95,7 @@ const ReportsPage = () => {
   const { data: entries = [] } = useEntriesInRange(startStr, endStr);
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
+  type UpdateProfileInput = Parameters<typeof updateProfile.mutateAsync>[0];
   const { data: medications = [] } = useDbMedications();
   const { data: medLogs = [] } = useDbMedicationLogs(startStr, endStr);
   const { data: appointments = [] } = useDbAppointments();
@@ -113,7 +117,7 @@ const ReportsPage = () => {
         if (!error && data?.insight) aiInsight = data.insight;
       } catch { /* non-fatal */ }
     }
-    const filteredAppts = appointments.filter((a) => a.date >= startStr && a.date <= endStr);
+      const filteredAppts = appointments.filter((appointment) => appointment.date >= startStr && appointment.date <= endStr);
     return generateReportFromData({
       startDate: startStr, endDate: endStr,
       includeSymptoms, includeMedications, includeAppointments,
@@ -132,8 +136,8 @@ const ReportsPage = () => {
       const a = document.createElement("a");
       a.href = url; a.download = reportFileName; a.click();
       URL.revokeObjectURL(url);
-    } catch (err: any) {
-      toast.error("Failed to generate report: " + err.message);
+    } catch (error: unknown) {
+      toast.error("Failed to generate report: " + getErrorMessage(error));
     } finally {
       setGenerating(false);
     }
@@ -177,10 +181,10 @@ const ReportsPage = () => {
         const to = encodeURIComponent(profile!.neurologist_email!);
         const subject = encodeURIComponent(`MS Health Report – ${period}`);
         const body = encodeURIComponent(
-          `Hi,\n\nPlease find my LiveWithMS health report for ${period} attached.\n\nThe PDF was saved to my device — I'll attach it to this email.\n\nThank you.`
+          `Hi,\n\nPlease find my LiveWithMS health report for ${period} attached.\n\nThe report was saved to my device — I'll attach it to this email.\n\nThank you.`
         );
         window.open(`mailto:${to}?subject=${subject}&body=${body}`);
-        toast.info(`Email draft opened for ${profile!.neurologist_email} — please attach the downloaded PDF.`);
+        toast.info(`Email draft opened for ${profile!.neurologist_email} — please attach the downloaded report.`);
       } else {
         toast.success(`Report emailed to ${profile!.neurologist_email} — your neurologist will receive a download link ✓`);
         // Confetti celebration 🎉
@@ -189,7 +193,7 @@ const ReportsPage = () => {
         setTimeout(() => confetti({ particleCount: 40, spread: 50, origin: { y: 0.5, x: 0.7 }, colors: ["#E8751A", "#FFFFFF"] }), 350);
         // Record the send timestamp and history
         await Promise.all([
-          updateProfile.mutateAsync({ last_report_sent_at: new Date().toISOString() } as any),
+          updateProfile.mutateAsync({ last_report_sent_at: new Date().toISOString() } as UpdateProfileInput),
           addReportHistory.mutateAsync({
             start_date: startStr,
             end_date: endStr,
@@ -199,8 +203,8 @@ const ReportsPage = () => {
           }),
         ]);
       }
-    } catch (err: any) {
-      toast.error("Failed to send: " + err.message);
+    } catch (error: unknown) {
+      toast.error("Failed to send: " + getErrorMessage(error));
     } finally {
       setSending(false);
     }

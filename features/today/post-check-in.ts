@@ -21,7 +21,7 @@ export function derivePostCheckInMoment(input: PostCheckInMomentInput): PostChec
       title: "Saved for now",
       body: "Your check-in is staying with you here for now.",
       insight: "It can sync quietly when the connection comes back.",
-      footer: "You can keep using the app normally.",
+      footer: "The rest of the app is ready when needed.",
     };
   }
 
@@ -30,25 +30,25 @@ export function derivePostCheckInMoment(input: PostCheckInMomentInput): PostChec
       title: "Checked in",
       body: "That can be enough for today.",
       insight: "Today seems like a lower-energy day. Keep things simple if you can.",
-      footer: input.lowEnergyMode ? "You can stop here." : "You can leave it there for now.",
+      footer: input.lowEnergyMode ? "Keep the rest of today simple." : "That is enough for now.",
     };
   }
 
   if ((input.stress ?? 0) >= 4) {
     return {
       title: "Checked in",
-      body: "Your check-in is here when you want to return to it.",
+      body: "Your check-in is saved.",
       insight: "Today may be asking a lot of you. A quieter pace may help, if it is available.",
-      footer: "You can leave it there for now.",
+      footer: "Keep the next part of the day lighter if possible.",
     };
   }
 
   if (input.mood !== null && input.mood <= 1) {
     return {
       title: "Checked in",
-      body: "Your check-in is here when you want to return to it.",
+      body: "Your check-in is saved.",
       insight: "Today may feel heavier than usual. Keeping the rest of the day gentle may be enough.",
-      footer: "You can stop here if that feels right.",
+      footer: "Keep the rest of the day gentle.",
     };
   }
 
@@ -56,15 +56,15 @@ export function derivePostCheckInMoment(input: PostCheckInMomentInput): PostChec
     return {
       title: "Checked in",
       body: "That is saved for later, too.",
-      insight: "You left yourself a little more context to come back to when it helps.",
-      footer: "You can leave it there for today.",
+      insight: "A little more context is there for later.",
+      footer: "That is enough for today.",
     };
   }
 
   return {
     title: "Checked in",
     body: "That can be enough for now.",
-    insight: "Your check-in is here whenever you want a quiet snapshot of today.",
-    footer: input.lowEnergyMode ? "You can stop here." : "You can leave it there for now.",
+    insight: "A quiet snapshot of today is in place.",
+    footer: input.lowEnergyMode ? "Keep the rest of today simple." : "That is enough for now.",
   };
 }

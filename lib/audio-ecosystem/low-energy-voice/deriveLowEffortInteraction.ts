@@ -5,5 +5,5 @@ export function deriveLowEffortInteraction(attentionLoad: AudioAttentionLoad) {
     return "Lower-effort interaction may help: fewer taps, shorter prompts, and easier stopping points.";
   }
 
-  return "Interaction can stay light, with short prompts and no need to keep going.";
+  return "Interaction can stay light, with short prompts and fewer demands.";
 }

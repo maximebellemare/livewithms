@@ -105,7 +105,7 @@ export function derivePremiumOverloadRecoverySummary(
   if (recentStress !== null && recentStress >= 4) {
     atAGlance.push("It may be taking a little more room to settle after heavier interaction or noisier days.");
     decompression.push("You may need quieter input after heavier interaction.");
-    overstimulation.push("It is okay if your nervous system feels overloaded right now.");
+    overstimulation.push("Your nervous system may feel overloaded right now.");
   }
 
   if (recentFatigue !== null && recentFatigue >= 3.8) {

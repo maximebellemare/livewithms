@@ -9,8 +9,8 @@ export function generateGentleReentry(experience: RecoveryExperience) {
       };
     case "open":
       return {
-        title: "You can start wherever feels manageable.",
-        body: "There is no need to catch up. One small return is still useful.",
+        title: "Start where it feels manageable.",
+        body: "No catch-up is needed. One small return is still useful.",
       };
     case "steady":
     default:

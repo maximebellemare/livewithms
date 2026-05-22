@@ -2,7 +2,7 @@ import env from "../env";
 import { normalizeError } from "../errors";
 import { logger } from "../logger";
 import type { PremiumPlan, PremiumOffering, PremiumOfferingPackage } from "../../features/premium/types";
-import { shouldUseRevenueCatNativeStore } from "../runtime/native-store";
+import { shouldUseRevenueCatNativeStore } from "../revenueCatEnvironment";
 import {
   deriveOfferingsDiagnostics,
   EXPECTED_REVENUECAT_OFFERING_IDENTIFIER,

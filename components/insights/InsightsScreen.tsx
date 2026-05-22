@@ -203,6 +203,7 @@ import AppScreen from "../ui/AppScreen";
 import AppText from "../ui/AppText";
 import ErrorState from "../ui/ErrorState";
 import LoadingState from "../ui/LoadingState";
+import { exportHealthSummary } from "../../lib/exportHealthSummary";
 import { trackInsightFeedback } from "../../lib/events";
 import { trackRetryTriggered } from "../../lib/events";
 import { useSlowScreenDiagnostics } from "../../lib/observability";
@@ -212,10 +213,8 @@ import { deriveDisclosureDepth } from "../../lib/cognitive-simplification/progre
 import { deriveOptionalExpansion } from "../../lib/cognitive-simplification/progressive-disclosure/deriveOptionalExpansion";
 import { deriveNavigationPriority } from "../../lib/cognitive-simplification/navigation-quieting/deriveNavigationPriority";
 import { deriveInsightClustering } from "../../lib/cognitive-simplification/density-regulation/deriveInsightClustering";
-import { deriveQuietMoments } from "../../lib/cognitive-simplification/recovery-spaces/deriveQuietMoments";
 import { deriveLowStimulusSurface } from "../../lib/cognitive-simplification/recovery-spaces/deriveLowStimulusSurface";
 import { deriveAtmosphereState } from "../../lib/emotional-environment/atmosphere/deriveAtmosphereState";
-import { deriveQuietMoments as deriveEnvironmentQuietMoment } from "../../lib/emotional-environment/recovery-moments/deriveQuietMoments";
 import { deriveNeutralMoments } from "../../lib/existential-safety/breathing-room/deriveNeutralMoments";
 import { deriveOrdinaryLifeSpacing } from "../../lib/existential-safety/breathing-room/deriveOrdinaryLifeSpacing";
 import { detectRecursiveDistress } from "../../lib/existential-safety/escalation-dampening/detectRecursiveDistress";
@@ -2189,6 +2188,8 @@ export default function InsightsScreen() {
     () => rangeEntries.filter((entry) => typeof entry.notes === "string" && entry.notes.trim().length > 0).length,
     [rangeEntries],
   );
+  const totalHistoryCount = historyQuery.data?.length ?? 0;
+  const currentRangeEntryCount = rangeEntries.length;
   const consistencyRate = useMemo(() => Math.round((rangeEntries.length / range) * 100), [range, rangeEntries.length]);
   const adaptiveProfile = useMemo(
     () => applyLowEnergyModeOverride(buildAdaptiveProfile(rangeEntries, rangeEntries.length), lowEnergyMode.enabled),
@@ -2972,29 +2973,6 @@ export default function InsightsScreen() {
       }),
     [cognitiveBurden, disclosureDepth],
   );
-  const quietMoment = useMemo(
-    () =>
-      deriveQuietMoments({
-        adaptiveStatePrimary: adaptiveProfile.lowEnergyMode
-          ? "LOW_ENERGY"
-          : adaptiveProfile.stressTrend === "elevated"
-            ? "OVERWHELMED"
-            : adaptiveProfile.engagementPattern === "gentle-reengagement"
-              ? "WITHDRAWN"
-              : adaptiveProfile.reflectionPattern === "active"
-                ? "REFLECTIVE"
-                : "STABLE",
-        hasStackedEmotionalSurfaces: Boolean(aiSummaryQuery.data?.summary) && visibleCorrelations.length > 1,
-      }),
-    [
-      adaptiveProfile.engagementPattern,
-      adaptiveProfile.lowEnergyMode,
-      adaptiveProfile.reflectionPattern,
-      adaptiveProfile.stressTrend,
-      aiSummaryQuery.data?.summary,
-      visibleCorrelations.length,
-    ],
-  );
   const lowStimulusSurface = useMemo(
     () =>
       deriveLowStimulusSurface(
@@ -3042,14 +3020,6 @@ export default function InsightsScreen() {
       reflectionCount,
       visibleCorrelations.length,
     ],
-  );
-  const environmentQuietMoment = useMemo(
-    () =>
-      deriveEnvironmentQuietMoment(
-        atmosphere,
-        Boolean(aiSummaryQuery.data?.summary) && visibleCorrelations.length > 1,
-      ),
-    [aiSummaryQuery.data?.summary, atmosphere, visibleCorrelations.length],
   );
   const existentialAdaptiveState = useMemo(
     () =>
@@ -3667,7 +3637,7 @@ export default function InsightsScreen() {
         range,
         source: "premium_continuity_summary",
       });
-      setContinuityFeedback("Your continuity summary is ready whenever you want to share it.");
+      setContinuityFeedback("Your continuity summary is ready to share.");
     } catch {
       setContinuityFeedback("Something may need another moment before sharing.");
     } finally {
@@ -3679,16 +3649,23 @@ export default function InsightsScreen() {
     try {
       setIsExportingContinuityPdf(true);
       setContinuityFeedback(null);
-      await Share.share({
-        message: continuityExport.text,
+      const result = await exportHealthSummary({
+        title: continuityExport.title,
+        subtitle: continuityExport.subtitle,
+        text: continuityExport.text,
+        sections: continuityExport.sections,
       });
       void growth.recordEvent("export_used", {
         range,
         source: "premium_continuity_pdf",
       });
-      setContinuityFeedback("Export is not available in this testing environment. You can still view and share this summary.");
+      setContinuityFeedback(
+        result.ok
+          ? "Your continuity summary is ready to share."
+          : "Export wasn’t available on this device. Your insights are still saved in the app.",
+      );
     } catch {
-      setContinuityFeedback("You can still view and share this summary.");
+      setContinuityFeedback("Export wasn’t available on this device. Your insights are still saved in the app.");
     } finally {
       setIsExportingContinuityPdf(false);
     }
@@ -3785,24 +3762,8 @@ export default function InsightsScreen() {
           </View>
         ) : null}
 
-        {(!toneConsistency.consistent ||
-          !emotionalConsistency.consistent ||
-          !crossFlowConsistency.consistent ||
-          philosophicalDrift.drifted ||
-          metaArchitecturalDrift.drifted ||
-          metaEmotionalDrift.drifted ||
-          !metaAdaptationChain.valid) &&
-        coherenceRules.shouldUseNeutralBridge ? (
-          <View style={styles.retentionCard}>
-            <AppText style={styles.retentionText}>Keep this view simple</AppText>
-            <AppText style={styles.sectionBody}>
-              {transitionContinuity.continuityNote ?? "A quieter read may feel better here."}
-            </AppText>
-          </View>
-        ) : null}
-
         <View style={styles.takeawayCard}>
-          <AppText style={styles.takeawayTitle}>This week at a glance</AppText>
+          <AppText style={styles.takeawayTitle}>{range === 7 ? "This week at a glance" : "This month at a glance"}</AppText>
           <AppText style={styles.takeawayBody}>{dashboard.keyTakeaway.body}</AppText>
         </View>
 
@@ -3825,8 +3786,8 @@ export default function InsightsScreen() {
           </View>
           <AppText style={styles.sectionBody}>
             {reflectionCount > 0
-              ? "Your check-ins and reflections are helping create a fuller picture over time."
-              : "A short reflection now and then can make your patterns easier to understand later."}
+              ? `${reflectionCount} reflection${reflectionCount === 1 ? "" : "s"} add more context to this range.`
+              : "Reflections can add more context, but they are optional."}
           </AppText>
         </View>
         ) : null}
@@ -3847,17 +3808,6 @@ export default function InsightsScreen() {
           </View>
         ) : null}
 
-        <View style={styles.retentionCard}>
-          <AppText style={styles.retentionText}>Small check-ins are enough. Patterns can become clearer over time.</AppText>
-        </View>
-
-        {(environmentQuietMoment ?? quietMoment) && disclosureDepth === "minimal" ? (
-          <View style={styles.retentionCard}>
-            <AppText style={styles.retentionText}>{(environmentQuietMoment ?? quietMoment)?.title}</AppText>
-            <AppText style={styles.sectionBody}>{(environmentQuietMoment ?? quietMoment)?.body}</AppText>
-          </View>
-        ) : null}
-
         {adaptiveProfile.lowEnergyMode ? (
           <View style={styles.retentionCard}>
             <AppText style={styles.retentionText}>
@@ -3875,43 +3825,38 @@ export default function InsightsScreen() {
           </View>
         ) : null}
 
-        {communityEcosystem.density === "light" && communityEcosystem.note ? (
-          <View style={styles.retentionCard}>
-            <AppText style={styles.retentionText}>
-              {communityEcosystem.note.title}
-            </AppText>
-            <AppText style={styles.sectionBody}>
-              {communityEcosystem.note.body}
-            </AppText>
-          </View>
-        ) : null}
-
-        {historyQuery.data?.length === 0 ? (
+        {totalHistoryCount === 0 ? (
           <View style={styles.emptyCard}>
-            <AppText style={styles.emptyTitle}>Insights will settle here</AppText>
-            <AppText style={styles.emptyBody}>Your insights will gently build over time whenever you feel ready to check in.</AppText>
-            <AppButton label="Add today’s check-in" onPress={() => router.push("/today")} />
+            <AppText style={styles.emptyTitle}>No insights yet</AppText>
+            <AppText style={styles.emptyBody}>Start with one check-in. More check-ins may help reveal clearer patterns over time.</AppText>
+            <AppButton label="Start first check-in" onPress={() => router.push("/today")} />
           </View>
-        ) : historyQuery.data?.length === 1 ? (
+        ) : currentRangeEntryCount === 0 ? (
           <View style={styles.emptyCard}>
-            <AppText style={styles.emptyTitle}>A first pattern is beginning</AppText>
+            <AppText style={styles.emptyTitle}>No check-ins in this range yet</AppText>
+            <AppText style={styles.emptyBody}>Try a shorter range or add a new check-in to this time period.</AppText>
+            <AppButton label="Go to Today" onPress={() => router.push("/today")} />
+          </View>
+        ) : currentRangeEntryCount === 1 ? (
+          <View style={styles.emptyCard}>
+            <AppText style={styles.emptyTitle}>This pattern is still early</AppText>
             <AppText style={styles.emptyBody}>
-              One check-in is enough to begin. A little more time can help this view feel clearer.
+              One check-in is saved. More check-ins may help reveal clearer patterns over time.
             </AppText>
-            <AppButton label="Add today’s check-in" onPress={() => router.push("/today")} />
+            <AppButton label="Go to Today" onPress={() => router.push("/today")} />
           </View>
         ) : !dashboard.hasEnoughData ? (
           <View style={styles.emptyCard}>
-            <AppText style={styles.emptyTitle}>Patterns are still gathering</AppText>
-            <AppText style={styles.emptyBody}>Your insights will gently build over time. Patterns become clearer with a few more check-ins.</AppText>
-            <AppButton label="Add today’s check-in" onPress={() => router.push("/today")} />
+            <AppText style={styles.emptyTitle}>Not enough information yet</AppText>
+            <AppText style={styles.emptyBody}>There is not enough information yet to identify reliable patterns. A few more check-ins may help.</AppText>
+            <AppButton label="Go to Today" onPress={() => router.push("/today")} />
           </View>
         ) : (
           <>
             <View style={styles.section}>
-              <AppText style={styles.sectionTitle}>What changed recently</AppText>
+              <AppText style={styles.sectionTitle}>Recent observations</AppText>
               <AppText style={styles.sectionBody}>
-                A short read on what this {range === 7 ? "week" : "month"} has felt like lately.
+                A short read from this {range === 7 ? "week" : "month"}.
               </AppText>
               <View style={styles.weeklySummaryCard}>
                 <AppText style={styles.weeklySummaryTitle}>
@@ -5054,7 +4999,7 @@ export default function InsightsScreen() {
                 <View style={styles.expandHeaderCopy}>
                   <AppText style={styles.sectionTitle}>Charts and details</AppText>
                   <AppText style={styles.sectionBody}>
-                    Visual detail stays available whenever you want a closer look.
+                    Visual detail stays available for a closer look.
                   </AppText>
                 </View>
                 <AppText style={styles.expandLabel}>{showVisualDetails ? "Hide" : "Show"}</AppText>

@@ -36,7 +36,7 @@ const MORNING_CARDS: PremiumDailySupportCard[] = [
   },
   {
     title: "Keep the bar gentle",
-    body: "It is okay if this day stays small.",
+    body: "This day can stay small.",
     reflection: "What would make this morning feel gentler?",
     pacing: "One clear next step may be enough for now.",
     moment: "morning",
@@ -77,7 +77,7 @@ const EVENING_CARDS: PremiumDailySupportCard[] = [
   },
   {
     title: "Lower the demand on the evening",
-    body: "It is okay if tonight stays simple.",
+    body: "Tonight can stay simple.",
     reflection: "What could be put down for the rest of the night?",
     pacing: "Reducing self-judgment may help the evening soften.",
     moment: "evening",

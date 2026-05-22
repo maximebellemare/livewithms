@@ -70,7 +70,7 @@ const AI_RESPONSES: Record<CheckInMood, string[]> = {
     "I hear you. Today might be a slower day, and that's okay.",
     "Struggling doesn't mean failing — it means you're still in it.",
     "Some days are heavier. You don't need to force anything right now.",
-    "It's okay to have a hard day. Be gentle with yourself.",
+    "Hard days happen. Keep today gentle.",
     "You're carrying a lot. Even reading this means you're trying.",
     "Hard days pass. They always do. Take it one moment at a time.",
     "You don't have to have it all together today. Just be here.",
@@ -105,7 +105,7 @@ const CARD_SUGGESTIONS: Record<CheckInMood, string[]> = {
     "Take one thing at a time today",
     "A short pause can make a difference",
     "Write down what's on your mind",
-    "It's okay to ask for support",
+    "Asking for support can help",
   ],
   exhausted: [
     "Rest gently — you've earned it",

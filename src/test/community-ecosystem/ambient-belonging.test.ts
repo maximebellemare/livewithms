@@ -17,7 +17,8 @@ describe("community ecosystem ambient belonging", () => {
   it("generates a quiet resonance note", () => {
     const note = generateQuietResonance(["needing gentler pacing"]);
 
-    expect(note?.body.toLowerCase()).toContain("others");
-    expect(note?.body.toLowerCase()).not.toContain("feed");
+    expect(note?.title).toBe("Shared theme");
+    expect(note?.body.toLowerCase()).toContain("worth noticing");
+    expect(note?.body.toLowerCase()).not.toContain("others");
   });
 });

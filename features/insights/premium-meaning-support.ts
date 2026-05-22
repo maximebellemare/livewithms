@@ -136,7 +136,7 @@ export function derivePremiumMeaningSupportSummary(
     smallMoments.push("Grounding routines still seem able to hold a little continuity across changing days.");
   }
 
-  spaciousness.push("It is okay if life feels smaller sometimes.");
+  spaciousness.push("Life may feel smaller sometimes.");
   spaciousness.push("Not every hard stretch needs a larger meaning right away.");
 
   if (!overview.length) {

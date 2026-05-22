@@ -68,8 +68,8 @@ export function buildCoachSummary(entry: DailyCheckIn | null) {
 export function buildCoachMessage(entry: DailyCheckIn | null): CoachMessage {
   if (!entry) {
     return {
-      title: "A calm place to check in",
-      body: "You can reflect, reset, or plan ahead here even before you log today’s check-in.",
+      title: "Coach helps you start clearly",
+      body: "Use Coach to reflect, organize thoughts, reset, or plan ahead even before today’s check-in.",
     };
   }
 
@@ -116,8 +116,8 @@ export function buildCoachMessage(entry: DailyCheckIn | null): CoachMessage {
   }
 
   return {
-    title: "Keep the day steady",
-    body: "Today looks mixed. Lighter expectations and one useful next step may be enough.",
+    title: "Keep the next step clear",
+    body: "A steadier pace and one useful next step may help today feel more manageable.",
   };
 }
 
@@ -163,8 +163,8 @@ export function buildCoachFocus(entry: DailyCheckIn | null): CoachFocus {
   }
 
   return {
-    title: "Today’s focus: notice what is helping",
-    body: "If the day has a little more room, it may help to notice what is making it easier.",
+    title: "Today’s focus: keep what is useful",
+    body: "If the day has more room, keep track of what seems to support it.",
   };
 }
 
@@ -212,25 +212,25 @@ export function buildCoachConversationPreview(entry: DailyCheckIn | null): Coach
     return [
       {
         role: "coach",
-        content: "You can start gently here, even before today’s check-in.",
+        content: "Coach can help before today’s check-in is logged.",
       },
       {
         role: "coach",
-        content: "You can reflect, reset, or make one small plan.",
+        content: "Start with reflection, thought organization, or one small plan.",
       },
     ];
   }
 
   return [
-    {
-      role: "coach",
-      content: message.body,
-    },
-    {
-      role: "coach",
-      content: `${focus.title.replace("Today’s focus: ", "")}. You can keep this simple.`,
-    },
-  ];
+      {
+        role: "coach",
+        content: message.body,
+      },
+      {
+        role: "coach",
+        content: `${focus.title.replace("Today’s focus: ", "")}. Keep the next step clear.`,
+      },
+    ];
 }
 
 export function buildReflectionPrompts(

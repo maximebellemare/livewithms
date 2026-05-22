@@ -106,7 +106,7 @@ export function derivePremiumQuietHopeSummary(
   if (recentMood !== null && recentMood <= 2.5) {
     atAGlance.push("This period may be feeling emotionally heavier lately without needing to define everything ahead.");
     recovery.push("One difficult period may not define everything ahead.");
-    discouragement.push("It is okay if things feel uncertain right now.");
+    discouragement.push("Things may feel uncertain right now.");
   }
 
   if (recentStress !== null && recentStress >= 4) {

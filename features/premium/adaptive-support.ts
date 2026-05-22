@@ -117,8 +117,8 @@ export function deriveAdaptiveTone(input: AdaptiveSupportInput): AdaptiveTone {
     return {
       greeting,
       supportLine: guardEmotionalSupportCopy("A quieter check-in may still be enough today."),
-      coachLead: guardEmotionalSupportCopy("You can keep reflection brief and grounded."),
-      reminderLine: guardEmotionalSupportCopy("A small prompt can be enough when it helps."),
+      coachLead: guardEmotionalSupportCopy("Keep reflection brief and grounded."),
+      reminderLine: guardEmotionalSupportCopy("A small prompt can be enough."),
     };
   }
 

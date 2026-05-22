@@ -14,12 +14,12 @@ export function deriveRecoveryPaths(input: {
   if (input.adaptiveStatePrimary === "LOW_ENERGY") {
     return {
       title: "Keep the path light",
-      body: "One brief support tool can be enough for today. You can leave the rest for later.",
+      body: "One brief support tool can be enough for today. The rest can wait.",
     };
   }
 
   return {
     title: "Follow the next gentle step",
-    body: "You can move through these supports in whatever order feels useful.",
+    body: "Move through these supports in whatever order feels useful.",
   };
 }

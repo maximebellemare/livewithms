@@ -21,7 +21,7 @@ export function deriveAdaptiveContinuity(input: {
   if (input.totalCheckIns <= 0) {
     return {
       title: "Continuity starts gently",
-      body: guardContinuityCalmness("A little context can begin to build here whenever you want it to."),
+      body: guardContinuityCalmness("A little context can begin to build here over time."),
       compact: "A little context can begin to build here.",
       ...reduction,
     };

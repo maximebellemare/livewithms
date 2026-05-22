@@ -114,7 +114,7 @@ export function derivePremiumEmotionalCollapseSupportSummary(
   }
 
   if (recentFatigue !== null && recentFatigue >= 3.8) {
-    grounding.push("It is okay if things feel emotionally heavy today.");
+    grounding.push("Things may feel emotionally heavy today.");
     smallerLoad.push("Reducing the next hour may help more than trying to steady the whole day at once.");
   }
 

@@ -664,7 +664,7 @@ function buildKeyTakeaway(entries: DailyCheckIn[], trends: TrendSummary[]): KeyT
   if (entries.length < 3) {
     return {
       title: "Your key takeaway",
-      body: "A little more time can help this view feel clearer.",
+      body: "There is not enough information yet to identify a reliable pattern.",
     };
   }
 
@@ -719,7 +719,7 @@ function buildKeyTakeaway(entries: DailyCheckIn[], trends: TrendSummary[]): KeyT
 
   return {
     title: "Your key takeaway",
-    body: "More gentle check-ins can make patterns easier to notice.",
+    body: "More check-ins may help reveal clearer patterns.",
   };
 }
 

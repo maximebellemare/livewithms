@@ -3,5 +3,5 @@ export function preventContinuousEngagement(text: string): string {
     .replace(/\bkeep listening\b/gi, "listen briefly if helpful")
     .replace(/\bstay with this audio\b/gi, "use this briefly")
     .replace(/\bcontinue the conversation\b/gi, "come back later if useful")
-    .replace(/\bnever stop\b/gi, "pause whenever you want");
+    .replace(/\bnever stop\b/gi, "pauses are fine");
 }

@@ -44,6 +44,6 @@ describe("derivePostCheckInMoment", () => {
     });
 
     expect(result.body).toBe("That can be enough for now.");
-    expect(result.footer).toBe("You can stop here.");
+    expect(result.footer).toBe("Keep the rest of today simple.");
   });
 });

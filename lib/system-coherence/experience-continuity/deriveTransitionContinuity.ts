@@ -19,7 +19,7 @@ export function deriveTransitionContinuity(input: {
     prefersShortCopy: input.burden !== "low",
     continuityNote:
       input.fromSurface !== input.toSurface && input.burden === "high"
-        ? "We can keep this transition simple."
+        ? "Shorter reads may help here."
         : null,
   };
 }

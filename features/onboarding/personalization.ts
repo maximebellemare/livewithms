@@ -125,7 +125,7 @@ export const ONBOARDING_SUPPORT_STYLE_OPTIONS: Array<{
   {
     key: "gentle-reflective",
     title: "Gentle and reflective",
-    body: "Leave a little more room for calm reflection when it helps.",
+    body: "Leave a little more room for calm reflection.",
   },
   {
     key: "practical-structured",

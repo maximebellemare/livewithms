@@ -5,12 +5,11 @@ import { deriveQuietMoments } from "../../../lib/emotional-environment/recovery-
 describe("emotional environment recovery moments", () => {
   it("creates a quiet recovery moment when surfaces feel stacked", () => {
     const quiet = deriveQuietMoments("QUIET", true);
-    expect(quiet?.body.toLowerCase()).toContain("do not need");
+    expect(quiet?.body.toLowerCase()).toContain("shorter read");
   });
 
   it("keeps post-reflection recovery low pressure", () => {
     const recovery = derivePostReflectionRecovery("REFLECTIVE");
-    expect(recovery.body.toLowerCase()).toContain("leave this here");
+    expect(recovery.body.toLowerCase()).toContain("stay here for now");
   });
 });
-

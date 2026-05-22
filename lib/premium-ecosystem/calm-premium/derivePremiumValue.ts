@@ -7,9 +7,9 @@ export function derivePremiumValue() {
     title: positioning.primaryTitle,
     lines: [
       ...positioning.primaryLines,
-      ...positioning.secondaryLines,
-      "Calming audio support and nervous-system-friendly resets",
-      "Calmer community spaces and quieter support from people who understand",
+      ...positioning.secondaryLines.slice(0, 2),
+      "Calmer daily structure with less mental sorting",
+      "More continuity during difficult periods",
     ],
     summary: `${positioning.primarySummary} The core app remains supportive without requiring a subscription.`,
   };

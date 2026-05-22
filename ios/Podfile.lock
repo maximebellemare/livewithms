@@ -36,6 +36,8 @@ PODS:
     - Yoga
   - ExpoAsset (11.1.7):
     - ExpoModulesCore
+  - ExpoFileSystem (18.1.11):
+    - ExpoModulesCore
   - ExpoFont (55.0.7):
     - ExpoModulesCore
   - ExpoHaptics (14.1.4):
@@ -69,7 +71,11 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - ExpoPrint (14.1.4):
+    - ExpoModulesCore
   - ExpoSecureStore (14.2.4):
+    - ExpoModulesCore
+  - ExpoSharing (13.1.5):
     - ExpoModulesCore
   - ExpoStoreReview (8.1.5):
     - ExpoModulesCore
@@ -1804,6 +1810,30 @@ PODS:
     - React-perflogger (= 0.79.6)
     - React-utils (= 0.79.6)
   - RevenueCat (5.68.0)
+  - RNCMaskedView (0.3.2):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - RNDateTimePicker (8.4.1):
     - DoubleConversion
     - glog
@@ -1893,12 +1923,15 @@ DEPENDENCIES:
   - EXNotifications (from `../node_modules/expo-notifications/ios`)
   - Expo (from `../node_modules/expo`)
   - ExpoAsset (from `../node_modules/expo-asset/ios`)
+  - ExpoFileSystem (from `../node_modules/expo-file-system/ios`)
   - ExpoFont (from `../node_modules/expo-font/ios`)
   - ExpoHaptics (from `../node_modules/expo-haptics/ios`)
   - ExpoHead (from `../node_modules/expo-router/ios`)
   - ExpoLinking (from `../node_modules/expo-linking/ios`)
   - ExpoModulesCore (from `../node_modules/expo-modules-core`)
+  - ExpoPrint (from `../node_modules/expo-print/ios`)
   - ExpoSecureStore (from `../node_modules/expo-secure-store/ios`)
+  - ExpoSharing (from `../node_modules/expo-sharing/ios`)
   - ExpoStoreReview (from `../node_modules/expo-store-review/ios`)
   - fast_float (from `../node_modules/react-native/third-party-podspecs/fast_float.podspec`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
@@ -1970,6 +2003,7 @@ DEPENDENCIES:
   - ReactAppDependencyProvider (from `build/generated/ios`)
   - ReactCodegen (from `build/generated/ios`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
+  - "RNCMaskedView (from `../node_modules/@react-native-masked-view/masked-view`)"
   - "RNDateTimePicker (from `../node_modules/@react-native-community/datetimepicker`)"
   - RNPurchases (from `../node_modules/react-native-purchases`)
   - RNScreens (from `../node_modules/react-native-screens`)
@@ -1996,6 +2030,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo"
   ExpoAsset:
     :path: "../node_modules/expo-asset/ios"
+  ExpoFileSystem:
+    :path: "../node_modules/expo-file-system/ios"
   ExpoFont:
     :path: "../node_modules/expo-font/ios"
   ExpoHaptics:
@@ -2006,8 +2042,12 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-linking/ios"
   ExpoModulesCore:
     :path: "../node_modules/expo-modules-core"
+  ExpoPrint:
+    :path: "../node_modules/expo-print/ios"
   ExpoSecureStore:
     :path: "../node_modules/expo-secure-store/ios"
+  ExpoSharing:
+    :path: "../node_modules/expo-sharing/ios"
   ExpoStoreReview:
     :path: "../node_modules/expo-store-review/ios"
   fast_float:
@@ -2147,6 +2187,8 @@ EXTERNAL SOURCES:
     :path: build/generated/ios
   ReactCommon:
     :path: "../node_modules/react-native/ReactCommon"
+  RNCMaskedView:
+    :path: "../node_modules/@react-native-masked-view/masked-view"
   RNDateTimePicker:
     :path: "../node_modules/@react-native-community/datetimepicker"
   RNPurchases:
@@ -2164,12 +2206,15 @@ SPEC CHECKSUMS:
   EXNotifications: 6770976336aacdc7dc7aed7b538dd8f7ad2c55e8
   Expo: 7e07803ccc34cdf144a0d51cc2684a60628b6593
   ExpoAsset: ef06e880126c375f580d4923fdd1cdf4ee6ee7d6
+  ExpoFileSystem: 7f92f7be2f5c5ed40a7c9efc8fa30821181d9d63
   ExpoFont: a95606f106a6394df8edf6d0d87aab9020af5ad4
   ExpoHaptics: 0ff6e0d83cd891178a306e548da1450249d54500
   ExpoHead: cfc12096c9a68cbe25de93a8bfc4781c7689467e
   ExpoLinking: d5c183998ca6ada66ff45e407e0f965b398a8902
   ExpoModulesCore: 00a1b5c73248465bd0b93f59f8538c4573dac579
+  ExpoPrint: b278f5d9ac844f4b1f65dd06183970602e09bc8b
   ExpoSecureStore: 3f1b632d6d40bcc62b4983ef9199cd079592a50a
+  ExpoSharing: b0377be82430d07398c6a4cd60b5a15696accbd3
   ExpoStoreReview: f70e5929ba4a594078dd3285d5151427167f48fa
   fast_float: 06eeec4fe712a76acc9376682e4808b05ce978b6
   FBLazyVector: 07309209b7b914451b8f822544a18e2a0a85afff
@@ -2241,6 +2286,7 @@ SPEC CHECKSUMS:
   ReactCodegen: 06cf663b23a161f42a2e14087269753f422885c0
   ReactCommon: 44c86ec3ace664c0f33b7a2ac89aced8304ef25e
   RevenueCat: c535d3739d51163f6d9d5dbd01c7b5d93b718ff5
+  RNCMaskedView: ae521efb1c6c2b183ae0f8479487db03c826184c
   RNDateTimePicker: a4ad049fdd568755003c479beac3bdea742ac4d0
   RNPurchases: ef34b2c0c1fcdab1df209fde0d95b026f90ae329
   RNScreens: 482e9707f9826230810c92e765751af53826d509

@@ -7,14 +7,13 @@ export function deriveQuietMoments(atmosphere: AtmosphereState, hasStackedEmotio
 
   return atmosphere === "RESTORATIVE"
     ? {
-        title: "A quieter pause is okay",
-        body: "This can stay simple for now.",
+        title: "Lower stimulation",
+        body: "Keep the view light for now.",
         spacing: "roomy",
       }
     : {
-        title: "A little breathing room can help",
-        body: "You do not need to take in everything at once.",
+        title: "Keep the view light",
+        body: "A shorter read may help here.",
         spacing: "standard",
       };
 }
-

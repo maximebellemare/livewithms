@@ -37,7 +37,7 @@ function hasHighBrainFog(input: CognitiveSupportInput) {
 function deriveContinuityLine(input: CognitiveSupportInput) {
   const lastTool = getProgramToolById(input.lastOpenedToolId);
   if (lastTool && lastTool.category === "brain-fog") {
-    return `${lastTool.title} is still here whenever you want to return.`;
+    return `${lastTool.title} is still here if you return to it later.`;
   }
 
   const recentBrainFogTool = input.recentToolIds

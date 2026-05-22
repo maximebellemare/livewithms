@@ -6,7 +6,7 @@ export function deriveOrdinaryLifeSpacing(adaptiveStatePrimary: ExistentialAdapt
   }
 
   if (adaptiveStatePrimary === "LOW_ENERGY") {
-    return "It is okay if today stays small and ordinary.";
+    return "Today can stay small and ordinary.";
   }
 
   return null;

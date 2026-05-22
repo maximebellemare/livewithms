@@ -10,6 +10,9 @@ import { format, subDays } from "date-fns";
 import PremiumGate from "@/components/PremiumGate";
 import { generateReportFromData } from "@/lib/report-generator-db";
 
+const getErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : "Something went wrong.";
+
 const DoctorMode = () => {
   const [summary, setSummary] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,7 +52,7 @@ const DoctorMode = () => {
   const handleExportPdf = async () => {
     setGenerating(true);
     try {
-      const filteredLogs = (medLogs || []).filter((l: any) => l.date >= ninetyDaysAgo);
+      const filteredLogs = (medLogs || []).filter((log) => log.date >= ninetyDaysAgo);
       const blob = await generateReportFromData({
         startDate: ninetyDaysAgo,
         endDate: todayStr,
@@ -76,12 +79,12 @@ const DoctorMode = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `LiveWithMS-Clinical-Report-${format(new Date(), "yyyy-MM-dd")}.pdf`;
+      a.download = `LiveWithMS-Clinical-Report-${format(new Date(), "yyyy-MM-dd")}.html`;
       a.click();
       URL.revokeObjectURL(url);
       toast({ title: "Report downloaded", description: "Your 90-day clinical report is ready." });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
     } finally {
       setGenerating(false);
     }
@@ -149,9 +152,9 @@ const DoctorMode = () => {
           className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground shadow-soft hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
         >
           {generating ? (
-            <><RefreshCw className="h-4 w-4 animate-spin" /> Building PDF…</>
+            <><RefreshCw className="h-4 w-4 animate-spin" /> Preparing report…</>
           ) : (
-            <><Download className="h-4 w-4" /> Export 90-Day Clinical PDF</>
+            <><Download className="h-4 w-4" /> Export 90-Day Clinical Report</>
           )}
         </button>
 

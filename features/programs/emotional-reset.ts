@@ -100,7 +100,7 @@ export function deriveEmotionalReset(input: EmotionalResetInput): EmotionalReset
       resetLines: [
         "You may not need to carry all of this into the next hour.",
         "A quieter pace may help your nervous system settle.",
-        "It is okay if your system needs time to slow down.",
+        "Your system may need time to slow down.",
       ],
       continuityLine,
       simplifyFurther,

@@ -7,7 +7,7 @@ export function deriveEdgeCaseSoftening(input: {
     case "offline":
       return "A lower-connection moment can still stay usable and calm.";
     case "permission":
-      return "It is okay to keep this simpler if a permission does not feel worth it.";
+      return "This can stay simpler if a permission does not feel worth it.";
     case "premium":
       return "Support should still feel respectful regardless of plan changes.";
     case "onboarding-exit":

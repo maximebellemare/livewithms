@@ -76,7 +76,7 @@ const BOUNDARY_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bi(?:'| a)?m always here for you\b/gi, "you can use this space when it feels useful"],
   [/\bi(?:'| wi)ll stay with you\b/gi, "you can come back if it still feels useful"],
   [/\bi understand you deeply\b/gi, "I may be able to reflect something simple back"],
-  [/\byou can always come to me\b/gi, "you can use this space lightly when it helps"],
+  [/\byou can always come to me\b/gi, "you can use this space lightly"],
   [/\byou only need me\b/gi, "real-world support still matters"],
   [/\byou can rely on me\b/gi, "this can be one small support"],
   [/\blet(?:'|’)s unpack\b/gi, "we can keep this simple"],

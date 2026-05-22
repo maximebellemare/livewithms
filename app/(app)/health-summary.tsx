@@ -23,6 +23,7 @@ import AppScreen from "../../components/ui/AppScreen";
 import AppText from "../../components/ui/AppText";
 import ErrorState from "../../components/ui/ErrorState";
 import LoadingState from "../../components/ui/LoadingState";
+import { exportHealthSummary } from "../../lib/exportHealthSummary";
 import { getErrorMessage } from "../../lib/errors";
 import { buildJourneySnapshot } from "../../lib/journey-design/buildJourneySnapshot";
 import type { LongitudinalEntry } from "../../lib/longitudinal/types";
@@ -780,8 +781,8 @@ export default function HealthSummaryScreen() {
       });
       setExportFeedback(
         audience === "clinician"
-          ? "Your clinician summary is ready whenever you want to share it."
-          : "Your caregiver-friendly summary is ready whenever you want to share it.",
+          ? "Your clinician summary is ready to share."
+          : "Your caregiver-friendly summary is ready to share.",
       );
     } catch {
       setExportFeedback("Something may need another moment before sharing.");
@@ -794,16 +795,23 @@ export default function HealthSummaryScreen() {
     try {
       setIsExportingPrintableSummary(true);
       setExportFeedback(null);
-      await Share.share({
-        message: clinicianExport.text,
+      const result = await exportHealthSummary({
+        title: clinicianExport.title,
+        subtitle: clinicianExport.subtitle,
+        text: clinicianExport.text,
+        sections: clinicianExport.sections,
       });
       await growth.recordEvent("export_used", {
         range,
         source: "premium_printable_summary",
       });
-      setExportFeedback("Export is not available in this testing environment. You can still view and share this summary.");
+      setExportFeedback(
+        result.ok
+          ? "Your summary is ready to share."
+          : "Export wasn’t available on this device. Your insights are still saved in the app.",
+      );
     } catch {
-      setExportFeedback("You can still view and share this summary.");
+      setExportFeedback("Export wasn’t available on this device. Your insights are still saved in the app.");
     } finally {
       setIsExportingPrintableSummary(false);
     }
@@ -840,10 +848,10 @@ export default function HealthSummaryScreen() {
       });
       setExportFeedback(
         audience === "partner"
-          ? "Your partner summary is ready whenever you want to share it."
+          ? "Your partner summary is ready to share."
           : audience === "family-member"
-            ? "Your family summary is ready whenever you want to share it."
-            : "Your caregiver support summary is ready whenever you want to share it.",
+            ? "Your family summary is ready to share."
+            : "Your caregiver support summary is ready to share.",
       );
     } catch {
       setExportFeedback("Something may need another moment before sharing.");
@@ -946,7 +954,7 @@ export default function HealthSummaryScreen() {
           <View style={styles.emptyCard}>
             <AppText style={styles.emptyTitle}>Your summary will build gently over time</AppText>
             <AppText style={styles.emptyBody}>
-              A few more entries will make this summary easier to read later. There is no need to fill it in all at once.
+              A few more entries will make this summary easier to read later. It can build gradually.
             </AppText>
             <AppButton label="Go to Today" onPress={() => router.push("/today")} />
           </View>

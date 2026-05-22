@@ -114,7 +114,7 @@ export function derivePremiumEmotionalSpaciousnessSummary(
   }
 
   if (recentMood !== null && recentMood <= 2.5) {
-    coexistence.push("It is okay if clarity does not arrive all at once.");
+    coexistence.push("Clarity may not arrive all at once.");
     pressureReduction.push("Less internal resistance may help more than trying to push yourself into a steadier state.");
   }
 

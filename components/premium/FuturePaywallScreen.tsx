@@ -9,7 +9,7 @@ import PlanOptionCard from "./PlanOptionCard";
 import { useLowEnergyMode } from "../../features/low-energy-mode/hooks";
 import { usePremium } from "../../features/premium/hooks";
 import type { PremiumPlan } from "../../features/premium/types";
-import { getLocalizedStorePrice, PREMIUM_PRICE_FALLBACK } from "../../features/premium/display";
+import { getLocalizedStorePrice } from "../../features/premium/display";
 import { trackEvent, trackRetryTriggered } from "../../lib/events";
 import { derivePremiumPositioning } from "../../lib/premium-ecosystem/calm-premium/derivePremiumPositioning";
 import { derivePremiumValue } from "../../lib/premium-ecosystem/calm-premium/derivePremiumValue";
@@ -25,6 +25,7 @@ import { preserveGracefulDowngrades } from "../../lib/premium-ecosystem/subscrip
 import { deriveLongTermPremiumValue } from "../../lib/premium-ecosystem/sustainable-value/deriveLongTermPremiumValue";
 import { preventArtificialScarcity } from "../../lib/premium-ecosystem/sustainable-value/preventArtificialScarcity";
 import { ENABLE_RC_DEBUG_PANEL } from "../../lib/revenuecat/debug";
+import { isExpoGo } from "../../lib/revenueCatEnvironment";
 
 const PRIVACY_POLICY_URL = "https://www.livewithms.com/policies/privacy-policy";
 const TERMS_OF_USE_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
@@ -36,6 +37,7 @@ type FuturePaywallScreenProps = {
 
 export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProps) {
   const premium = usePremium();
+  const { refreshRevenueCatDiagnostics } = premium;
   const lowEnergyMode = useLowEnergyMode();
   const [selectedPlan, setSelectedPlan] = useState<PremiumPlan>("yearly");
   const [debugTapCount, setDebugTapCount] = useState(0);
@@ -59,8 +61,8 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
   }, []);
 
   useEffect(() => {
-    void premium.refreshRevenueCatDiagnostics();
-  }, [premium.refreshRevenueCatDiagnostics]);
+    void refreshRevenueCatDiagnostics();
+  }, [refreshRevenueCatDiagnostics]);
 
   const openPrivacyPolicy = () => {
     void Linking.openURL(PRIVACY_POLICY_URL);
@@ -72,15 +74,16 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
 
   const primaryPackage = premium.currentOffering?.[selectedPlan] ?? null;
   const showPlans = !premium.hasPremiumAccess;
+  const expoGoPricingFallback = isExpoGo() && !premium.currentOffering;
   const showLoadingPricingShell =
     premium.isLoading && !premium.currentOffering && !premium.offeringsErrorMessage;
-  const monthlyPrice = getLocalizedStorePrice(premium.currentOffering?.monthly);
-  const yearlyPrice = getLocalizedStorePrice(premium.currentOffering?.yearly);
+  const monthlyPrice = expoGoPricingFallback ? "Monthly plan" : getLocalizedStorePrice(premium.currentOffering?.monthly);
+  const yearlyPrice = expoGoPricingFallback ? "Yearly plan" : getLocalizedStorePrice(premium.currentOffering?.yearly);
   const purchaseLabel = premium.isPurchasing
-    ? "Starting purchase..."
+    ? positioning.purchaseLoadingLabel
     : primaryPackage
-      ? preventConversionPressure(`Continue with ${selectedPlan === "yearly" ? positioning.yearly.title : positioning.monthly.title}`)
-      : PREMIUM_PRICE_FALLBACK;
+      ? preventConversionPressure(positioning.purchaseCta)
+      : positioning.purchaseUnavailableLabel;
 
   const handlePurchase = async () => {
     if (!primaryPackage || premium.isPurchasing) {
@@ -101,15 +104,15 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
         plan: selectedPlan,
       });
       Alert.alert(
-        "Premium is ready",
-        "Your calmer Premium support is now available.",
+        positioning.purchaseSuccessTitle,
+        positioning.purchaseSuccessBody,
         [{ text: "Continue", onPress: onClose }],
       );
       return;
     }
 
     if (result.message && !result.cancelled) {
-      Alert.alert("Purchase needs a moment", result.message);
+      Alert.alert(positioning.purchasePendingTitle, result.message);
     }
   };
 
@@ -120,14 +123,14 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
       await trackEvent("restore_completed", {
         status: "success",
       });
-      Alert.alert("Premium access is back in place", "Your Premium access has been refreshed.", [
+      Alert.alert(positioning.restoreSuccessTitle, positioning.restoreSuccessBody, [
         { text: "Continue", onPress: onClose },
       ]);
       return;
     }
 
     if (result.message) {
-      Alert.alert("Restore needs a moment", result.message);
+      Alert.alert(positioning.restorePendingTitle, result.message);
     }
   };
 
@@ -190,18 +193,32 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
             ))}
           </View>
           <AppText style={styles.valueBody}>
+            {preventEmotionalConversion(positioning.secondarySummary)}
+          </AppText>
+        </View>
+
+        <View style={styles.valueCard}>
+          <AppText style={styles.valueTitle}>{positioning.tertiaryTitle}</AppText>
+          <AppText style={styles.valueBody}>
             {preventEmotionalConversion(positioning.tertiaryBody)}
           </AppText>
+          <AppText style={styles.valueTitle}>{positioning.softValueTitle}</AppText>
+          <AppText style={styles.valueBody}>{positioning.softValueBody}</AppText>
+          <View style={styles.bulletList}>
+            {positioning.softValueLines.map((line) => (
+              <AppText key={line} style={styles.bulletText}>• {line}</AppText>
+            ))}
+          </View>
         </View>
 
         {premium.hasPremiumAccess ? (
           <View style={styles.activeCard}>
-            <AppText style={styles.activeTitle}>Premium is active</AppText>
+            <AppText style={styles.activeTitle}>{positioning.activeTitle}</AppText>
             <AppText style={styles.activeBody}>
               {positioning.activeProfileBody}
             </AppText>
             <AppButton
-              label={premium.isLoading ? "Refreshing..." : "Refresh Premium Status"}
+              label={premium.isLoading ? "Refreshing..." : positioning.activeRefreshLabel}
               onPress={() => void premium.refreshPremiumStatus()}
               variant="secondary"
               disabled={premium.isLoading}
@@ -213,9 +230,9 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
           <>
             {showLoadingPricingShell ? (
               <View style={styles.statusCard}>
-                <AppText style={styles.statusTitle}>Bringing in current pricing…</AppText>
+                <AppText style={styles.statusTitle}>{positioning.loadingPricingTitle}</AppText>
                 <AppText style={styles.statusBody}>
-                  This can take a moment while the App Store refreshes in the background.
+                  {positioning.loadingPricingBody}
                 </AppText>
                 <View style={styles.loadingSkeletonGroup}>
                   <CalmSkeleton width="64%" height={12} />
@@ -226,15 +243,20 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
 
             {premium.offeringsErrorMessage ? (
               <View style={styles.statusCard}>
-                <AppText style={styles.statusTitle}>Pricing needs a moment</AppText>
+                <AppText style={styles.statusTitle}>{positioning.errorPricingTitle}</AppText>
                 <AppText style={styles.statusBody}>
                   {premium.offeringsErrorMessage}
                 </AppText>
+                {__DEV__ && isExpoGo() ? (
+                  <AppText style={styles.statusBody}>
+                    {positioning.expoGoPricingNote}
+                  </AppText>
+                ) : null}
                 <AppText style={styles.statusBody}>
-                  If Apple’s setup is still finishing, pricing can take a little time to appear. The rest of the app still works normally in the meantime.
+                  {positioning.errorPricingBody}
                 </AppText>
                 <AppButton
-                  label={premium.isLoading ? "Retrying..." : "Try again"}
+                  label={premium.isLoading ? "Retrying..." : positioning.retryLabel}
                   onPress={() => {
                     void trackRetryTriggered("premium-refresh");
                     void premium.refreshPremiumStatus();
@@ -249,9 +271,9 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
               <AppText style={styles.comparisonTitle}>{positioning.plansTitle}</AppText>
               <AppText style={styles.comparisonBody}>
                 {upgradeTiming === "defer"
-                  ? "You do not need to decide right away. Pricing can wait until it feels clearer."
-                  : lowEnergyMode.enabled
-                    ? "Monthly stays flexible. Yearly keeps the experience steadier over time."
+                    ? "You do not need to decide right away. Pricing can wait until it feels clearer."
+                    : lowEnergyMode.enabled
+                    ? "Monthly stays flexible. Yearly keeps support steadier and simpler over time."
                     : positioning.plansBody}
               </AppText>
               <View style={styles.pricingSnapshot}>
@@ -277,6 +299,12 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
               </View>
               <AppText style={styles.pricingSupportText}>{positioning.monthly.subtitle}</AppText>
               <AppText style={styles.pricingSupportText}>{positioning.yearly.subtitle}</AppText>
+              <AppText style={styles.comparisonTitle}>{positioning.supportPrinciplesTitle}</AppText>
+              {positioning.supportPrinciplesLines.map((line) => (
+                <AppText key={line} style={styles.comparisonBody}>
+                  {line}
+                </AppText>
+              ))}
               <AppText style={styles.comparisonTitle}>{positioning.trustTitle}</AppText>
               {positioning.trustLines.map((line) => (
                 <AppText key={line} style={styles.comparisonBody}>
@@ -313,9 +341,9 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
         ) : null}
 
         <View style={styles.disclosureCard}>
-          <AppText style={styles.disclosureTitle}>Restore and billing</AppText>
+          <AppText style={styles.disclosureTitle}>{positioning.restoreTitle}</AppText>
           <Pressable style={styles.restoreCallout} onPress={() => void handleRestore()}>
-            <AppText style={styles.restoreCalloutText}>Restore purchases</AppText>
+            <AppText style={styles.restoreCalloutText}>{positioning.restoreButtonLabel}</AppText>
           </Pressable>
           <AppText style={styles.disclosureText}>
             {deriveBillingTransparency()}
@@ -334,10 +362,10 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
               disabled={!primaryPackage || premium.isPurchasing || premium.isLoading}
             />
           ) : (
-            <AppButton label="Done" onPress={onClose} />
+            <AppButton label={positioning.doneCtaLabel} onPress={onClose} />
           )}
           <Pressable style={styles.secondaryButton} onPress={onClose}>
-            <AppText style={styles.secondaryText}>Not now</AppText>
+            <AppText style={styles.secondaryText}>{positioning.secondaryCtaLabel}</AppText>
           </Pressable>
         </View>
 

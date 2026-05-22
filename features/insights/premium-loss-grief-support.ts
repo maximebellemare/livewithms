@@ -119,7 +119,7 @@ export function derivePremiumLossGriefSupportSummary(
   }
 
   if (recentMood !== null && recentMood <= 2.5) {
-    coexistence.push("It is okay if some changes still feel emotionally heavy.");
+    coexistence.push("Some changes may still feel emotionally heavy.");
     ordinaryLife.push("One ordinary anchor may still matter, even when life feels different from the version you miss.");
   }
 

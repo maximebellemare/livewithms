@@ -1,9 +1,9 @@
 export function getInsightsFallbackSummary() {
-  return "Patterns become clearer over time.";
+  return "More check-ins may help reveal clearer patterns over time.";
 }
 
 export function getInsightDetailFallback() {
-  return "A little more history can gently improve visibility.";
+  return "There is not enough information yet to identify a reliable pattern.";
 }
 
 export function getWeeklyTrendIndicator(

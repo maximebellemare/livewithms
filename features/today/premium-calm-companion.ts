@@ -79,7 +79,7 @@ export function derivePremiumCalmCompanionEnvironment(
   const microMoments = [
     heavierDay ? "Let one thing wait." : "A brief check-in can be enough.",
     evening ? "The rest of tonight can stay small." : "A quieter pace may help today.",
-    input.hasTodayEntry ? "You can stop here whenever this feels complete." : "You do not need to do everything at once.",
+    input.hasTodayEntry ? "This can stay here for now." : "Not everything needs attention at once.",
   ]
     .map(sanitizeCalmEnvironmentLine)
     .filter((line, index, all) => all.indexOf(line) === index)

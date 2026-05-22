@@ -1802,7 +1802,7 @@ export default function ProgramsScreen() {
                 `${resumableProgramFlow.body} ${interruptionNormalization ?? ""}`.trim(),
               )}
             </AppText>
-            <AppText style={styles.resumeNote}>You can continue whenever you want. This step will still be here later.</AppText>
+            <AppText style={styles.resumeNote}>Continue later if it still helps. This step will stay here.</AppText>
             <AppButton
               label={pauseResumeState.shorterResumeCopy ? "Resume gently" : resumableProgramFlow.ctaLabel}
               onPress={() => {

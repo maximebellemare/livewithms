@@ -69,7 +69,7 @@ export function deriveSetbackRecovery(input: SetbackRecoveryInput): SetbackRecov
 
   if (input.disruptionSeverity === "moderate" || input.recentCheckInCount <= 1) {
     supportLines.push("You can restart quietly.");
-    supportLines.push("It is okay if consistency changed recently.");
+    supportLines.push("Consistency may have changed recently.");
     toolIds.push("quiet-restart-after-hard-week", "one-step-reentry", "simplify-the-next-hour");
   }
 

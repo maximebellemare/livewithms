@@ -106,17 +106,17 @@ function getReminderHelperText(
 
   if (enabled) {
     if (reminderPressure === "high") {
-      return `A reminder time is saved for ${selectedTimeLabel}. Heavier stretches can stay quieter for now.`;
+      return `A reminder is set for ${selectedTimeLabel}. Timing can stay lighter during heavier stretches.`;
     }
 
     if (reminderPressure === "moderate") {
-      return `A gentle reminder is set for ${selectedTimeLabel}, with a little more space when needed.`;
+      return `A reminder is set for ${selectedTimeLabel}, with extra spacing when needed.`;
     }
 
-    return `A gentle reminder is set for ${selectedTimeLabel}.`;
+    return `A reminder is set for ${selectedTimeLabel}.`;
   }
 
-  return "Gentle reminders are optional, flexible, and there when a little support helps.";
+  return "Set a daily check-in reminder, or leave reminders off.";
 }
 
 function getTodayDateString() {
@@ -234,12 +234,14 @@ export default function ProfileScreen() {
   const calmnessMetricLine = deriveCalmnessMetrics()[0]?.purpose;
   const accessibilityMetricLine = deriveAccessibilityMetrics()[0]?.purpose;
   const aboutYouLines = [
-    totalCheckIns > 0 ? continuityFeedback.body : "Your preferences can help keep the app calmer and easier to use.",
-    lowEnergyMode.enabled ? "Low Energy Mode is on." : "Low Energy Mode is available anytime.",
-    reminders.enabled ? `Reminders are set for ${reminders.selectedTimeLabel}.` : "Reminders are optional and easy to adjust.",
+    totalCheckIns > 0 ? continuityFeedback.body : "Your settings shape how the app works day to day.",
+    lowEnergyMode.enabled
+      ? "Low Energy Mode is on and the app is using a simpler layout."
+      : "Low Energy Mode can simplify the app during fatigue or cognitive overload.",
+    reminders.enabled ? `Reminders are set for ${reminders.selectedTimeLabel}.` : "Reminders are off.",
     hasCalmEnvironment
-      ? `${premiumCalmEnvironment.density.label} is available for an easier visual rhythm.`
-      : "A calmer visual environment is available with Premium.",
+      ? `${premiumCalmEnvironment.density.label} is active for a lower-density layout.`
+      : "Premium adds lower-stimulation display options.",
   ].filter((line): line is string => Boolean(line));
 
   const confirmDeleteAccount = () => {
@@ -408,9 +410,9 @@ export default function ProfileScreen() {
 
         <View style={styles.card}>
           <AppText style={styles.sectionKicker}>About you</AppText>
-          <AppText style={styles.sectionTitle}>Continuity</AppText>
+          <AppText style={styles.sectionTitle}>Patterns & preferences</AppText>
           <AppText style={styles.sectionBody}>
-            You&apos;ve been showing up in ways that help the app stay gentler and easier to use.
+            These settings and check-ins shape how the app adapts over time.
           </AppText>
           <View style={styles.aboutYouList}>
             {aboutYouLines.map((line) => (
@@ -494,7 +496,7 @@ export default function ProfileScreen() {
           <AppText style={styles.sectionKicker}>Preferences</AppText>
           <AppText style={styles.sectionTitle}>App preferences</AppText>
           <AppText style={styles.sectionBody}>
-            Keep the app feeling supportive in a way that works for you. These settings stay light and easy to revisit.
+            Adjust reminders, reading density, and low-energy settings here.
           </AppText>
           <PreferenceRow
             title="Gentle reminders"
@@ -513,7 +515,7 @@ export default function ProfileScreen() {
               <View style={styles.reminderCopy}>
                 <AppText style={styles.preferenceTitle}>Reminder time</AppText>
                 <AppText style={styles.preferenceDescription}>
-                  Pick a calm time for one daily reminder, or leave reminders off entirely.
+                  Choose when a daily reminder should appear.
                 </AppText>
               </View>
               <AppText style={styles.reminderTimeLabel}>{reminders.selectedTimeLabel}</AppText>
@@ -553,13 +555,13 @@ export default function ProfileScreen() {
             ) : null}
             {reminders.enabled ? (
               <AppText style={styles.reminderQuietNote}>
-                The app can keep reminders lighter or quieter during heavier stretches.
+                Reminder timing can stay lighter during heavier stretches.
               </AppText>
             ) : null}
           </View>
           <PreferenceRow
             title="Low Energy Mode"
-            description="Keep the app lighter, roomier, and less dense on harder days."
+            description="Reduces visual density and simplifies navigation on lower-energy days."
             value={lowEnergyMode.enabled}
             onValueChange={(value) => {
               void lowEnergyMode.setEnabled(value);
@@ -658,9 +660,9 @@ export default function ProfileScreen() {
 
         <View style={styles.card}>
           <AppText style={styles.sectionKicker}>Consistency</AppText>
-          <AppText style={styles.sectionTitle}>Consistency</AppText>
+          <AppText style={styles.sectionTitle}>Longer-term patterns</AppText>
           <AppText style={styles.sectionBody}>
-            A gentle view of how your recent check-ins are taking shape.
+            Shows how often you’ve checked in and how much pattern data is available.
           </AppText>
           {totalCheckIns > 0 ? (
             <>
@@ -717,7 +719,7 @@ export default function ProfileScreen() {
           <AppText style={styles.sectionKicker}>Support</AppText>
           <AppText style={styles.sectionTitle}>Support & legal</AppText>
           <AppText style={styles.sectionBody}>
-            Find the main policies, medical context, and support options here whenever you need them.
+            Open policies, medical information, and support links from here.
           </AppText>
           <LinkRow label="Health Summary" onPress={() => router.push("/health-summary")} />
           <LinkRow label="Privacy Policy" onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)} />
@@ -731,7 +733,7 @@ export default function ProfileScreen() {
           <AppText style={styles.sectionKicker}>Ownership</AppText>
           <AppText style={styles.sectionTitle}>Pause & ownership</AppText>
           <AppText style={styles.sectionBody}>
-            Use the app when it helps. Step back when it does not. Your history belongs to you, not to the platform.
+            Use the app lightly. Step back when needed. Your history belongs to you, not to the platform.
           </AppText>
           {safeOwnershipLines.map((line) => (
             <AppText key={line} style={styles.sectionBody}>

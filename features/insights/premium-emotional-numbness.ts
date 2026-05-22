@@ -110,7 +110,7 @@ export function derivePremiumEmotionalNumbnessSummary(
 
   if (recentMood !== null && recentMood <= 2.5) {
     atAGlance.push("Some periods naturally feel more emotionally distant than others.");
-    disconnection.push("It is okay if things feel emotionally quieter right now.");
+    disconnection.push("Things may feel emotionally quieter right now.");
     reconnection.push("You may not need to force yourself to feel differently immediately.");
   }
 

@@ -300,7 +300,7 @@ const AUDIO_SESSIONS: CalmAudioSession[] = [
         id: "ease-the-end",
         label: "Ease the end of the day",
         seconds: 70,
-        prompt: "It is okay if the rest of today stays simple.",
+        prompt: "Let the rest of today stay simple.",
       },
     ],
   },

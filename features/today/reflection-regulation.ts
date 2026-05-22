@@ -37,7 +37,7 @@ const REFLECTION_MODES: Record<ReflectionModeId, ReflectionMode> = {
     label: "Low energy",
     helper: "A few words are enough if that is all you have today.",
     placeholder: "A few words, if helpful.",
-    groundingMoment: "It is okay for today to stay simple.",
+    groundingMoment: "Today can stay simple.",
     prompts: ["What feels most true right now?", "What can stay simple today?"],
   },
   grounding: {
@@ -59,7 +59,7 @@ const REFLECTION_MODES: Record<ReflectionModeId, ReflectionMode> = {
   uncertainty: {
     id: "uncertainty",
     label: "Uncertainty",
-    helper: "It is okay not to have a clear answer.",
+    helper: "A clear answer is not required.",
     placeholder: "Anything that feels uncertain, unsettled, or unfinished.",
     groundingMoment: "Not everything needs to become clear today.",
     prompts: ["What feels unclear right now?", "What do I not need to solve today?"],

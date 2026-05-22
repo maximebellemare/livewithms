@@ -11,6 +11,7 @@ export default function PaywallHero() {
       <AppText style={styles.eyebrow}>LiveWithMS Premium</AppText>
       <AppText style={styles.title}>{positioning.heroTitle}</AppText>
       <AppText style={styles.subtitle}>{positioning.heroSubtitle}</AppText>
+      <AppText style={styles.body}>{positioning.heroBody}</AppText>
     </View>
   );
 }
@@ -34,5 +35,10 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 16,
     lineHeight: 24,
+  },
+  body: {
+    color: colors.textMuted,
+    fontSize: 15,
+    lineHeight: 23,
   },
 });

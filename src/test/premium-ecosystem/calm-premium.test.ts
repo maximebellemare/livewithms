@@ -25,11 +25,17 @@ describe("premium ecosystem calm premium", () => {
     const combined = [
       result.heroTitle,
       result.heroSubtitle,
+      result.heroBody,
       result.screenSubtitle,
       result.primarySummary,
+      result.secondarySummary,
       result.tertiaryBody,
+      result.softValueBody,
+      ...result.supportPrinciplesLines,
       result.monthly.subtitle,
       result.yearly.subtitle,
+      result.purchaseCta,
+      result.restoreButtonLabel,
       result.inactiveProfileBody,
       result.onboardingBody,
     ]
@@ -38,7 +44,7 @@ describe("premium ecosystem calm premium", () => {
 
     expect(combined).toContain("calmer");
     expect(combined).not.toMatch(
-      /upgrade now|you'?re missing out|advanced ai|best value|unlock everything|supercharge|purpose|life transformation/,
+      /upgrade now|you'?re missing out|advanced ai|best value|unlock everything|supercharge|purpose|life transformation|full potential|best self|don'?t miss out|unstoppable|optimi[sz]e/,
     );
   });
 });

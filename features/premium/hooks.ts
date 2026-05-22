@@ -7,7 +7,7 @@ import { trackDiagnosticEvent } from "../../lib/events";
 import { logger } from "../../lib/logger";
 import { deriveFriendlyFailureMessage } from "../../lib/operational-calm/failure-softening/deriveFriendlyFailureMessage";
 import type { RevenueCatDebugSnapshot } from "../../lib/revenuecat/debug";
-import { shouldUseRevenueCatNativeStore } from "../../lib/runtime/native-store";
+import { shouldUseRevenueCatNativeStore } from "../../lib/revenueCatEnvironment";
 import { loadPremiumDebugOverride, savePremiumDebugOverride } from "./debug";
 import { ENABLE_PREMIUM_DEBUG_TOOLS, isPremiumEnabled, PREMIUM_FEATURE_FLAGS } from "./config";
 import { getPremiumStatusFromCustomerInfo, hasPremiumAccess as getHasPremiumAccess } from "./entitlements";
@@ -127,6 +127,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       setCurrentOffering(null);
       setOfferingsErrorMessage("Premium pricing and purchases are not available in this testing environment.");
       setRevenueCatDebugSnapshot(revenueCatClient.getDebugSnapshot());
+      refreshStateRef.current = resetRevenueCatFailureState();
       setIsLoading(false);
       return;
     }
@@ -198,7 +199,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
         grace.showMessage
           ? "Premium details are taking a moment to refresh. Your access should settle shortly."
           : nextFailureState.hitCap
-            ? "Pricing is taking longer than usual to appear. You can pause here and try again a little later."
+            ? "Pricing is taking longer than usual to appear. Try again a little later."
             : "Pricing and purchases are not ready just yet. You can try again in a little while.",
       );
       const retry = deriveRetryStrategy(error, refreshStateRef.current.attempt);

@@ -658,7 +658,7 @@ const PREMIUM_PROGRAM_TOOLS: ProgramTool[] = [
       "Take one slower exhale than feels natural.",
       "Give the next few minutes less input if you can.",
     ],
-    completionMessage: "It is okay if your system needs a little time to slow down.",
+    completionMessage: "Your system may need a little time to slow down.",
     futureTrack: "nervous-system",
     continuationLabel: "Return here when the body still feels revved up afterward.",
     supportTags: ["stress", "overwhelm", "sleep"],

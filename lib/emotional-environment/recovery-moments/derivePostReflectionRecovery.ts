@@ -4,13 +4,12 @@ export function derivePostReflectionRecovery(atmosphere: AtmosphereState): Emoti
   return atmosphere === "REFLECTIVE"
     ? {
         title: "A brief pause can be enough",
-        body: "You can leave this here for now.",
+        body: "This can stay here for now.",
         spacing: "standard",
       }
     : {
         title: "You can keep the next step light",
-        body: "There is no need to do more right away.",
+        body: "Nothing else is needed right away.",
         spacing: "roomy",
       };
 }
-

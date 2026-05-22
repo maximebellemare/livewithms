@@ -270,7 +270,7 @@ export default function TrackScreen() {
 
             <EmptyState
               title="Nothing is showing for this filter just yet"
-              message="Another filter may fit better, or you can return to Today whenever you want."
+              message="Another filter may fit better, or Today may be a clearer starting point."
               action={<AppButton label="Go to Today" onPress={() => router.push("/today")} />}
             />
           </ScrollView>

@@ -52,7 +52,7 @@ const STEPS: Step[] = [
   {
     title: "Gentle Response",
     instruction: "If a friend told you they felt this way, what would you say to them?",
-    placeholder: "e.g. It's okay to feel this way. You're doing your best…",
+    placeholder: "e.g. This feeling makes sense today. Keep it simple…",
     type: "write",
   },
   {

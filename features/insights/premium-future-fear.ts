@@ -119,7 +119,7 @@ export function derivePremiumFutureFearSummary(
   }
 
   if (recentMood !== null && recentMood <= 2.5) {
-    identityDecompression.push("It is okay if uncertainty feels heavier during difficult periods.");
+    identityDecompression.push("Uncertainty may feel heavier during difficult periods.");
     lifeConnection.push("Smaller meaningful anchors may still matter, even when the future feels frighteningly abstract.");
   }
 

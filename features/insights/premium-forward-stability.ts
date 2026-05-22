@@ -124,7 +124,7 @@ export function derivePremiumForwardStabilitySummary(
 
   if (recentMood !== null && recentMood <= 2.5) {
     grounding.push("Some weeks feel heavier than others.");
-    uncertainty.push("It is okay if the future feels uncertain sometimes.");
+    uncertainty.push("The future may feel uncertain sometimes.");
   } else if (recentMood !== null && recentMood >= 3.1) {
     grounding.push("Some steadier moments still appeared inside this stretch.");
   }

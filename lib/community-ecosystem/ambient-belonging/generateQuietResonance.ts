@@ -6,7 +6,7 @@ export function generateQuietResonance(themes: string[]) {
   const [theme] = themes;
 
   return {
-    title: "A quiet sense of company",
-    body: `Others have also been reflecting on ${theme} lately.`,
+    title: "Shared theme",
+    body: `${theme} may be worth noticing here.`,
   };
 }

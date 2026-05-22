@@ -216,7 +216,7 @@ function buildFallbackInsight(entries: DailyCheckIn[]): PatternSummary {
     return {
       source: "fallback",
       insight: moderateInsightCopy(
-        "Your recent check-ins suggest a steadier stretch overall. Keep noticing what is helping on the better days so you can return to it when things feel harder.",
+        "Your recent check-ins suggest a steadier stretch overall. Noticing what helps on the better days may make the harder ones easier to carry.",
       ),
     };
   }

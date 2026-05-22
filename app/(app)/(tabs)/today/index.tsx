@@ -9,6 +9,7 @@ import DailyCheckInCard, {
   normalizeCheckInInput,
   type DailyCheckInDraft,
 } from "../../../../components/today/DailyCheckInCard";
+import GuidanceSection from "../../../../components/today/GuidanceSection";
 import AppButton from "../../../../components/ui/AppButton";
 import CalmSkeleton from "../../../../components/ui/CalmSkeleton";
 import ErrorState from "../../../../components/ui/ErrorState";
@@ -37,6 +38,7 @@ import { derivePremiumCalmCompanionEnvironment } from "../../../../features/toda
 import { useMyProfile } from "../../../../features/profile/hooks";
 import { useProgramProgress } from "../../../../features/programs/hooks";
 import { buildTodayGuidance } from "../../../../features/today/guidance";
+import { deriveTodayOrientation } from "../../../../features/today/orientation";
 import { derivePostCheckInMoment } from "../../../../features/today/post-check-in";
 import { getErrorMessage } from "../../../../lib/errors";
 import { buildAdaptiveProfile } from "../../../../features/adaptive/logic";
@@ -1219,6 +1221,16 @@ export default function TodayScreen() {
       todayGuidance.actions,
     ],
   );
+  const todayOrientation = useMemo(
+    () =>
+      deriveTodayOrientation({
+        todayEntry,
+        recentEntries: recentRangeEntries,
+        adaptiveProfile,
+        aiSummary: aiSummaryQuery.data ?? null,
+      }),
+    [adaptiveProfile, aiSummaryQuery.data, recentRangeEntries, todayEntry],
+  );
 
   useEffect(() => {
     if (growth.isLoading) {
@@ -1421,7 +1433,7 @@ export default function TodayScreen() {
               ? calmOrientation.body
               : todayEntry
               ? energyAwareFlow.contentReduction.shortenSupportCopy
-                ? "You checked in today. You can leave it there unless something changes."
+                ? "You checked in today. Update it only if something changes."
                 : "You checked in today. You can update it anytime if things change."
               : energyAwareFlow.contentReduction.shortenSupportCopy
                 ? "We can keep this short today. A brief check-in is enough."
@@ -1709,28 +1721,24 @@ export default function TodayScreen() {
           <AppText style={styles.infoBody}>
             {healthyExitState === "soft-exit"
               ? sessionClosure.body
-              : `${sessionClosure.body} You can stop here whenever this feels complete.`}
+              : `${sessionClosure.body} Keep the next part of the day light.`}
           </AppText>
         </View>
 
         <View style={styles.guidanceCard}>
-          <AppText style={styles.guidanceKicker}>Today&apos;s guidance</AppText>
-          <AppText style={styles.guidanceTitle}>{todayGuidance.title}</AppText>
-          <AppText style={styles.guidanceBody}>
-            {aiSummaryQuery.isLoading && !todayEntry
-              ? "Pulling together a quick read on your recent patterns..."
-              : todayGuidance.body}
-          </AppText>
-          {overextensionPattern.atRisk ? (
-            <AppText style={styles.guidanceBody}>
-              A lighter pace may feel more sustainable right now. Support can stay smaller for a while.
-            </AppText>
-          ) : null}
-          {todayGuidance.moment ? (
-            <View style={styles.guidanceMomentPill}>
-              <AppText style={styles.guidanceMomentText}>{todayGuidance.moment}</AppText>
-            </View>
-          ) : null}
+          <AppText style={styles.guidanceKicker}>Today&apos;s orientation</AppText>
+          <AppText style={styles.guidanceTitle}>{todayOrientation.title}</AppText>
+          <View style={styles.guidanceModuleStack}>
+            {todayOrientation.modules.map((module) => (
+              <GuidanceSection
+                key={module.id}
+                title={module.title}
+                body={module.body}
+                icon={module.icon}
+                tone={module.tone}
+              />
+            ))}
+          </View>
           <View style={styles.guidanceActions}>
             {visibleGuidanceActions.map((action) => (
               <Pressable
@@ -1859,9 +1867,9 @@ export default function TodayScreen() {
             lastSaveQueued
               ? postCheckInMoment.footer
               : suggestedEffortLevel === "brief"
-                ? "You can leave it there for today."
+                ? "That is enough for today."
                 : suggestedEffortLevel === "gentle"
-                  ? "You can stop here if that feels like enough."
+                  ? "Keep the rest of today light."
                   : postCheckInMoment.footer
           }
           onViewInsights={() => router.push("/insights")}
@@ -2195,7 +2203,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f2dfcf",
     padding: 18,
-    gap: 10,
+    gap: 14,
   },
   guidanceKicker: {
     fontSize: 13,
@@ -2209,26 +2217,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1f2937",
   },
-  guidanceBody: {
-    color: "#4b5563",
-    lineHeight: 22,
-  },
-  guidanceMomentPill: {
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#ead9cb",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  guidanceMomentText: {
-    color: "#8b6a4f",
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: "600",
+  guidanceModuleStack: {
+    gap: 12,
   },
   guidanceActions: {
     gap: 10,
+    marginTop: 2,
   },
   guidanceAction: {
     backgroundColor: "#ffffff",
