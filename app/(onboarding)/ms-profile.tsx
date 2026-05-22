@@ -20,7 +20,7 @@ export default function MsProfileScreen() {
     });
 
     if (!ok) {
-      setErrorMessage("Unable to save your profile. Please try again.");
+      setErrorMessage("That step did not save just yet. Please try again in a moment.");
       return;
     }
 

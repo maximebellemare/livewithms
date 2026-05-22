@@ -23,7 +23,7 @@ export default function MiniTrendChart({
         <View style={styles.bars}>
           {points.map((point) => {
             const height =
-              point.value === null ? 10 : Math.max(10, (point.value / safeMax) * 64);
+              point.value === null ? 10 : Math.max(10, (point.value / safeMax) * 58);
 
             return (
               <View key={point.label} style={styles.barGroup}>
@@ -36,9 +36,6 @@ export default function MiniTrendChart({
                     },
                   ]}
                 />
-                <AppText style={styles.valueLabel}>
-                  {point.value === null ? "—" : point.value}
-                </AppText>
                 <AppText style={styles.label}>{point.label}</AppText>
               </View>
             );
@@ -51,15 +48,15 @@ export default function MiniTrendChart({
 
 const styles = StyleSheet.create({
   container: {
-    gap: 8,
+    gap: 10,
   },
   chartShell: {
     position: "relative",
-    paddingTop: 8,
+    paddingTop: 10,
   },
   gridLineTop: {
     position: "absolute",
-    top: 8,
+    top: 10,
     left: 0,
     right: 0,
     borderTopWidth: 1,
@@ -77,25 +74,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    gap: 8,
-    minHeight: 92,
+    gap: 10,
+    minHeight: 82,
   },
   barGroup: {
     flex: 1,
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
   bar: {
     width: "100%",
-    minWidth: 10,
+    minWidth: 12,
     borderRadius: 999,
-  },
-  valueLabel: {
-    fontSize: 10,
-    color: "#8b6a4f",
   },
   label: {
     fontSize: 11,
+    lineHeight: 14,
     color: "#6b7280",
   },
 });

@@ -1,5 +1,4 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { applyTrustLayer } from "../../../lib/ai-trust/applyTrustLayer";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,6 +24,8 @@ type RequestBody = {
 const OPENAI_TIMEOUT_MS = 15000;
 const MAX_NOTES_LENGTH = 160;
 const MAX_SUGGESTIONS = 3;
+const TRANSPARENCY_NOTE =
+  "These patterns are meant as gentle reflection, not diagnosis, treatment, or crisis support.";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -40,6 +41,26 @@ function truncate(value: string, maxLength: number) {
   }
 
   return `${trimmed.slice(0, maxLength).trimEnd()}…`;
+}
+
+function sanitizeTrustText(value: string) {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/\b(always|definitely|certainly|clearly)\b/gi, "may")
+    .replace(/\byou need to\b/gi, "it may help to")
+    .replace(/\bdiagnos(?:e|is|ing)\b/gi, "interpret")
+    .replace(/\btreat(?:ment|ing)?\b/gi, "support")
+    .trim();
+}
+
+function applyInsightTrustLayer(input: {
+  text: string;
+  includeTransparencyNote?: boolean;
+}) {
+  return {
+    text: sanitizeTrustText(input.text),
+    trustNote: input.includeTransparencyNote ? TRANSPARENCY_NOTE : undefined,
+  };
 }
 
 function average(values: Array<number | null | undefined>) {
@@ -291,27 +312,21 @@ ${JSON.stringify(compactEntries)}`;
             .slice(0, MAX_SUGGESTIONS)
         : [];
 
-      const trustedSummary = applyTrustLayer({
+      const trustedSummary = applyInsightTrustLayer({
         text: summary,
-        channel: "insight-summary",
-        adaptiveState: entries.length >= 8 ? "REFLECTIVE" : "STABLE",
         includeTransparencyNote: true,
       });
       const trustedHelping = helping
         .map((item) =>
-          applyTrustLayer({
+          applyInsightTrustLayer({
             text: item,
-            channel: "insight-list-item",
-            adaptiveState: "STABLE",
           }).text,
         )
         .filter(Boolean);
       const trustedSuggestions = suggestions
         .map((item) =>
-          applyTrustLayer({
+          applyInsightTrustLayer({
             text: item,
-            channel: "insight-list-item",
-            adaptiveState: "STABLE",
           }).text,
         )
         .filter(Boolean);

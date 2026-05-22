@@ -1,12 +1,13 @@
 {
   "expo": {
     "name": "LiveWithMS",
-    "version": "1.0.5",
+    "description": "A calm, emotionally safe support environment for people living with MS. Designed to reduce overwhelm, support steadiness, and make difficult periods feel lighter and more manageable.",
+    "version": "1.0.6",
     "scheme": "com.livewithms.app",
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.livewithms.app",
-      "buildNumber": "48"
+      "buildNumber": "54"
     },
     "android": {
       "package": "com.livewithms.app"

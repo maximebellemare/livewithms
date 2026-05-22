@@ -9,6 +9,8 @@ export type OnboardingStep =
   | "goals"
   | "about-you"
   | "plan"
+  | "trust"
+  | "reminders"
   | "complete";
 
 export type OnboardingDraft = {
@@ -19,6 +21,9 @@ export type OnboardingDraft = {
   goals: string[];
   country: string;
   age_range: string;
+  support_style: "short-simple" | "gentle-reflective" | "practical-structured" | "low-energy" | "";
+  low_energy_mode: boolean;
+  reminder_preference: "enable" | "skip";
 };
 
 export type ConsentState = {

@@ -24,6 +24,9 @@ const DEFAULT_INTERACTION_STYLE_PROFILE: InteractionStyleProfile = {
 const EMPTY_MEMORY: PersonalizationMemory = {
   onboardingGoals: [],
   onboardingSymptoms: [],
+  onboardingSupportStyleOverride: null,
+  onboardingPreferredDensityOverride: null,
+  onboardingComplexityToleranceOverride: null,
   preferredSupportStyle: "steady",
   preferredProgramTags: [],
   reminderWindow: "evening",

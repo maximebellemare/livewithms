@@ -106,8 +106,8 @@ Deno.serve(async (req) => {
         if (subs && subs.length > 0) {
           const timeStr = appt.time ? ` at ${formatTime12(appt.time)}` : "";
           const notification = JSON.stringify({
-            title: "📅 Appointment Tomorrow",
-            body: `${appt.title}${timeStr}`,
+            title: "Appointment reminder",
+            body: `${appt.title}${timeStr} is here for tomorrow when you're ready.`,
             icon: "/pwa-192.png",
             badge: "/pwa-192.png",
             url: "/appointments",
@@ -153,8 +153,8 @@ Deno.serve(async (req) => {
 
           if (subs && subs.length > 0) {
             const notification = JSON.stringify({
-              title: "⏰ Appointment in ~1 hour",
-              body: `${appt.title} at ${formatTime12(appt.time)}`,
+              title: "Appointment reminder",
+              body: `${appt.title} is here around ${formatTime12(appt.time)}.`,
               icon: "/pwa-192.png",
               badge: "/pwa-192.png",
               url: "/appointments",

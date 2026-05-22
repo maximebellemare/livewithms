@@ -110,16 +110,16 @@ export function buildCoachMessage(entry: DailyCheckIn | null): CoachMessage {
 
   if ((sleepHours ?? 0) >= 7 && fatigue <= 2 && stress <= 2 && mood >= 4) {
     return {
-      title: "There is something to learn from this day",
-      body: "You seem to have more room today. Notice what helped so you can come back to it tomorrow.",
+      title: "There may be a little more room today",
+      body: "If today feels a bit steadier, it may be worth noticing what helped.",
     };
   }
 
-    return {
-      title: "Stay close to what helps",
-      body: "Today looks mixed. Keep expectations kind and notice the small things that help you feel a little steadier.",
-    };
-  }
+  return {
+    title: "Keep the day steady",
+    body: "Today looks mixed. Lighter expectations and one useful next step may be enough.",
+  };
+}
 
 export function buildCoachFocus(entry: DailyCheckIn | null): CoachFocus {
   if (!entry) {
@@ -163,32 +163,32 @@ export function buildCoachFocus(entry: DailyCheckIn | null): CoachFocus {
   }
 
   return {
-      title: "Today’s focus: notice what is working",
-      body: "When the day has more room, it can help to notice the habits or supports that may be helping.",
-    };
-  }
+    title: "Today’s focus: notice what is helping",
+    body: "If the day has a little more room, it may help to notice what is making it easier.",
+  };
+}
 
 export function buildSuggestedActions(entry: DailyCheckIn | null) {
   if (!entry) {
     return [
       "Try a short reset",
-      "Reflect on what would help tonight",
-      "Make tomorrow feel 5% easier",
+      "Write a few words about today",
+      "Make tomorrow feel a little lighter",
     ];
   }
 
   const actions: string[] = [];
 
   if ((entry.stress ?? 0) >= 4) {
-    actions.push("Try a calm reset");
+    actions.push("Slow things down");
   }
 
   if ((entry.fatigue ?? 0) >= 4 || (entry.pain ?? 0) >= 4) {
-    actions.push("Use the low-energy checklist");
+    actions.push("Protect your energy");
   }
 
   if ((entry.brain_fog ?? 0) >= 4) {
-    actions.push("Keep decisions minimal today");
+    actions.push("Keep decisions minimal");
   }
 
   if ((entry.mood ?? 0) <= 2) {
@@ -196,10 +196,10 @@ export function buildSuggestedActions(entry: DailyCheckIn | null) {
   }
 
   if ((entry.sleep_hours ?? 0) < 6) {
-    actions.push("Do a body scan before tonight");
+    actions.push("Aim for a quieter evening");
   }
 
-  actions.push("Write one thing to carry into tomorrow");
+  actions.push("Carry one steady thing into tomorrow");
 
   return Array.from(new Set(actions)).slice(0, 3);
 }
@@ -212,11 +212,11 @@ export function buildCoachConversationPreview(entry: DailyCheckIn | null): Coach
     return [
       {
         role: "coach",
-        content: "You can start gently here, even before your first check-in.",
+        content: "You can start gently here, even before today’s check-in.",
       },
       {
         role: "coach",
-        content: "Would you like to reflect, reset, or plan tomorrow?",
+        content: "You can reflect, reset, or make one small plan.",
       },
     ];
   }
@@ -224,14 +224,14 @@ export function buildCoachConversationPreview(entry: DailyCheckIn | null): Coach
   return [
     {
       role: "coach",
-      content: `Based on your check-in, ${message.body.charAt(0).toLowerCase()}${message.body.slice(1)}`,
+      content: message.body,
     },
-      {
-        role: "coach",
-        content: `${focus.title.replace("Today’s focus: ", "")}. Would you like to reflect, reset, or make a small plan for later?`,
-      },
-    ];
-  }
+    {
+      role: "coach",
+      content: `${focus.title.replace("Today’s focus: ", "")}. You can keep this simple.`,
+    },
+  ];
+}
 
 export function buildReflectionPrompts(
   entry: DailyCheckIn | null,

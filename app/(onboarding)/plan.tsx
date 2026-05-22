@@ -1,67 +1,84 @@
 import { useRouter } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
 import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
 import { useOnboarding } from "../../features/onboarding/hooks";
-import { getPersonalizedOnboardingGuidance } from "../../features/onboarding/personalization";
+import { persistOnboardingSupportStyle } from "../../features/onboarding/preferences";
+import {
+  ONBOARDING_SUPPORT_STYLE_OPTIONS,
+  type OnboardingSupportStyleKey,
+} from "../../features/onboarding/personalization";
 
-const EXPECTATION_POINTS = [
-  {
-    title: "Daily check-ins",
-    body: "Most take about a minute and help the app feel more personal.",
-  },
-  {
-    title: "Insights",
-    body: "They improve over time as your check-ins begin to form patterns.",
-  },
-  {
-    title: "AI Coach",
-    body: "It offers supportive reflection. It is not medical advice, diagnosis, or therapy.",
-  },
-  {
-    title: "Premium",
-    body: "If you ever choose it later, it simply adds deeper AI support. Your core tracking stays free.",
-  },
-];
-
-export default function PlanScreen() {
+export default function SupportStyleScreen() {
   const router = useRouter();
-  const { draft } = useOnboarding();
-  const guidance = getPersonalizedOnboardingGuidance(draft);
+  const { draft, setDraft } = useOnboarding();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const selectedStyle = draft.support_style;
+
+  const handleSelect = (key: OnboardingSupportStyleKey) => {
+    setDraft((current) => ({
+      ...current,
+      support_style: key,
+      low_energy_mode: key === "low-energy",
+    }));
+  };
+
+  const handleNext = async () => {
+    if (!selectedStyle || isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      await persistOnboardingSupportStyle(selectedStyle);
+      router.push("/trust");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <OnboardingScaffold
-      title="What to expect"
-      subtitle="A few simple habits can make the app more useful over time."
+      title="What kind of support feels best right now?"
+      subtitle="This helps the app begin in a way that feels more usable, not more personal than you want."
       step={4}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
-      onNext={() => router.push("/complete")}
+      onNext={handleNext}
       nextLabel="Continue"
+      nextDisabled={!selectedStyle || isSaving}
+      loading={isSaving}
     >
       <View style={styles.stack}>
-        <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>You are building awareness, not doing this perfectly.</AppText>
-          <AppText style={styles.heroBody}>
-            A few consistent check-ins can support reflection, pattern spotting, and steadier decisions.
-          </AppText>
-        </View>
+        {ONBOARDING_SUPPORT_STYLE_OPTIONS.map((option) => {
+          const isSelected = selectedStyle === option.key;
 
-        <View style={styles.guidanceCard}>
-          <AppText style={styles.guidanceTitle}>{guidance.title}</AppText>
-          <AppText style={styles.guidanceBody}>{guidance.body}</AppText>
-          <AppText style={styles.guidanceNote}>
-            You stay in control of what you track, what you share, and which tools you use.
-          </AppText>
-        </View>
-
-        {EXPECTATION_POINTS.map((tool) => (
-          <View key={tool.title} style={styles.toolCard}>
-            <AppText style={styles.toolTitle}>{tool.title}</AppText>
-            <AppText style={styles.toolBody}>{tool.body}</AppText>
-          </View>
-        ))}
+          return (
+            <Pressable
+              key={option.key}
+              onPress={() => handleSelect(option.key)}
+              style={({ pressed }) => [
+                styles.optionCard,
+                isSelected && styles.optionCardSelected,
+                pressed && styles.optionCardPressed,
+              ]}
+            >
+              <View style={styles.optionHeader}>
+                <AppText style={styles.optionTitle}>{option.title}</AppText>
+                <View style={[styles.selectionBadge, isSelected && styles.selectionBadgeSelected]}>
+                  <AppText style={[styles.selectionBadgeText, isSelected && styles.selectionBadgeTextSelected]}>
+                    {isSelected ? "Selected" : "Choose"}
+                  </AppText>
+                </View>
+              </View>
+              <AppText style={styles.optionBody}>{option.body}</AppText>
+            </Pressable>
+          );
+        })}
       </View>
     </OnboardingScaffold>
   );
@@ -71,25 +88,7 @@ const styles = StyleSheet.create({
   stack: {
     gap: 14,
   },
-  heroCard: {
-    backgroundColor: "#fff4ec",
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#f2d8c4",
-    padding: 18,
-    gap: 8,
-  },
-  heroTitle: {
-    fontSize: 24,
-    lineHeight: 32,
-    fontWeight: "700",
-    color: "#1f2937",
-  },
-  heroBody: {
-    color: "#4b5563",
-    lineHeight: 22,
-  },
-  toolCard: {
+  optionCard: {
     backgroundColor: "#ffffff",
     borderRadius: 22,
     borderWidth: 1,
@@ -97,35 +96,50 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 6,
   },
-  toolTitle: {
+  optionCardSelected: {
+    borderColor: "#e8a66f",
+    backgroundColor: "#fff9f4",
+  },
+  optionCardPressed: {
+    opacity: 0.86,
+  },
+  optionHeader: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  optionTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: "#1f2937",
+    flex: 1,
   },
-  toolBody: {
+  optionBody: {
     color: "#4b5563",
     lineHeight: 22,
   },
-  guidanceCard: {
-    backgroundColor: "#f7fbf7",
-    borderRadius: 22,
+  selectionBadge: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#d7ead7",
-    padding: 18,
-    gap: 8,
+    borderColor: "#ead9cb",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  guidanceTitle: {
-    fontSize: 18,
+  selectionBadgeSelected: {
+    borderColor: "#e8a66f",
+    backgroundColor: "#fff0e2",
+  },
+  selectionBadgeText: {
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#8b6a4f",
   },
-  guidanceBody: {
-    color: "#4b5563",
-    lineHeight: 22,
-  },
-  guidanceNote: {
-    color: "#6b7280",
-    lineHeight: 20,
-    fontSize: 13,
+  selectionBadgeTextSelected: {
+    color: "#c25d10",
   },
 });

@@ -11,22 +11,22 @@ export type ReminderPlan = {
 export const REMINDER_PLANS: ReminderPlan[] = [
   {
     key: "daily-checkin",
-    title: "How are you feeling today?",
-    body: "A short check-in can help you notice patterns when it feels useful.",
+    title: "How is today feeling?",
+    body: "A short check-in can stay here for whenever it feels useful.",
     recommendedHour: 19,
     recommendedMinute: 0,
   },
   {
     key: "gentle-nudge",
-    title: "Small daily steps matter.",
-    body: "You can come back whenever a short check-in feels supportive.",
+    title: "You can keep this light",
+    body: "If today allows for it, even a brief check-in can be enough.",
     recommendedHour: 18,
     recommendedMinute: 30,
   },
   {
     key: "consistency-support",
-    title: "How are you doing today?",
-    body: "Patterns often become clearer with gentle consistency over time.",
+    title: "A little context can help later",
+    body: "A small check-in can make patterns easier to notice over time.",
     recommendedHour: 20,
     recommendedMinute: 0,
   },

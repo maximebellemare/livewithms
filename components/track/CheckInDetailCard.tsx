@@ -41,6 +41,9 @@ type CheckInDetailCardProps = {
   item: DailyCheckIn;
   tomorrowPlan?: CoachPlan | null;
   tomorrowPlanState?: "idle" | "loading" | "error";
+  availableContextTags?: readonly string[];
+  onToggleContextTag?: (tag: string) => void;
+  savingContext?: boolean;
   onClose: () => void;
 };
 
@@ -48,6 +51,9 @@ export default function CheckInDetailCard({
   item,
   tomorrowPlan = null,
   tomorrowPlanState = "idle",
+  availableContextTags = [],
+  onToggleContextTag,
+  savingContext = false,
   onClose,
 }: CheckInDetailCardProps) {
   const optionalMetrics = [
@@ -109,6 +115,39 @@ export default function CheckInDetailCard({
         <AppText style={styles.notesLabel}>Notes</AppText>
         <AppText style={styles.notesValue}>{item.notes || "No notes"}</AppText>
       </View>
+
+      {availableContextTags.length > 0 ? (
+        <View style={styles.notesSection}>
+          <AppText style={styles.notesLabel}>Life context</AppText>
+          <AppText style={styles.contextHelper}>
+            Optional context can make patterns easier to read later.
+          </AppText>
+          <View style={styles.contextTagGrid}>
+            {availableContextTags.map((tag) => {
+              const selected = item.triggers?.includes(tag) ?? false;
+              return (
+                <Pressable
+                  key={tag}
+                  disabled={!onToggleContextTag || savingContext}
+                  onPress={() => onToggleContextTag?.(tag)}
+                  style={({ pressed }) => [
+                    styles.contextTag,
+                    selected && styles.contextTagSelected,
+                    pressed && !savingContext && styles.closeButtonPressed,
+                  ]}
+                >
+                  <AppText style={[styles.contextTagText, selected && styles.contextTagTextSelected]}>
+                    {tag}
+                  </AppText>
+                </Pressable>
+              );
+            })}
+          </View>
+          <AppText style={styles.contextStatus}>
+            {savingContext ? "Saving context…" : "You can leave these empty on any day."}
+          </AppText>
+        </View>
+      ) : null}
 
       <View style={styles.notesSection}>
         <AppText style={styles.notesLabel}>Tomorrow plan</AppText>
@@ -210,6 +249,41 @@ const styles = StyleSheet.create({
   notesValue: {
     color: "#4b5563",
     lineHeight: 21,
+  },
+  contextHelper: {
+    color: "#6b7280",
+    lineHeight: 20,
+  },
+  contextTagGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  contextTag: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#ead9cb",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  contextTagSelected: {
+    borderColor: "#e8751a",
+    backgroundColor: "#fff1e6",
+  },
+  contextTagText: {
+    color: "#8b6a4f",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+  },
+  contextTagTextSelected: {
+    color: "#c25d10",
+  },
+  contextStatus: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 18,
   },
   planList: {
     gap: 6,

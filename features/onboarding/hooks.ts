@@ -11,7 +11,11 @@ import {
   getSelectedOnboardingFocuses,
   getSelectedOnboardingPriorities,
   getSelectedOnboardingPriority,
+  mapStoredSupportStyleToOnboardingChoice,
 } from "./personalization";
+import { loadLowEnergyModeState } from "../low-energy-mode/storage";
+import { loadPersonalizationMemory } from "../personalization-memory/storage";
+import { loadReminderSettings } from "../reminders/storage";
 
 const EMPTY_DRAFT: OnboardingDraft = {
   display_name: "",
@@ -21,6 +25,9 @@ const EMPTY_DRAFT: OnboardingDraft = {
   goals: [],
   country: "",
   age_range: "",
+  support_style: "",
+  low_energy_mode: false,
+  reminder_preference: "skip",
 };
 
 const EMPTY_CONSENT: ConsentState = {
@@ -44,7 +51,8 @@ export function useOnboarding() {
       return;
     }
 
-    setDraft({
+    setDraft((current) => ({
+      ...currentDraftDefaults(current),
       display_name: profile?.display_name ?? "",
       ms_type: profile?.ms_type ?? "",
       year_diagnosed: profile?.year_diagnosed ?? "",
@@ -52,8 +60,36 @@ export function useOnboarding() {
       goals: profile?.goals ?? [],
       country: profile?.country ?? "",
       age_range: profile?.age_range ?? "",
-    });
+    }));
   }, [profileQuery.data]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void Promise.all([loadPersonalizationMemory(), loadLowEnergyModeState(), loadReminderSettings()]).then(
+      ([memory, lowEnergyMode, reminderSettings]) => {
+        if (cancelled) {
+          return;
+        }
+
+        setDraft((current) => ({
+          ...current,
+          support_style:
+            current.support_style ||
+            mapStoredSupportStyleToOnboardingChoice({
+              supportStyle: memory.onboardingSupportStyleOverride ?? memory.preferredSupportStyle,
+              lowEnergyMode: lowEnergyMode.enabled,
+            }),
+          low_energy_mode: lowEnergyMode.enabled,
+          reminder_preference: reminderSettings.enabled ? "enable" : "skip",
+        }));
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function saveStep(input: ProfileUpdateInput): Promise<boolean> {
     if (!user?.id || saveProfileStep.isPending) {
@@ -111,6 +147,9 @@ export function useOnboarding() {
         priorityCount: getSelectedOnboardingPriorities(draft).length,
         focuses: getSelectedOnboardingFocuses(draft).join("|") || "unknown",
         priorities: getSelectedOnboardingPriorities(draft).join("|") || "unknown",
+        supportStyle: draft.support_style || "unknown",
+        lowEnergyMode: draft.low_energy_mode,
+        reminders: draft.reminder_preference,
       });
       return true;
     } catch (error) {
@@ -143,6 +182,15 @@ export function useOnboarding() {
     completeOnboarding,
     isSavingStep: saveProfileStep.isPending,
     isCompleting: completeOnboardingMutation.isPending,
+  };
+}
+
+function currentDraftDefaults(draft: OnboardingDraft): OnboardingDraft {
+  return {
+    ...EMPTY_DRAFT,
+    support_style: draft.support_style,
+    low_energy_mode: draft.low_energy_mode,
+    reminder_preference: draft.reminder_preference,
   };
 }
 

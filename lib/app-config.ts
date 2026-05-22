@@ -1,12 +1,14 @@
+const isDev = typeof __DEV__ !== "undefined" ? __DEV__ : false;
+
 export const APP_CONFIG = {
   premium: {
     enabled: true,
-    debugToolsEnabled: __DEV__,
+    debugToolsEnabled: isDev,
     entitlement: "premium",
     freeDailyAiCoachMessages: 5,
     productIds: {
-      monthly: "livewithms_premium_monthly",
-      yearly: "livewithms_premium_yearly",
+      monthly: "livewithms_monthly",
+      yearly: "livewithms_yearly",
     },
   },
   reminders: {
@@ -20,7 +22,7 @@ export const APP_CONFIG = {
   },
   onboarding: {
     variant: "default",
-    steps: ["welcome", "symptoms", "goals", "plan", "complete"] as const,
+    steps: ["welcome", "symptoms", "goals", "plan", "trust", "reminders", "complete"] as const,
   },
   lifecycle: {
     firstWeekDays: 7,

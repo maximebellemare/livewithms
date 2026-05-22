@@ -3,7 +3,7 @@ import type { GuidedProgramAdaptiveState } from "../types";
 export function deriveSupportPrograms(input: {
   adaptiveStatePrimary: GuidedProgramAdaptiveState;
   suggestedToolId: string | null;
-  supportTags: Array<"stress" | "sleep" | "fatigue" | "reflection" | "planning">;
+  supportTags: Array<"stress" | "sleep" | "fatigue" | "reflection" | "planning" | "overwhelm" | "brain-fog">;
 }) {
   const priorities: string[] = [];
 
@@ -14,11 +14,19 @@ export function deriveSupportPrograms(input: {
   } else if (input.adaptiveStatePrimary === "WITHDRAWN") {
     priorities.push("gentle-planning", "nervous-system-reset");
   } else {
-    priorities.push("nervous-system-reset", "gentle-planning", "emotional-processing");
+    priorities.push("nervous-system-reset", "gentle-planning", "heavier-day-reflection");
   }
 
   if (input.supportTags.includes("reflection")) {
-    priorities.push("emotional-processing");
+    priorities.push("heavier-day-reflection");
+  }
+
+  if (input.supportTags.includes("overwhelm")) {
+    priorities.push("overwhelm-support");
+  }
+
+  if (input.supportTags.includes("brain-fog")) {
+    priorities.push("brain-fog-support");
   }
 
   return {

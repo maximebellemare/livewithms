@@ -20,7 +20,7 @@ export function deriveFriendlyFailureMessage(error: unknown) {
   }
 
   if (kind === "ai") {
-    return "This feature is taking a quiet pause right now. You can keep going and try again shortly.";
+    return "This feature is taking a quiet pause right now. You can pause here and try again shortly.";
   }
 
   if (kind === "subscription") {

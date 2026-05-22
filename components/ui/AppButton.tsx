@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text } from "react-native";
+import { useDerivedCalmEnvironment } from "../../features/calm-environment/hooks";
 import { colors, radii, shadows } from "./design";
 import { deriveInteractionSoftness } from "../../lib/humane-micro-moments/calm-interactions/deriveInteractionSoftness";
 import { preventOverfamiliarity } from "../../lib/humane-micro-moments/quiet-warmth/preventOverfamiliarity";
@@ -17,15 +18,31 @@ export default function AppButton({
   disabled = false,
   variant = "primary",
 }: AppButtonProps) {
+  const calmEnvironment = useDerivedCalmEnvironment();
   const softness = deriveInteractionSoftness({ emphasis: variant === "secondary" ? "soft" : "standard" });
+  const reducedMotion = calmEnvironment.motion.reducedMotion;
+  const comfortMode = calmEnvironment.density.largerTapTargets;
+
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      hitSlop={comfortMode ? 8 : 6}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
         styles.button,
+        comfortMode && styles.buttonComfort,
+        calmEnvironment.lowEnergyPresentation.reduceSimultaneousActions && styles.buttonLowEnergy,
         variant === "secondary" && styles.buttonSecondary,
-        pressed && !disabled && [styles.buttonPressed, { opacity: softness.buttonOpacityPressed }],
+        pressed &&
+          !disabled && [
+            styles.buttonPressed,
+            {
+              opacity: reducedMotion ? Math.max(softness.buttonOpacityPressed, 0.9) : softness.buttonOpacityPressed,
+              transform: [{ scale: calmEnvironment.motion.motionScale < 1 ? 0.995 : 0.998 }],
+            },
+          ],
         disabled && styles.buttonDisabled,
       ]}
     >
@@ -40,11 +57,19 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: colors.accent,
     borderRadius: radii.button,
-    minHeight: 54,
-    paddingHorizontal: 18,
-    paddingVertical: 15,
+    minHeight: 58,
+    paddingHorizontal: 20,
+    paddingVertical: 17,
     justifyContent: "center",
+    alignItems: "center",
     ...shadows.soft,
+  },
+  buttonComfort: {
+    minHeight: 62,
+    paddingVertical: 18,
+  },
+  buttonLowEnergy: {
+    paddingHorizontal: 18,
   },
   buttonSecondary: {
     backgroundColor: colors.surface,
@@ -61,7 +86,7 @@ const styles = StyleSheet.create({
   label: {
     color: "#ffffff",
     fontSize: 16,
-    lineHeight: 20,
+    lineHeight: 24,
     fontWeight: "700",
     textAlign: "center",
   },

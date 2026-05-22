@@ -26,6 +26,12 @@ import {
   getRecurringReflectionThemes,
   type CoachActionKey,
 } from "../../../../features/coach/logic";
+import {
+  detectCoachLowEnergyMode,
+  detectCoachOverwhelm,
+  deriveCoachFallbackState,
+  deriveCoachStarterSuggestions,
+} from "../../../../features/coach/refinement";
 import { useCoachMessages, useSendCoachMessage } from "../../../../features/coach-messages/hooks";
 import type { CoachMode } from "../../../../features/coach-messages/types";
 import { useCoachPlan, useSaveCoachPlan } from "../../../../features/coach-plans/hooks";
@@ -35,6 +41,8 @@ import { usePersonalizationMemory } from "../../../../features/personalization-m
 import { usePremium } from "../../../../features/premium/hooks";
 import { canAccessPremiumFeature } from "../../../../features/premium/entitlements";
 import { FREE_DAILY_AI_COACH_MESSAGES } from "../../../../features/premium/config";
+import { derivePremiumAdaptiveSupport } from "../../../../features/premium/adaptive-support";
+import { deriveLowEnergyAssist } from "../../../../features/premium/low-energy-assist";
 import { incrementAiCoachUsage, loadAiCoachUsage } from "../../../../features/premium/usage";
 import { getProgramToolById } from "../../../../features/programs/catalog";
 import { useProgramProgress } from "../../../../features/programs/hooks";
@@ -57,6 +65,7 @@ import {
   preservePendingReflection,
 } from "../../../../lib/operational-calm/continuity-preservation/preservePendingReflection";
 import { generateCalmWaitingCopy } from "../../../../lib/operational-calm/latency-softening/generateCalmWaitingCopy";
+import { useLowEnergyMode } from "../../../../features/low-energy-mode/hooks";
 
 const NATIONAL_MS_SOCIETY_URL = "https://www.nationalmssociety.org/";
 const MAYO_MS_URL = "https://www.mayoclinic.org/diseases-conditions/multiple-sclerosis";
@@ -65,8 +74,9 @@ const COACH_MODES: Array<{ key: CoachMode; label: string }> = [
   { key: "reflect", label: "Reflect" },
   { key: "calm", label: "Calm" },
   { key: "practical", label: "Practical" },
-  { key: "encouragement", label: "Encouragement" },
+  { key: "encouragement", label: "Steady" },
 ];
+const COACH_RETRY_COOLDOWN_MS = 8000;
 
 function getDateString(offsetDays = 0) {
   const now = new Date();
@@ -91,6 +101,20 @@ function getGreeting() {
   }
 
   return "Good evening";
+}
+
+function getTimeOfDay() {
+  const hour = new Date().getHours();
+
+  if (hour < 12) {
+    return "morning" as const;
+  }
+
+  if (hour < 18) {
+    return "afternoon" as const;
+  }
+
+  return "evening" as const;
 }
 
 function formatPlanDate(date: string) {
@@ -148,6 +172,7 @@ export default function CoachScreen() {
   const reminders = useReminderSettings();
   const premium = usePremium();
   const programProgress = useProgramProgress();
+  const lowEnergyMode = useLowEnergyMode();
 
   const [activeAction, setActiveAction] = useState<CoachActionKey>("reflect");
   const [reflection, setReflection] = useState("");
@@ -168,8 +193,11 @@ export default function CoachScreen() {
   const [supportAction, setSupportAction] = useState("");
   const [dailyCoachUsage, setDailyCoachUsage] = useState(0);
   const [isLoadingDailyCoachUsage, setIsLoadingDailyCoachUsage] = useState(true);
+  const [retryCooldownUntil, setRetryCooldownUntil] = useState<number | null>(null);
+  const [retryCooldownSeconds, setRetryCooldownSeconds] = useState(0);
   const chatScrollRef = useRef<ScrollView>(null);
   const draftInputRef = useRef("");
+  const timeOfDay = getTimeOfDay();
 
   const todayEntry = todayEntryQuery.data ?? null;
   const latestEntry = recentEntriesQuery.data?.[0] ?? null;
@@ -273,28 +301,44 @@ export default function CoachScreen() {
     return () => clearTimeout(timeout);
   }, [coachMessages.length, sendCoachMessage.isPending]);
 
+  useEffect(() => {
+    if (!retryCooldownUntil) {
+      setRetryCooldownSeconds(0);
+      return;
+    }
+
+    const syncCooldown = () => {
+      const remaining = Math.max(0, Math.ceil((retryCooldownUntil - Date.now()) / 1000));
+      setRetryCooldownSeconds(remaining);
+      if (remaining === 0) {
+        setRetryCooldownUntil(null);
+      }
+    };
+
+    syncCooldown();
+    const interval = setInterval(syncCooldown, 1000);
+
+    return () => clearInterval(interval);
+  }, [retryCooldownUntil]);
+
   const greeting = useMemo(() => getGreeting(), []);
   const coachMessage = useMemo(() => buildCoachMessage(coachEntry), [coachEntry]);
   const coachFocus = useMemo(() => buildCoachFocus(coachEntry), [coachEntry]);
   const coachSummary = useMemo(() => buildCoachSummary(todayEntry), [todayEntry]);
   const suggestedActions = useMemo(() => buildSuggestedActions(coachEntry), [coachEntry]);
   const conversationPreview = useMemo(() => buildCoachConversationPreview(coachEntry), [coachEntry]);
-  const chatLoadingLabel = useMemo(() => {
-    const calmCopy = generateCalmWaitingCopy("steady");
-    switch (coachMode) {
-      case "calm":
-        return "Settling gently...";
-      case "practical":
-        return "Organizing quietly...";
-      case "encouragement":
-        return "Finding a steadier angle...";
-      case "reflect":
-      default:
-        return calmCopy;
-    }
-  }, [coachMode]);
 
   const hasUnlimitedAiCoach = canAccessPremiumFeature("unlimited_ai_coach", {
+    subscriptionsEnabled: premium.subscriptionsEnabled,
+    hasPremiumAccess: premium.hasPremiumAccess,
+    premiumFeatureFlags: premium.premiumFeatureFlags,
+  });
+  const hasLowEnergyAssist = canAccessPremiumFeature("low_energy_assist", {
+    subscriptionsEnabled: premium.subscriptionsEnabled,
+    hasPremiumAccess: premium.hasPremiumAccess,
+    premiumFeatureFlags: premium.premiumFeatureFlags,
+  });
+  const hasAdaptiveSupport = canAccessPremiumFeature("adaptive_support", {
     subscriptionsEnabled: premium.subscriptionsEnabled,
     hasPremiumAccess: premium.hasPremiumAccess,
     premiumFeatureFlags: premium.premiumFeatureFlags,
@@ -366,10 +410,213 @@ export default function CoachScreen() {
         .slice(0, 2),
     [recentEntries],
   );
+  const recentAverages = useMemo(
+    () => ({
+      fatigue: average(recentEntries.slice(0, 7).map((entry) => entry.fatigue)),
+      mood: average(recentEntries.slice(0, 7).map((entry) => entry.mood)),
+      stress: average(recentEntries.slice(0, 7).map((entry) => entry.stress)),
+      sleep: average(recentEntries.slice(0, 7).map((entry) => entry.sleep_hours)),
+    }),
+    [recentEntries],
+  );
+  const isLowEnergyConversationMode = useMemo(
+    () =>
+      detectCoachLowEnergyMode({
+        lowEnergyMode: lowEnergyMode.enabled,
+        fatigue: coachEntry?.fatigue ?? recentAverages.fatigue,
+        sleepHours: coachEntry?.sleep_hours ?? recentAverages.sleep,
+        adaptiveFatigueTrend: adaptiveProfile.fatigueTrend,
+      }),
+    [
+      adaptiveProfile.fatigueTrend,
+      coachEntry?.fatigue,
+      coachEntry?.sleep_hours,
+      lowEnergyMode.enabled,
+      recentAverages.fatigue,
+      recentAverages.sleep,
+    ],
+  );
+  const coachLowEnergyAssist = useMemo(
+    () =>
+      deriveLowEnergyAssist({
+        hasPremiumAccess: premium.hasPremiumAccess,
+        featureEnabled: premium.premiumFeatureFlags.low_energy_assist,
+        lowEnergyModeEnabled: lowEnergyMode.enabled,
+        recentFatigueAverage: coachEntry?.fatigue ?? recentAverages.fatigue,
+        recentStressAverage: coachEntry?.stress ?? recentAverages.stress,
+        recentSleepAverage: coachEntry?.sleep_hours ?? recentAverages.sleep,
+        fatigueTrend: adaptiveProfile.fatigueTrend,
+        stressTrend: adaptiveProfile.stressTrend,
+        abandonedFlowCount: Number(Boolean(chatInput.trim())) + Number(Boolean(lastFailedMessage)),
+        interactionTolerance: chatInput.trim().length > 0 || Boolean(lastFailedMessage) ? "reduced" : "steady",
+      }),
+    [
+      adaptiveProfile.fatigueTrend,
+      adaptiveProfile.stressTrend,
+      chatInput,
+      coachEntry?.fatigue,
+      coachEntry?.sleep_hours,
+      coachEntry?.stress,
+      lastFailedMessage,
+      lowEnergyMode.enabled,
+      premium.hasPremiumAccess,
+      premium.premiumFeatureFlags.low_energy_assist,
+      recentAverages.fatigue,
+      recentAverages.sleep,
+      recentAverages.stress,
+    ],
+  );
+  const premiumAdaptiveSupport = useMemo(
+    () =>
+      derivePremiumAdaptiveSupport({
+        hasPremiumAccess: premium.hasPremiumAccess,
+        featureEnabled: premium.premiumFeatureFlags.adaptive_support,
+        lowEnergyModeEnabled: lowEnergyMode.enabled,
+        recentFatigueAverage: coachEntry?.fatigue ?? recentAverages.fatigue,
+        recentStressAverage: coachEntry?.stress ?? recentAverages.stress,
+        recentSleepAverage: coachEntry?.sleep_hours ?? recentAverages.sleep,
+        fatigueTrend: adaptiveProfile.fatigueTrend,
+        stressTrend: adaptiveProfile.stressTrend,
+        interactionTolerance: chatInput.trim().length > 0 || Boolean(lastFailedMessage) ? "reduced" : "steady",
+        preferredSupportStyle: personalizationMemory.memory.preferredSupportStyle,
+        preferredDensity: personalizationMemory.memory.preferredDensity,
+        timeOfDay: greeting.includes("morning") ? "morning" : greeting.includes("evening") ? "evening" : "afternoon",
+        abandonedFlowCount: Number(Boolean(chatInput.trim())) + Number(Boolean(lastFailedMessage)),
+        engagementRhythm: personalizationMemory.memory.engagementRhythm,
+      }),
+    [
+      adaptiveProfile.fatigueTrend,
+      adaptiveProfile.stressTrend,
+      chatInput,
+      coachEntry?.fatigue,
+      coachEntry?.sleep_hours,
+      coachEntry?.stress,
+      greeting,
+      lastFailedMessage,
+      lowEnergyMode.enabled,
+      personalizationMemory.memory.engagementRhythm,
+      personalizationMemory.memory.preferredDensity,
+      personalizationMemory.memory.preferredSupportStyle,
+      premium.hasPremiumAccess,
+      premium.premiumFeatureFlags.adaptive_support,
+      recentAverages.fatigue,
+      recentAverages.sleep,
+      recentAverages.stress,
+    ],
+  );
+  const effectiveLowEnergyConversationMode = isLowEnergyConversationMode || coachLowEnergyAssist.active;
+  const isOverwhelmedConversation = useMemo(
+    () =>
+      detectCoachOverwhelm({
+        stress: coachEntry?.stress ?? recentAverages.stress,
+        brainFog: coachEntry?.brain_fog,
+        message: chatInput || todayEntry?.notes || latestEntry?.notes || "",
+      }),
+    [
+      chatInput,
+      coachEntry?.brain_fog,
+      coachEntry?.stress,
+      latestEntry?.notes,
+      recentAverages.stress,
+      todayEntry?.notes,
+    ],
+  );
+  const starterSuggestions = useMemo(
+    () =>
+      deriveCoachStarterSuggestions({
+        timeOfDay,
+        lowEnergyMode: effectiveLowEnergyConversationMode,
+        fatigue: coachEntry?.fatigue ?? recentAverages.fatigue,
+        stress: coachEntry?.stress ?? recentAverages.stress,
+        brainFog: coachEntry?.brain_fog,
+        sleepHours: coachEntry?.sleep_hours ?? recentAverages.sleep,
+        message: chatInput || todayEntry?.notes || "",
+      }),
+    [
+      chatInput,
+      coachEntry?.brain_fog,
+      coachEntry?.fatigue,
+      coachEntry?.sleep_hours,
+      coachEntry?.stress,
+      effectiveLowEnergyConversationMode,
+      recentAverages.fatigue,
+      recentAverages.sleep,
+      recentAverages.stress,
+      timeOfDay,
+      todayEntry?.notes,
+    ],
+  );
+  const visibleStarterSuggestions = useMemo(
+    () =>
+      hasAdaptiveSupport && premiumAdaptiveSupport.active
+        ? starterSuggestions.slice(0, premiumAdaptiveSupport.density.maxSuggestions)
+        : starterSuggestions,
+    [hasAdaptiveSupport, premiumAdaptiveSupport.active, premiumAdaptiveSupport.density.maxSuggestions, starterSuggestions],
+  );
+  const fallbackState = useMemo(
+    () =>
+      deriveCoachFallbackState({
+        timeOfDay,
+        lowEnergyMode: effectiveLowEnergyConversationMode,
+        fatigue: coachEntry?.fatigue ?? recentAverages.fatigue,
+        stress: coachEntry?.stress ?? recentAverages.stress,
+        brainFog: coachEntry?.brain_fog,
+        sleepHours: coachEntry?.sleep_hours ?? recentAverages.sleep,
+        message: lastFailedMessage ?? chatInput,
+      }),
+    [
+      chatInput,
+      coachEntry?.brain_fog,
+      coachEntry?.fatigue,
+      coachEntry?.sleep_hours,
+      coachEntry?.stress,
+      effectiveLowEnergyConversationMode,
+      lastFailedMessage,
+      recentAverages.fatigue,
+      recentAverages.sleep,
+      recentAverages.stress,
+      timeOfDay,
+    ],
+  );
+  const chatLoadingLabel = useMemo(() => {
+    const calmCopy = generateCalmWaitingCopy("steady");
+    if (effectiveLowEnergyConversationMode || isOverwhelmedConversation) {
+      return "Taking a moment...";
+    }
+    switch (coachMode) {
+      case "calm":
+        return "Settling gently...";
+      case "practical":
+        return "Keeping it simple...";
+      case "encouragement":
+        return "Finding a steadier angle...";
+      case "reflect":
+      default:
+        return calmCopy;
+    }
+  }, [coachMode, effectiveLowEnergyConversationMode, isOverwhelmedConversation]);
   const reflectionThemes = useMemo(
     () => getRecurringReflectionThemes(recentReflections),
     [recentReflections],
   );
+  const visibleSuggestedActions = useMemo(
+    () => suggestedActions.slice(0, coachLowEnergyAssist.cognitiveLoad.maxSuggestions),
+    [coachLowEnergyAssist.cognitiveLoad.maxSuggestions, suggestedActions],
+  );
+  const visibleReflectionPrompts = useMemo(
+    () =>
+      reflectionPrompts.prompts.slice(
+        0,
+        isOverwhelmedConversation
+          ? Math.min(2, coachLowEnergyAssist.cognitiveLoad.maxVisiblePrompts)
+          : coachLowEnergyAssist.cognitiveLoad.maxVisiblePrompts,
+      ),
+    [coachLowEnergyAssist.cognitiveLoad.maxVisiblePrompts, isOverwhelmedConversation, reflectionPrompts.prompts],
+  );
+  const showConversationPreview =
+    !effectiveLowEnergyConversationMode &&
+    !isOverwhelmedConversation &&
+    !coachLowEnergyAssist.simplification.collapseSecondarySections;
   const reflectionHistory = useMemo(
     () =>
       recentEntries
@@ -392,15 +639,6 @@ export default function CoachScreen() {
   const hasRatedLatestAssistantMessage = latestAssistantMessage
     ? ratedCoachMessageIds.includes(latestAssistantMessage.id)
     : false;
-  const recentAverages = useMemo(
-    () => ({
-      fatigue: average(recentEntries.slice(0, 7).map((entry) => entry.fatigue)),
-      mood: average(recentEntries.slice(0, 7).map((entry) => entry.mood)),
-      stress: average(recentEntries.slice(0, 7).map((entry) => entry.stress)),
-      sleep: average(recentEntries.slice(0, 7).map((entry) => entry.sleep_hours)),
-    }),
-    [recentEntries],
-  );
 
   const coachContext = useMemo(
     () => ({
@@ -436,8 +674,11 @@ export default function CoachScreen() {
       preferred_checkin_windows: personalizationMemory.memory.preferredCheckinWindows ?? [],
       engagement_rhythm: personalizationMemory.memory.engagementRhythm,
       recovery_rhythm: personalizationMemory.memory.recoveryRhythm,
+      brain_fog: todayEntry?.brain_fog ?? null,
+      low_energy_mode: effectiveLowEnergyConversationMode,
     }),
     [
+      effectiveLowEnergyConversationMode,
       currentStreak,
       latestEntry?.notes,
       lifecycleProfile.previousActiveGapDays,
@@ -465,6 +706,7 @@ export default function CoachScreen() {
       personalizationMemory.memory.recoveryRhythm,
       personalizationMemory.memory.reflectionDepthPreference,
       personalizationMemory.memory.reflectionTonePreference,
+      todayEntry?.brain_fog,
       todayEntry?.fatigue,
       todayEntry?.mood,
       todayEntry?.notes,
@@ -509,7 +751,7 @@ export default function CoachScreen() {
   const handleSendCoachMessage = async (messageOverride?: string) => {
     const nextMessage = (messageOverride ?? chatInput).trim();
 
-    if (!nextMessage || !user?.id || sendCoachMessage.isPending) {
+    if (!nextMessage || !user?.id || sendCoachMessage.isPending || retryCooldownSeconds > 0) {
       return;
     }
 
@@ -562,6 +804,7 @@ export default function CoachScreen() {
       }
       await clearPendingReflection(user.id, "coach-chat");
       setChatInput("");
+      setRetryCooldownUntil(null);
     } catch (error) {
       await growth.recordEvent("ai_coach_response_failed", {
         mode: coachMode,
@@ -570,10 +813,11 @@ export default function CoachScreen() {
       const messageText = getErrorMessage(error);
       setChatError(
         messageText === "AI Coach is temporarily unavailable."
-          ? "AI Coach is taking a pause right now. You can try again, or use a reset or reflection instead."
+          ? "The conversation is taking a moment to reconnect."
           : messageText,
       );
       setLastFailedMessage(nextMessage);
+      setRetryCooldownUntil(Date.now() + COACH_RETRY_COOLDOWN_MS);
     }
   };
 
@@ -659,7 +903,7 @@ export default function CoachScreen() {
   };
 
   if (!user?.id) {
-    return <ErrorState message="You need to be signed in to use Coach." />;
+    return <ErrorState message="Coach is available once you’re signed in." />;
   }
 
   if (isInitialLoading) {
@@ -695,8 +939,9 @@ export default function CoachScreen() {
 
   return (
     <AppScreen
+      eyebrow="Reflection and support"
       title="Coach"
-      subtitle="A supportive space for daily reflection, a short reset, and one gentle plan for tomorrow."
+      subtitle="A quiet space for reflection, a short reset, or one gentle plan."
     >
       <KeyboardAvoidingView
         style={styles.flex}
@@ -706,6 +951,7 @@ export default function CoachScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           <View style={styles.sectionIntro}>
             <AppText style={styles.sectionKicker}>Daily Coach</AppText>
@@ -717,43 +963,61 @@ export default function CoachScreen() {
           <View style={styles.heroCard}>
             <AppText style={styles.greeting}>{greeting}</AppText>
             <AppText style={styles.heroTitle}>How can Coach support you today?</AppText>
-            <AppText style={styles.heroBody}>{coachMessage.body}</AppText>
+            <AppText style={styles.heroBody}>
+              {hasAdaptiveSupport && premiumAdaptiveSupport.active ? premiumAdaptiveSupport.tone.coachLead : coachMessage.body}
+            </AppText>
+            {hasAdaptiveSupport && premiumAdaptiveSupport.active ? (
+              <AppText style={styles.heroSupportNote}>{premiumAdaptiveSupport.tone.supportLine}</AppText>
+            ) : null}
           </View>
 
-          <View style={styles.card}>
-            <AppText style={styles.contextLabel}>Conversation preview</AppText>
-            <View style={styles.messageList}>
-              {conversationPreview.map((message, index) => (
-                <View
-                  key={`${message.role}-${index}`}
-                  style={[
-                    styles.messageBubble,
-                    message.role === "coach" ? styles.coachBubble : styles.userBubble,
-                  ]}
-                >
-                  <AppText
+          {showConversationPreview ? (
+            <View style={styles.card}>
+              <AppText style={styles.contextLabel}>Conversation preview</AppText>
+              <View style={styles.messageList}>
+                {conversationPreview.map((message, index) => (
+                  <View
+                    key={`${message.role}-${index}`}
                     style={[
-                      styles.messageRole,
-                      message.role === "coach" ? styles.coachRole : styles.userRole,
+                      styles.messageBubble,
+                      message.role === "coach" ? styles.coachBubble : styles.userBubble,
                     ]}
                   >
-                    {message.role === "coach" ? "Coach" : "You"}
-                  </AppText>
-                  <AppText style={styles.messageText}>{message.content}</AppText>
-                </View>
-              ))}
+                    <AppText
+                      style={[
+                        styles.messageRole,
+                        message.role === "coach" ? styles.coachRole : styles.userRole,
+                      ]}
+                    >
+                      {message.role === "coach" ? "Coach" : "You"}
+                    </AppText>
+                    <AppText style={styles.messageText}>{message.content}</AppText>
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
+          ) : null}
 
           <View style={styles.card}>
             <AppText style={styles.contextLabel}>AI Coach</AppText>
             <AppText style={styles.title}>Talk it through</AppText>
             <AppText style={styles.body}>
-              Share a thought, a hard moment, or what you want help noticing. Coach will keep the response short, calm, and practical.
+              Share a thought, a hard moment, or one thing that feels hard to hold. Coach keeps replies short, calm, and practical.
             </AppText>
             <AppText style={styles.supportNote}>
-              Your messages stay private. Coach is here for reflection and gentle guidance, not medical advice, diagnosis, or therapy.
+              {hasAdaptiveSupport && premiumAdaptiveSupport.active
+                ? "Coach is keeping this calmer and lighter right now. It still stays grounded and does not replace therapy or professional care."
+                : "Coach is for reflection and gentle guidance, not diagnosis, therapy, or emotional dependence."}
             </AppText>
+            {effectiveLowEnergyConversationMode ? (
+              <View style={styles.lowEnergyBanner}>
+                <AppText style={styles.lowEnergyBannerText}>
+                  {hasLowEnergyAssist && coachLowEnergyAssist.active
+                    ? "Low Energy Assist is keeping Coach shorter and simpler right now."
+                    : "Coach is keeping things shorter and simpler today."}
+                </AppText>
+              </View>
+            ) : null}
             <View style={styles.usageCard}>
               <AppText style={styles.usageTitle}>
                 {hasUnlimitedAiCoach
@@ -870,11 +1134,25 @@ export default function CoachScreen() {
               <View style={styles.emptyChatCard}>
                 <AppText style={styles.emptyChatTitle}>Start gently</AppText>
                 <AppText style={styles.body}>
-                  You can ask Coach to help you reflect, make sense of today, or find one calmer next step.
+                  You can use a few words, not a full explanation.
                 </AppText>
                 <AppText style={styles.supportNote}>
-                  You can use Coach lightly. It is here to support awareness, not to take over decisions for you.
+                  Coach can help you reflect, slow things down, or find one steadier next step.
                 </AppText>
+                <View style={styles.starterSuggestions}>
+                  {visibleStarterSuggestions.map((suggestion) => (
+                    <Pressable
+                      key={suggestion}
+                      onPress={() => {
+                        setChatInput(suggestion);
+                        setChatError(null);
+                      }}
+                      style={({ pressed }) => [styles.starterChip, pressed && styles.actionCardPressed]}
+                    >
+                      <AppText style={styles.starterChipText}>{suggestion}</AppText>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
             )}
 
@@ -916,13 +1194,29 @@ export default function CoachScreen() {
                 onFocus={() => {
                   chatScrollRef.current?.scrollToEnd({ animated: true });
                 }}
-                placeholder="What feels most important right now?"
+                placeholder={effectiveLowEnergyConversationMode ? "A few words is enough." : "What feels most important right now?"}
                 placeholderTextColor="#9ca3af"
                 textAlignVertical="top"
-                style={styles.notesInput}
+                style={styles.chatInput}
                 editable={!hasReachedFreeCoachLimit}
               />
             </View>
+            {coachMessages.length ? (
+              <View style={styles.starterSuggestions}>
+                {visibleStarterSuggestions.map((suggestion) => (
+                  <Pressable
+                    key={suggestion}
+                    onPress={() => {
+                      setChatInput(suggestion);
+                      setChatError(null);
+                    }}
+                    style={({ pressed }) => [styles.starterChip, pressed && styles.actionCardPressed]}
+                  >
+                    <AppText style={styles.starterChipText}>{suggestion}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
             <AppButton
               label={
                 hasReachedFreeCoachLimit
@@ -947,18 +1241,25 @@ export default function CoachScreen() {
               <View style={styles.inlineState}>
                 <AppText style={styles.errorText}>{chatError}</AppText>
                 <AppText style={styles.body}>
-                  You can still use Calm Reset, write a reflection, or come back later.
+                  {fallbackState.body}
                 </AppText>
+                <View style={styles.suggestedList}>
+                  {fallbackState.suggestions.map((suggestion) => (
+                    <View key={suggestion} style={styles.suggestedPill}>
+                      <AppText style={styles.suggestedText}>{suggestion}</AppText>
+                    </View>
+                  ))}
+                </View>
                 <View style={styles.fallbackActions}>
                   <AppButton label="Open Calm Reset" variant="secondary" onPress={() => setActiveAction("reset")} />
                   <AppButton label="Save a reflection" variant="secondary" onPress={() => setActiveAction("reflect")} />
                 </View>
                 {lastFailedMessage && !hasReachedFreeCoachLimit ? (
                   <AppButton
-                    label="Try again"
+                    label={retryCooldownSeconds > 0 ? `Try again in ${retryCooldownSeconds}s` : "Try again"}
                     variant="secondary"
                     onPress={() => void handleSendCoachMessage(lastFailedMessage)}
-                    disabled={sendCoachMessage.isPending}
+                    disabled={sendCoachMessage.isPending || retryCooldownSeconds > 0}
                   />
                 ) : null}
                 {hasReachedFreeCoachLimit ? (
@@ -973,7 +1274,7 @@ export default function CoachScreen() {
           <AppText style={styles.focusTitle}>{coachFocus.title}</AppText>
           <AppText style={styles.body}>{coachFocus.body}</AppText>
           <View style={styles.suggestedList}>
-            {suggestedActions.map((action) => (
+            {visibleSuggestedActions.map((action) => (
               <View key={action} style={styles.suggestedPill}>
                 <AppText style={styles.suggestedText}>{action}</AppText>
               </View>
@@ -1042,10 +1343,10 @@ export default function CoachScreen() {
             <AppText style={styles.contextLabel}>Reflections</AppText>
             <AppText style={styles.title}>{reflectionPrompts.title}</AppText>
             <AppText style={styles.reflectionIntro}>
-              Start with a few words. You do not need to capture everything for this to be useful.
+              Start with a few words. You do not need to capture everything.
             </AppText>
             <View style={styles.promptList}>
-              {reflectionPrompts.prompts.map((prompt) => (
+              {visibleReflectionPrompts.map((prompt) => (
                 <Pressable
                   key={prompt}
                   onPress={() => {
@@ -1060,7 +1361,7 @@ export default function CoachScreen() {
                 </Pressable>
               ))}
             </View>
-            {reflectionThemes.length ? (
+            {reflectionThemes.length && !effectiveLowEnergyConversationMode ? (
               <View style={styles.reflectionThemesCard}>
                 <AppText style={styles.reflectionThemesTitle}>Themes you&apos;ve been naming lately</AppText>
                 <View style={styles.reflectionThemesList}>
@@ -1086,7 +1387,7 @@ export default function CoachScreen() {
               textAlignVertical="top"
               style={styles.notesInput}
             />
-            {reflectionHistory.length ? (
+            {reflectionHistory.length && !effectiveLowEnergyConversationMode ? (
               <View style={styles.reflectionHistoryCard}>
                 <AppText style={styles.reflectionThemesTitle}>Recent reflections</AppText>
                 {reflectionHistory.map((item) => (
@@ -1127,11 +1428,11 @@ export default function CoachScreen() {
             <AppText style={styles.body}>
               Let your shoulders soften. Breathe in slowly for 4, out slowly for 6, and let the next minute be enough.
             </AppText>
-            <View style={styles.timerCard}>
+              <View style={styles.timerCard}>
               <AppText style={styles.timerValue}>{resetSecondsLeft}s</AppText>
               <AppText style={styles.timerBody}>
                 {resetCompleted
-                  ? "Nice work. You gave yourself a small reset."
+                  ? "That may be enough for now."
                   : "Keep the breath easy and steady."}
               </AppText>
             </View>
@@ -1144,9 +1445,9 @@ export default function CoachScreen() {
             </View>
             {resetCompleted ? (
               <View style={styles.successCard}>
-                <AppText style={styles.successTitle}>You showed up today</AppText>
+                <AppText style={styles.successTitle}>A quieter minute counts</AppText>
                 <AppText style={styles.successBody}>
-                  Even one quiet minute can help the day feel more manageable.
+                  Even one quiet minute can help the day feel a little less loaded.
                 </AppText>
               </View>
             ) : null}
@@ -1212,7 +1513,7 @@ export default function CoachScreen() {
             />
             {planState === "saved" ? (
               <View style={styles.successCard}>
-                <AppText style={styles.successTitle}>You showed up today</AppText>
+                <AppText style={styles.successTitle}>Tomorrow has a softer start</AppText>
                 <AppText style={styles.successBody}>
                   Tomorrow now has a softer landing. Come back and adjust it anytime.
                 </AppText>
@@ -1259,10 +1560,10 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: 120,
-    gap: 14,
+    gap: 16,
   },
   sectionIntro: {
-    gap: 4,
+    gap: 6,
   },
   heroCard: {
     backgroundColor: "#fff4ec",
@@ -1286,7 +1587,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 12,
+    gap: 14,
   },
   sourcesCard: {
     backgroundColor: "#ffffff",
@@ -1328,6 +1629,10 @@ const styles = StyleSheet.create({
     color: "#4b5563",
     lineHeight: 22,
   },
+  heroSupportNote: {
+    color: "#6b7280",
+    lineHeight: 20,
+  },
   contextLabel: {
     fontSize: 13,
     fontWeight: "700",
@@ -1347,16 +1652,16 @@ const styles = StyleSheet.create({
   },
   body: {
     color: "#4b5563",
-    lineHeight: 22,
+    lineHeight: 23,
   },
   messageList: {
-    gap: 10,
+    gap: 12,
   },
   messageBubble: {
     borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 4,
+    paddingHorizontal: 15,
+    paddingVertical: 13,
+    gap: 6,
   },
   coachBubble: {
     alignSelf: "flex-start",
@@ -1385,7 +1690,7 @@ const styles = StyleSheet.create({
   },
   messageText: {
     color: "#374151",
-    lineHeight: 20,
+    lineHeight: 22,
   },
   inlineState: {
     gap: 10,
@@ -1394,6 +1699,19 @@ const styles = StyleSheet.create({
     color: "#8b6a4f",
     lineHeight: 20,
     fontSize: 13,
+  },
+  lowEnergyBanner: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e8dfd6",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  lowEnergyBannerText: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 19,
   },
   usageCard: {
     backgroundColor: "#fffaf6",
@@ -1501,8 +1819,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f3dfd1",
     backgroundColor: "#fffaf6",
-    padding: 14,
-    gap: 6,
+    padding: 16,
+    gap: 8,
   },
   emptyChatTitle: {
     fontSize: 15,
@@ -1549,7 +1867,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   quickActions: {
-    gap: 10,
+    gap: 12,
   },
   actionCard: {
     backgroundColor: "#fffaf6",
@@ -1557,7 +1875,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f3dfd1",
     padding: 16,
-    gap: 4,
+    gap: 6,
   },
   actionCardActive: {
     borderColor: "#e8751a",
@@ -1662,6 +1980,18 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     color: "#1f2937",
   },
+  chatInput: {
+    minHeight: 112,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e5d6cb",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 16,
+    lineHeight: 23,
+    color: "#1f2937",
+  },
   input: {
     borderRadius: 14,
     borderWidth: 1,
@@ -1673,7 +2003,7 @@ const styles = StyleSheet.create({
     color: "#1f2937",
   },
   fieldGroup: {
-    gap: 6,
+    gap: 8,
   },
   fieldLabel: {
     fontSize: 14,
@@ -1704,6 +2034,25 @@ const styles = StyleSheet.create({
   },
   timerButtons: {
     gap: 10,
+  },
+  starterSuggestions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  starterChip: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#ead8ca",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  starterChipText: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
   successCard: {
     borderRadius: 16,

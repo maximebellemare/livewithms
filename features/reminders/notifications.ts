@@ -94,7 +94,7 @@ export async function scheduleDailyReminder(
     content: {
       title: defaultPlan?.title ?? "How are you feeling today?",
       body: defaultPlan?.body ?? "A quick check-in can help you notice patterns.",
-      sound: true,
+      sound: false,
     },
     trigger: {
       hour,

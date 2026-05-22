@@ -1,17 +1,23 @@
-import { useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { router } from "expo-router";
+import { useCalmEnvironment } from "../../../../features/calm-environment/hooks";
 import AppButton from "../../../../components/ui/AppButton";
 import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
 import { useDeleteAccount } from "../../../../features/account/hooks";
 import { useAuth } from "../../../../features/auth/hooks";
 import { getCareWins, getCheckInsInLastDays, getCurrentCheckInStreak } from "../../../../features/checkins/consistency";
+import { deriveGentleContinuityFeedback } from "../../../../features/checkins/continuity-feedback";
 import { useCheckInOverview } from "../../../../features/checkins/hooks";
 import { useGrowthState } from "../../../../features/growth/hooks";
+import { useLowEnergyMode } from "../../../../features/low-energy-mode/hooks";
+import { canAccessPremiumFeature } from "../../../../features/premium/entitlements";
+import { derivePremiumAdaptiveSupport } from "../../../../features/premium/adaptive-support";
+import { derivePremiumCalmEnvironment } from "../../../../features/premium/calm-environment";
 import { usePremium } from "../../../../features/premium/hooks";
 import { useSaveProfileStep } from "../../../../features/profile/hooks";
 import { useReminderSettings } from "../../../../features/reminders/hooks";
+import { resetOnboardingSupportPreferences } from "../../../../features/onboarding/preferences";
 import { getErrorMessage } from "../../../../lib/errors";
 import { preventPsychologicalSegmentation } from "../../../../lib/ethical-insights/anti-profiling/preventPsychologicalSegmentation";
 import { validateNonExploitativeAnalytics } from "../../../../lib/ethical-insights/anti-profiling/validateNonExploitativeAnalytics";
@@ -23,6 +29,7 @@ import { deriveAnonymizedPatterns } from "../../../../lib/ethical-insights/popul
 import { deriveHumanReadableTransparency } from "../../../../lib/ethical-insights/transparent-governance/deriveHumanReadableTransparency";
 import { validateOptOutClarity } from "../../../../lib/ethical-insights/transparent-governance/validateOptOutClarity";
 import { trackEvent } from "../../../../lib/events";
+import { derivePremiumPositioning } from "../../../../lib/premium-ecosystem/calm-premium/derivePremiumPositioning";
 import { derivePremiumValue } from "../../../../lib/premium-ecosystem/calm-premium/derivePremiumValue";
 import { preserveFreeUserDignity } from "../../../../lib/premium-ecosystem/calm-premium/preserveFreeUserDignity";
 import { preventEmotionalConversion } from "../../../../lib/premium-ecosystem/ethical-monetization/preventEmotionalConversion";
@@ -87,6 +94,7 @@ function getReminderHelperText(
   enabled: boolean,
   permissionStatus: "unknown" | "granted" | "denied" | "unavailable",
   selectedTimeLabel: string,
+  reminderPressure?: "low" | "moderate" | "high",
 ) {
   if (permissionStatus === "unavailable") {
     return "Reminders need native notification support in this build before they can be turned on.";
@@ -97,6 +105,14 @@ function getReminderHelperText(
   }
 
   if (enabled) {
+    if (reminderPressure === "high") {
+      return `A reminder time is saved for ${selectedTimeLabel}. Heavier stretches can stay quieter for now.`;
+    }
+
+    if (reminderPressure === "moderate") {
+      return `A gentle reminder is set for ${selectedTimeLabel}, with a little more space when needed.`;
+    }
+
     return `A gentle reminder is set for ${selectedTimeLabel}.`;
   }
 
@@ -124,17 +140,56 @@ export default function ProfileScreen() {
   const overviewQuery = useCheckInOverview(user?.id);
   const reminders = useReminderSettings();
   const premium = usePremium();
-  const [reduceMotionEnabled, setReduceMotionEnabled] = useState(false);
-  const [comfortSpacingEnabled, setComfortSpacingEnabled] = useState(true);
+  const lowEnergyMode = useLowEnergyMode();
+  const calmEnvironment = useCalmEnvironment();
   const overviewEntries = overviewQuery.data ?? [];
   const totalCheckIns = overviewEntries.length;
   const streak = getCurrentCheckInStreak(overviewEntries, getTodayDateString());
   const weeklyCheckIns = getCheckInsInLastDays(overviewEntries, getTodayDateString(), 7);
+  const continuityFeedback = deriveGentleContinuityFeedback({
+    totalCheckIns,
+    weeklyCheckIns,
+    streak,
+  });
+  const hasAdaptiveSupport = canAccessPremiumFeature("adaptive_support", {
+    subscriptionsEnabled: premium.subscriptionsEnabled,
+    hasPremiumAccess: premium.hasPremiumAccess,
+    premiumFeatureFlags: premium.premiumFeatureFlags,
+  });
+  const hasCalmEnvironment = canAccessPremiumFeature("calm_environment", {
+    subscriptionsEnabled: premium.subscriptionsEnabled,
+    hasPremiumAccess: premium.hasPremiumAccess,
+    premiumFeatureFlags: premium.premiumFeatureFlags,
+  });
+  const premiumAdaptiveSupport = derivePremiumAdaptiveSupport({
+    hasPremiumAccess: premium.hasPremiumAccess,
+    featureEnabled: premium.premiumFeatureFlags.adaptive_support,
+    lowEnergyModeEnabled: lowEnergyMode.enabled,
+    recentFatigueAverage: weeklyCheckIns > 0 ? 3.8 : null,
+    recentStressAverage: weeklyCheckIns > 0 ? 3.2 : null,
+    recentSleepAverage: null,
+    interactionTolerance: lowEnergyMode.enabled ? "reduced" : "steady",
+    timeOfDay: new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening",
+  });
+  const premiumCalmEnvironment = derivePremiumCalmEnvironment({
+    hasPremiumAccess: premium.hasPremiumAccess,
+    featureEnabled: premium.premiumFeatureFlags.calm_environment,
+    lowEnergyModeEnabled: lowEnergyMode.enabled,
+    reducedMotionPreference: calmEnvironment.reducedMotion,
+    softerHapticsPreference: calmEnvironment.softerHaptics,
+    nightCalmPreference: calmEnvironment.nightCalm,
+    densityPreference: calmEnvironment.density,
+    timeOfDay: new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening",
+    recentFatigueAverage: weeklyCheckIns > 0 ? 3.8 : null,
+    recentStressAverage: weeklyCheckIns > 0 ? 3.2 : null,
+    recentSleepAverage: null,
+  });
   const wins = getCareWins(overviewEntries);
   const growth = useGrowthState({
     totalCheckIns,
     reminderEnabled: reminders.enabled,
   });
+  const premiumPositioning = derivePremiumPositioning();
   const premiumValue = derivePremiumValue();
   const legacyPause = derivePauseSupport({
     lowEngagement: weeklyCheckIns === 0,
@@ -178,6 +233,14 @@ export default function ProfileScreen() {
   });
   const calmnessMetricLine = deriveCalmnessMetrics()[0]?.purpose;
   const accessibilityMetricLine = deriveAccessibilityMetrics()[0]?.purpose;
+  const aboutYouLines = [
+    totalCheckIns > 0 ? continuityFeedback.body : "Your preferences can help keep the app calmer and easier to use.",
+    lowEnergyMode.enabled ? "Low Energy Mode is on." : "Low Energy Mode is available anytime.",
+    reminders.enabled ? `Reminders are set for ${reminders.selectedTimeLabel}.` : "Reminders are optional and easy to adjust.",
+    hasCalmEnvironment
+      ? `${premiumCalmEnvironment.density.label} is available for an easier visual rhythm.`
+      : "A calmer visual environment is available with Premium.",
+  ].filter((line): line is string => Boolean(line));
 
   const confirmDeleteAccount = () => {
     Alert.alert(
@@ -229,6 +292,7 @@ export default function ProfileScreen() {
         userId: user.id,
         input: { onboarding_completed: false },
       });
+      await resetOnboardingSupportPreferences();
       router.replace("/welcome");
     } catch (error) {
       Alert.alert("Unable to reset onboarding", getErrorMessage(error));
@@ -245,7 +309,7 @@ export default function ProfileScreen() {
 
     Alert.alert(
       "Gentle reminders",
-      "Gentle reminders can help you build a consistent check-in routine.",
+      "Gentle reminders can offer a small nudge when that feels useful, and you can ignore them whenever you need to.",
       [
         {
           text: "Not now",
@@ -322,11 +386,43 @@ export default function ProfileScreen() {
 
   return (
     <AppScreen
+      eyebrow="Preferences and support"
       title="Profile"
-      subtitle="Manage your account, preferences, and support in one calm place."
+      subtitle="Settings, reminders, and support in one quieter place."
     >
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          lowEnergyMode.enabled && styles.contentLowEnergy,
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.heroCard}>
+          <AppText style={styles.heroTitle}>A calmer place to adjust the app</AppText>
+          <AppText style={styles.heroBody}>
+            {hasAdaptiveSupport && premiumAdaptiveSupport.active
+              ? `${premiumAdaptiveSupport.tone.supportLine} Premium can keep this space a little quieter during heavier stretches.`
+              : "Keep settings, reminders, and account details close by without turning this into a crowded control panel."}
+          </AppText>
+        </View>
+
         <View style={styles.card}>
+          <AppText style={styles.sectionKicker}>About you</AppText>
+          <AppText style={styles.sectionTitle}>Continuity</AppText>
+          <AppText style={styles.sectionBody}>
+            You&apos;ve been showing up in ways that help the app stay gentler and easier to use.
+          </AppText>
+          <View style={styles.aboutYouList}>
+            {aboutYouLines.map((line) => (
+              <View key={line} style={styles.aboutYouPill}>
+                <AppText style={styles.aboutYouText}>{line}</AppText>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <AppText style={styles.sectionKicker}>Account</AppText>
           <AppText style={styles.sectionTitle}>Account</AppText>
           <View style={styles.accountRow}>
             <AppText style={styles.accountLabel}>Email</AppText>
@@ -336,7 +432,7 @@ export default function ProfileScreen() {
             <AppText style={styles.accountLabel}>Account status</AppText>
             <AppText style={styles.accountValue}>{__DEV__ && isMockMode ? "Mock mode" : "Signed in"}</AppText>
           </View>
-        <View style={styles.accountActions}>
+          <View style={styles.accountActions}>
             <AppButton label="Sign out" onPress={() => void signOut()} variant="secondary" />
             {__DEV__ ? (
               <AppButton
@@ -350,6 +446,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.card}>
+          <AppText style={styles.sectionKicker}>Premium</AppText>
           <AppText style={styles.sectionTitle}>Premium</AppText>
           <View style={styles.premiumCard}>
             <View style={styles.premiumHeader}>
@@ -359,10 +456,12 @@ export default function ProfileScreen() {
                 </AppText>
                 <AppText style={styles.premiumBody}>
                   {premium.hasPremiumAccess
-                    ? "Unlimited AI Coach is ready, and your premium support stays available across the app."
+                    ? hasAdaptiveSupport
+                      ? premiumPositioning.activeProfileBody
+                      : "Premium is active, and your plan is managed securely through Apple."
                     : preserveFreeUserDignity(
                         preventEmotionalConversion(
-                          "Keep the free core experience, or unlock unlimited AI Coach and more personalized support over time.",
+                          premiumPositioning.inactiveProfileBody,
                         ),
                       )}
                 </AppText>
@@ -376,6 +475,13 @@ export default function ProfileScreen() {
                 <AppText key={line} style={styles.premiumFeatureText}>• {line}</AppText>
               ))}
             </View>
+            <AppText style={styles.premiumNote}>
+              {premium.hasPremiumAccess
+                ? hasAdaptiveSupport
+                  ? "Premium includes gentler adaptive support during difficult days. You can manage your plan anytime through Apple."
+                  : "You can manage your plan anytime through Apple."
+                : "Any subscription you choose is handled securely through Apple, with restore available whenever you need it."}
+            </AppText>
             <AppButton
               label={premium.hasPremiumAccess ? "View Premium" : "Explore Premium"}
               onPress={() => router.push("/premium?source=profile")}
@@ -385,9 +491,10 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.card}>
-          <AppText style={styles.sectionTitle}>App Preferences</AppText>
+          <AppText style={styles.sectionKicker}>Preferences</AppText>
+          <AppText style={styles.sectionTitle}>App preferences</AppText>
           <AppText style={styles.sectionBody}>
-            Keep the app feeling supportive in a way that works for you. These settings are local to this device for now.
+            Keep the app feeling supportive in a way that works for you. These settings stay light and easy to revisit.
           </AppText>
           <PreferenceRow
             title="Gentle reminders"
@@ -395,6 +502,7 @@ export default function ProfileScreen() {
               reminders.enabled,
               reminders.permissionStatus,
               reminders.selectedTimeLabel,
+              reminders.reminderPressure,
             )}
             value={reminders.enabled}
             onValueChange={handleReminderToggle}
@@ -405,7 +513,7 @@ export default function ProfileScreen() {
               <View style={styles.reminderCopy}>
                 <AppText style={styles.preferenceTitle}>Reminder time</AppText>
                 <AppText style={styles.preferenceDescription}>
-                  Pick a calm time for one daily reminder.
+                  Pick a calm time for one daily reminder, or leave reminders off entirely.
                 </AppText>
               </View>
               <AppText style={styles.reminderTimeLabel}>{reminders.selectedTimeLabel}</AppText>
@@ -443,31 +551,123 @@ export default function ProfileScreen() {
                 <AppText style={styles.inlineLinkText}>Open iPhone Settings</AppText>
               </Pressable>
             ) : null}
+            {reminders.enabled ? (
+              <AppText style={styles.reminderQuietNote}>
+                The app can keep reminders lighter or quieter during heavier stretches.
+              </AppText>
+            ) : null}
           </View>
           <PreferenceRow
-            title="Reduce motion"
-            description="Use a calmer feel with less movement where possible."
-            value={reduceMotionEnabled}
-            onValueChange={setReduceMotionEnabled}
+            title="Low Energy Mode"
+            description="Keep the app lighter, roomier, and less dense on harder days."
+            value={lowEnergyMode.enabled}
+            onValueChange={(value) => {
+              void lowEnergyMode.setEnabled(value);
+            }}
+            disabled={lowEnergyMode.isLoading}
           />
-          <PreferenceRow
-            title="Comfort spacing"
-            description="Keep layouts feeling roomy and easy to scan."
-            value={comfortSpacingEnabled}
-            onValueChange={setComfortSpacingEnabled}
-          />
+          <View style={styles.environmentCard}>
+            <View style={styles.environmentHeader}>
+              <View style={styles.environmentCopy}>
+                <AppText style={styles.preferenceTitle}>Calm environment</AppText>
+                <AppText style={styles.preferenceDescription}>
+                  {hasCalmEnvironment
+                    ? premiumCalmEnvironment.body
+                    : "Premium includes calmer sensory-friendly and low-stimulation experiences."}
+                </AppText>
+              </View>
+              <AppText style={[styles.environmentBadge, hasCalmEnvironment && styles.environmentBadgeActive]}>
+                {hasCalmEnvironment ? "Active" : "Premium"}
+              </AppText>
+            </View>
+
+            {hasCalmEnvironment ? (
+              <>
+                <PreferenceRow
+                  title="Reduced motion"
+                  description="Keep transitions softer and a little quieter where possible."
+                  value={calmEnvironment.reducedMotion}
+                  onValueChange={(value) => {
+                    void calmEnvironment.setReducedMotion(value);
+                  }}
+                />
+                <PreferenceRow
+                  title="Softer haptics"
+                  description="Keep tactile feedback lighter and less abrupt."
+                  value={calmEnvironment.softerHaptics}
+                  onValueChange={(value) => {
+                    void calmEnvironment.setSofterHaptics(value);
+                  }}
+                />
+                <PreferenceRow
+                  title="Night calm"
+                  description="Use a gentler evening feel with quieter contrast at night."
+                  value={calmEnvironment.nightCalm}
+                  onValueChange={(value) => {
+                    void calmEnvironment.setNightCalm(value);
+                  }}
+                />
+                <View style={styles.environmentDensityBlock}>
+                  <AppText style={styles.preferenceTitle}>Calm density</AppText>
+                  <AppText style={styles.preferenceDescription}>
+                    Choose how roomy and low-stimulation the app should feel.
+                  </AppText>
+                  <View style={styles.timeChipRow}>
+                    {[
+                      { id: "standard", label: "Standard" },
+                      { id: "spacious", label: "Spacious" },
+                      { id: "simplified", label: "Simplified" },
+                    ].map((option) => {
+                      const isSelected = option.id === calmEnvironment.density;
+
+                      return (
+                        <Pressable
+                          key={option.id}
+                          onPress={() => {
+                            void calmEnvironment.setDensity(option.id as "standard" | "spacious" | "simplified");
+                          }}
+                          style={({ pressed }) => [
+                            styles.timeChip,
+                            isSelected && styles.timeChipSelected,
+                            pressed && styles.timeChipPressed,
+                          ]}
+                        >
+                          <AppText style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                            {option.label}
+                          </AppText>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              </>
+            ) : (
+              <View style={styles.environmentLocked}>
+                <AppText style={styles.environmentLockedBody}>
+                  Premium adds reduced motion, spacious reading, simplified density, and a quieter evening presentation.
+                </AppText>
+                <AppButton
+                  label="Explore Premium"
+                  onPress={() => router.push("/premium?source=profile-calm-environment")}
+                  variant="secondary"
+                />
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={styles.card}>
+          <AppText style={styles.sectionKicker}>Consistency</AppText>
           <AppText style={styles.sectionTitle}>Consistency</AppText>
+          <AppText style={styles.sectionBody}>
+            A gentle view of how your recent check-ins are taking shape.
+          </AppText>
           {totalCheckIns > 0 ? (
             <>
               <View style={styles.consistencyGrid}>
                 <View style={styles.consistencyPill}>
                   <AppText style={styles.consistencyValue}>{streak}</AppText>
-                  <AppText style={styles.consistencyLabel}>
-                    {streak === 1 ? "day streak" : "day streak"}
-                  </AppText>
+                  <AppText style={styles.consistencyLabel}>days in a row</AppText>
                 </View>
                 <View style={styles.consistencyPill}>
                   <AppText style={styles.consistencyValue}>{totalCheckIns}</AppText>
@@ -481,16 +681,12 @@ export default function ProfileScreen() {
                 </View>
               </View>
               <AppText style={styles.sectionBody}>
-                {weeklyCheckIns >= 5
-                  ? "You’ve been returning steadily this week."
-                  : streak > 1
-                    ? "You’ve checked in consistently."
-                    : "Small steps add up."}
+                {continuityFeedback.body}
               </AppText>
             </>
           ) : (
             <AppText style={styles.sectionBody}>
-              Your consistency will start to grow here one check-in at a time.
+              {continuityFeedback.body}
             </AppText>
           )}
 
@@ -518,7 +714,8 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.card}>
-          <AppText style={styles.sectionTitle}>Support & Legal</AppText>
+          <AppText style={styles.sectionKicker}>Support</AppText>
+          <AppText style={styles.sectionTitle}>Support & legal</AppText>
           <AppText style={styles.sectionBody}>
             Find the main policies, medical context, and support options here whenever you need them.
           </AppText>
@@ -531,7 +728,8 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.card}>
-          <AppText style={styles.sectionTitle}>Pause & Ownership</AppText>
+          <AppText style={styles.sectionKicker}>Ownership</AppText>
+          <AppText style={styles.sectionTitle}>Pause & ownership</AppText>
           <AppText style={styles.sectionBody}>
             Use the app when it helps. Step back when it does not. Your history belongs to you, not to the platform.
           </AppText>
@@ -544,7 +742,8 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.card}>
-          <AppText style={styles.sectionTitle}>Data & Privacy</AppText>
+          <AppText style={styles.sectionKicker}>Privacy</AppText>
+          <AppText style={styles.sectionTitle}>Data & privacy</AppText>
           <AppText style={styles.sectionBody}>
             Your check-ins, notes, and care tools are tied to your own account and are meant to stay private to you.
           </AppText>
@@ -627,7 +826,29 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: 120,
-    gap: 16,
+    gap: 18,
+  },
+  contentLowEnergy: {
+    gap: 22,
+    paddingBottom: 132,
+  },
+  heroCard: {
+    backgroundColor: "#fff4ec",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#f2d8c4",
+    padding: 18,
+    gap: 10,
+  },
+  heroTitle: {
+    fontSize: 22,
+    lineHeight: 30,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  heroBody: {
+    color: "#4b5563",
+    lineHeight: 22,
   },
   card: {
     backgroundColor: "#ffffff",
@@ -635,7 +856,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 14,
+    gap: 16,
+  },
+  sectionKicker: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#c25d10",
+    textTransform: "uppercase",
   },
   sectionTitle: {
     fontSize: 20,
@@ -644,7 +871,7 @@ const styles = StyleSheet.create({
   },
   sectionBody: {
     color: "#4b5563",
-    lineHeight: 22,
+    lineHeight: 23,
   },
   accountRow: {
     gap: 4,
@@ -660,35 +887,42 @@ const styles = StyleSheet.create({
     color: "#1f2937",
   },
   accountActions: {
-    gap: 10,
+    gap: 12,
   },
   consistencyGrid: {
-    gap: 10,
+    gap: 12,
   },
   consistencyPill: {
     borderRadius: 18,
     backgroundColor: "#fffaf6",
     borderWidth: 1,
     borderColor: "#f3dfd1",
-    padding: 14,
-    gap: 2,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    gap: 6,
+    minHeight: 94,
+    justifyContent: "center",
   },
   consistencyValue: {
-    fontSize: 24,
+    fontSize: 26,
+    lineHeight: 32,
     fontWeight: "700",
     color: "#1f2937",
+    paddingTop: 1,
+    paddingBottom: 1,
   },
   consistencyLabel: {
     fontSize: 13,
+    lineHeight: 18,
     color: "#6b7280",
   },
   metricsCard: {
-    gap: 10,
+    gap: 12,
     borderRadius: 18,
     backgroundColor: "#fffaf6",
     borderWidth: 1,
     borderColor: "#f3dfd1",
-    padding: 14,
+    padding: 16,
   },
   metricRow: {
     flexDirection: "row",
@@ -713,11 +947,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#fffaf6",
     borderWidth: 1,
     borderColor: "#f3dfd1",
-    padding: 14,
+    padding: 16,
+    minHeight: 84,
   },
   preferenceCopy: {
     flex: 1,
-    gap: 4,
+    gap: 6,
   },
   preferenceTitle: {
     fontSize: 16,
@@ -726,23 +961,65 @@ const styles = StyleSheet.create({
   },
   preferenceDescription: {
     color: "#6b7280",
-    lineHeight: 20,
+    lineHeight: 21,
   },
   reminderCard: {
-    gap: 12,
+    gap: 14,
     borderRadius: 18,
     backgroundColor: "#fffaf6",
     borderWidth: 1,
     borderColor: "#f3dfd1",
-    padding: 14,
+    padding: 16,
+  },
+  environmentCard: {
+    gap: 14,
+    borderRadius: 18,
+    backgroundColor: "#fffaf6",
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    padding: 16,
+  },
+  environmentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  environmentCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  environmentBadge: {
+    borderRadius: 999,
+    backgroundColor: "#fff0e5",
+    color: "#b45309",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  environmentBadgeActive: {
+    backgroundColor: "#eef5f1",
+    color: "#166534",
+  },
+  environmentDensityBlock: {
+    gap: 10,
+  },
+  environmentLocked: {
+    gap: 12,
+  },
+  environmentLockedBody: {
+    color: "#6b7280",
+    lineHeight: 21,
   },
   premiumCard: {
-    gap: 12,
+    gap: 14,
     borderRadius: 18,
     backgroundColor: "#fffaf6",
     borderWidth: 1,
     borderColor: "#f3dfd1",
-    padding: 14,
+    padding: 16,
   },
   premiumHeader: {
     flexDirection: "row",
@@ -761,28 +1038,33 @@ const styles = StyleSheet.create({
   },
   premiumBody: {
     color: "#6b7280",
-    lineHeight: 20,
+    lineHeight: 21,
   },
   premiumBadge: {
     borderRadius: 999,
     backgroundColor: "#fff0e5",
     color: "#b45309",
     fontSize: 12,
+    lineHeight: 16,
     fontWeight: "700",
     paddingHorizontal: 10,
     paddingVertical: 6,
-    overflow: "hidden",
   },
   premiumBadgeActive: {
     backgroundColor: "#e8f5ea",
     color: "#166534",
   },
   premiumFeatureList: {
-    gap: 8,
+    gap: 10,
   },
   premiumFeatureText: {
     color: "#4b5563",
     lineHeight: 20,
+  },
+  premiumNote: {
+    color: "#6b7280",
+    lineHeight: 20,
+    fontSize: 13,
   },
   reminderHeader: {
     flexDirection: "row",
@@ -798,6 +1080,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#c25d10",
+  },
+  reminderQuietNote: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#6b7280",
   },
   timeChipRow: {
     flexDirection: "row",
@@ -847,8 +1134,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#fffaf6",
     borderWidth: 1,
     borderColor: "#f3dfd1",
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 54,
   },
   linkRowPressed: {
     opacity: 0.82,
@@ -866,10 +1154,25 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   winsSection: {
-    gap: 10,
+    gap: 12,
   },
   winsList: {
     gap: 10,
+  },
+  aboutYouList: {
+    gap: 10,
+  },
+  aboutYouPill: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  aboutYouText: {
+    color: "#4b5563",
+    lineHeight: 21,
   },
   winPill: {
     alignSelf: "flex-start",

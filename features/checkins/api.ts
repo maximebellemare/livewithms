@@ -6,8 +6,7 @@ import { supabase } from "../../lib/supabase/client";
 import { buildOptimisticDailyCheckIn, loadQueuedCheckIns, queueDailyCheckInSave, removeQueuedCheckIn } from "./offline";
 import type { CheckInOverviewEntry, DailyCheckIn, DailyCheckInInput } from "./types";
 
-const SELECT_FIELDS =
-  "id, user_id, date, fatigue, pain, brain_fog, mood, mobility, stress, sleep_hours, water_glasses, notes, mood_tags, created_at, updated_at";
+const SELECT_FIELDS = "*";
 
 function getNormalizedDate(value: string) {
   if (!value) {
@@ -30,7 +29,7 @@ function getDailyCheckInOverviewCacheKey(userId: string) {
 }
 
 async function performDailyCheckInUpsert(userId: string, date: string, input: DailyCheckInInput) {
-  const payload = {
+  const payload: Record<string, unknown> = {
     user_id: userId,
     date,
     fatigue: input.fatigue,
@@ -43,12 +42,13 @@ async function performDailyCheckInUpsert(userId: string, date: string, input: Da
     water_glasses: input.water_glasses,
     notes: input.notes,
     mood_tags: input.mood_tags ?? [],
+    triggers: input.triggers ?? [],
     ...(typeof input.spasticity === "number" ? { spasticity: input.spasticity } : {}),
   };
 
   const { data, error } = await supabase
     .from("daily_entries")
-    .upsert(payload, {
+    .upsert(payload as never, {
       onConflict: "user_id,date",
     })
     .select("*")

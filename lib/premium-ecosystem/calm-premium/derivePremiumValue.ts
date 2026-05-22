@@ -1,12 +1,16 @@
+import { derivePremiumPositioning } from "./derivePremiumPositioning";
+
 export function derivePremiumValue() {
+  const positioning = derivePremiumPositioning();
+
   return {
-    title: "What Premium adds",
+    title: positioning.primaryTitle,
     lines: [
-      "Unlimited AI Coach conversations",
-      "More advanced insights and clearer summaries",
-      "Deeper personalization and future calm-support tools",
+      ...positioning.primaryLines,
+      ...positioning.secondaryLines,
+      "Calming audio support and nervous-system-friendly resets",
+      "Calmer community spaces and quieter support from people who understand",
     ],
-    summary:
-      "Premium adds depth and continuity, while the core app remains supportive without requiring a subscription.",
+    summary: `${positioning.primarySummary} The core app remains supportive without requiring a subscription.`,
   };
 }

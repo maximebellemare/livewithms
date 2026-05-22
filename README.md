@@ -1,73 +1,81 @@
-# Welcome to your Lovable project
+# LiveWithMS
 
-## Project info
+LiveWithMS is a calm-support product for people living with MS. The platform is designed to reduce overwhelm, support steadiness, and make difficult periods feel lighter and more manageable without drifting into therapy simulation, AI-companion dynamics, productivity pressure, or manipulative retention.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Product identity
 
-## How can I edit this code?
+- Calm, emotionally safe support during difficult days
+- Low-energy accessibility and adaptive simplification
+- Nervous-system-friendly pacing, density, and tone
+- Long-term continuity without streaks, urgency, or emotional dependency
 
-There are several ways of editing your application.
+## Stable architecture
 
-**Use Lovable**
+The codebase now has a stable platform entry point:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- `lib/platform-core`
 
-Changes made via Lovable will be committed automatically to this repo.
+`platform-core` is the long-term façade for:
 
-**Use your preferred IDE**
+- governance
+- emotional safety
+- adaptive boundaries
+- support-density limits
+- calmness constraints
+- Premium integrity
+- future expansion rules
+- accessibility
+- operational resilience
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Underneath that, the platform composes the established subsystem layers:
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- `lib/platform-governance`
+- `lib/adaptive-intelligence`
+- `lib/calm-life-support`
+- `lib/emotional-support-engine`
+- `lib/programs-ecosystem`
+- `lib/continuity-intelligence`
+- `lib/calm-environment`
 
-Follow these steps:
+Long-horizon scaling policy lives in:
+
+- `lib/future-platform-strategy`
+
+Use it when work touches growth, monetization, community, platform expansion, partnerships, or future AI capabilities.
+
+## Core rules
+
+- Do not add new conceptual support categories unless an existing layer cannot responsibly absorb the need.
+- Prefer reuse through `platform-core` and the subsystem façades before creating new orchestration logic.
+- Keep AI bounded, non-clinical, non-companion-like, and uncertainty-safe.
+- Keep Premium calm, low-pressure, and outcome-oriented instead of feature-heavy or manipulative.
+- Preserve interruption safety, fatigue readability, and low sensory load.
+
+## Development
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Verification
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Common checks:
 
-**Use GitHub Codespaces**
+```sh
+npm run typecheck:native
+npm run test:unit
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Focused architecture suites often used during platform work:
 
-## What technologies are used for this project?
+```sh
+npm run test:unit -- src/test/platform-core/unified-platform-core.test.ts
+npm run test:unit -- src/test/future-platform-strategy/unified-future-platform-strategy.test.ts
+npm run test:unit -- src/test/platform-governance/unified-platform-governance.test.ts
+npm run test:unit -- src/test/platform-stewardship/launch-readiness-audit.test.ts
+```
 
-This project is built with:
+## Further reading
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- `docs/architecture-foundation.md`

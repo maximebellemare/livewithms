@@ -6,6 +6,7 @@ const supabaseAnonKey =
   "";
 const revenueCatIosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || "";
 const appScheme = "com.livewithms.app" as const;
+const bundleIdentifier = "com.livewithms.app" as const;
 
 const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 const isRevenueCatConfigured = !!revenueCatIosApiKey;
@@ -27,6 +28,7 @@ const env = {
   isSupabaseConfigured,
   isRevenueCatConfigured,
   appScheme,
+  bundleIdentifier,
   resetPasswordRedirectUrl: `${appScheme}://reset-password`,
 };
 

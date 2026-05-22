@@ -1,16 +1,13 @@
 import { StyleSheet, View } from "react-native";
+import { derivePremiumPositioning } from "../../lib/premium-ecosystem/calm-premium/derivePremiumPositioning";
 import AppText from "../ui/AppText";
 
-const FEATURES = [
-  "See what triggers your fatigue",
-  "Spot patterns before symptoms worsen",
-  "Feel more in control of your days",
-];
-
 export default function FeatureList() {
+  const positioning = derivePremiumPositioning();
+
   return (
     <View style={styles.container}>
-      {FEATURES.map((feature) => (
+      {positioning.primaryLines.map((feature) => (
         <View key={feature} style={styles.row}>
           <View style={styles.dot} />
           <AppText style={styles.text}>{feature}</AppText>

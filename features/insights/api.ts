@@ -17,6 +17,7 @@ import { preventReductionToPatterns } from "../../lib/ethical-governance/dignity
 import { preventEmotionalHooking } from "../../lib/ethical-governance/manipulation-resistance/preventEmotionalHooking";
 import { invokeAiFunction } from "../ai/invoke";
 import type { DailyCheckIn } from "../checkins/types";
+import { sanitizeInsightSafety } from "./actionable";
 import type { AiInsightsSummary, PatternSummary } from "./types";
 
 function average(values: Array<number | null>) {
@@ -30,6 +31,111 @@ function average(values: Array<number | null>) {
 
 function getAiInsightsCacheKey(range: 7 | 30) {
   return `cache.ai-insights-summary.${range}`;
+}
+
+function normalizeWhitespace(text: string) {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function shortenInsightText(text: string, maxLength = 170) {
+  const normalized = normalizeWhitespace(text);
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  const firstSentenceMatch = normalized.match(/^[^.!?]+[.!?]/);
+  if (firstSentenceMatch && firstSentenceMatch[0].length <= maxLength) {
+    return firstSentenceMatch[0].trim();
+  }
+
+  const trimmed = normalized.slice(0, maxLength);
+  const lastSpace = trimmed.lastIndexOf(" ");
+  return `${trimmed.slice(0, lastSpace > 0 ? lastSpace : maxLength).trim()}…`;
+}
+
+function reduceGenericWellnessLanguage(text: string) {
+  return normalizeWhitespace(
+    text
+      .replace(/unlock clearer insights/gi, "make this view clearer")
+      .replace(/clearer picture/gi, "steadier picture")
+      .replace(/connect the dots/gi, "show a pattern")
+      .replace(/keep checking in/gi, "more check-ins may")
+      .replace(/check in consistently/gi, "a little more history can")
+      .replace(/patterns become easier to spot/gi, "patterns feel easier to notice")
+      .replace(/more useful over time/gi, "clearer over time"),
+  );
+}
+
+function moderateShortInsight(text: string) {
+  return shortenInsightText(
+    sanitizeInsightSafety(moderateInsightCopy(reduceGenericWellnessLanguage(text))),
+    170,
+  );
+}
+
+function sanitizeInsightList(items: string[] | undefined, maxItems = 2) {
+  return (items ?? [])
+    .map((item) => moderateShortInsight(item))
+    .filter(Boolean)
+    .filter((item, index, all) => all.indexOf(item) === index)
+    .slice(0, maxItems);
+}
+
+function buildFallbackAiInsights(entries: DailyCheckIn[]): AiInsightsSummary {
+  const recentEntries = entries.slice(0, 7);
+  const averageFatigue = average(recentEntries.map((entry) => entry.fatigue));
+  const averageMood = average(recentEntries.map((entry) => entry.mood));
+  const averageStress = average(recentEntries.map((entry) => entry.stress));
+  const averageSleep = average(recentEntries.map((entry) => entry.sleep_hours));
+
+  if (averageFatigue !== null && averageFatigue >= 4 && averageSleep !== null && averageSleep < 6.5) {
+    return {
+      summary: moderateShortInsight("Fatigue looked heavier alongside lighter sleep in this stretch."),
+      helping: sanitizeInsightList(["Sleep has been on the lighter side lately."]),
+      suggestions: sanitizeInsightList(["If tonight allows for it, a quieter stop may help."]),
+      disclaimer: deriveIncompleteContextAwareness("insight-summary"),
+      source: "fallback",
+    };
+  }
+
+  if (averageStress !== null && averageStress >= 4) {
+    return {
+      summary: moderateShortInsight("Stress has been one of the stronger signals lately."),
+      helping: sanitizeInsightList(["The more demanding days may be shaping the rest of the picture."]),
+      suggestions: sanitizeInsightList(["If today feels full, pick one next step and leave the rest."]),
+      disclaimer: deriveIncompleteContextAwareness("insight-summary"),
+      source: "fallback",
+    };
+  }
+
+  if (averageMood !== null && averageMood <= 2) {
+    return {
+      summary: moderateShortInsight("Mood has looked a little lower in this stretch."),
+      helping: sanitizeInsightList(["The harder days may be carrying more weight right now."]),
+      suggestions: sanitizeInsightList(["Keep the next step small and concrete if that helps."]),
+      disclaimer: deriveIncompleteContextAwareness("insight-summary"),
+      source: "fallback",
+    };
+  }
+
+  if (averageFatigue !== null && averageFatigue <= 2 && averageStress !== null && averageStress <= 2) {
+    return {
+      summary: moderateShortInsight("This stretch looks fairly steady overall."),
+      helping: sanitizeInsightList(["Energy and stress have both looked a little lighter lately."]),
+      suggestions: sanitizeInsightList(["Notice anything simple that has been helping."]),
+      disclaimer: deriveIncompleteContextAwareness("insight-summary"),
+      source: "fallback",
+    };
+  }
+
+  return {
+    summary: moderateShortInsight("A few small patterns are starting to show up in this stretch."),
+    helping: sanitizeInsightList(["A little more history can help this view feel steadier."]),
+    suggestions: sanitizeInsightList(["Future check-ins can stay short and simple if that helps."]),
+    disclaimer: deriveIncompleteContextAwareness("insight-summary"),
+    source: "fallback",
+  };
 }
 
 function moderateInsightCopy(text: string, includePerspectiveNote = true) {
@@ -182,22 +288,15 @@ export const insightsApi = {
   async getAiInsightsSummary(entries: DailyCheckIn[], range: 7 | 30): Promise<AiInsightsSummary> {
     if (entries.length < 3) {
       return {
-        summary: "Check in consistently to unlock clearer insights.",
-        helping: ["Check in consistently to unlock clearer insights."],
-        suggestions: [],
-        disclaimer: deriveIncompleteContextAwareness("insight-summary"),
-        source: "fallback",
+        ...buildFallbackAiInsights(entries),
+        summary: moderateShortInsight("A little more history can help this view feel steadier."),
+        helping: [],
+        suggestions: sanitizeInsightList(["A short check-in now and then is enough."]),
       };
     }
 
     if (!env.isSupabaseConfigured) {
-      return {
-        summary:
-          "Your recent check-ins are starting to show a clearer picture of how this stretch has felt.",
-        helping: ["Consistent check-ins are making these patterns easier to spot."],
-        suggestions: [],
-        source: "fallback",
-      };
+      return buildFallbackAiInsights(entries);
     }
 
     try {
@@ -234,12 +333,15 @@ export const insightsApi = {
       }
 
       const result: AiInsightsSummary = {
-        summary: data.summary as string,
-        helping: Array.isArray(data.helping) ? (data.helping as string[]) : [],
-        suggestions: Array.isArray(data.suggestions) ? (data.suggestions as string[]) : [],
+        summary: moderateShortInsight(data.summary as string),
+        helping: sanitizeInsightList(Array.isArray(data.helping) ? (data.helping as string[]) : []),
+        suggestions: sanitizeInsightList(Array.isArray(data.suggestions) ? (data.suggestions as string[]) : []),
         disclaimer: typeof data.disclaimer === "string" ? data.disclaimer : undefined,
         source: data.source === "ai" ? "ai" : "fallback",
       };
+      if (!result.suggestions.length) {
+        result.suggestions = buildFallbackAiInsights(entries).suggestions;
+      }
       logger.info("AI insights summary generated", {
         range,
         durationMs: Date.now() - startedAt,
@@ -248,6 +350,8 @@ export const insightsApi = {
       await setCachedJson(getAiInsightsCacheKey(range), result);
       return result;
     } catch (error) {
+      // TODO: If this continues to return 404 in production, verify the deployed Supabase Edge Function
+      // name still matches `ai-insights-summary`, since the source file exists in-repo.
       await trackDiagnosticEvent("ai_insight_request_failed", {
         range,
       });
@@ -258,13 +362,7 @@ export const insightsApi = {
       if (cached) {
         return cached;
       }
-      return {
-        summary:
-          "Your recent check-ins are starting to show a clearer picture of how this stretch has felt.",
-        helping: ["Check in consistently to unlock clearer insights."],
-        suggestions: [],
-        source: "fallback",
-      };
+      return buildFallbackAiInsights(entries);
     }
   },
 };

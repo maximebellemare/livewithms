@@ -17,5 +17,6 @@ describe("operational calm failure softening", () => {
   it("returns emotionally calm user-facing messages", () => {
     expect(deriveFriendlyFailureMessage(new Error("Network request failed")).toLowerCase()).toContain("slow");
     expect(deriveFriendlyFailureMessage(new Error("temporary_failure")).toLowerCase()).toContain("pause");
+    expect(deriveFriendlyFailureMessage(new Error("ai timeout")).toLowerCase()).not.toContain("keep going");
   });
 });

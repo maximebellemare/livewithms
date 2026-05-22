@@ -1,11 +1,201 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
+import * as FileSystem from "expo-file-system";
+import jsPDF from "jspdf";
 import { useAuth } from "../../features/auth/hooks";
 import { useCheckInHistory } from "../../features/checkins/hooks";
 import { useGrowthState } from "../../features/growth/hooks";
 import { useAiInsightsSummary, useInsightsDashboard, usePatternSummary } from "../../features/insights/hooks";
+import {
+  deriveLocalAiFallbackMessage,
+  derivePatternsWorthNoticing,
+  deriveSmallNextSteps,
+  deriveWeeklyMeaning,
+  deriveWhatChangedRecently as deriveRecentInsightChanges,
+} from "../../features/insights/actionable";
+import {
+  canAccessPremiumReflectionSummaries,
+  derivePremiumReflectionSummaries,
+} from "../../features/insights/premium-reflections";
+import type { PremiumReflectionSummary } from "../../features/insights/premium-reflections";
+import {
+  buildPremiumContinuityExportContent,
+  canAccessPremiumContinuity,
+  derivePremiumContinuitySnapshots,
+} from "../../features/insights/premium-continuity";
+import type { PremiumContinuitySummary } from "../../features/insights/premium-continuity";
+import {
+  canAccessPremiumHumanClarity,
+  derivePremiumHumanClaritySummary,
+} from "../../features/insights/premium-human-clarity";
+import type { PremiumHumanClaritySummary } from "../../features/insights/premium-human-clarity";
+import {
+  canAccessPremiumForwardStability,
+  derivePremiumForwardStabilitySummary,
+} from "../../features/insights/premium-forward-stability";
+import type { PremiumForwardStabilitySummary } from "../../features/insights/premium-forward-stability";
+import {
+  canAccessPremiumMeaningfulLife,
+  derivePremiumMeaningfulLifeSummary,
+} from "../../features/insights/premium-meaningful-life";
+import type { PremiumMeaningfulLifeSummary } from "../../features/insights/premium-meaningful-life";
+import {
+  canAccessPremiumEverydayLifeRebuilding,
+  derivePremiumEverydayLifeRebuildingSummary,
+} from "../../features/insights/premium-everyday-life-rebuilding";
+import type { PremiumEverydayLifeRebuildingSummary } from "../../features/insights/premium-everyday-life-rebuilding";
+import {
+  canAccessPremiumSelfReconnectionSupport,
+  derivePremiumSelfReconnectionSupportSummary,
+} from "../../features/insights/premium-self-reconnection-support";
+import type { PremiumSelfReconnectionSupportSummary } from "../../features/insights/premium-self-reconnection-support";
+import {
+  canAccessPremiumMeaningSupport,
+  derivePremiumMeaningSupportSummary,
+} from "../../features/insights/premium-meaning-support";
+import type { PremiumMeaningSupportSummary } from "../../features/insights/premium-meaning-support";
+import {
+  canAccessPremiumExistentialGrounding,
+  derivePremiumExistentialGroundingSummary,
+} from "../../features/insights/premium-existential-grounding";
+import type { PremiumExistentialGroundingSummary } from "../../features/insights/premium-existential-grounding";
+import {
+  canAccessPremiumReorientationSupport,
+  derivePremiumReorientationSupportSummary,
+} from "../../features/insights/premium-reorientation-support";
+import type { PremiumReorientationSupportSummary } from "../../features/insights/premium-reorientation-support";
+import {
+  canAccessPremiumQuietConfidence,
+  derivePremiumQuietConfidenceSummary,
+} from "../../features/insights/premium-quiet-confidence";
+import type { PremiumQuietConfidenceSummary } from "../../features/insights/premium-quiet-confidence";
+import {
+  canAccessPremiumSelfTrustStability,
+  derivePremiumSelfTrustStabilitySummary,
+} from "../../features/insights/premium-self-trust-stability";
+import type { PremiumSelfTrustStabilitySummary } from "../../features/insights/premium-self-trust-stability";
+import {
+  canAccessPremiumUncertaintySupport,
+  derivePremiumUncertaintySupportSummary,
+} from "../../features/insights/premium-uncertainty-support";
+import type { PremiumUncertaintySupportSummary } from "../../features/insights/premium-uncertainty-support";
+import {
+  canAccessPremiumNonlinearitySupport,
+  derivePremiumNonlinearitySupportSummary,
+} from "../../features/insights/premium-nonlinearity-support";
+import type { PremiumNonlinearitySupportSummary } from "../../features/insights/premium-nonlinearity-support";
+import {
+  canAccessPremiumOverloadRecovery,
+  derivePremiumOverloadRecoverySummary,
+} from "../../features/insights/premium-overload-recovery";
+import type { PremiumOverloadRecoverySummary } from "../../features/insights/premium-overload-recovery";
+import {
+  canAccessPremiumFearRecovery,
+  derivePremiumFearRecoverySummary,
+} from "../../features/insights/premium-fear-recovery";
+import type { PremiumFearRecoverySummary } from "../../features/insights/premium-fear-recovery";
+import {
+  canAccessPremiumFutureFear,
+  derivePremiumFutureFearSummary,
+} from "../../features/insights/premium-future-fear";
+import type { PremiumFutureFearSummary } from "../../features/insights/premium-future-fear";
+import {
+  canAccessPremiumFutureFearRecovery,
+  derivePremiumFutureFearRecoverySummary,
+} from "../../features/insights/premium-future-fear-recovery";
+import type { PremiumFutureFearRecoverySummary } from "../../features/insights/premium-future-fear-recovery";
+import {
+  canAccessPremiumLossGriefSupport,
+  derivePremiumLossGriefSupportSummary,
+} from "../../features/insights/premium-loss-grief-support";
+import type { PremiumLossGriefSupportSummary } from "../../features/insights/premium-loss-grief-support";
+import {
+  canAccessPremiumFlareSupport,
+  derivePremiumFlareSupportSummary,
+} from "../../features/insights/premium-flare-support";
+import type { PremiumFlareSupportSummary } from "../../features/insights/premium-flare-support";
+import {
+  canAccessPremiumEmotionalSpaciousness,
+  derivePremiumEmotionalSpaciousnessSummary,
+} from "../../features/insights/premium-emotional-spaciousness";
+import type { PremiumEmotionalSpaciousnessSummary } from "../../features/insights/premium-emotional-spaciousness";
+import {
+  canAccessPremiumBreathingRoomSupport,
+  derivePremiumBreathingRoomSupportSummary,
+} from "../../features/insights/premium-breathing-room-support";
+import type { PremiumBreathingRoomSupportSummary } from "../../features/insights/premium-breathing-room-support";
+import {
+  canAccessPremiumEmotionalCollapseSupport,
+  derivePremiumEmotionalCollapseSupportSummary,
+} from "../../features/insights/premium-emotional-collapse-support";
+import type { PremiumEmotionalCollapseSupportSummary } from "../../features/insights/premium-emotional-collapse-support";
+import {
+  canAccessPremiumQuietHope,
+  derivePremiumQuietHopeSummary,
+} from "../../features/insights/premium-quiet-hope";
+import type { PremiumQuietHopeSummary } from "../../features/insights/premium-quiet-hope";
+import {
+  canAccessPremiumEmotionalNumbness,
+  derivePremiumEmotionalNumbnessSummary,
+} from "../../features/insights/premium-emotional-numbness";
+import type { PremiumEmotionalNumbnessSummary } from "../../features/insights/premium-emotional-numbness";
+import {
+  canAccessPremiumLifeReconnection,
+  derivePremiumLifeReconnectionSummary,
+} from "../../features/insights/premium-life-reconnection";
+import type { PremiumLifeReconnectionSummary } from "../../features/insights/premium-life-reconnection";
+import {
+  canAccessPremiumIsolationSupport,
+  derivePremiumIsolationSupportSummary,
+} from "../../features/insights/premium-isolation-support";
+import type { PremiumIsolationSupportSummary } from "../../features/insights/premium-isolation-support";
+import {
+  canAccessPremiumIdentityRecovery,
+  derivePremiumIdentityRecoverySummary,
+} from "../../features/insights/premium-identity-recovery";
+import type { PremiumIdentityRecoverySummary } from "../../features/insights/premium-identity-recovery";
+import {
+  canAccessPremiumSelfForgiveness,
+  derivePremiumSelfForgivenessSummary,
+} from "../../features/insights/premium-self-forgiveness";
+import type { PremiumSelfForgivenessSummary } from "../../features/insights/premium-self-forgiveness";
+import {
+  canAccessPremiumIdentityContinuity,
+  derivePremiumIdentityContinuitySummary,
+} from "../../features/insights/premium-identity-continuity";
+import type { PremiumIdentityContinuitySummary } from "../../features/insights/premium-identity-continuity";
+import {
+  canAccessPremiumCalmCommunity,
+  derivePremiumCalmCommunitySummary,
+} from "../../features/insights/premium-calm-community";
+import type { PremiumCalmCommunitySummary } from "../../features/insights/premium-calm-community";
+import {
+  canAccessPremiumLongTermStability,
+  derivePremiumLongTermStabilitySummary,
+} from "../../features/insights/premium-long-term-stability";
+import type { PremiumLongTermStabilitySummary } from "../../features/insights/premium-long-term-stability";
+import {
+  canAccessPremiumRebuildingSupport,
+  derivePremiumRebuildingSupportSummary,
+} from "../../features/insights/premium-rebuilding-support";
+import type { PremiumRebuildingSupportSummary } from "../../features/insights/premium-rebuilding-support";
+import {
+  canAccessPremiumSetbackStability,
+  derivePremiumSetbackStabilitySummary,
+} from "../../features/insights/premium-setback-stability";
+import type { PremiumSetbackStabilitySummary } from "../../features/insights/premium-setback-stability";
+import {
+  canAccessPremiumImperfectDays,
+  derivePremiumImperfectDaysSummary,
+} from "../../features/insights/premium-imperfect-days";
+import type { PremiumImperfectDaysSummary } from "../../features/insights/premium-imperfect-days";
+import { applyLowEnergyModeOverride, useLowEnergyMode } from "../../features/low-energy-mode/hooks";
 import { buildAdaptiveProfile } from "../../features/adaptive/logic";
+import { canAccessPremiumFeature } from "../../features/premium/entitlements";
+import { usePremium } from "../../features/premium/hooks";
+import { derivePremiumAdaptiveSupport } from "../../features/premium/adaptive-support";
+import { deriveLowEnergyAssist } from "../../features/premium/low-energy-assist";
 import BestWorstDayInsightCard from "./BestWorstDayInsightCard";
 import { getErrorMessage } from "../../lib/errors";
 import CorrelationCard from "./CorrelationCard";
@@ -95,10 +285,1957 @@ function getCutoffDate(days: number) {
   return cutoff.toISOString().slice(0, 10);
 }
 
+function shortenLowEnergyText(text: string, maxLength: number) {
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  const trimmed = text.slice(0, maxLength);
+  const lastPeriodIndex = trimmed.lastIndexOf(".");
+  if (lastPeriodIndex >= Math.floor(maxLength * 0.55)) {
+    return trimmed.slice(0, lastPeriodIndex + 1).trim();
+  }
+
+  const lastSpaceIndex = trimmed.lastIndexOf(" ");
+  return `${trimmed.slice(0, lastSpaceIndex > 0 ? lastSpaceIndex : maxLength).trim()}…`;
+}
+
+function PremiumReflectionCard({ summary }: { summary: PremiumReflectionSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>
+        {summary.window === "weekly" ? "This week at a glance" : "This month at a glance"}
+      </AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Patterns worth noticing</AppText>
+            <View style={styles.helpingSection}>
+              {summary.patternsWorthNoticing.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Things that seemed steadier</AppText>
+            <View style={styles.helpingSection}>
+              {summary.thingsThatSeemedSteadier.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>
+              {summary.window === "weekly" ? "What may help next week" : "What may help next"}
+            </AppText>
+            <View style={styles.helpingSection}>
+              {summary.whatMayHelpNext.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuitySummary}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuitySummary}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumContinuityCard({ summary }: { summary: PremiumContinuitySummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Patterns worth noticing</AppText>
+            <View style={styles.helpingSection}>
+              {summary.patternsWorthNoticing.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Things that brought calm</AppText>
+            <View style={styles.helpingSection}>
+              {summary.thingsThatBroughtCalm.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>What may help next</AppText>
+            <View style={styles.helpingSection}>
+              {summary.whatMayHelpNext.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Life beyond symptoms</AppText>
+            <View style={styles.helpingSection}>
+              {summary.lifeBeyondSymptoms.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          {summary.meaningfulMoments.length > 0 ? (
+            <View style={styles.premiumReflectionSection}>
+              <AppText style={styles.premiumReflectionKicker}>Meaningful moments</AppText>
+              <View style={styles.helpingSection}>
+                {summary.meaningfulMoments.map((moment) => (
+                  <View key={moment.title} style={styles.meaningfulMomentCard}>
+                    <AppText style={styles.meaningfulMomentTitle}>{moment.title}</AppText>
+                    <AppText style={styles.helpingText}>{moment.body}</AppText>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
+          <AppText style={styles.contextNote}>{summary.continuityReflection}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityReflection}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumHumanClarityCard({ summary }: { summary: PremiumHumanClaritySummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>What may be happening lately</AppText>
+            <View style={styles.helpingSection}>
+              {summary.whatMayBeHappeningLately.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>What appears steadier</AppText>
+            <View style={styles.helpingSection}>
+              {summary.whatAppearsSteadier.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>What may deserve less pressure</AppText>
+            <View style={styles.helpingSection}>
+              {summary.whatMayDeserveLessPressure.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumForwardStabilityCard({ summary }: { summary: PremiumForwardStabilitySummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Difficult-week grounding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.difficultWeekGrounding.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>What may help with uncertainty</AppText>
+            <View style={styles.helpingSection}>
+              {summary.whatMayHelpWithUncertainty.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>One day at a time</AppText>
+            <View style={styles.helpingSection}>
+              {summary.oneDayAtATimeSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumMeaningfulLifeCard({ summary }: { summary: PremiumMeaningfulLifeSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Ordinary-life grounding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.ordinaryLifeGrounding.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Meaningful routines</AppText>
+            <View style={styles.helpingSection}>
+              {summary.meaningfulRoutines.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Emotional spaciousness</AppText>
+            <View style={styles.helpingSection}>
+              {summary.emotionalSpaciousness.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumMeaningSupportCard({ summary }: { summary: PremiumMeaningSupportSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>What still matters</AppText>
+            <View style={styles.helpingSection}>
+              {summary.whatStillMatters.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Smaller meaningful moments</AppText>
+            <View style={styles.helpingSection}>
+              {summary.smallerMeaningSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Emotional spaciousness</AppText>
+            <View style={styles.helpingSection}>
+              {summary.emotionalSpaciousness.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumEverydayLifeRebuildingCard({
+  summary,
+}: {
+  summary: PremiumEverydayLifeRebuildingSummary;
+}) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Gentle re-entry</AppText>
+            <View style={styles.helpingSection}>
+              {summary.gentleReentrySupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Reduced-pressure daily life</AppText>
+            <View style={styles.helpingSection}>
+              {summary.reducedPressureDailyLifeSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Ordinary-life grounding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.ordinaryLifeGroundingSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumSelfReconnectionSupportCard({
+  summary,
+}: {
+  summary: PremiumSelfReconnectionSupportSummary;
+}) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Gentle self-reconnection</AppText>
+            <View style={styles.helpingSection}>
+              {summary.gentleSelfReconnectionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Reduced identity pressure</AppText>
+            <View style={styles.helpingSection}>
+              {summary.reducedIdentityPressureSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Ordinary-life reconnection</AppText>
+            <View style={styles.helpingSection}>
+              {summary.ordinaryLifeReconnectionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumExistentialGroundingCard({
+  summary,
+}: {
+  summary: PremiumExistentialGroundingSummary;
+}) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Existential grounding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.existentialGroundingSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Reduced existential pressure</AppText>
+            <View style={styles.helpingSection}>
+              {summary.reducedExistentialPressureSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Ordinary-life anchoring</AppText>
+            <View style={styles.helpingSection}>
+              {summary.ordinaryLifeAnchoringSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumReorientationSupportCard({ summary }: { summary: PremiumReorientationSupportSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Gentle reorientation</AppText>
+            <View style={styles.helpingSection}>
+              {summary.gentleReorientationSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Reduced-pressure direction</AppText>
+            <View style={styles.helpingSection}>
+              {summary.reducedPressureDirectionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Smaller focus grounding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.smallerFocusGroundingSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumQuietConfidenceCard({ summary }: { summary: PremiumQuietConfidenceSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Self-trust support</AppText>
+            <View style={styles.helpingSection}>
+              {summary.selfTrustSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Emotional steadiness support</AppText>
+            <View style={styles.helpingSection}>
+              {summary.emotionalSteadinessSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Smaller stability support</AppText>
+            <View style={styles.helpingSection}>
+              {summary.smallerStabilitySupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumUncertaintySupportCard({ summary }: { summary: PremiumUncertaintySupportSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>"What if" decompression</AppText>
+            <View style={styles.helpingSection}>
+              {summary.whatIfDecompression.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Grounding during uncertainty</AppText>
+            <View style={styles.helpingSection}>
+              {summary.groundingDuringUncertainty.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Smaller focus support</AppText>
+            <View style={styles.helpingSection}>
+              {summary.smallerFocusSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumOverloadRecoveryCard({ summary }: { summary: PremiumOverloadRecoverySummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Social decompression support</AppText>
+            <View style={styles.helpingSection}>
+              {summary.socialDecompressionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Overstimulation recovery</AppText>
+            <View style={styles.helpingSection}>
+              {summary.overstimulationRecovery.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Quiet recovery tools</AppText>
+            <View style={styles.helpingSection}>
+              {summary.quietRecoveryTools.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumFearRecoveryCard({ summary }: { summary: PremiumFearRecoverySummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Grounding after fear</AppText>
+            <View style={styles.helpingSection}>
+              {summary.groundingAfterFear.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Health-anxiety decompression</AppText>
+            <View style={styles.helpingSection}>
+              {summary.healthAnxietyDecompression.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Slow things down</AppText>
+            <View style={styles.helpingSection}>
+              {summary.slowThingsDownSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumFlareSupportCard({ summary }: { summary: PremiumFlareSupportSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Grounding during heavier days</AppText>
+            <View style={styles.helpingSection}>
+              {summary.groundingDuringHeavierDays.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Symptom-overwhelm decompression</AppText>
+            <View style={styles.helpingSection}>
+              {summary.symptomOverwhelmDecompression.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Simplify today</AppText>
+            <View style={styles.helpingSection}>
+              {summary.simplifyTodaySupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumEmotionalSpaciousnessCard({ summary }: { summary: PremiumEmotionalSpaciousnessSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Reduce pressure</AppText>
+            <View style={styles.helpingSection}>
+              {summary.pressureReductionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Coexist with uncertainty</AppText>
+            <View style={styles.helpingSection}>
+              {summary.coexistenceWithUncertainty.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Smaller emotional load</AppText>
+            <View style={styles.helpingSection}>
+              {summary.smallerEmotionalLoadSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumBreathingRoomSupportCard({ summary }: { summary: PremiumBreathingRoomSupportSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Urgency reduction</AppText>
+            <View style={styles.helpingSection}>
+              {summary.urgencyReductionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Slower pacing</AppText>
+            <View style={styles.helpingSection}>
+              {summary.nervousSystemPacingSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Smaller emotional load</AppText>
+            <View style={styles.helpingSection}>
+              {summary.smallerEmotionalLoadSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumQuietHopeCard({ summary }: { summary: PremiumQuietHopeSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Emotional recovery</AppText>
+            <View style={styles.helpingSection}>
+              {summary.emotionalRecoverySupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Discouragement decompression</AppText>
+            <View style={styles.helpingSection}>
+              {summary.discouragementDecompression.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Small steadiness</AppText>
+            <View style={styles.helpingSection}>
+              {summary.smallSteadinessSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumEmotionalCollapseSupportCard({
+  summary,
+}: {
+  summary: PremiumEmotionalCollapseSupportSummary;
+}) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Emotional-overwhelm grounding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.emotionalCollapseGrounding.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Overwhelm decompression</AppText>
+            <View style={styles.helpingSection}>
+              {summary.overwhelmDecompressionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Smaller emotional load</AppText>
+            <View style={styles.helpingSection}>
+              {summary.smallerEmotionalLoadSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumLifeReconnectionCard({ summary }: { summary: PremiumLifeReconnectionSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Gentle re-engagement</AppText>
+            <View style={styles.helpingSection}>
+              {summary.gentleReengagementSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Emotional shutdown</AppText>
+            <View style={styles.helpingSection}>
+              {summary.emotionalShutdownSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Small meaningful moments</AppText>
+            <View style={styles.helpingSection}>
+              {summary.smallMeaningfulMomentSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumEmotionalNumbnessCard({ summary }: { summary: PremiumEmotionalNumbnessSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Gentle disconnection support</AppText>
+            <View style={styles.helpingSection}>
+              {summary.gentleDisconnectionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Ordinary-life grounding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.ordinaryLifeGroundingSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Gentle reconnection</AppText>
+            <View style={styles.helpingSection}>
+              {summary.gentleReconnectionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumIsolationSupportCard({ summary }: { summary: PremiumIsolationSupportSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Loneliness grounding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.lonelinessGroundingSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Low-pressure reconnection</AppText>
+            <View style={styles.helpingSection}>
+              {summary.lowPressureReconnectionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Smaller forms of connection</AppText>
+            <View style={styles.helpingSection}>
+              {summary.smallerConnectionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumIdentityContinuityCard({ summary }: { summary: PremiumIdentityContinuitySummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Self-connection support</AppText>
+            <View style={styles.helpingSection}>
+              {summary.selfConnectionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Grounding through change</AppText>
+            <View style={styles.helpingSection}>
+              {summary.groundingThroughChangeSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Ordinary-life continuity</AppText>
+            <View style={styles.helpingSection}>
+              {summary.ordinaryLifeContinuitySupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumSelfForgivenessCard({ summary }: { summary: PremiumSelfForgivenessSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Gentle self-forgiveness</AppText>
+            <View style={styles.helpingSection}>
+              {summary.gentleSelfForgivenessSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Guilt decompression</AppText>
+            <View style={styles.helpingSection}>
+              {summary.guiltDecompressionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Smaller capacity still matters</AppText>
+            <View style={styles.helpingSection}>
+              {summary.smallerCapacitySupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumNonlinearitySupportCard({ summary }: { summary: PremiumNonlinearitySupportSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Gentle coexistence</AppText>
+            <View style={styles.helpingSection}>
+              {summary.gentleCoexistenceSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Reduced rigidity</AppText>
+            <View style={styles.helpingSection}>
+              {summary.reducedRigiditySupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Steadiness without perfection</AppText>
+            <View style={styles.helpingSection}>
+              {summary.steadinessWithoutPerfectionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumFutureFearCard({ summary }: { summary: PremiumFutureFearSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Future-fear grounding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.futureFearGrounding.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Identity-fear decompression</AppText>
+            <View style={styles.helpingSection}>
+              {summary.identityFearDecompression.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Still connected to life</AppText>
+            <View style={styles.helpingSection}>
+              {summary.stillConnectedToLifeSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumFutureFearRecoveryCard({
+  summary,
+}: {
+  summary: PremiumFutureFearRecoverySummary;
+}) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Future-fear grounding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.futureFearGroundingSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Reduced catastrophic thinking</AppText>
+            <View style={styles.helpingSection}>
+              {summary.reducedCatastrophicThinkingSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Still grounded today</AppText>
+            <View style={styles.helpingSection}>
+              {summary.stillGroundedTodaySupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumSelfTrustStabilityCard({ summary }: { summary: PremiumSelfTrustStabilitySummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Self-trust rebuilding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.selfTrustRebuildingSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Reduced hypervigilance</AppText>
+            <View style={styles.helpingSection}>
+              {summary.reducedHypervigilanceSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Smaller steadiness still matters</AppText>
+            <View style={styles.helpingSection}>
+              {summary.smallerSteadinessSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumLossGriefSupportCard({ summary }: { summary: PremiumLossGriefSupportSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Grief-grounding support</AppText>
+            <View style={styles.helpingSection}>
+              {summary.griefGroundingSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Coexistence with loss</AppText>
+            <View style={styles.helpingSection}>
+              {summary.coexistenceWithLossSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Ordinary life still matters</AppText>
+            <View style={styles.helpingSection}>
+              {summary.ordinaryLifeStillMattersSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumLongTermStabilityCard({ summary }: { summary: PremiumLongTermStabilitySummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Gentle direction</AppText>
+            <View style={styles.helpingSection}>
+              {summary.gentleDirectionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Slow stability</AppText>
+            <View style={styles.helpingSection}>
+              {summary.slowStabilitySupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Grounding through ordinary life</AppText>
+            <View style={styles.helpingSection}>
+              {summary.groundingThroughOrdinaryLife.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumRebuildingSupportCard({ summary }: { summary: PremiumRebuildingSupportSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Gentle rebuilding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.gentleRebuildingSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Post-overwhelm decompression</AppText>
+            <View style={styles.helpingSection}>
+              {summary.postOverwhelmDecompression.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Gentle routine reconstruction</AppText>
+            <View style={styles.helpingSection}>
+              {summary.gentleRoutineReconstruction.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumSetbackStabilityCard({ summary }: { summary: PremiumSetbackStabilitySummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Regression-fear grounding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.regressionFearGrounding.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Discouragement decompression</AppText>
+            <View style={styles.helpingSection}>
+              {summary.discouragementDecompression.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Steadier perspective</AppText>
+            <View style={styles.helpingSection}>
+              {summary.steadierPerspectiveSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumImperfectDaysCard({ summary }: { summary: PremiumImperfectDaysSummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Imperfect-day grounding</AppText>
+            <View style={styles.helpingSection}>
+              {summary.imperfectDayGrounding.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Reduced all-or-nothing pressure</AppText>
+            <View style={styles.helpingSection}>
+              {summary.reducedAllOrNothingPressure.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Coexistence with imperfection</AppText>
+            <View style={styles.helpingSection}>
+              {summary.coexistenceWithImperfection.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumIdentityRecoveryCard({ summary }: { summary: PremiumIdentityRecoverySummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Self-compassion support</AppText>
+            <View style={styles.helpingSection}>
+              {summary.selfCompassionSupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Emotional recovery support</AppText>
+            <View style={styles.helpingSection}>
+              {summary.emotionalRecoverySupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Identity continuity support</AppText>
+            <View style={styles.helpingSection}>
+              {summary.identityContinuitySupport.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function PremiumCalmCommunityCard({ summary }: { summary: PremiumCalmCommunitySummary }) {
+  return (
+    <View style={styles.premiumReflectionCard}>
+      <AppText style={styles.premiumReflectionTitle}>{summary.title}</AppText>
+      <AppText style={styles.weeklySummaryBody}>
+        {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
+      </AppText>
+      {summary.hasEnoughData ? (
+        <>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Shared experiences</AppText>
+            <View style={styles.helpingSection}>
+              {summary.sharedExperiences.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>Gentle ways to respond</AppText>
+            <View style={styles.helpingSection}>
+              {summary.gentleInteractions.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.premiumReflectionSection}>
+            <AppText style={styles.premiumReflectionKicker}>How this stays calm</AppText>
+            <View style={styles.helpingSection}>
+              {summary.moderationNotes.map((item) => (
+                <View key={item} style={styles.helpingRow}>
+                  <AppText style={styles.helpingBullet}>•</AppText>
+                  <AppText style={styles.helpingText}>{item}</AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+          <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+        </>
+      ) : (
+        <AppText style={styles.contextNote}>{summary.continuityNote}</AppText>
+      )}
+    </View>
+  );
+}
+
+function addContinuityPdfSection(doc: jsPDF, title: string, lines: string[], startY: number) {
+  let y = startY;
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  if (y > pageHeight - 34) {
+    doc.addPage();
+    y = 18;
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(31, 41, 55);
+  doc.text(title, 16, y);
+  y += 8;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10.5);
+  doc.setTextColor(75, 85, 99);
+
+  for (const line of lines) {
+    const wrapped = doc.splitTextToSize(`• ${line}`, 176);
+    const neededHeight = wrapped.length * 5;
+    if (y + neededHeight > pageHeight - 16) {
+      doc.addPage();
+      y = 18;
+    }
+    doc.text(wrapped, 18, y);
+    y += neededHeight + 2;
+  }
+
+  return y + 3;
+}
+
+async function buildPremiumContinuityPdf(content: ReturnType<typeof buildPremiumContinuityExportContent>) {
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  doc.setFillColor(255, 244, 236);
+  doc.rect(0, 0, 210, 34, "F");
+  doc.setTextColor(31, 41, 55);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text(content.title, 16, 16);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(75, 85, 99);
+  doc.text(content.subtitle, 16, 24, { maxWidth: 176 });
+  doc.text(
+    `Generated ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`,
+    16,
+    30,
+  );
+
+  let y = 42;
+  for (const section of content.sections) {
+    y = addContinuityPdfSection(doc, section.title, section.lines, y);
+  }
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(107, 114, 128);
+  const footer = doc.splitTextToSize(
+    "This summary is meant to support reflection and conversations, not replace professional judgment.",
+    176,
+  );
+  if (y + footer.length * 5 > doc.internal.pageSize.getHeight() - 14) {
+    doc.addPage();
+    y = 20;
+  }
+  doc.text(footer, 16, y);
+
+  const dataUri = doc.output("datauristring");
+  const base64 = dataUri.split(",")[1];
+
+  if (!base64 || !FileSystem.cacheDirectory) {
+    throw new Error("Continuity export is not ready just yet.");
+  }
+
+  const fileUri = `${FileSystem.cacheDirectory}${content.fileName}`;
+  await FileSystem.writeAsStringAsync(fileUri, base64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+
+  return fileUri;
+}
+
 export default function InsightsScreen() {
   const { user } = useAuth();
+  const lowEnergyMode = useLowEnergyMode();
+  const premium = usePremium();
   const [range, setRange] = useState<7 | 30>(7);
-  const historyQuery = useCheckInHistory(user?.id, 30);
+  const [showVisualDetails, setShowVisualDetails] = useState(false);
+  const [showAiDetails, setShowAiDetails] = useState(false);
+  const [showMonthlyReflection, setShowMonthlyReflection] = useState(false);
+  const [showSeasonalContinuity, setShowSeasonalContinuity] = useState(false);
+  const [showYearlyContinuity, setShowYearlyContinuity] = useState(false);
+  const [isSharingContinuitySummary, setIsSharingContinuitySummary] = useState(false);
+  const [isExportingContinuityPdf, setIsExportingContinuityPdf] = useState(false);
+  const [continuityFeedback, setContinuityFeedback] = useState<string | null>(null);
+  const historyQuery = useCheckInHistory(user?.id, 60);
   const growth = useGrowthState({
     totalCheckIns: historyQuery.data?.length ?? 0,
   });
@@ -136,15 +2273,129 @@ export default function InsightsScreen() {
   const aiSummaryQuery = useAiInsightsSummary(rangeEntries, range);
   const dashboard = useInsightsDashboard(historyQuery.data ?? [], patternSummaryQuery.data, range);
   useSlowScreenDiagnostics("insights", historyQuery.isLoading);
-  const visibleCorrelations = dashboard.correlations.filter((correlation) => correlation.show);
+  const visibleCorrelations = dashboard.correlations
+    .filter((correlation) => correlation.show)
+    .slice(0, lowEnergyMode.enabled ? 1 : undefined);
   const reflectionCount = useMemo(
     () => rangeEntries.filter((entry) => typeof entry.notes === "string" && entry.notes.trim().length > 0).length,
     [rangeEntries],
   );
   const consistencyRate = useMemo(() => Math.round((rangeEntries.length / range) * 100), [range, rangeEntries.length]);
   const adaptiveProfile = useMemo(
-    () => buildAdaptiveProfile(rangeEntries, rangeEntries.length),
-    [rangeEntries],
+    () => applyLowEnergyModeOverride(buildAdaptiveProfile(rangeEntries, rangeEntries.length), lowEnergyMode.enabled),
+    [lowEnergyMode.enabled, rangeEntries],
+  );
+  const hasLowEnergyAssist = useMemo(
+    () =>
+      canAccessPremiumFeature("low_energy_assist", {
+        subscriptionsEnabled: premium.subscriptionsEnabled,
+        hasPremiumAccess: premium.hasPremiumAccess,
+        premiumFeatureFlags: premium.premiumFeatureFlags,
+      }),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags, premium.subscriptionsEnabled],
+  );
+  const hasAdaptiveSupport = useMemo(
+    () =>
+      canAccessPremiumFeature("adaptive_support", {
+        subscriptionsEnabled: premium.subscriptionsEnabled,
+        hasPremiumAccess: premium.hasPremiumAccess,
+        premiumFeatureFlags: premium.premiumFeatureFlags,
+      }),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags, premium.subscriptionsEnabled],
+  );
+  const lowEnergyAssist = useMemo(
+    () =>
+      deriveLowEnergyAssist({
+        hasPremiumAccess: premium.hasPremiumAccess,
+        featureEnabled: premium.premiumFeatureFlags.low_energy_assist,
+        lowEnergyModeEnabled: lowEnergyMode.enabled,
+        recentFatigueAverage: dashboard.weeklySummary.averageFatigue,
+        recentStressAverage: dashboard.weeklySummary.averageStress,
+        recentSleepAverage: dashboard.weeklySummary.averageSleep,
+        fatigueTrend: adaptiveProfile.fatigueTrend,
+        stressTrend: adaptiveProfile.stressTrend,
+        interactionTolerance: adaptiveProfile.lowEnergyMode ? "reduced" : "steady",
+      }),
+    [
+      adaptiveProfile.fatigueTrend,
+      adaptiveProfile.lowEnergyMode,
+      adaptiveProfile.stressTrend,
+      dashboard.weeklySummary.averageFatigue,
+      dashboard.weeklySummary.averageSleep,
+      dashboard.weeklySummary.averageStress,
+      lowEnergyMode.enabled,
+      premium.hasPremiumAccess,
+      premium.premiumFeatureFlags.low_energy_assist,
+    ],
+  );
+  const premiumAdaptiveSupport = useMemo(
+    () =>
+      derivePremiumAdaptiveSupport({
+        hasPremiumAccess: premium.hasPremiumAccess,
+        featureEnabled: premium.premiumFeatureFlags.adaptive_support,
+        lowEnergyModeEnabled: lowEnergyMode.enabled,
+        recentFatigueAverage: dashboard.weeklySummary.averageFatigue,
+        recentStressAverage: dashboard.weeklySummary.averageStress,
+        recentSleepAverage: dashboard.weeklySummary.averageSleep,
+        fatigueTrend: adaptiveProfile.fatigueTrend,
+        stressTrend: adaptiveProfile.stressTrend,
+        interactionTolerance: adaptiveProfile.lowEnergyMode ? "reduced" : "steady",
+        timeOfDay: "afternoon",
+      }),
+    [
+      adaptiveProfile.fatigueTrend,
+      adaptiveProfile.lowEnergyMode,
+      adaptiveProfile.stressTrend,
+      dashboard.weeklySummary.averageFatigue,
+      dashboard.weeklySummary.averageSleep,
+      dashboard.weeklySummary.averageStress,
+      lowEnergyMode.enabled,
+      premium.hasPremiumAccess,
+      premium.premiumFeatureFlags.adaptive_support,
+    ],
+  );
+  const visibleHelpingItems = useMemo(
+    () =>
+      (lowEnergyMode.enabled || lowEnergyAssist.active || (hasAdaptiveSupport && premiumAdaptiveSupport.active)
+        ? (aiSummaryQuery.data?.helping ?? []).slice(0, 1)
+        : aiSummaryQuery.data?.helping ?? []),
+    [aiSummaryQuery.data?.helping, hasAdaptiveSupport, lowEnergyAssist.active, lowEnergyMode.enabled, premiumAdaptiveSupport.active],
+  );
+  const visibleSuggestions = useMemo(
+    () =>
+      (aiSummaryQuery.data?.suggestions ?? []).slice(
+        0,
+        hasAdaptiveSupport && premiumAdaptiveSupport.active
+          ? Math.min(lowEnergyAssist.cognitiveLoad.maxSuggestions, premiumAdaptiveSupport.density.maxSuggestions)
+          : lowEnergyAssist.cognitiveLoad.maxSuggestions,
+      ),
+    [aiSummaryQuery.data?.suggestions, hasAdaptiveSupport, lowEnergyAssist.cognitiveLoad.maxSuggestions, premiumAdaptiveSupport.active, premiumAdaptiveSupport.density.maxSuggestions],
+  );
+  const visibleAiSummaryText = useMemo(
+    () =>
+      aiSummaryQuery.data?.summary
+        ? lowEnergyMode.enabled || lowEnergyAssist.active
+          ? shortenLowEnergyText(aiSummaryQuery.data.summary, lowEnergyAssist.active ? 160 : 200)
+          : aiSummaryQuery.data.summary
+        : null,
+    [aiSummaryQuery.data?.summary, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const weeklyMeaning = useMemo(() => deriveWeeklyMeaning(rangeEntries), [rangeEntries]);
+  const premiumReflections = useMemo(
+    () => derivePremiumReflectionSummaries(historyQuery.data ?? [], { lowEnergyMode: lowEnergyMode.enabled }),
+    [historyQuery.data, lowEnergyMode.enabled],
+  );
+  const canShowPremiumReflections = useMemo(
+    () =>
+      canAccessPremiumReflectionSummaries(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const recentInsightChanges = useMemo(
+    () => deriveRecentInsightChanges(dashboard.trends),
+    [dashboard.trends],
   );
   const lifeContext = useMemo(() => {
     const entriesForContext = rangeEntries.map((entry) => ({
@@ -168,6 +2419,513 @@ export default function InsightsScreen() {
   const journeySnapshot = useMemo(
     () => buildJourneySnapshot(longitudinalEntries),
     [longitudinalEntries],
+  );
+  const premiumContinuity = useMemo(
+    () =>
+      derivePremiumContinuitySnapshots(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumHumanClarity = useMemo(
+    () =>
+      derivePremiumHumanClaritySummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumForwardStability = useMemo(
+    () =>
+      derivePremiumForwardStabilitySummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumMeaningfulLife = useMemo(
+    () =>
+      derivePremiumMeaningfulLifeSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumEverydayLifeRebuilding = useMemo(
+    () =>
+      derivePremiumEverydayLifeRebuildingSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumSelfReconnectionSupport = useMemo(
+    () =>
+      derivePremiumSelfReconnectionSupportSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumMeaningSupport = useMemo(
+    () =>
+      derivePremiumMeaningSupportSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumExistentialGrounding = useMemo(
+    () =>
+      derivePremiumExistentialGroundingSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumReorientationSupport = useMemo(
+    () =>
+      derivePremiumReorientationSupportSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumQuietConfidence = useMemo(
+    () =>
+      derivePremiumQuietConfidenceSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumSelfTrustStability = useMemo(
+    () =>
+      derivePremiumSelfTrustStabilitySummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumUncertaintySupport = useMemo(
+    () =>
+      derivePremiumUncertaintySupportSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumNonlinearitySupport = useMemo(
+    () =>
+      derivePremiumNonlinearitySupportSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumOverloadRecovery = useMemo(
+    () =>
+      derivePremiumOverloadRecoverySummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumFearRecovery = useMemo(
+    () =>
+      derivePremiumFearRecoverySummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumFutureFear = useMemo(
+    () =>
+      derivePremiumFutureFearSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumFutureFearRecovery = useMemo(
+    () =>
+      derivePremiumFutureFearRecoverySummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumLossGriefSupport = useMemo(
+    () =>
+      derivePremiumLossGriefSupportSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumFlareSupport = useMemo(
+    () =>
+      derivePremiumFlareSupportSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumEmotionalSpaciousness = useMemo(
+    () =>
+      derivePremiumEmotionalSpaciousnessSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumBreathingRoomSupport = useMemo(
+    () =>
+      derivePremiumBreathingRoomSupportSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumEmotionalCollapseSupport = useMemo(
+    () =>
+      derivePremiumEmotionalCollapseSupportSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumQuietHope = useMemo(
+    () =>
+      derivePremiumQuietHopeSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumEmotionalNumbness = useMemo(
+    () =>
+      derivePremiumEmotionalNumbnessSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumLifeReconnection = useMemo(
+    () =>
+      derivePremiumLifeReconnectionSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumIsolationSupport = useMemo(
+    () =>
+      derivePremiumIsolationSupportSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumIdentityRecovery = useMemo(
+    () =>
+      derivePremiumIdentityRecoverySummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumSelfForgiveness = useMemo(
+    () =>
+      derivePremiumSelfForgivenessSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumIdentityContinuity = useMemo(
+    () =>
+      derivePremiumIdentityContinuitySummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumLongTermStability = useMemo(
+    () =>
+      derivePremiumLongTermStabilitySummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumRebuildingSupport = useMemo(
+    () =>
+      derivePremiumRebuildingSupportSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumSetbackStability = useMemo(
+    () =>
+      derivePremiumSetbackStabilitySummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const premiumImperfectDays = useMemo(
+    () =>
+      derivePremiumImperfectDaysSummary(historyQuery.data ?? [], journeySnapshot, {
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [historyQuery.data, journeySnapshot, lowEnergyAssist.active, lowEnergyMode.enabled],
+  );
+  const canShowPremiumContinuity = useMemo(
+    () =>
+      canAccessPremiumContinuity(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumHumanClarity = useMemo(
+    () =>
+      canAccessPremiumHumanClarity(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumForwardStability = useMemo(
+    () =>
+      canAccessPremiumForwardStability(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumMeaningfulLife = useMemo(
+    () =>
+      canAccessPremiumMeaningfulLife(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumEverydayLifeRebuilding = useMemo(
+    () =>
+      canAccessPremiumEverydayLifeRebuilding(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumSelfReconnectionSupport = useMemo(
+    () =>
+      canAccessPremiumSelfReconnectionSupport(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumMeaningSupport = useMemo(
+    () =>
+      canAccessPremiumMeaningSupport(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumExistentialGrounding = useMemo(
+    () =>
+      canAccessPremiumExistentialGrounding(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumReorientationSupport = useMemo(
+    () =>
+      canAccessPremiumReorientationSupport(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumQuietConfidence = useMemo(
+    () =>
+      canAccessPremiumQuietConfidence(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumSelfTrustStability = useMemo(
+    () =>
+      canAccessPremiumSelfTrustStability(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumUncertaintySupport = useMemo(
+    () =>
+      canAccessPremiumUncertaintySupport(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumNonlinearitySupport = useMemo(
+    () =>
+      canAccessPremiumNonlinearitySupport(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumOverloadRecovery = useMemo(
+    () =>
+      canAccessPremiumOverloadRecovery(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumFearRecovery = useMemo(
+    () =>
+      canAccessPremiumFearRecovery(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumFutureFear = useMemo(
+    () =>
+      canAccessPremiumFutureFear(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumFutureFearRecovery = useMemo(
+    () =>
+      canAccessPremiumFutureFearRecovery(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumLossGriefSupport = useMemo(
+    () =>
+      canAccessPremiumLossGriefSupport(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumFlareSupport = useMemo(
+    () =>
+      canAccessPremiumFlareSupport(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumEmotionalSpaciousness = useMemo(
+    () =>
+      canAccessPremiumEmotionalSpaciousness(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumBreathingRoomSupport = useMemo(
+    () =>
+      canAccessPremiumBreathingRoomSupport(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumEmotionalCollapseSupport = useMemo(
+    () =>
+      canAccessPremiumEmotionalCollapseSupport(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumQuietHope = useMemo(
+    () =>
+      canAccessPremiumQuietHope(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumEmotionalNumbness = useMemo(
+    () =>
+      canAccessPremiumEmotionalNumbness(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumLifeReconnection = useMemo(
+    () =>
+      canAccessPremiumLifeReconnection(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumIsolationSupport = useMemo(
+    () =>
+      canAccessPremiumIsolationSupport(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumIdentityRecovery = useMemo(
+    () =>
+      canAccessPremiumIdentityRecovery(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumSelfForgiveness = useMemo(
+    () =>
+      canAccessPremiumSelfForgiveness(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumIdentityContinuity = useMemo(
+    () =>
+      canAccessPremiumIdentityContinuity(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumLongTermStability = useMemo(
+    () =>
+      canAccessPremiumLongTermStability(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumRebuildingSupport = useMemo(
+    () =>
+      canAccessPremiumRebuildingSupport(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumSetbackStability = useMemo(
+    () =>
+      canAccessPremiumSetbackStability(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumImperfectDays = useMemo(
+    () =>
+      canAccessPremiumImperfectDays(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.advanced_ai_insights,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.advanced_ai_insights],
+  );
+  const canShowPremiumCalmCommunity = useMemo(
+    () =>
+      canAccessPremiumCalmCommunity(
+        premium.hasPremiumAccess,
+        premium.premiumFeatureFlags.calm_community_support,
+      ),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags.calm_community_support],
+  );
+  const continuityExport = useMemo(
+    () => buildPremiumContinuityExportContent(premiumContinuity),
+    [premiumContinuity],
   );
   const uncertaintySafety = useMemo(
     () =>
@@ -203,15 +2961,15 @@ export default function InsightsScreen() {
   );
   const adaptiveInsightNote = useMemo(() => {
     if (rangeEntries.length < 3) {
-      return "A few more check-ins will help this view feel clearer and steadier.";
+      return "Patterns can become clearer over time.";
     }
 
     if (adaptiveProfile.engagementPattern === "steady") {
-      return "Your steadier check-ins are helping patterns become easier to notice.";
+      return "This stretch has a little more context now.";
     }
 
     if (adaptiveProfile.stressTrend === "elevated") {
-      return "This week may be worth reading through a calmer lens, especially where stress shows up.";
+      return "This week may be easier to read through a calmer lens.";
     }
 
     if (adaptiveProfile.sleepTrend === "low") {
@@ -219,10 +2977,10 @@ export default function InsightsScreen() {
     }
 
     if (adaptiveProfile.brainFogTrend === "high") {
-      return "Clarity may be taking more effort lately, so it may help to read these patterns in a simpler, gentler way.";
+      return "Clarity may be taking more effort lately, so a simpler read may help.";
     }
 
-    return "Small patterns are starting to gather into a clearer picture.";
+    return "Small patterns are starting to feel easier to notice.";
   }, [adaptiveProfile, rangeEntries.length]);
   const cognitiveBurden = useMemo(
     () =>
@@ -717,6 +3475,32 @@ export default function InsightsScreen() {
     humanConnection.seasonalResonance,
     visibleCorrelations.length,
   ]);
+  const premiumCalmCommunity = useMemo(
+    () =>
+      derivePremiumCalmCommunitySummary({
+        hasPremiumAccess: premium.hasPremiumAccess,
+        featureEnabled: premium.premiumFeatureFlags.calm_community_support,
+        density: communityEcosystem.density,
+        safeSpaces: communityEcosystem.safeSpaces,
+        lowPressureTopics: communityEcosystem.lowPressureTopics,
+        sharedHumanThemes: communityEcosystem.sharedHumanThemes,
+        note: communityEcosystem.note,
+        fatigue: communityEcosystem.fatigue,
+        lowEnergyMode: lowEnergyMode.enabled || lowEnergyAssist.active,
+      }),
+    [
+      communityEcosystem.density,
+      communityEcosystem.fatigue,
+      communityEcosystem.lowPressureTopics,
+      communityEcosystem.note,
+      communityEcosystem.safeSpaces,
+      communityEcosystem.sharedHumanThemes,
+      lowEnergyAssist.active,
+      lowEnergyMode.enabled,
+      premium.hasPremiumAccess,
+      premium.premiumFeatureFlags.calm_community_support,
+    ],
+  );
   const visibleCorrelationsQuiet = useMemo(
     () =>
       visibleCorrelations.slice(
@@ -725,7 +3509,11 @@ export default function InsightsScreen() {
           requestedCount: reduceInsightAmplification({
             requestedCount: reduceObsessivePatternSurfacing({
               trackingIntensity: uncertaintySafety.trackingIntensity,
-              requestedCount: Math.min(insightClustering.maxCorrelations, coherenceDensityLimits.maxInsightCards),
+              requestedCount: Math.min(
+                insightClustering.maxCorrelations,
+                coherenceDensityLimits.maxInsightCards,
+                lowEnergyAssist.cognitiveLoad.maxCorrelationCards,
+              ),
             }),
             emotionalLoad: existentialEmotionalLoad,
             recursiveDistress,
@@ -746,11 +3534,21 @@ export default function InsightsScreen() {
       coherenceDensityLimits.maxInsightCards,
       existentialEmotionalLoad,
       insightClustering.maxCorrelations,
+      lowEnergyAssist.cognitiveLoad.maxCorrelationCards,
       recursiveDistress,
       uncertaintySafety.trackingIntensity,
       visibleCorrelations,
     ],
   );
+  const patternsWorthNoticing = useMemo(
+    () => derivePatternsWorthNoticing(visibleCorrelationsQuiet),
+    [visibleCorrelationsQuiet],
+  );
+  const smallNextSteps = useMemo(
+    () => deriveSmallNextSteps(rangeEntries, [...weeklyMeaning.suggestions, ...visibleSuggestions]),
+    [rangeEntries, visibleSuggestions, weeklyMeaning.suggestions],
+  );
+  const aiFallbackMessage = useMemo(() => deriveLocalAiFallbackMessage(), []);
   const selfTrustRisk = useMemo(
     () =>
       detectOverinterpretationRisk({
@@ -872,6 +3670,16 @@ export default function InsightsScreen() {
   }, [existentialEmotionalLoad, journeySnapshot, range, reflectionCount]);
 
   useEffect(() => {
+    if (lowEnergyMode.enabled || lowEnergyAssist.active) {
+      setShowVisualDetails(false);
+      setShowAiDetails(false);
+      setShowMonthlyReflection(false);
+      setShowSeasonalContinuity(false);
+      setShowYearlyContinuity(false);
+    }
+  }, [lowEnergyAssist.active, lowEnergyMode.enabled]);
+
+  useEffect(() => {
     if (!aiSummaryQuery.data?.summary) {
       return;
     }
@@ -939,12 +3747,52 @@ export default function InsightsScreen() {
     });
   };
 
+  const handleShareContinuitySummary = async () => {
+    try {
+      setIsSharingContinuitySummary(true);
+      setContinuityFeedback(null);
+      await Share.share({
+        message: continuityExport.text,
+      });
+      void growth.recordEvent("export_used", {
+        range,
+        source: "premium_continuity_summary",
+      });
+      setContinuityFeedback("Your continuity summary is ready whenever you want to share it.");
+    } catch {
+      setContinuityFeedback("Something may need another moment before sharing.");
+    } finally {
+      setIsSharingContinuitySummary(false);
+    }
+  };
+
+  const handleExportContinuityPdf = async () => {
+    try {
+      setIsExportingContinuityPdf(true);
+      setContinuityFeedback(null);
+      const fileUri = await buildPremiumContinuityPdf(continuityExport);
+      await Share.share({
+        url: fileUri,
+        message: continuityExport.title,
+      });
+      void growth.recordEvent("export_used", {
+        range,
+        source: "premium_continuity_pdf",
+      });
+      setContinuityFeedback("Your continuity PDF is ready to share.");
+    } catch {
+      setContinuityFeedback("Your continuity PDF may need another moment.");
+    } finally {
+      setIsExportingContinuityPdf(false);
+    }
+  };
+
   if (!user?.id) {
-    return <ErrorState message="You need to be signed in to view insights." />;
+    return <ErrorState message="Insights are available once you’re signed in." />;
   }
 
   if (historyQuery.isLoading) {
-    return <LoadingState message="Loading insights..." />;
+    return <LoadingState message="Bringing your insights into view..." />;
   }
 
   if (historyQuery.isError) {
@@ -961,14 +3809,25 @@ export default function InsightsScreen() {
 
   return (
     <AppScreen
+      eyebrow="Patterns and clarity"
       title="Insights"
-      subtitle="Your recent patterns, made a little easier to understand."
+      subtitle="A calmer view of recent patterns, shifts, and reflections."
     >
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          (lowEnergyMode.enabled || lowEnergyAssist.active) && styles.contentLowEnergy,
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.heroCard}>
           <AppText style={styles.heroTitle}>Your recent patterns</AppText>
-          <AppText style={styles.heroBody}>{dashboard.subtitle}</AppText>
-          <AppText style={styles.heroNote}>{adaptiveInsightNote}</AppText>
+          <AppText style={styles.heroBody}>
+            {hasAdaptiveSupport && premiumAdaptiveSupport.active ? premiumAdaptiveSupport.tone.supportLine : dashboard.subtitle}
+          </AppText>
+          <AppText style={styles.heroNote}>
+            {hasAdaptiveSupport && premiumAdaptiveSupport.active ? premiumAdaptiveSupport.lowEnergy.body : adaptiveInsightNote}
+          </AppText>
 
           <View style={styles.rangeToggle}>
             {[7, 30].map((option) => (
@@ -988,6 +3847,13 @@ export default function InsightsScreen() {
             ))}
           </View>
         </View>
+
+        {hasLowEnergyAssist && lowEnergyAssist.active ? (
+          <View style={styles.retentionCard}>
+            <AppText style={styles.retentionText}>{lowEnergyAssist.presentation.title}</AppText>
+            <AppText style={styles.sectionBody}>{lowEnergyAssist.presentation.body}</AppText>
+          </View>
+        ) : null}
 
         {lowStimulusSurface ? (
           <View style={styles.retentionCard}>
@@ -1028,37 +3894,14 @@ export default function InsightsScreen() {
           </View>
         ) : null}
 
-        <View style={styles.navCard}>
-          <AppText style={styles.sectionTitle}>
-            {decisionLoad === "high" ? "Keep navigation simple" : "Move between sections"}
-          </AppText>
-          <View style={styles.navButtons}>
-            {[
-              { label: "Go to Today", route: "/today" as const },
-              { label: "Go to Track", route: "/track" as const },
-              { label: "Go to Coach", route: "/coach" as const },
-              { label: "Health Summary", route: "/health-summary" as const },
-            ]
-              .slice(0, navigationPriority.maxVisibleRoutes)
-              .map((item) => (
-                <AppButton
-                  key={item.route}
-                  label={item.label}
-                  onPress={() => router.push(item.route)}
-                  variant="secondary"
-                />
-              ))}
-          </View>
-        </View>
-
         <View style={styles.takeawayCard}>
-          <AppText style={styles.takeawayTitle}>{dashboard.keyTakeaway.title}</AppText>
+          <AppText style={styles.takeawayTitle}>This week at a glance</AppText>
           <AppText style={styles.takeawayBody}>{dashboard.keyTakeaway.body}</AppText>
         </View>
 
         {insightClustering.showProgressSummary ? (
         <View style={styles.progressCard}>
-          <AppText style={styles.sectionTitle}>Progress at a glance</AppText>
+          <AppText style={styles.sectionTitle}>Helpful context</AppText>
           <View style={styles.progressGrid}>
             <View style={styles.progressPill}>
               <AppText style={styles.progressValue}>{rangeEntries.length}</AppText>
@@ -1080,99 +3923,6 @@ export default function InsightsScreen() {
           </AppText>
         </View>
         ) : null}
-
-        <View style={styles.aiCard}>
-          <AppText style={styles.takeawayTitle}>AI Summary</AppText>
-          {rangeEntries.length < 3 ? (
-            <AppText style={styles.takeawayBody}>A few more check-ins can make this summary clearer over time.</AppText>
-          ) : aiSummaryQuery.isLoading ? (
-            <AppText style={styles.takeawayBody}>Looking gently at your recent patterns…</AppText>
-          ) : aiSummaryQuery.isError ? (
-            <AppText style={styles.takeawayBody}>
-              This summary is taking a pause right now. You can still use Trends, Patterns, or Coach while things settle.
-            </AppText>
-          ) : (
-            <>
-              <AppText style={styles.takeawayBody}>{aiSummaryQuery.data?.summary}</AppText>
-              <View style={styles.helpingSection}>
-                <AppText style={styles.helpingTitle}>What may be helping</AppText>
-                {(aiSummaryQuery.data?.helping ?? []).map((item) => (
-                  <View key={item} style={styles.helpingRow}>
-                    <AppText style={styles.helpingBullet}>•</AppText>
-                    <AppText style={styles.helpingText}>{item}</AppText>
-                  </View>
-                ))}
-              </View>
-              {(aiSummaryQuery.data?.suggestions?.length ?? 0) > 0 ? (
-                <View style={styles.helpingSection}>
-                  <AppText style={styles.helpingTitle}>Gentle next steps</AppText>
-                  {(aiSummaryQuery.data?.suggestions ?? [])
-                    .slice(
-                      0,
-                      preventAdaptiveOverstacking({
-                        requestedCount: Math.min(
-                          selfTrustPresence.maxSuggestionCount,
-                          ethicalAiRestraint.maxSuggestionCount,
-                          coherenceAdaptive.maxAiSuggestions,
-                          coherencePromptLimits.maxAiSuggestions,
-                          metaOrchestration.interpretationLimits.maxAiSuggestions,
-                        ),
-                        maxAllowedCount: preventMetaOverstacking({
-                          requestedCount: coherenceRules.promptLoadLimit,
-                          adaptationIntensity: metaOrchestration.adaptationIntensity,
-                          hasAiVisible: Boolean(aiSummaryQuery.data?.summary),
-                          hasReflectionsVisible: visibleCorrelationsQuiet.length > 0,
-                        }),
-                        hasAiSummary: Boolean(aiSummaryQuery.data?.summary),
-                        hasReflectionCards: visibleCorrelationsQuiet.length > 0,
-                      }),
-                    )
-                    .map((item) => (
-                    <View key={item} style={styles.helpingRow}>
-                      <AppText style={styles.helpingBullet}>•</AppText>
-                      <AppText style={styles.helpingText}>{item}</AppText>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-              <AppText style={styles.contextNote}>
-                {aiSummaryQuery.data?.disclaimer
-                  ? `${aiSummaryQuery.data.disclaimer} Your summaries stay private.`
-                  : "Your summaries stay private. They are meant to support reflection, not provide medical conclusions."}
-              </AppText>
-              {selfTrustPresence.showPerspectiveNote ||
-              ethicalAiRestraint.transparencyOnly ||
-              coherenceRules.shouldUseNeutralBridge ||
-              metaOrchestration.unifiedState.preferNeutralBridge ||
-              metaPriority === "emotional-safety" ? (
-                <AppText style={styles.contextNote}>{intuitionSupportNote}</AppText>
-              ) : null}
-              {!hasRatedSummary ? (
-                <View style={styles.feedbackCard}>
-                  <AppText style={styles.feedbackTitle}>Was this summary helpful?</AppText>
-                  <View style={styles.feedbackActions}>
-                    <Pressable
-                      onPress={() => {
-                        void handleSummaryFeedback(true);
-                      }}
-                      style={({ pressed }) => [styles.feedbackChip, pressed && styles.rangeOptionPressed]}
-                    >
-                      <AppText style={styles.feedbackChipText}>Helpful</AppText>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        void handleSummaryFeedback(false);
-                      }}
-                      style={({ pressed }) => [styles.feedbackChip, pressed && styles.rangeOptionPressed]}
-                    >
-                      <AppText style={styles.feedbackChipText}>Not helpful</AppText>
-                    </Pressable>
-                  </View>
-                </View>
-              ) : null}
-            </>
-          )}
-        </View>
 
         {growth.getCelebrationAvailable("first_insight_summary") ? (
           <View style={styles.retentionCard}>
@@ -1231,34 +3981,34 @@ export default function InsightsScreen() {
 
         {historyQuery.data?.length === 0 ? (
           <View style={styles.emptyCard}>
-            <AppText style={styles.emptyTitle}>Insights are getting ready</AppText>
-            <AppText style={styles.emptyBody}>A few check-ins are enough to start building a clearer picture.</AppText>
-            <AppButton label="Log today" onPress={() => router.push("/today")} />
+            <AppText style={styles.emptyTitle}>Insights will settle here</AppText>
+            <AppText style={styles.emptyBody}>Your insights will gently build over time whenever you feel ready to check in.</AppText>
+            <AppButton label="Add today’s check-in" onPress={() => router.push("/today")} />
           </View>
         ) : historyQuery.data?.length === 1 ? (
           <View style={styles.emptyCard}>
-            <AppText style={styles.emptyTitle}>You’re just getting started</AppText>
+            <AppText style={styles.emptyTitle}>A first pattern is beginning</AppText>
             <AppText style={styles.emptyBody}>
-              One check-in is a great start. Add a few more days and your patterns will begin to take shape.
+              One check-in is enough to begin. A little more time can help this view feel clearer.
             </AppText>
-            <AppButton label="Log today" onPress={() => router.push("/today")} />
+            <AppButton label="Add today’s check-in" onPress={() => router.push("/today")} />
           </View>
         ) : !dashboard.hasEnoughData ? (
           <View style={styles.emptyCard}>
-            <AppText style={styles.emptyTitle}>Keep going</AppText>
-            <AppText style={styles.emptyBody}>Track a few more days to see clearer trends in this view.</AppText>
-            <AppButton label="Go to Today" onPress={() => router.push("/today")} />
+            <AppText style={styles.emptyTitle}>Patterns are still gathering</AppText>
+            <AppText style={styles.emptyBody}>Your insights will gently build over time. Patterns become clearer with a few more check-ins.</AppText>
+            <AppButton label="Add today’s check-in" onPress={() => router.push("/today")} />
           </View>
         ) : (
           <>
             <View style={styles.section}>
-              <AppText style={styles.sectionTitle}>Trend summaries</AppText>
+              <AppText style={styles.sectionTitle}>What changed recently</AppText>
               <AppText style={styles.sectionBody}>
-                A quick read on what this {range === 7 ? "week" : "month"} has looked like so far.
+                A short read on what this {range === 7 ? "week" : "month"} has felt like lately.
               </AppText>
               <View style={styles.weeklySummaryCard}>
                 <AppText style={styles.weeklySummaryTitle}>
-                  {range === 7 ? "This week in one view" : "This month in one view"}
+                  {range === 7 ? "This week at a glance" : "This month at a glance"}
                 </AppText>
                 <AppText style={styles.weeklySummaryBody}>{dashboard.weeklySummary.summary}</AppText>
                 <View style={styles.weeklySummaryMetrics}>
@@ -1268,32 +4018,1158 @@ export default function InsightsScreen() {
                   <AppText style={styles.weeklySummaryMetric}>Sleep {dashboard.weeklySummary.averageSleep ?? "—"}h</AppText>
                 </View>
               </View>
-              {dashboard.trends.map((trend) => (
-                <TrendSummaryCard key={trend.key} trend={trend} />
-              ))}
+              <View style={styles.helpingSection}>
+                {recentInsightChanges.slice(0, lowEnergyMode.enabled ? 2 : 3).map((item) => (
+                  <View key={item} style={styles.helpingRow}>
+                    <AppText style={styles.helpingBullet}>•</AppText>
+                    <AppText style={styles.helpingText}>{item}</AppText>
+                  </View>
+                ))}
+              </View>
             </View>
 
             <View style={styles.section}>
-              <AppText style={styles.sectionTitle}>Patterns worth watching</AppText>
+              <AppText style={styles.sectionTitle}>Patterns worth noticing</AppText>
               <AppText style={styles.sectionBody}>
-                These simple comparisons can help you spot what may be connected on harder or steadier days.
+                These lighter comparisons can help you notice what may be connected without over-reading the data.
               </AppText>
-              {visibleCorrelationsQuiet.length > 0 ? (
-                visibleCorrelationsQuiet.map((correlation) => (
-                  <CorrelationCard key={correlation.key} correlation={correlation} />
-                ))
+              {patternsWorthNoticing.length > 0 ? (
+                <View style={styles.helpingSection}>
+                  {patternsWorthNoticing.map((item) => (
+                    <View key={item} style={styles.helpingRow}>
+                      <AppText style={styles.helpingBullet}>•</AppText>
+                      <AppText style={styles.helpingText}>{item}</AppText>
+                    </View>
+                  ))}
+                </View>
               ) : (
                 <View style={styles.emptyInlineCard}>
                   <AppText style={styles.emptyInlineText}>
-                    A few more check-ins can make these patterns easier to read.
+                    A little more history can make these patterns easier to read.
                   </AppText>
                 </View>
               )}
             </View>
 
-            {dashboard.bestWorstDayInsight.show && optionalExpansion.showBestWorstDay && insightClustering.showBestWorstDay ? (
-              <BestWorstDayInsightCard insight={dashboard.bestWorstDayInsight} />
-            ) : null}
+            <View style={styles.section}>
+              <AppText style={styles.sectionTitle}>What this may mean for your week</AppText>
+              <View style={styles.helpingSection}>
+                {weeklyMeaning.observations.map((item) => (
+                  <View key={item} style={styles.helpingRow}>
+                    <AppText style={styles.helpingBullet}>•</AppText>
+                    <AppText style={styles.helpingText}>{item}</AppText>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <AppText style={styles.sectionTitle}>Small next steps</AppText>
+              <View style={styles.helpingSection}>
+                {smallNextSteps.map((item) => (
+                  <View key={item} style={styles.helpingRow}>
+                    <AppText style={styles.helpingBullet}>•</AppText>
+                    <AppText style={styles.helpingText}>{item}</AppText>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Deeper reflection summaries</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes deeper weekly and monthly reflection summaries with a calmer longer-view read.
+                </AppText>
+              </View>
+              {canShowPremiumReflections ? (
+                <>
+                  <PremiumReflectionCard summary={premiumReflections.weekly} />
+                  <Pressable
+                    onPress={() => setShowMonthlyReflection((current) => !current)}
+                    style={({ pressed }) => [styles.expandHeader, pressed && styles.rangeOptionPressed]}
+                  >
+                    <View style={styles.expandHeaderCopy}>
+                      <AppText style={styles.helpingTitle}>Monthly reflection</AppText>
+                      <AppText style={styles.sectionBody}>
+                        A quieter longer-view summary of how the last month has felt.
+                      </AppText>
+                    </View>
+                    <AppText style={styles.expandLabel}>
+                      {showMonthlyReflection || (!lowEnergyMode.enabled && !lowEnergyAssist.active) ? "Hide" : "Show"}
+                    </AppText>
+                  </Pressable>
+                  {showMonthlyReflection || (!lowEnergyMode.enabled && !lowEnergyAssist.active) ? (
+                    <PremiumReflectionCard summary={premiumReflections.monthly} />
+                  ) : null}
+                </>
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Premium reflection summaries</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes deeper weekly and monthly reflection summaries. The core insights view stays complete without them.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Gentle self-understanding</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes deeper calm reflection and gentle self-understanding support.
+                </AppText>
+              </View>
+              {canShowPremiumHumanClarity ? (
+                <PremiumHumanClarityCard summary={premiumHumanClarity} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Gentle self-understanding</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes deeper calm reflection and gentle self-understanding support. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-human-clarity")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Forward stability</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer grounding and support during uncertain periods.
+                </AppText>
+              </View>
+              {canShowPremiumForwardStability ? (
+                <PremiumForwardStabilityCard summary={premiumForwardStability} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Forward stability</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer grounding and support during uncertain periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-forward-stability")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Life beyond symptoms</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer reflection and support for life beyond symptoms.
+                </AppText>
+              </View>
+              {canShowPremiumMeaningfulLife ? (
+                <PremiumMeaningfulLifeCard summary={premiumMeaningfulLife} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Life beyond symptoms</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer reflection and support for life beyond symptoms. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-meaningful-life")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Everyday life rebuilding</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer support for rebuilding everyday life gently after difficult periods.
+                </AppText>
+              </View>
+              {canShowPremiumEverydayLifeRebuilding ? (
+                <PremiumEverydayLifeRebuildingCard summary={premiumEverydayLifeRebuilding} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Everyday life rebuilding</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer support for rebuilding everyday life gently after difficult periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-everyday-life")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Reorientation</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer support for reconnecting with steadiness and direction during difficult periods.
+                </AppText>
+              </View>
+              {canShowPremiumReorientationSupport ? (
+                <PremiumReorientationSupportCard summary={premiumReorientationSupport} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Reorientation</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer support for reconnecting with steadiness and direction during difficult periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-reorientation")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Existential grounding</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer grounding and emotional steadiness during heavier or uncertain periods.
+                </AppText>
+              </View>
+              {canShowPremiumExistentialGrounding ? (
+                <PremiumExistentialGroundingCard summary={premiumExistentialGrounding} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Existential grounding</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer grounding and emotional steadiness during heavier or uncertain periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-existential-grounding")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>What still matters</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer reflection and support for reconnecting with what still matters.
+                </AppText>
+              </View>
+              {canShowPremiumMeaningSupport ? (
+                <PremiumMeaningSupportCard summary={premiumMeaningSupport} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>What still matters</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer reflection and support for reconnecting with what still matters. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-meaning-support")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Quiet confidence</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer emotional steadiness and support during difficult periods.
+                </AppText>
+              </View>
+              {canShowPremiumQuietConfidence ? (
+                <PremiumQuietConfidenceCard summary={premiumQuietConfidence} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Quiet confidence</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer emotional steadiness and support during difficult periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-quiet-confidence")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Uncertainty support</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer support for navigating uncertainty and difficult periods.
+                </AppText>
+              </View>
+              {canShowPremiumUncertaintySupport ? (
+                <PremiumUncertaintySupportCard summary={premiumUncertaintySupport} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Uncertainty support</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer support for navigating uncertainty and difficult periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-uncertainty-support")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Nonlinearity support</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer support for navigating unpredictable periods with less internal pressure.
+                </AppText>
+              </View>
+              {canShowPremiumNonlinearitySupport ? (
+                <PremiumNonlinearitySupportCard summary={premiumNonlinearitySupport} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Nonlinearity support</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer support for navigating unpredictable periods with less internal pressure. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-nonlinearity-support")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Overload recovery</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer decompression and nervous-system recovery support after overwhelming days.
+                </AppText>
+              </View>
+              {canShowPremiumOverloadRecovery ? (
+                <PremiumOverloadRecoveryCard summary={premiumOverloadRecovery} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Overload recovery</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer decompression and nervous-system recovery support after overwhelming days. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-overload-recovery")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Fear and panic recovery</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer grounding and support during overwhelming or fear-heavy moments.
+                </AppText>
+              </View>
+              {canShowPremiumFearRecovery ? (
+                <PremiumFearRecoveryCard summary={premiumFearRecovery} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Fear and panic recovery</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer grounding and support during overwhelming or fear-heavy moments. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-fear-recovery")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Emotional overwhelm grounding</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer grounding and emotional steadiness support during overwhelming periods.
+                </AppText>
+              </View>
+              {canShowPremiumEmotionalCollapseSupport ? (
+                <PremiumEmotionalCollapseSupportCard summary={premiumEmotionalCollapseSupport} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Emotional overwhelm grounding</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer grounding and emotional steadiness support during overwhelming periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-emotional-collapse-support")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Trust in body and mind</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer grounding and support for rebuilding steadiness during unpredictable periods.
+                </AppText>
+              </View>
+              {canShowPremiumSelfTrustStability ? (
+                <PremiumSelfTrustStabilityCard summary={premiumSelfTrustStability} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Trust in body and mind</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer grounding and support for rebuilding steadiness during unpredictable periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-self-trust-stability")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Future fear recovery</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer grounding and support during fear-heavy or uncertain periods.
+                </AppText>
+              </View>
+              {canShowPremiumFutureFearRecovery ? (
+                <PremiumFutureFearRecoveryCard summary={premiumFutureFearRecovery} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Future fear recovery</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer grounding and support during fear-heavy or uncertain periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-future-fear-recovery")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Identity and future fear</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer grounding and emotional steadiness during uncertain or fear-heavy periods.
+                </AppText>
+              </View>
+              {canShowPremiumFutureFear ? (
+                <PremiumFutureFearCard summary={premiumFutureFear} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Identity and future fear</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer grounding and emotional steadiness during uncertain or fear-heavy periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-future-fear")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Loss and grief</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer emotional grounding and support during difficult transitions and emotionally heavy periods.
+                </AppText>
+              </View>
+              {canShowPremiumLossGriefSupport ? (
+                <PremiumLossGriefSupportCard summary={premiumLossGriefSupport} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Loss and grief</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer emotional grounding and support during difficult transitions and emotionally heavy periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-loss-grief")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Flare-period support</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer support during heavier or symptom-intense periods.
+                </AppText>
+              </View>
+              {canShowPremiumFlareSupport ? (
+                <PremiumFlareSupportCard summary={premiumFlareSupport} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Flare-period support</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer support during heavier or symptom-intense periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-flare-support")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Emotional breathing room</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer grounding and support for reducing emotional overload and internal urgency.
+                </AppText>
+              </View>
+              {canShowPremiumBreathingRoomSupport ? (
+                <PremiumBreathingRoomSupportCard summary={premiumBreathingRoomSupport} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Emotional breathing room</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer grounding and support for reducing emotional overload and internal urgency. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-breathing-room")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Emotional spaciousness</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer emotional grounding and support for carrying difficult periods more gently.
+                </AppText>
+              </View>
+              {canShowPremiumEmotionalSpaciousness ? (
+                <PremiumEmotionalSpaciousnessCard summary={premiumEmotionalSpaciousness} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Emotional spaciousness</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer emotional grounding and support for carrying difficult periods more gently. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-emotional-spaciousness")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Quiet hope</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer emotional recovery and grounding support during difficult periods.
+                </AppText>
+              </View>
+              {canShowPremiumQuietHope ? (
+                <PremiumQuietHopeCard summary={premiumQuietHope} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Quiet hope</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer emotional recovery and grounding support during difficult periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-quiet-hope")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Emotional numbness grounding</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer grounding and gentle reconnection support during emotionally distant periods.
+                </AppText>
+              </View>
+              {canShowPremiumEmotionalNumbness ? (
+                <PremiumEmotionalNumbnessCard summary={premiumEmotionalNumbness} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Emotional numbness grounding</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer grounding and gentle reconnection support during emotionally distant periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-emotional-numbness")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Return to yourself</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer support for reconnecting with yourself gently during difficult periods.
+                </AppText>
+              </View>
+              {canShowPremiumSelfReconnectionSupport ? (
+                <PremiumSelfReconnectionSupportCard summary={premiumSelfReconnectionSupport} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Return to yourself</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer support for reconnecting with yourself gently during difficult periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-self-reconnection")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Reconnecting with life</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer support for reconnecting with life gently after difficult periods.
+                </AppText>
+              </View>
+              {canShowPremiumLifeReconnection ? (
+                <PremiumLifeReconnectionCard summary={premiumLifeReconnection} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Reconnecting with life</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer support for reconnecting with life gently after difficult periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-life-reconnection")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Isolation grounding</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer emotional grounding and low-pressure support during isolating periods.
+                </AppText>
+              </View>
+              {canShowPremiumIsolationSupport ? (
+                <PremiumIsolationSupportCard summary={premiumIsolationSupport} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Isolation grounding</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer emotional grounding and low-pressure support during isolating periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-isolation-support")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Identity continuity</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer support for staying connected to yourself during difficult or changing periods.
+                </AppText>
+              </View>
+              {canShowPremiumIdentityContinuity ? (
+                <PremiumIdentityContinuityCard summary={premiumIdentityContinuity} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Identity continuity</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer support for staying connected to yourself during difficult or changing periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-identity-continuity")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Self-forgiveness</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer emotional grounding and support for carrying difficult periods more gently.
+                </AppText>
+              </View>
+              {canShowPremiumSelfForgiveness ? (
+                <PremiumSelfForgivenessCard summary={premiumSelfForgiveness} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Self-forgiveness</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer emotional grounding and support for carrying difficult periods more gently. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-self-forgiveness")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Identity recovery</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer self-compassion and emotional recovery support during difficult periods.
+                </AppText>
+              </View>
+              {canShowPremiumIdentityRecovery ? (
+                <PremiumIdentityRecoveryCard summary={premiumIdentityRecovery} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Identity recovery</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer self-compassion and emotional recovery support during difficult periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-identity-recovery")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Rebuilding after hard periods</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer support for rebuilding gently after difficult or overwhelming periods.
+                </AppText>
+              </View>
+              {canShowPremiumRebuildingSupport ? (
+                <PremiumRebuildingSupportCard summary={premiumRebuildingSupport} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Rebuilding after hard periods</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer support for rebuilding gently after difficult or overwhelming periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-rebuilding-support")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Long-term stability</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer long-term support for navigating life more gently during uncertain periods.
+                </AppText>
+              </View>
+              {canShowPremiumLongTermStability ? (
+                <PremiumLongTermStabilityCard summary={premiumLongTermStability} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Long-term stability</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer long-term support for navigating life more gently during uncertain periods. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-long-term-stability")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Setback stability</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer grounding and support during discouraging or difficult stretches.
+                </AppText>
+              </View>
+              {canShowPremiumSetbackStability ? (
+                <PremiumSetbackStabilityCard summary={premiumSetbackStability} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Setback stability</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer grounding and support during discouraging or difficult stretches. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-setback-stability")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Imperfect days</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer support for difficult and imperfect days.
+                </AppText>
+              </View>
+              {canShowPremiumImperfectDays ? (
+                <PremiumImperfectDaysCard summary={premiumImperfectDays} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Imperfect days</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer support for difficult and imperfect days. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-imperfect-days")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Quiet community spaces</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes calmer community spaces and quieter support from people who understand.
+                </AppText>
+              </View>
+              {canShowPremiumCalmCommunity ? (
+                <PremiumCalmCommunityCard summary={premiumCalmCommunity} />
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Quiet community spaces</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes calmer community spaces and quieter support from people who understand. The core insights view stays complete without it.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights-calm-community")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <View style={styles.expandHeaderCopy}>
+                <AppText style={styles.takeawayTitle}>Long-term continuity</AppText>
+                <AppText style={styles.sectionBody}>
+                  Premium includes deeper long-term reflection and continuity summaries with a calmer longer-view read.
+                </AppText>
+              </View>
+              {canShowPremiumContinuity ? (
+                <>
+                  <PremiumContinuityCard summary={premiumContinuity.monthly} />
+                  <Pressable
+                    onPress={() => setShowSeasonalContinuity((current) => !current)}
+                    style={({ pressed }) => [styles.expandHeader, pressed && styles.rangeOptionPressed]}
+                  >
+                    <View style={styles.expandHeaderCopy}>
+                      <AppText style={styles.helpingTitle}>Seasonal reflection</AppText>
+                      <AppText style={styles.sectionBody}>
+                        A quieter read across a longer stretch, including steadier periods and grounding routines.
+                      </AppText>
+                    </View>
+                    <AppText style={styles.expandLabel}>
+                      {showSeasonalContinuity || (!lowEnergyMode.enabled && !lowEnergyAssist.active) ? "Hide" : "Show"}
+                    </AppText>
+                  </Pressable>
+                  {showSeasonalContinuity || (!lowEnergyMode.enabled && !lowEnergyAssist.active) ? (
+                    <PremiumContinuityCard summary={premiumContinuity.seasonal} />
+                  ) : null}
+                  {premiumContinuity.yearly.hasEnoughData ? (
+                    <>
+                      <Pressable
+                        onPress={() => setShowYearlyContinuity((current) => !current)}
+                        style={({ pressed }) => [styles.expandHeader, pressed && styles.rangeOptionPressed]}
+                      >
+                        <View style={styles.expandHeaderCopy}>
+                          <AppText style={styles.helpingTitle}>Yearly continuity summary</AppText>
+                          <AppText style={styles.sectionBody}>
+                            A sparse longer-view summary for when a broader stretch feels helpful.
+                          </AppText>
+                        </View>
+                        <AppText style={styles.expandLabel}>
+                          {showYearlyContinuity || (!lowEnergyMode.enabled && !lowEnergyAssist.active) ? "Hide" : "Show"}
+                        </AppText>
+                      </Pressable>
+                      {showYearlyContinuity || (!lowEnergyMode.enabled && !lowEnergyAssist.active) ? (
+                        <PremiumContinuityCard summary={premiumContinuity.yearly} />
+                      ) : null}
+                    </>
+                  ) : null}
+                  <View style={styles.exportActions}>
+                    <AppButton
+                      label={isSharingContinuitySummary ? "Preparing summary..." : "Share continuity summary"}
+                      onPress={() => void handleShareContinuitySummary()}
+                      disabled={isSharingContinuitySummary}
+                      variant="secondary"
+                    />
+                    <AppButton
+                      label={isExportingContinuityPdf ? "Preparing PDF..." : "Printable continuity PDF"}
+                      onPress={() => void handleExportContinuityPdf()}
+                      disabled={isExportingContinuityPdf}
+                      variant="secondary"
+                    />
+                  </View>
+                  {continuityFeedback ? (
+                    <View style={styles.retentionCard}>
+                      <AppText style={styles.sectionBody}>{continuityFeedback}</AppText>
+                    </View>
+                  ) : null}
+                </>
+              ) : (
+                <View style={styles.premiumLockCard}>
+                  <AppText style={styles.premiumLockTitle}>Long-term continuity summaries</AppText>
+                  <AppText style={styles.premiumLockBody}>
+                    Premium includes deeper long-term reflection and continuity summaries. The core insights view stays complete without them.
+                  </AppText>
+                  <AppButton
+                    label="Explore Premium"
+                    onPress={() => router.push("/premium?source=insights")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.aiCard}>
+              <Pressable
+                onPress={() => setShowAiDetails((current) => !current)}
+                style={({ pressed }) => [styles.expandHeader, pressed && styles.rangeOptionPressed]}
+              >
+                <View style={styles.expandHeaderCopy}>
+                  <AppText style={styles.takeawayTitle}>Deeper AI insight</AppText>
+                  <AppText style={styles.sectionBody}>
+                    {aiSummaryQuery.data?.source === "fallback" || aiSummaryQuery.isError
+                      ? "A shorter, calmer read from your recent check-ins."
+                      : "A brief AI-supported reflection on this stretch."}
+                  </AppText>
+                </View>
+                <AppText style={styles.expandLabel}>{showAiDetails ? "Hide" : "Read more"}</AppText>
+              </Pressable>
+              {rangeEntries.length < 3 ? (
+                <AppText style={styles.takeawayBody}>Patterns become clearer with a few more check-ins.</AppText>
+              ) : aiSummaryQuery.isLoading ? (
+                <AppText style={styles.takeawayBody}>Looking gently at your recent patterns…</AppText>
+              ) : aiSummaryQuery.isError ? (
+                <>
+                  <AppText style={styles.takeawayBody}>{aiFallbackMessage}</AppText>
+                  <View style={styles.helpingSection}>
+                    {weeklyMeaning.observations.slice(0, 2).map((item) => (
+                      <View key={item} style={styles.helpingRow}>
+                        <AppText style={styles.helpingBullet}>•</AppText>
+                        <AppText style={styles.helpingText}>{item}</AppText>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              ) : (
+                <>
+                  {aiSummaryQuery.data?.source === "fallback" ? (
+                    <AppText style={styles.contextNote}>{aiFallbackMessage}</AppText>
+                  ) : null}
+                  <AppText style={styles.takeawayBody}>{visibleAiSummaryText}</AppText>
+                  {showAiDetails || (!lowEnergyMode.enabled && !lowEnergyAssist.active) ? (
+                    <>
+                      {visibleHelpingItems.length > 0 ? (
+                        <View style={styles.helpingSection}>
+                          <AppText style={styles.helpingTitle}>Helpful context</AppText>
+                          {visibleHelpingItems.map((item) => (
+                            <View key={item} style={styles.helpingRow}>
+                              <AppText style={styles.helpingBullet}>•</AppText>
+                              <AppText style={styles.helpingText}>{item}</AppText>
+                            </View>
+                          ))}
+                        </View>
+                      ) : null}
+                      {visibleSuggestions.length > 0 ? (
+                        <View style={styles.helpingSection}>
+                          <AppText style={styles.helpingTitle}>Small next steps</AppText>
+                          {visibleSuggestions
+                            .slice(
+                              0,
+                              preventAdaptiveOverstacking({
+                                requestedCount: Math.min(
+                                  selfTrustPresence.maxSuggestionCount,
+                                  ethicalAiRestraint.maxSuggestionCount,
+                                  coherenceAdaptive.maxAiSuggestions,
+                                  coherencePromptLimits.maxAiSuggestions,
+                                  metaOrchestration.interpretationLimits.maxAiSuggestions,
+                                ),
+                                maxAllowedCount: preventMetaOverstacking({
+                                  requestedCount: coherenceRules.promptLoadLimit,
+                                  adaptationIntensity: metaOrchestration.adaptationIntensity,
+                                  hasAiVisible: Boolean(aiSummaryQuery.data?.summary),
+                                  hasReflectionsVisible: visibleCorrelationsQuiet.length > 0,
+                                }),
+                                hasAiSummary: Boolean(visibleAiSummaryText),
+                                hasReflectionCards: visibleCorrelationsQuiet.length > 0,
+                              }),
+                            )
+                            .map((item) => (
+                              <View key={item} style={styles.helpingRow}>
+                                <AppText style={styles.helpingBullet}>•</AppText>
+                                <AppText style={styles.helpingText}>{item}</AppText>
+                              </View>
+                            ))}
+                        </View>
+                      ) : null}
+                      <AppText style={styles.contextNote}>
+                        {aiSummaryQuery.data?.disclaimer
+                          ? `${aiSummaryQuery.data.disclaimer} Your summaries stay private.`
+                          : "Your summaries stay private. They are meant to support reflection, not provide medical conclusions."}
+                      </AppText>
+                      {selfTrustPresence.showPerspectiveNote ||
+                      ethicalAiRestraint.transparencyOnly ||
+                      coherenceRules.shouldUseNeutralBridge ||
+                      metaOrchestration.unifiedState.preferNeutralBridge ||
+                      metaPriority === "emotional-safety" ? (
+                        <AppText style={styles.contextNote}>{intuitionSupportNote}</AppText>
+                      ) : null}
+                      {!hasRatedSummary ? (
+                        <View style={styles.feedbackCard}>
+                          <AppText style={styles.feedbackTitle}>Was this summary helpful?</AppText>
+                          <View style={styles.feedbackActions}>
+                            <Pressable
+                              onPress={() => {
+                                void handleSummaryFeedback(true);
+                              }}
+                              style={({ pressed }) => [styles.feedbackChip, pressed && styles.rangeOptionPressed]}
+                            >
+                              <AppText style={styles.feedbackChipText}>Helpful</AppText>
+                            </Pressable>
+                            <Pressable
+                              onPress={() => {
+                                void handleSummaryFeedback(false);
+                              }}
+                              style={({ pressed }) => [styles.feedbackChip, pressed && styles.rangeOptionPressed]}
+                            >
+                              <AppText style={styles.feedbackChipText}>Not helpful</AppText>
+                            </Pressable>
+                          </View>
+                        </View>
+                      ) : null}
+                    </>
+                  ) : null}
+                </>
+              )}
+            </View>
+
+            <View style={styles.navCard}>
+              <AppText style={styles.sectionTitle}>
+                {decisionLoad === "high" ? "Keep navigation simple" : "Move between sections"}
+              </AppText>
+              <View style={styles.navButtons}>
+                {[
+                  { label: "Today", route: "/today" as const },
+                  { label: "Track", route: "/track" as const },
+                  { label: "Coach", route: "/coach" as const },
+                  { label: "Health Summary", route: "/health-summary" as const },
+                ]
+                  .slice(0, navigationPriority.maxVisibleRoutes)
+                  .map((item) => (
+                    <AppButton
+                      key={item.route}
+                      label={item.label}
+                      onPress={() => router.push(item.route)}
+                      variant="secondary"
+                    />
+                  ))}
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <Pressable
+                onPress={() => setShowVisualDetails((current) => !current)}
+                style={({ pressed }) => [styles.expandHeader, pressed && styles.rangeOptionPressed]}
+              >
+                <View style={styles.expandHeaderCopy}>
+                  <AppText style={styles.sectionTitle}>Charts and details</AppText>
+                  <AppText style={styles.sectionBody}>
+                    Visual detail stays available whenever you want a closer look.
+                  </AppText>
+                </View>
+                <AppText style={styles.expandLabel}>{showVisualDetails ? "Hide" : "Show"}</AppText>
+              </Pressable>
+              {showVisualDetails ? (
+                <>
+                  {dashboard.trends.slice(0, lowEnergyMode.enabled ? 2 : dashboard.trends.length).map((trend) => (
+                    <TrendSummaryCard key={trend.key} trend={trend} />
+                  ))}
+                  {visibleCorrelationsQuiet.length > 0 ? (
+                    visibleCorrelationsQuiet.map((correlation) => (
+                      <CorrelationCard key={correlation.key} correlation={correlation} />
+                    ))
+                  ) : null}
+                  {dashboard.bestWorstDayInsight.show &&
+                  optionalExpansion.showBestWorstDay &&
+                  insightClustering.showBestWorstDay ? (
+                    <BestWorstDayInsightCard insight={dashboard.bestWorstDayInsight} />
+                  ) : null}
+                </>
+              ) : null}
+            </View>
           </>
         )}
       </ScrollView>
@@ -1307,6 +5183,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
     gap: 16,
+  },
+  contentLowEnergy: {
+    gap: 20,
   },
   heroCard: {
     backgroundColor: "#fff4ec",
@@ -1396,16 +5275,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f3dfd1",
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 13,
     gap: 4,
+    minHeight: 76,
+    justifyContent: "center",
   },
   progressValue: {
     fontSize: 22,
+    lineHeight: 28,
     fontWeight: "700",
     color: "#1f2937",
   },
   progressLabel: {
     fontSize: 13,
+    lineHeight: 18,
     color: "#6b7280",
   },
   aiCard: {
@@ -1469,6 +5352,22 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 10,
   },
+  expandHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  expandHeaderCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  expandLabel: {
+    color: "#c25d10",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
+  },
   feedbackChip: {
     borderRadius: 999,
     borderWidth: 1,
@@ -1516,16 +5415,17 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   section: {
-    gap: 12,
+    gap: 14,
   },
   sectionTitle: {
     fontSize: 22,
+    lineHeight: 28,
     fontWeight: "700",
     color: "#1f2937",
   },
   sectionBody: {
     color: "#6b7280",
-    lineHeight: 22,
+    lineHeight: 23,
   },
   weeklySummaryCard: {
     backgroundColor: "#fffaf6",
@@ -1533,30 +5433,91 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f3dfd1",
     padding: 16,
-    gap: 10,
+    gap: 12,
   },
   weeklySummaryTitle: {
     fontSize: 17,
+    lineHeight: 23,
     fontWeight: "700",
     color: "#1f2937",
   },
   weeklySummaryBody: {
     color: "#4b5563",
-    lineHeight: 21,
+    lineHeight: 22,
   },
   weeklySummaryMetrics: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 10,
   },
   weeklySummaryMetric: {
     fontSize: 13,
+    lineHeight: 18,
     color: "#8b6a4f",
     backgroundColor: "#ffffff",
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    overflow: "hidden",
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+  },
+  premiumReflectionCard: {
+    backgroundColor: "#fffaf6",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    padding: 16,
+    gap: 14,
+  },
+  premiumReflectionTitle: {
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  premiumReflectionSection: {
+    gap: 8,
+  },
+  premiumReflectionKicker: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
+    color: "#c25d10",
+    textTransform: "uppercase",
+  },
+  premiumLockCard: {
+    backgroundColor: "#fffaf6",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    padding: 16,
+    gap: 12,
+  },
+  premiumLockTitle: {
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  premiumLockBody: {
+    color: "#6b7280",
+    lineHeight: 22,
+  },
+  meaningfulMomentCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  meaningfulMomentTitle: {
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  exportActions: {
+    gap: 10,
   },
   emptyCard: {
     backgroundColor: "#ffffff",

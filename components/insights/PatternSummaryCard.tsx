@@ -25,14 +25,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f2d3bd",
     padding: 18,
-    gap: 8,
+    gap: 10,
   },
   title: {
     fontSize: 18,
+    lineHeight: 24,
     fontWeight: "700",
     color: "#1f2937",
   },
   body: {
     color: "#7c4a1d",
+    lineHeight: 23,
   },
 });

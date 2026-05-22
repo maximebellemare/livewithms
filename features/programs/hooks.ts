@@ -7,6 +7,7 @@ const EMPTY_PROGRESS: ProgramProgressSnapshot = {
   recentToolIds: [],
   lastOpenedToolId: null,
   activeToolId: null,
+  audioSession: null,
   toolProgress: {},
   updatedAt: null,
 };
@@ -97,6 +98,7 @@ export function useProgramProgress() {
       : [...progress.completedToolIds, toolId];
 
     const nextValue: ProgramProgressSnapshot = {
+      ...progress,
       completedToolIds: nextCompletedToolIds,
       lastOpenedToolId: toolId,
       activeToolId: null,
@@ -128,6 +130,26 @@ export function useProgramProgress() {
     });
   };
 
+  const saveAudioSession = async (audioSession: ProgramProgressSnapshot["audioSession"]) => {
+    await persist({
+      ...progress,
+      audioSession,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const clearAudioSession = async () => {
+    if (!progress.audioSession) {
+      return;
+    }
+
+    await persist({
+      ...progress,
+      audioSession: null,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
   return {
     progress,
     isLoading,
@@ -136,5 +158,7 @@ export function useProgramProgress() {
     markStarted,
     markCompleted,
     clearActiveTool,
+    saveAudioSession,
+    clearAudioSession,
   };
 }

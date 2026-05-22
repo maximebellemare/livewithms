@@ -26,6 +26,7 @@ export type CoachContext = {
   mood: number | null;
   stress: number | null;
   sleep_hours: number | null;
+  brain_fog?: number | null;
   recent_reflection: string | null;
   fatigue_average_7d: number | null;
   mood_average_7d: number | null;
@@ -54,6 +55,7 @@ export type CoachContext = {
   preferred_checkin_windows?: string[];
   engagement_rhythm?: "light" | "steady" | "sporadic";
   recovery_rhythm?: RecoveryRhythm;
+  low_energy_mode?: boolean;
 };
 
 export type SendCoachMessageInput = {

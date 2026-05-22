@@ -15,4 +15,5 @@ export type MedicationInput = {
   dosage: string | null;
   frequency: string;
   notes: string | null;
+  active?: boolean;
 };

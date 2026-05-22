@@ -35,8 +35,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.compactCardPadding,
-    gap: 8,
+    padding: spacing.cardPadding,
+    gap: 10,
     ...shadows.soft,
   },
   kicker: {
@@ -49,12 +49,12 @@ const styles = StyleSheet.create({
   title: {
     color: colors.text,
     fontSize: 18,
-    lineHeight: 24,
+    lineHeight: 26,
     fontWeight: "600",
   },
   body: {
     color: colors.textBody,
     fontSize: 15,
-    lineHeight: 22,
+    lineHeight: 24,
   },
 });

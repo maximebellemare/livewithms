@@ -27,6 +27,9 @@ import { deriveNotificationNecessity } from "../../lib/attention-respect/low-int
 import { deriveInterruptionSafety } from "../../lib/attention-respect/low-interruption/deriveInterruptionSafety";
 import { deriveNotificationSoftness } from "../../lib/attention-respect/quiet-notification-intelligence/deriveNotificationSoftness";
 import { deriveNotificationSilence } from "../../lib/attention-respect/quiet-notification-intelligence/deriveNotificationSilence";
+import { deriveReminderPressure } from "../../lib/attention-respect/quiet-notification-intelligence/deriveReminderPressure";
+import { preventReminderOverload } from "../../lib/attention-respect/quiet-notification-intelligence/preventReminderOverload";
+import { deriveCalmNotificationTiming } from "../../lib/attention-respect/quiet-notification-intelligence/deriveCalmNotificationTiming";
 
 export const REMINDER_TIME_OPTIONS: ReminderTimeOption[] = [...APP_CONFIG.reminders.timeOptions];
 
@@ -145,6 +148,24 @@ export function useReminderSettings() {
       }),
     [interruptionSafety, notificationNecessity],
   );
+  const skippedCheckIns = useMemo(
+    () =>
+      Math.max(
+        0,
+        7 - getCheckInsInLastDays(overviewQuery.data ?? [], new Date().toISOString().slice(0, 10), 7),
+      ),
+    [overviewQuery.data],
+  );
+  const reminderPressure = useMemo(
+    () =>
+      deriveReminderPressure({
+        adaptiveStatePrimary: energyAdaptiveState.primary,
+        skippedCheckIns,
+        interruptionSafety,
+        reminderEnabled: state.enabled,
+      }),
+    [energyAdaptiveState.primary, interruptionSafety, skippedCheckIns, state.enabled],
+  );
 
   const refresh = useCallback(async () => {
     setState((current) => ({ ...current, isLoading: true }));
@@ -180,7 +201,7 @@ export function useReminderSettings() {
       adaptiveState: energyAdaptiveState,
       lifecycleStage,
       fatigueLevel: adaptiveProfile.fatigueTrend === "high" ? 4 : adaptiveProfile.fatigueTrend === "lighter" ? 2 : null,
-      skippedCheckIns: Math.max(0, 7 - getCheckInsInLastDays(overviewQuery.data ?? [], new Date().toISOString().slice(0, 10), 7)),
+      skippedCheckIns,
       sessionLengthSeconds: 0,
       interactionFrequency: (overviewQuery.data ?? []).slice(0, 7).length,
     });
@@ -199,6 +220,7 @@ export function useReminderSettings() {
     memorySupportStyle,
     notificationNecessity,
     overviewQuery.data,
+    skippedCheckIns,
   ]);
   const resolvedReminderCadence = useMemo(
     () =>
@@ -206,11 +228,21 @@ export function useReminderSettings() {
         adaptiveState: energyAdaptiveState,
         lifecycleStage,
         fatigueLevel: adaptiveProfile.fatigueTrend === "high" ? 4 : adaptiveProfile.fatigueTrend === "lighter" ? 2 : null,
-        skippedCheckIns: Math.max(0, 7 - getCheckInsInLastDays(overviewQuery.data ?? [], new Date().toISOString().slice(0, 10), 7)),
+        skippedCheckIns,
         sessionLengthSeconds: 0,
         interactionFrequency: (overviewQuery.data ?? []).slice(0, 7).length,
       }),
-    [adaptiveProfile.fatigueTrend, energyAdaptiveState, lifecycleStage, overviewQuery.data],
+    [adaptiveProfile.fatigueTrend, energyAdaptiveState, lifecycleStage, overviewQuery.data, skippedCheckIns],
+  );
+  const overloadProtectedReminder = useMemo(
+    () =>
+      preventReminderOverload({
+        pressure: reminderPressure,
+        cadence: resolvedReminderCadence,
+        tone: resolvedReminderTone,
+        interruptionSafety,
+      }),
+    [interruptionSafety, reminderPressure, resolvedReminderCadence, resolvedReminderTone],
   );
 
   useEffect(() => {
@@ -220,10 +252,15 @@ export function useReminderSettings() {
   const updateTime = useCallback(async (hour: number, minute: number) => {
     setState((current) => ({ ...current, isSaving: true }));
 
-    const nextBaseSettings: ReminderSettings = {
-      ...toReminderSettings(state),
+    const calmTiming = deriveCalmNotificationTiming({
       hour,
       minute,
+      pressure: reminderPressure,
+    });
+    const nextBaseSettings: ReminderSettings = {
+      ...toReminderSettings(state),
+      hour: calmTiming.hour,
+      minute: calmTiming.minute,
     };
 
     try {
@@ -231,9 +268,9 @@ export function useReminderSettings() {
 
       if (state.enabled && state.permissionStatus === "granted") {
         await cancelScheduledReminder(state.notificationId);
-        const nextNotificationId = attentionReminderSilenced
+        const nextNotificationId = attentionReminderSilenced || !overloadProtectedReminder.shouldSchedule
           ? null
-          : await scheduleDailyReminder(hour, minute, resolvedReminderTone);
+          : await scheduleDailyReminder(calmTiming.hour, calmTiming.minute, overloadProtectedReminder.tone);
         nextSettings = {
           ...nextBaseSettings,
           notificationId: nextNotificationId,
@@ -257,7 +294,7 @@ export function useReminderSettings() {
       }));
       throw error;
     }
-  }, [attentionReminderSilenced, resolvedReminderTone, state.enabled, state.notificationId, state.permissionStatus]);
+  }, [attentionReminderSilenced, overloadProtectedReminder, reminderPressure, state]);
 
   const disableReminders = useCallback(async () => {
     setState((current) => ({ ...current, isSaving: true }));
@@ -315,13 +352,20 @@ export function useReminderSettings() {
       }
 
       await cancelScheduledReminder(state.notificationId);
-      const nextNotificationId = attentionReminderSilenced
+      const calmTiming = deriveCalmNotificationTiming({
+        hour: state.hour,
+        minute: state.minute,
+        pressure: reminderPressure,
+      });
+      const nextNotificationId = attentionReminderSilenced || !overloadProtectedReminder.shouldSchedule
         ? null
-        : await scheduleDailyReminder(state.hour, state.minute, resolvedReminderTone);
+        : await scheduleDailyReminder(calmTiming.hour, calmTiming.minute, overloadProtectedReminder.tone);
       const nextSettings: ReminderSettings = {
         ...toReminderSettings(state),
         enabled: true,
         permissionStatus,
+        hour: calmTiming.hour,
+        minute: calmTiming.minute,
         notificationId: nextNotificationId,
       };
 
@@ -340,7 +384,7 @@ export function useReminderSettings() {
       setState((current) => ({ ...current, isSaving: false }));
       throw error;
     }
-  }, [attentionReminderSilenced, resolvedReminderTone, state]);
+  }, [attentionReminderSilenced, overloadProtectedReminder, reminderPressure, state]);
 
   const selectedTimeLabel = useMemo(() => {
     const matchingOption = REMINDER_TIME_OPTIONS.find(
@@ -358,10 +402,11 @@ export function useReminderSettings() {
     disableReminders,
     updateTime,
     refresh,
-    adaptiveReminderTone: resolvedReminderTone,
-    adaptiveReminderCadence: resolvedReminderCadence,
+    adaptiveReminderTone: overloadProtectedReminder.tone,
+    adaptiveReminderCadence: overloadProtectedReminder.cadence,
     adaptiveReminderFlow: adaptiveFlow,
-    attentionReminderSilenced,
+    attentionReminderSilenced: attentionReminderSilenced || !overloadProtectedReminder.shouldSchedule,
     attentionReminderNecessity: notificationNecessity,
+    reminderPressure,
   };
 }

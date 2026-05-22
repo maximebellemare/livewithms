@@ -1,13 +1,23 @@
-export type ProgramSection = "Calm" | "Energy" | "Planning" | "Reflection";
+export type ProgramSection = "Calm" | "Energy" | "Planning" | "Reflection" | "Rest";
 export type ProgramTrack =
   | "nervous-system"
   | "sleep-support"
   | "stress-support"
   | "emotional-resilience"
   | "energy-management"
-  | "mindfulness";
+  | "mindfulness"
+  | "cognitive-support";
 
-export type ProgramContentKind = "micro-guide" | "reflection-prompt" | "wellness-note";
+export type ProgramLibraryCategory =
+  | "grounding"
+  | "overwhelm"
+  | "low-energy"
+  | "sleep"
+  | "pacing"
+  | "brain-fog"
+  | "emotional-regulation";
+
+export type ProgramContentKind = "micro-guide" | "reflection-prompt" | "wellness-note" | "audio-cue";
 
 export type ProgramContentItem = {
   id: string;
@@ -20,6 +30,7 @@ export type ProgramTool = {
   id: string;
   title: string;
   section: ProgramSection;
+  category?: ProgramLibraryCategory;
   whenToUse: string;
   durationLabel: string;
   durationSeconds?: number;
@@ -30,13 +41,14 @@ export type ProgramTool = {
   moduleId: string;
   premiumFeature?: "guided_programs";
   continuationLabel?: string;
-  supportTags?: Array<"stress" | "sleep" | "fatigue" | "reflection" | "planning">;
+  supportTags?: Array<"stress" | "sleep" | "fatigue" | "reflection" | "planning" | "overwhelm" | "brain-fog">;
 };
 
 export type ProgramModule = {
   id: string;
   title: string;
   section: ProgramSection;
+  category?: ProgramLibraryCategory;
   track: ProgramTrack;
   description: string;
   whyItHelps: string;
@@ -54,11 +66,23 @@ export type ProgramProgressEntry = {
   completionCount: number;
 };
 
+export type ProgramAudioSessionProgress = {
+  sessionId: string;
+  toolId: string;
+  phaseIndex: number;
+  phaseSecondsRemaining: number;
+  totalSecondsRemaining: number;
+  isPlaying: boolean;
+  hapticsEnabled: boolean;
+  updatedAt: string;
+};
+
 export type ProgramProgressSnapshot = {
   completedToolIds: string[];
   recentToolIds: string[];
   lastOpenedToolId: string | null;
   activeToolId: string | null;
+  audioSession: ProgramAudioSessionProgress | null;
   toolProgress: Record<string, ProgramProgressEntry>;
   updatedAt: string | null;
 };

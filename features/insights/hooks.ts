@@ -12,6 +12,12 @@ import { reduceIllnessCentrality } from "../../lib/existential-safety/identity-p
 import { reduceFearFraming } from "../../lib/existential-safety/language-softening/reduceFearFraming";
 import { softenExistentialLanguage } from "../../lib/existential-safety/language-softening/softenExistentialLanguage";
 import { insightsApi } from "./api";
+import {
+  formatTrendPointLabel,
+  getInsightDetailFallback,
+  getInsightsFallbackSummary,
+  getWeeklyTrendIndicator,
+} from "./calm-copy";
 import type {
   AiInsightsSummary,
   BestWorstDayInsight,
@@ -121,7 +127,7 @@ function buildTrendSummary(
   const averageReference = roundToOneDecimal(average(entriesReference.map((entry) => entry[key] ?? null)));
   const direction = calculateTrendDirection(averageCurrent, averageReference, higherIsBetter);
 
-  let summary = "Track a few days to unlock insights";
+  let summary = getInsightsFallbackSummary();
 
   if (averageCurrent !== null) {
     if (direction === "flat") {
@@ -129,7 +135,7 @@ function buildTrendSummary(
     } else if (higherIsBetter) {
       summary =
         direction === "up"
-          ? `Lately, your ${label.toLowerCase()} has been feeling a little stronger.`
+          ? `Lately, your ${label.toLowerCase()} has felt a little steadier.`
           : `Lately, your ${label.toLowerCase()} has felt a little lower than usual.`;
     } else {
       summary =
@@ -167,7 +173,7 @@ function buildTrendSummary(
       .slice()
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((entry) => ({
-        label: entry.date.slice(5),
+        label: formatTrendPointLabel(entry.date),
         value: entry[key] ?? null,
       })),
   };
@@ -188,17 +194,13 @@ function buildWeeklyProgressTrend(
   const firstHalfAverage = roundToOneDecimal(average(firstHalf.map((entry) => entry[config.key] ?? null)));
   const secondHalfAverage = roundToOneDecimal(average(secondHalf.map((entry) => entry[config.key] ?? null)));
 
-  let indicator = "→ stable";
+  let indicator = "Fairly steady";
 
   if (firstHalfAverage !== null && secondHalfAverage !== null) {
     const difference = secondHalfAverage - firstHalfAverage;
 
     if (Math.abs(difference) >= 0.35) {
-      if (config.higherIsBetter) {
-        indicator = difference > 0 ? "↑ improving" : "↓ worsening";
-      } else {
-        indicator = difference < 0 ? "↓ improving" : "↑ worsening";
-      }
+      indicator = getWeeklyTrendIndicator(difference, config.higherIsBetter);
     }
   }
 
@@ -216,7 +218,7 @@ function buildWeeklyProgressOverview(entries7: DailyCheckIn[]): WeeklyProgressOv
     return {
       hasEnoughData: false,
       trends: [],
-      message: "Track a few more days to see your trends",
+      message: getInsightDetailFallback(),
     };
   }
 
@@ -299,11 +301,11 @@ function buildCorrelationSummary(
     ),
   );
 
-  let summary = "Track a few days to unlock insights";
+  let summary = getInsightsFallbackSummary();
 
   if (coefficient !== null) {
     if (Math.abs(coefficient) < 0.2) {
-      summary = `There is not a strong pattern yet between ${config.leftLabel.toLowerCase()} and ${config.rightLabel.toLowerCase()}.`;
+      summary = `There is not a clear pattern yet between ${config.leftLabel.toLowerCase()} and ${config.rightLabel.toLowerCase()}.`;
     } else if (coefficient > 0) {
       summary = config.positiveMeaning;
     } else {
@@ -359,8 +361,8 @@ function buildSleepFatigueInsight(entries30: DailyCheckIn[]): SleepFatigueInsigh
       percentageDifference: null,
       lowSleepAverage,
       normalSleepAverage,
-      sentence: "Track more days to unlock this insight",
-      recommendation: "Try aiming for 7+ hours of sleep to reduce fatigue",
+      sentence: getInsightDetailFallback(),
+      recommendation: "A steadier wind-down may help support your energy.",
     };
   }
 
@@ -374,8 +376,8 @@ function buildSleepFatigueInsight(entries30: DailyCheckIn[]): SleepFatigueInsigh
       percentageDifference,
       lowSleepAverage,
       normalSleepAverage,
-      sentence: "Track more days to unlock this insight",
-      recommendation: "Try aiming for 7+ hours of sleep to reduce fatigue",
+      sentence: getInsightDetailFallback(),
+      recommendation: "A steadier wind-down may help support your energy.",
     };
   }
 
@@ -384,8 +386,8 @@ function buildSleepFatigueInsight(entries30: DailyCheckIn[]): SleepFatigueInsigh
     percentageDifference,
     lowSleepAverage,
     normalSleepAverage,
-    sentence: `You feel ${Math.abs(percentageDifference)}% ${direction} fatigued on low sleep days`,
-    recommendation: "Try aiming for 7+ hours of sleep to reduce fatigue",
+    sentence: `Fatigue tends to feel ${Math.abs(percentageDifference)}% ${direction} noticeable on lower-sleep days.`,
+    recommendation: "A steadier wind-down may help support your energy.",
   };
 }
 
@@ -417,8 +419,8 @@ function buildStressFatigueInsight(entries30: DailyCheckIn[]): StressFatigueInsi
       percentageDifference: null,
       highStressAverage,
       lowStressAverage,
-      sentence: "Track more days to unlock this insight",
-      recommendation: "Managing stress may help reduce fatigue levels",
+      sentence: getInsightDetailFallback(),
+      recommendation: "A small reset may help keep heavier days from building.",
     };
   }
 
@@ -432,8 +434,8 @@ function buildStressFatigueInsight(entries30: DailyCheckIn[]): StressFatigueInsi
       percentageDifference,
       highStressAverage,
       lowStressAverage,
-      sentence: "Track more days to unlock this insight",
-      recommendation: "Managing stress may help reduce fatigue levels",
+      sentence: getInsightDetailFallback(),
+      recommendation: "A small reset may help keep heavier days from building.",
     };
   }
 
@@ -442,8 +444,8 @@ function buildStressFatigueInsight(entries30: DailyCheckIn[]): StressFatigueInsi
     percentageDifference,
     highStressAverage,
     lowStressAverage,
-    sentence: `You feel ${Math.abs(percentageDifference)}% ${direction} fatigued on high stress days`,
-    recommendation: "Managing stress may help reduce fatigue levels",
+    sentence: `Fatigue tends to feel ${Math.abs(percentageDifference)}% ${direction} noticeable on higher-stress days.`,
+    recommendation: "A small reset may help keep heavier days from building.",
   };
 }
 
@@ -475,8 +477,8 @@ function buildSleepMoodInsight(entries30: DailyCheckIn[]): SleepMoodInsight {
       percentageDifference: null,
       lowSleepAverage,
       normalSleepAverage,
-      sentence: "Track more days to unlock this insight",
-      recommendation: "Getting enough sleep may improve your mood",
+      sentence: getInsightDetailFallback(),
+      recommendation: "A steadier bedtime may help support your mood.",
     };
   }
 
@@ -490,8 +492,8 @@ function buildSleepMoodInsight(entries30: DailyCheckIn[]): SleepMoodInsight {
       percentageDifference,
       lowSleepAverage,
       normalSleepAverage,
-      sentence: "Track more days to unlock this insight",
-      recommendation: "Getting enough sleep may improve your mood",
+      sentence: getInsightDetailFallback(),
+      recommendation: "A steadier bedtime may help support your mood.",
     };
   }
 
@@ -500,8 +502,8 @@ function buildSleepMoodInsight(entries30: DailyCheckIn[]): SleepMoodInsight {
     percentageDifference,
     lowSleepAverage,
     normalSleepAverage,
-    sentence: `Your mood is ${Math.abs(percentageDifference)}% ${direction} on low sleep days`,
-    recommendation: "Getting enough sleep may improve your mood",
+    sentence: `Mood tends to feel ${Math.abs(percentageDifference)}% ${direction} on lower-sleep days.`,
+    recommendation: "A steadier bedtime may help support your mood.",
   };
 }
 
@@ -533,8 +535,8 @@ function buildHydrationEnergyInsight(entries30: DailyCheckIn[]): HydrationEnergy
       percentageDifference: null,
       lowHydrationAverage,
       goodHydrationAverage,
-      sentence: "Track more days to unlock this insight",
-      recommendation: "Staying hydrated may help improve your energy levels",
+      sentence: getInsightDetailFallback(),
+      recommendation: "A steadier hydration rhythm may help support your energy.",
     };
   }
 
@@ -547,8 +549,8 @@ function buildHydrationEnergyInsight(entries30: DailyCheckIn[]): HydrationEnergy
       percentageDifference,
       lowHydrationAverage,
       goodHydrationAverage,
-      sentence: "Track more days to unlock this insight",
-      recommendation: "Staying hydrated may help improve your energy levels",
+      sentence: getInsightDetailFallback(),
+      recommendation: "A steadier hydration rhythm may help support your energy.",
     };
   }
 
@@ -559,9 +561,9 @@ function buildHydrationEnergyInsight(entries30: DailyCheckIn[]): HydrationEnergy
     goodHydrationAverage,
     sentence:
       Math.abs(percentageDifference) >= 10
-        ? `You feel ${Math.abs(percentageDifference)}% less fatigued when well hydrated`
-        : "You tend to have higher energy on well-hydrated days",
-    recommendation: "Staying hydrated may help improve your energy levels",
+        ? `Fatigue tends to feel ${Math.abs(percentageDifference)}% lighter on well-hydrated days.`
+        : "Energy tends to feel a little steadier on well-hydrated days.",
+    recommendation: "A steadier hydration rhythm may help support your energy.",
   };
 }
 
@@ -585,8 +587,8 @@ function buildBestWorstDayInsight(entries30: DailyCheckIn[]): BestWorstDayInsigh
       show: false,
       bestDay: null,
       worstDay: null,
-      sentence: "Track more days to unlock this insight",
-      recommendation: "Try to recreate these conditions more often",
+      sentence: getInsightDetailFallback(),
+      recommendation: "A few steadier conditions may be worth noticing over time.",
     };
   }
 
@@ -599,8 +601,8 @@ function buildBestWorstDayInsight(entries30: DailyCheckIn[]): BestWorstDayInsigh
       show: false,
       bestDay: null,
       worstDay: null,
-      sentence: "Track more days to unlock this insight",
-      recommendation: "Try to recreate these conditions more often",
+      sentence: getInsightDetailFallback(),
+      recommendation: "A few steadier conditions may be worth noticing over time.",
     };
   }
 
@@ -646,15 +648,15 @@ function buildBestWorstDayInsight(entries30: DailyCheckIn[]): BestWorstDayInsigh
 
   const sentence =
     clues.length > 0
-      ? `Your best days tend to have ${clues.join(" and ")}`
-      : "Your best days show a steadier balance of energy and mood";
+      ? `Your steadier days often include ${clues.join(" and ")}.`
+      : "Some steadier days show a gentler balance of energy and mood.";
 
   return {
     show: true,
     bestDay,
     worstDay,
     sentence,
-    recommendation: "Try to recreate these conditions more often",
+    recommendation: "If it feels useful, notice which conditions tend to feel steadier.",
   };
 }
 
@@ -662,7 +664,7 @@ function buildKeyTakeaway(entries: DailyCheckIn[], trends: TrendSummary[]): KeyT
   if (entries.length < 3) {
     return {
       title: "Your key takeaway",
-      body: "Check in a few more times to unlock clearer patterns.",
+      body: "A little more time can help this view feel clearer.",
     };
   }
 
@@ -690,34 +692,34 @@ function buildKeyTakeaway(entries: DailyCheckIn[], trends: TrendSummary[]): KeyT
   if (lowSleepHighFatigue) {
     return {
       title: "Your key takeaway",
-      body: "Sleep may be affecting your energy.",
+      body: "Sleep may be shaping your energy more than usual lately.",
     };
   }
 
   if ((fatigueAverage ?? 0) >= 3.8 || fatigueTrend?.direction === "down") {
     return {
       title: "Your key takeaway",
-      body: "Your energy has been under pressure recently.",
+      body: "Energy has looked a little heavier recently.",
     };
   }
 
   if ((stressAverage ?? 0) >= 3.8) {
     return {
       title: "Your key takeaway",
-      body: "Stress may be a major driver this week.",
+      body: "Stress may be one of the stronger signals this week.",
     };
   }
 
   if (moodTrend?.direction === "up") {
     return {
       title: "Your key takeaway",
-      body: "Your mood has been trending upward.",
+      body: "Mood has looked a little steadier lately.",
     };
   }
 
   return {
     title: "Your key takeaway",
-    body: "Keep checking in daily so your patterns become easier to spot.",
+    body: "More gentle check-ins can make patterns easier to notice.",
   };
 }
 
@@ -733,7 +735,7 @@ export function useInsightsDashboard(
     const entriesReference = entries30;
     const summaryText =
       patternSummary?.insight ??
-      "Track a few days to unlock insights";
+      getInsightsFallbackSummary();
 
     const weeklySummary: WeeklySummary = {
       daysLogged: entriesCurrent.length,

@@ -6,12 +6,16 @@ import AppText from "../../components/ui/AppText";
 import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
 import { useOnboarding } from "../../features/onboarding/hooks";
 import { getPersonalizedOnboardingGuidance } from "../../features/onboarding/personalization";
+import { deriveCategoryDefiningPositioning } from "../../lib/product-identity/deriveCategoryDefiningPositioning";
+import { derivePremiumPositioning } from "../../lib/premium-ecosystem/calm-premium/derivePremiumPositioning";
 
 export default function CompleteScreen() {
   const router = useRouter();
   const { completeOnboarding, draft, isCompleting } = useOnboarding();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const guidance = getPersonalizedOnboardingGuidance(draft);
+  const positioning = deriveCategoryDefiningPositioning();
+  const premiumPositioning = derivePremiumPositioning();
 
   const handleNext = async () => {
     if (isCompleting) return;
@@ -28,13 +32,13 @@ export default function CompleteScreen() {
 
   return (
     <OnboardingScaffold
-      title="You’re ready"
-      subtitle="Start with one simple check-in. The rest can build gently from there."
-      step={5}
+      title="Start with today."
+      subtitle="A simple check-in helps the app begin building your patterns gently."
+      step={7}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
       onNext={handleNext}
-      nextLabel="Start my 1-minute check-in"
+      nextLabel="Begin first check-in"
       loading={isCompleting}
       errorMessage={errorMessage}
     >
@@ -50,9 +54,10 @@ export default function CompleteScreen() {
           <AppText style={styles.infoTitle}>What happens next</AppText>
           <AppText style={styles.infoBody}>You’ll land in Today for your first check-in.</AppText>
           <AppText style={styles.infoBody}>{guidance.nextSecondary}</AppText>
-          <AppText style={styles.infoBody}>The first few check-ins help Insights start to feel clearer.</AppText>
-          <AppText style={styles.infoBody}>Small daily steps can reveal meaningful patterns over time.</AppText>
-          <AppText style={styles.infoBody}>AI support stays optional and is meant for reflection, not medical or mental health care.</AppText>
+          <AppText style={styles.infoBody}>The first few check-ins help Insights start to feel clearer over time.</AppText>
+          <AppText style={styles.infoBody}>{positioning.onboardingCompletionLine}</AppText>
+          <AppText style={styles.infoBody}>AI support stays optional and is meant for reflection, not diagnosis, treatment, or emergency care.</AppText>
+          <AppText style={styles.infoBody}>{premiumPositioning.onboardingBody}</AppText>
         </View>
       </View>
     </OnboardingScaffold>

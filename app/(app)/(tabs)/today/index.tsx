@@ -10,10 +10,10 @@ import DailyCheckInCard, {
   type DailyCheckInDraft,
 } from "../../../../components/today/DailyCheckInCard";
 import AppButton from "../../../../components/ui/AppButton";
+import CalmSkeleton from "../../../../components/ui/CalmSkeleton";
 import ErrorState from "../../../../components/ui/ErrorState";
 import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
-import LoadingState from "../../../../components/ui/LoadingState";
 import { useAuth } from "../../../../features/auth/hooks";
 import { useSaveDailyCheckIn, useCheckInHistory, useCheckInOverview, useTodaysCheckIn } from "../../../../features/checkins/hooks";
 import {
@@ -22,13 +22,22 @@ import {
   getCurrentCheckInStreak,
   getMilestoneMessage,
 } from "../../../../features/checkins/consistency";
+import { deriveGentleContinuityFeedback } from "../../../../features/checkins/continuity-feedback";
 import type { DailyCheckIn } from "../../../../features/checkins/types";
 import { useGrowthState } from "../../../../features/growth/hooks";
 import { useAiInsightsSummary } from "../../../../features/insights/hooks";
+import { applyLowEnergyModeOverride, useLowEnergyMode } from "../../../../features/low-energy-mode/hooks";
 import { usePersonalizationMemory } from "../../../../features/personalization-memory/hooks";
+import { canAccessPremiumFeature } from "../../../../features/premium/entitlements";
+import { usePremium } from "../../../../features/premium/hooks";
+import { derivePremiumAdaptiveSupport } from "../../../../features/premium/adaptive-support";
+import { derivePremiumDailySupport } from "../../../../features/today/premium-daily-support";
+import { derivePremiumAdaptiveHome } from "../../../../features/today/premium-adaptive-home";
+import { derivePremiumCalmCompanionEnvironment } from "../../../../features/today/premium-calm-companion";
 import { useMyProfile } from "../../../../features/profile/hooks";
 import { useProgramProgress } from "../../../../features/programs/hooks";
 import { buildTodayGuidance } from "../../../../features/today/guidance";
+import { derivePostCheckInMoment } from "../../../../features/today/post-check-in";
 import { getErrorMessage } from "../../../../lib/errors";
 import { buildAdaptiveProfile } from "../../../../features/adaptive/logic";
 import { getProgramToolById } from "../../../../features/programs/catalog";
@@ -209,6 +218,15 @@ function formatSummaryScaleValue(value: number | null) {
   return value === null ? "—" : `${value}/5`;
 }
 
+function average(values: Array<number | null>) {
+  const valid = values.filter((value): value is number => typeof value === "number");
+  if (!valid.length) {
+    return null;
+  }
+
+  return Math.round((valid.reduce((sum, value) => sum + value, 0) / valid.length) * 10) / 10;
+}
+
 function getSummaryItems(checkIn: DailyCheckIn) {
   return [
     { label: "Fatigue", value: formatSummaryScaleValue(checkIn.fatigue) },
@@ -261,6 +279,55 @@ function getGentleFocus(checkIn: DailyCheckIn | null) {
     title: "Notice what helped",
     body: "If today has more room in it, pay attention to what supported that feeling.",
   };
+}
+
+function TodayLoadingShell({ today }: { today: string }) {
+    return (
+      <AppScreen
+        eyebrow="Daily check-in"
+        title="Today"
+        subtitle="Check in, notice what today feels like, and keep things simple."
+      >
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.overviewCard}>
+          <AppText style={styles.greeting}>{getGreeting()}</AppText>
+          <AppText style={styles.todayDate}>{formatLongDate(today)}</AppText>
+          <View style={styles.skeletonStack}>
+            <CalmSkeleton width="62%" height={20} radius={10} />
+            <CalmSkeleton width="92%" height={14} />
+            <CalmSkeleton width="76%" height={14} />
+          </View>
+        </View>
+
+        <View style={styles.infoCard}>
+          <View style={styles.skeletonStack}>
+            <CalmSkeleton width="34%" height={16} radius={10} />
+            <CalmSkeleton width="94%" height={12} />
+            <CalmSkeleton width="74%" height={12} />
+          </View>
+        </View>
+
+        <View style={styles.guidanceCard}>
+          <View style={styles.skeletonStack}>
+            <CalmSkeleton width="40%" height={18} radius={10} />
+            <CalmSkeleton width="88%" height={12} />
+            <CalmSkeleton width="68%" height={12} />
+          </View>
+          <View style={styles.skeletonMetricGrid}>
+            <CalmSkeleton width="100%" height={64} radius={18} />
+            <CalmSkeleton width="100%" height={64} radius={18} />
+            <CalmSkeleton width="100%" height={64} radius={18} />
+          </View>
+          <CalmSkeleton width="100%" height={56} radius={16} />
+        </View>
+      </ScrollView>
+    </AppScreen>
+  );
 }
 
 function getLowEnergyQuickActions(adaptiveProfile: ReturnType<typeof buildAdaptiveProfile>) {
@@ -316,6 +383,8 @@ export default function TodayScreen() {
   const saveCheckIn = useSaveDailyCheckIn();
   const programProgress = useProgramProgress();
   const reminderSettings = useReminderSettings();
+  const lowEnergyMode = useLowEnergyMode();
+  const premium = usePremium();
   const [draft, setDraft] = useState<DailyCheckInDraft>(getEmptyCheckInDraft());
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastSaveQueued, setLastSaveQueued] = useState(false);
@@ -329,9 +398,13 @@ export default function TodayScreen() {
   const longitudinalAnalysis = useMemo(() => analyzePatterns(longitudinalEntries), [longitudinalEntries]);
   const lifeContext = useMemo(() => buildLifeContextSnapshot(longitudinalEntries), [longitudinalEntries]);
   const overviewEntries = overviewQuery.data ?? [];
+  const totalCheckIns = overviewEntries.length;
   const streak = useMemo(() => getCurrentCheckInStreak(overviewEntries, today), [overviewEntries, today]);
   const weeklyCheckIns = useMemo(() => getCheckInsInLastDays(overviewEntries, today, 7), [overviewEntries, today]);
-  const totalCheckIns = overviewEntries.length;
+  const continuityFeedback = useMemo(
+    () => deriveGentleContinuityFeedback({ totalCheckIns, weeklyCheckIns, streak }),
+    [streak, totalCheckIns, weeklyCheckIns],
+  );
   const growth = useGrowthState({ totalCheckIns });
   const todayEntry = checkInQuery.data ?? null;
   const recentRangeEntries = useMemo(() => {
@@ -368,8 +441,177 @@ export default function TodayScreen() {
     programProgress: programProgress.progress,
   });
   const adaptiveProfile = useMemo(
-    () => buildAdaptiveProfile(historyEntries, weeklyCheckIns, personalizationMemory.memory),
-    [historyEntries, personalizationMemory.memory, weeklyCheckIns],
+    () =>
+      applyLowEnergyModeOverride(
+        buildAdaptiveProfile(historyEntries, weeklyCheckIns, personalizationMemory.memory),
+        lowEnergyMode.enabled,
+      ),
+    [historyEntries, lowEnergyMode.enabled, personalizationMemory.memory, weeklyCheckIns],
+  );
+  const hasAdaptiveSupport = useMemo(
+    () =>
+      canAccessPremiumFeature("adaptive_support", {
+        subscriptionsEnabled: premium.subscriptionsEnabled,
+        hasPremiumAccess: premium.hasPremiumAccess,
+        premiumFeatureFlags: premium.premiumFeatureFlags,
+      }),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags, premium.subscriptionsEnabled],
+  );
+  const hasDailyCalmSupport = useMemo(
+    () =>
+      canAccessPremiumFeature("daily_calm_support", {
+        subscriptionsEnabled: premium.subscriptionsEnabled,
+        hasPremiumAccess: premium.hasPremiumAccess,
+        premiumFeatureFlags: premium.premiumFeatureFlags,
+      }),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags, premium.subscriptionsEnabled],
+  );
+  const hasAdaptiveHome = useMemo(
+    () =>
+      canAccessPremiumFeature("adaptive_home", {
+        subscriptionsEnabled: premium.subscriptionsEnabled,
+        hasPremiumAccess: premium.hasPremiumAccess,
+        premiumFeatureFlags: premium.premiumFeatureFlags,
+      }),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags, premium.subscriptionsEnabled],
+  );
+  const hasCalmDailyEnvironment = useMemo(
+    () =>
+      canAccessPremiumFeature("calm_daily_environment", {
+        subscriptionsEnabled: premium.subscriptionsEnabled,
+        hasPremiumAccess: premium.hasPremiumAccess,
+        premiumFeatureFlags: premium.premiumFeatureFlags,
+      }),
+    [premium.hasPremiumAccess, premium.premiumFeatureFlags, premium.subscriptionsEnabled],
+  );
+  const recentAverages = useMemo(
+    () => ({
+      fatigue: average(historyEntries.slice(0, 7).map((entry) => entry.fatigue)),
+      stress: average(historyEntries.slice(0, 7).map((entry) => entry.stress)),
+      sleep: average(historyEntries.slice(0, 7).map((entry) => entry.sleep_hours)),
+    }),
+    [historyEntries],
+  );
+  const premiumAdaptiveSupport = useMemo(
+    () =>
+      derivePremiumAdaptiveSupport({
+        hasPremiumAccess: premium.hasPremiumAccess,
+        featureEnabled: premium.premiumFeatureFlags.adaptive_support,
+        lowEnergyModeEnabled: lowEnergyMode.enabled,
+        recentFatigueAverage: recentAverages.fatigue,
+        recentStressAverage: recentAverages.stress,
+        recentSleepAverage: recentAverages.sleep,
+        fatigueTrend: adaptiveProfile.fatigueTrend,
+        stressTrend: adaptiveProfile.stressTrend,
+        interactionTolerance: adaptiveProfile.lowEnergyMode ? "reduced" : "steady",
+        preferredSupportStyle: personalizationMemory.memory.preferredSupportStyle,
+        preferredDensity: personalizationMemory.memory.preferredDensity,
+        timeOfDay: currentHour < 12 ? "morning" : currentHour < 18 ? "afternoon" : "evening",
+        engagementRhythm: personalizationMemory.memory.engagementRhythm,
+      }),
+    [
+      adaptiveProfile.fatigueTrend,
+      adaptiveProfile.lowEnergyMode,
+      adaptiveProfile.stressTrend,
+      currentHour,
+      lowEnergyMode.enabled,
+      personalizationMemory.memory.engagementRhythm,
+      personalizationMemory.memory.preferredDensity,
+      personalizationMemory.memory.preferredSupportStyle,
+      premium.hasPremiumAccess,
+      premium.premiumFeatureFlags.adaptive_support,
+      recentAverages.fatigue,
+      recentAverages.sleep,
+      recentAverages.stress,
+    ],
+  );
+  const premiumDailySupport = useMemo(
+    () =>
+      derivePremiumDailySupport({
+        currentHour,
+        lowEnergyMode: lowEnergyMode.enabled,
+        hasPremiumAccess: premium.hasPremiumAccess,
+        featureEnabled: premium.premiumFeatureFlags.daily_calm_support,
+        recentFatigueAverage: recentAverages.fatigue,
+        recentStressAverage: recentAverages.stress,
+        recentSleepAverage: recentAverages.sleep,
+        todayEntry,
+      }),
+    [
+      currentHour,
+      lowEnergyMode.enabled,
+      premium.hasPremiumAccess,
+      premium.premiumFeatureFlags.daily_calm_support,
+      recentAverages.fatigue,
+      recentAverages.sleep,
+      recentAverages.stress,
+      todayEntry,
+    ],
+  );
+  const premiumAdaptiveHome = useMemo(
+    () =>
+      derivePremiumAdaptiveHome({
+        hasPremiumAccess: premium.hasPremiumAccess,
+        featureEnabled: premium.premiumFeatureFlags.adaptive_home,
+        lowEnergyMode: lowEnergyMode.enabled,
+        recentFatigueAverage: recentAverages.fatigue,
+        recentStressAverage: recentAverages.stress,
+        recentSleepAverage: recentAverages.sleep,
+        hasTodayEntry: Boolean(todayEntry),
+        recentCheckIns: weeklyCheckIns,
+        currentHour,
+        reducedInteractionTolerance:
+          adaptiveProfile.lowEnergyMode || personalizationMemory.memory.engagementRhythm === "sporadic",
+      }),
+    [
+      adaptiveProfile.lowEnergyMode,
+      currentHour,
+      lowEnergyMode.enabled,
+      personalizationMemory.memory.engagementRhythm,
+      premium.hasPremiumAccess,
+      premium.premiumFeatureFlags.adaptive_home,
+      recentAverages.fatigue,
+      recentAverages.sleep,
+      recentAverages.stress,
+      todayEntry,
+      weeklyCheckIns,
+    ],
+  );
+  const premiumCalmCompanionEnvironment = useMemo(
+    () =>
+      derivePremiumCalmCompanionEnvironment({
+        hasPremiumAccess: premium.hasPremiumAccess,
+        featureEnabled: premium.premiumFeatureFlags.calm_daily_environment,
+        lowEnergyMode: lowEnergyMode.enabled,
+        recentFatigueAverage: recentAverages.fatigue,
+        recentStressAverage: recentAverages.stress,
+        recentSleepAverage: recentAverages.sleep,
+        recentCheckIns: weeklyCheckIns,
+        currentHour,
+        reducedInteractionTolerance:
+          adaptiveProfile.lowEnergyMode || personalizationMemory.memory.engagementRhythm === "sporadic",
+        hasTodayEntry: Boolean(todayEntry),
+      }),
+    [
+      adaptiveProfile.lowEnergyMode,
+      currentHour,
+      lowEnergyMode.enabled,
+      personalizationMemory.memory.engagementRhythm,
+      premium.hasPremiumAccess,
+      premium.premiumFeatureFlags.calm_daily_environment,
+      recentAverages.fatigue,
+      recentAverages.sleep,
+      recentAverages.stress,
+      todayEntry,
+      weeklyCheckIns,
+    ],
+  );
+  const visibleSummaryItems = useMemo(
+    () =>
+      adaptiveProfile.lowEnergyMode || (hasAdaptiveSupport && premiumAdaptiveSupport.active)
+        ? summaryItems.slice(0, Math.min(4, premiumAdaptiveSupport.density.maxCards))
+        : summaryItems,
+    [adaptiveProfile.lowEnergyMode, hasAdaptiveSupport, premiumAdaptiveSupport.active, premiumAdaptiveSupport.density.maxCards, summaryItems],
   );
   const lifecycleProfile = useMemo(
     () =>
@@ -387,21 +629,19 @@ export default function TodayScreen() {
     [adaptiveProfile.secondarySuggestedProgram],
   );
   const lowEnergyQuickActions = useMemo(() => getLowEnergyQuickActions(adaptiveProfile), [adaptiveProfile]);
-  const postSaveInsight = useMemo(() => {
-    if (historyEntries.length < 3) {
-      return "Track a few days to unlock your insights";
-    }
-
-    if ((todayEntry?.fatigue ?? 0) >= 4 && (todayEntry?.sleep_hours ?? 0) < 6) {
-      return "Low sleep and heavier fatigue can start to form a pattern. Keep checking in so Insights can connect the dots.";
-    }
-
-    if ((todayEntry?.stress ?? 0) >= 4) {
-      return "Stress can shape the whole feel of a day. A few more check-ins will help surface clearer patterns.";
-    }
-
-    return "Your check-ins help Coach and Insights become more useful over time.";
-  }, [historyEntries.length, todayEntry?.fatigue, todayEntry?.sleep_hours, todayEntry?.stress]);
+  const postCheckInMoment = useMemo(
+    () =>
+      derivePostCheckInMoment({
+        fatigue: draft.fatigue,
+        stress: draft.stress,
+        brainFog: draft.brain_fog,
+        mood: draft.mood,
+        hasNotes: draft.notes.trim().length > 0,
+        queuedOffline: lastSaveQueued,
+        lowEnergyMode: lowEnergyMode.enabled,
+      }),
+    [draft.brain_fog, draft.fatigue, draft.mood, draft.notes, draft.stress, lastSaveQueued, lowEnergyMode.enabled],
+  );
   const todayGuidance = useMemo(
     () =>
       buildTodayGuidance(
@@ -412,8 +652,9 @@ export default function TodayScreen() {
         personalizationMemory.memory,
         lifecycleProfile,
         lifeContext,
+        { forceLowEnergyMode: lowEnergyMode.enabled },
       ),
-    [adaptiveProfile, aiSummaryQuery.data, lifeContext, lifecycleProfile, personalizationMemory.memory, today, todayEntry],
+    [adaptiveProfile, aiSummaryQuery.data, lifeContext, lifecycleProfile, lowEnergyMode.enabled, personalizationMemory.memory, today, todayEntry],
   );
   const reflectionFeed = useMemo(
     () =>
@@ -794,7 +1035,14 @@ export default function TodayScreen() {
       reflectionFeed.slice(
         0,
         preventAdaptiveOverstacking({
-          requestedCount: Math.min(reflectionDensity.maxCards, coherenceDensityLimits.maxReflectionCards),
+          requestedCount: Math.min(
+            reflectionDensity.maxCards,
+            coherenceDensityLimits.maxReflectionCards,
+            hasAdaptiveHome && premiumAdaptiveHome.active ? premiumAdaptiveHome.layout.maxReflectionCards : reflectionDensity.maxCards,
+            hasCalmDailyEnvironment && premiumCalmCompanionEnvironment.active
+              ? premiumCalmCompanionEnvironment.spacing.maxReflectionCards
+              : reflectionDensity.maxCards,
+          ),
           maxAllowedCount: preventMetaOverstacking({
             requestedCount: coherenceAdaptive.maxReflectionCards,
             adaptationIntensity: metaOrchestration.adaptationIntensity,
@@ -809,6 +1057,12 @@ export default function TodayScreen() {
       aiSummaryQuery.data?.summary,
       coherenceAdaptive.maxReflectionCards,
       coherenceDensityLimits.maxReflectionCards,
+      hasAdaptiveHome,
+      hasCalmDailyEnvironment,
+      premiumAdaptiveHome.active,
+      premiumAdaptiveHome.layout.maxReflectionCards,
+      premiumCalmCompanionEnvironment.active,
+      premiumCalmCompanionEnvironment.spacing.maxReflectionCards,
       reflectionDensity.maxCards,
       reflectionFeed,
     ],
@@ -843,6 +1097,10 @@ export default function TodayScreen() {
             adaptiveDefaults.quickLinkCount,
             navigationPriority.maxVisibleRoutes,
             coherenceAdaptive.maxQuickLinks,
+            hasAdaptiveHome && premiumAdaptiveHome.active ? premiumAdaptiveHome.layout.maxQuickLinks : coherenceAdaptive.maxQuickLinks,
+            hasCalmDailyEnvironment && premiumCalmCompanionEnvironment.active
+              ? premiumCalmCompanionEnvironment.spacing.maxQuickLinks
+              : coherenceAdaptive.maxQuickLinks,
           ),
           maxAllowedCount: preventMetaOverstacking({
             requestedCount: coherenceRules.promptLoadLimit + 1,
@@ -859,7 +1117,13 @@ export default function TodayScreen() {
       aiSummaryQuery.data?.summary,
       coherenceAdaptive.maxQuickLinks,
       coherenceRules.promptLoadLimit,
+      hasAdaptiveHome,
+      hasCalmDailyEnvironment,
       navigationPriority.maxVisibleRoutes,
+      premiumAdaptiveHome.active,
+      premiumAdaptiveHome.layout.maxQuickLinks,
+      premiumCalmCompanionEnvironment.active,
+      premiumCalmCompanionEnvironment.spacing.maxQuickLinks,
       visibleQuickLinks,
       visibleReflectionCards.length,
     ],
@@ -870,7 +1134,7 @@ export default function TodayScreen() {
         visibleSurfaceCount:
           3 +
           (visibleReflectionCards.length > 0 ? 1 : 0) +
-          (Boolean(aiSummaryQuery.data?.summary) ? 1 : 0) +
+          (aiSummaryQuery.data?.summary ? 1 : 0) +
           (suggestedProgram ? 1 : 0),
         actionCount: todayGuidance.actions.length + visibleQuickLinksQuiet.length,
         hasAiSummary: Boolean(aiSummaryQuery.data?.summary),
@@ -935,13 +1199,23 @@ export default function TodayScreen() {
           coherencePromptLimits.maxPromptActions,
           metaOrchestration.interpretationLimits.maxPromptActions,
           coherenceRules.promptLoadLimit,
+          hasAdaptiveHome && premiumAdaptiveHome.active ? premiumAdaptiveHome.layout.maxGuidanceActions : coherenceRules.promptLoadLimit,
+          hasCalmDailyEnvironment && premiumCalmCompanionEnvironment.active
+            ? premiumCalmCompanionEnvironment.spacing.maxGuidanceActions
+            : coherenceRules.promptLoadLimit,
         ),
       ),
     [
       coherencePromptLimits.maxPromptActions,
       coherenceRules.promptLoadLimit,
       decisionLoad,
+      hasAdaptiveHome,
+      hasCalmDailyEnvironment,
       metaOrchestration.interpretationLimits.maxPromptActions,
+      premiumAdaptiveHome.active,
+      premiumAdaptiveHome.layout.maxGuidanceActions,
+      premiumCalmCompanionEnvironment.active,
+      premiumCalmCompanionEnvironment.spacing.maxGuidanceActions,
       todayGuidance.actions,
     ],
   );
@@ -1054,7 +1328,9 @@ export default function TodayScreen() {
       const queuedOffline = savedRow.id.startsWith("offline-");
       lastSavedSnapshotRef.current = getDraftSnapshot(draft);
       setLastSaveQueued(queuedOffline);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (!lowEnergyMode.enabled) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       if (!todayEntry && totalCheckIns === 0) {
         await growth.recordEvent("first_check_in", {
           source: "today",
@@ -1093,11 +1369,11 @@ export default function TodayScreen() {
   };
 
   if (!user?.id) {
-    return <ErrorState message="You need to be signed in to view today's check-in." />;
+    return <ErrorState message="Today’s check-in is available once you’re signed in." />;
   }
 
   if (checkInQuery.isLoading) {
-    return <LoadingState message="Loading today..." />;
+    return <TodayLoadingShell today={today} />;
   }
 
   if (checkInQuery.isError) {
@@ -1114,16 +1390,19 @@ export default function TodayScreen() {
 
   return (
     <AppScreen
+      eyebrow="Daily check-in"
       title="Today"
-      subtitle="Track how you feel, notice patterns, and build a steadier picture of daily wellness."
+      subtitle="Check in, notice what today feels like, and keep things simple."
     >
       <ScrollView
         contentContainerStyle={[
           styles.content,
+          adaptiveProfile.lowEnergyMode && styles.contentLowEnergy,
           {
             paddingBottom: Math.max(120, insets.bottom + 96),
           },
         ]}
+        keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -1148,7 +1427,43 @@ export default function TodayScreen() {
                 ? "We can keep this short today. A brief check-in is enough."
                 : "A quick check-in helps Coach feel more personal and gives Insights more to work with."}
           </AppText>
+          {hasCalmDailyEnvironment && premiumCalmCompanionEnvironment.active ? (
+            <AppText style={styles.overviewSupportNote}>{premiumCalmCompanionEnvironment.returnLine}</AppText>
+          ) : null}
+          {hasAdaptiveHome && premiumAdaptiveHome.active ? (
+            <AppText style={styles.overviewSupportNote}>{premiumAdaptiveHome.supportPriority.summary}</AppText>
+          ) : null}
+          {hasAdaptiveSupport && premiumAdaptiveSupport.active ? (
+            <AppText style={styles.overviewSupportNote}>{premiumAdaptiveSupport.tone.supportLine}</AppText>
+          ) : null}
         </View>
+
+        {hasAdaptiveHome && premiumAdaptiveHome.active ? (
+          <View style={styles.premiumDailySupportCard}>
+            <AppText style={styles.premiumDailySupportLabel}>Adaptive calm home</AppText>
+            <AppText style={styles.premiumDailySupportTitle}>{premiumAdaptiveHome.calmness.title}</AppText>
+            <AppText style={styles.premiumDailySupportBody}>{premiumAdaptiveHome.calmness.body}</AppText>
+            <View style={styles.premiumDailySupportPill}>
+              <AppText style={styles.premiumDailySupportPillText}>{premiumAdaptiveHome.calmness.toneLine}</AppText>
+            </View>
+          </View>
+        ) : null}
+
+        {hasCalmDailyEnvironment && premiumCalmCompanionEnvironment.active ? (
+          <View style={styles.premiumDailySupportCard}>
+            <AppText style={styles.premiumDailySupportLabel}>Quiet daily environment</AppText>
+            <AppText style={styles.premiumDailySupportTitle}>{premiumCalmCompanionEnvironment.title}</AppText>
+            <AppText style={styles.premiumDailySupportBody}>{premiumCalmCompanionEnvironment.body}</AppText>
+            <View style={styles.premiumDailySupportPill}>
+              <AppText style={styles.premiumDailySupportPillText}>{premiumCalmCompanionEnvironment.continuityLine}</AppText>
+            </View>
+            <View style={styles.companionMomentList}>
+              {premiumCalmCompanionEnvironment.microMoments.map((moment) => (
+                <AppText key={moment} style={styles.companionMomentText}>• {moment}</AppText>
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         {lowStimulusSurface ? (
           <View style={styles.infoCard}>
@@ -1182,6 +1497,37 @@ export default function TodayScreen() {
           </AppText>
         </View>
 
+        {premiumDailySupport ? (
+          <View style={styles.premiumDailySupportCard}>
+            <AppText style={styles.premiumDailySupportLabel}>
+              {premiumDailySupport.moment === "morning"
+                ? "Morning grounding"
+                : premiumDailySupport.moment === "evening"
+                  ? "Evening support"
+                  : "Daily grounding"}
+            </AppText>
+            <AppText style={styles.premiumDailySupportTitle}>{premiumDailySupport.title}</AppText>
+            <AppText style={styles.premiumDailySupportBody}>{premiumDailySupport.body}</AppText>
+            <View style={styles.premiumDailySupportPill}>
+              <AppText style={styles.premiumDailySupportPillText}>{premiumDailySupport.pacing}</AppText>
+            </View>
+            <AppText style={styles.premiumDailySupportReflection}>{premiumDailySupport.reflection}</AppText>
+          </View>
+        ) : hasDailyCalmSupport === false ? (
+          <View style={styles.premiumDailySupportLockCard}>
+            <AppText style={styles.premiumDailySupportLabel}>Daily calm support</AppText>
+            <AppText style={styles.premiumDailySupportTitle}>Calmer daily grounding, pacing, and reflection</AppText>
+            <AppText style={styles.premiumDailySupportBody}>
+              Premium includes calmer daily support and grounding tools without making the app feel pushy or attached.
+            </AppText>
+            <AppButton
+              label="Explore Premium"
+              onPress={() => router.push("/premium?source=today")}
+              variant="secondary"
+            />
+          </View>
+        ) : null}
+
         {totalCheckIns > 0 ? (
           <View style={styles.consistencyCard}>
             <View style={styles.consistencyPill}>
@@ -1194,6 +1540,7 @@ export default function TodayScreen() {
             </View>
             <AppText style={styles.consistencyTitle}>{continuityMessaging.title}</AppText>
             <AppText style={styles.consistencyBody}>{continuityMessaging.summary}</AppText>
+            <AppText style={styles.consistencySupport}>{continuityFeedback.body}</AppText>
             <AppText style={styles.consistencySupport}>{selfCompassionReinforcement}</AppText>
           </View>
         ) : null}
@@ -1216,16 +1563,16 @@ export default function TodayScreen() {
 
         {historyQuery.isLoading && historyEntries.length === 0 ? (
           <View style={styles.infoCard}>
-            <AppText style={styles.infoTitle}>Loading your recent check-ins…</AppText>
-            <AppText style={styles.infoBody}>We’re pulling in your recent patterns now.</AppText>
+            <AppText style={styles.infoTitle}>Bringing in your recent check-ins…</AppText>
+            <AppText style={styles.infoBody}>Your recent patterns are settling in now.</AppText>
           </View>
         ) : null}
 
         {historyQuery.isError ? (
           <View style={styles.warningCard}>
-            <AppText style={styles.warningTitle}>Some recent history could not load</AppText>
+            <AppText style={styles.warningTitle}>Some recent history needs a moment</AppText>
             <AppText style={styles.warningBody}>
-              Today’s check-in is still available. You can keep going and try again in a moment.
+              Today’s check-in is still here, and the rest can settle in shortly.
             </AppText>
           </View>
         ) : null}
@@ -1290,9 +1637,13 @@ export default function TodayScreen() {
           </View>
         ) : (
           <View style={styles.confirmationCard}>
-            <AppText style={styles.confirmationTitle}>You checked in today</AppText>
+            <AppText style={styles.confirmationTitle}>
+              {saveState === "saved" ? postCheckInMoment.title : "You checked in today"}
+            </AppText>
             <AppText style={styles.confirmationBody}>
-              Nice work. Your daily picture is saved and ready to support Coach and Insights.
+              {saveState === "saved"
+                ? `${postCheckInMoment.body} ${postCheckInMoment.insight}`
+                : "Your daily picture is here if you want to glance back later."}
             </AppText>
           </View>
         )}
@@ -1301,7 +1652,7 @@ export default function TodayScreen() {
           <View style={styles.summaryCard}>
             <AppText style={styles.navTitle}>Daily summary</AppText>
             <View style={styles.summaryGrid}>
-              {summaryItems.map((item) => (
+              {visibleSummaryItems.map((item) => (
                 <View key={item.label} style={styles.summaryPill}>
                   <AppText style={styles.summaryLabel}>{item.label}</AppText>
                   <AppText style={styles.summaryValue}>{item.value}</AppText>
@@ -1318,7 +1669,11 @@ export default function TodayScreen() {
           </View>
         ) : null}
 
-        {recentActionCard && energyAwareFlow.density !== "MINIMAL" && !hiddenComplexity.hideSecondarySupport ? (
+        {recentActionCard &&
+        energyAwareFlow.density !== "MINIMAL" &&
+        !hiddenComplexity.hideSecondarySupport &&
+        (!hasAdaptiveSupport || premiumAdaptiveSupport.density.maxSecondarySections >= 2) &&
+        (!hasAdaptiveHome || premiumAdaptiveHome.layout.showRecentAction) ? (
           <View style={styles.resumeCard}>
             <AppText style={styles.navTitle}>{recentActionCard.title}</AppText>
             <AppText style={styles.resumeBody}>{recentActionCard.body}</AppText>
@@ -1410,7 +1765,16 @@ export default function TodayScreen() {
           <View style={styles.resumeCard}>
             <AppText style={styles.navTitle}>A gentle support option</AppText>
             <AppText style={styles.resumeBody}>
-              {suggestedProgram.title} may fit this stretch well. You can use it if a little support would help today feel steadier.
+              {(hasAdaptiveHome && premiumAdaptiveHome.active
+                ? premiumAdaptiveHome.supportPriority.primarySupport === "sleep"
+                  ? "A quieter support tool may fit today better."
+                  : premiumAdaptiveHome.supportPriority.primarySupport === "grounding"
+                    ? "A grounding tool may feel easier to reach for today."
+                    : premiumAdaptiveHome.supportPriority.primarySupport === "low-energy"
+                      ? "A lower-effort support tool may fit today better."
+                      : `${suggestedProgram.title} may fit this stretch well.`
+                : `${suggestedProgram.title} may fit this stretch well.`) +
+                " You can use it if a little support would help today feel steadier."}
             </AppText>
             <AppButton
               label="Open Programs"
@@ -1424,7 +1788,8 @@ export default function TodayScreen() {
         secondarySuggestedProgram &&
         energyAwareFlow.density !== "MINIMAL" &&
         optionalExpansion.showSecondaryProgram &&
-        !deferredContent.hideSecondaryProgram ? (
+        !deferredContent.hideSecondaryProgram &&
+        (!hasAdaptiveHome || premiumAdaptiveHome.layout.showSecondaryProgram) ? (
           <View style={styles.resumeCard}>
             <AppText style={styles.navTitle}>A softer place to return</AppText>
             <AppText style={styles.resumeBody}>
@@ -1440,7 +1805,9 @@ export default function TodayScreen() {
           <AppText style={styles.focusBody}>{gentleFocus.body}</AppText>
         </View>
 
-        {!energyAwareFlow.contentReduction.hideSecondaryWins && !deferredContent.hideWins ? (
+        {!energyAwareFlow.contentReduction.hideSecondaryWins &&
+        !deferredContent.hideWins &&
+        (!hasAdaptiveHome || premiumAdaptiveHome.layout.showWins) ? (
           <View style={styles.winsCard}>
             <AppText style={styles.navTitle}>Small wins</AppText>
             {wins.length > 0 ? (
@@ -1480,24 +1847,22 @@ export default function TodayScreen() {
           <AppText style={styles.date}>{today}</AppText>
         </View>
 
-      <DailyCheckInCard
+        <DailyCheckInCard
           draft={draft}
           onChange={setDraft}
           saveState={saveState}
           onSave={() => void handleSaveCheckIn()}
-          postSaveInsight={
-            lastSaveQueued
-              ? "Saved on this device for now. It will sync automatically when you’re back online."
-              : postSaveInsight
-          }
+          saveMomentTitle={postCheckInMoment.title}
+          saveMomentBody={postCheckInMoment.body}
+          postSaveInsight={postCheckInMoment.insight}
           saveFooterText={
             lastSaveQueued
-              ? "You can keep using the app normally."
+              ? postCheckInMoment.footer
               : suggestedEffortLevel === "brief"
                 ? "You can leave it there for today."
                 : suggestedEffortLevel === "gentle"
                   ? "You can stop here if that feels like enough."
-                  : "You can leave it there for now."
+                  : postCheckInMoment.footer
           }
           onViewInsights={() => router.push("/insights")}
           supportMode={adaptiveProfile.lowEnergyMode ? "low-energy" : "default"}
@@ -1517,6 +1882,9 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingHorizontal: 20,
     gap: 16,
+  },
+  contentLowEnergy: {
+    gap: 20,
   },
   header: {
     gap: 4,
@@ -1558,6 +1926,10 @@ const styles = StyleSheet.create({
     color: "#4b5563",
     lineHeight: 22,
   },
+  overviewSupportNote: {
+    color: "#6b7280",
+    lineHeight: 20,
+  },
   navCard: {
     backgroundColor: "#ffffff",
     borderRadius: 20,
@@ -1588,16 +1960,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f1e1d4",
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 2,
+    paddingVertical: 14,
+    gap: 4,
+    minHeight: 86,
+    justifyContent: "center",
   },
   consistencyValue: {
     fontSize: 24,
+    lineHeight: 30,
     fontWeight: "700",
     color: "#1f2937",
   },
   consistencyLabel: {
     fontSize: 13,
+    lineHeight: 18,
     color: "#6b7280",
   },
   consistencyTitle: {
@@ -1648,6 +2024,64 @@ const styles = StyleSheet.create({
     color: "#64748b",
     lineHeight: 20,
   },
+  premiumDailySupportCard: {
+    backgroundColor: "#f7faf9",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#dce8e3",
+    padding: 18,
+    gap: 10,
+  },
+  premiumDailySupportLockCard: {
+    backgroundColor: "#fffaf6",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#eadfd6",
+    padding: 18,
+    gap: 12,
+  },
+  premiumDailySupportLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#456b61",
+    textTransform: "uppercase",
+  },
+  premiumDailySupportTitle: {
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  premiumDailySupportBody: {
+    color: "#4b5563",
+    lineHeight: 22,
+  },
+  premiumDailySupportPill: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#dce8e3",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  premiumDailySupportPillText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#456b61",
+    fontWeight: "700",
+  },
+  premiumDailySupportReflection: {
+    color: "#6b7280",
+    lineHeight: 21,
+  },
+  companionMomentList: {
+    gap: 6,
+  },
+  companionMomentText: {
+    color: "#6b7280",
+    lineHeight: 20,
+  },
   warningCard: {
     backgroundColor: "#fff7ed",
     borderRadius: 18,
@@ -1689,6 +2123,7 @@ const styles = StyleSheet.create({
   },
   previousMetricText: {
     fontSize: 13,
+    lineHeight: 18,
     fontWeight: "700",
     color: "#8b6a4f",
   },
@@ -1709,6 +2144,13 @@ const styles = StyleSheet.create({
     color: "#2f5f3c",
     lineHeight: 22,
   },
+  skeletonStack: {
+    gap: 10,
+  },
+  skeletonMetricGrid: {
+    gap: 12,
+    marginTop: 4,
+  },
   summaryCard: {
     backgroundColor: "#ffffff",
     borderRadius: 20,
@@ -1723,21 +2165,27 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   summaryPill: {
-    minWidth: "30%",
+    flexGrow: 1,
+    flexBasis: 140,
+    minWidth: 140,
     backgroundColor: "#fffaf6",
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#f3dfd1",
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 13,
     gap: 4,
+    minHeight: 76,
+    justifyContent: "center",
   },
   summaryLabel: {
     fontSize: 13,
+    lineHeight: 18,
     color: "#6b7280",
   },
   summaryValue: {
     fontSize: 18,
+    lineHeight: 24,
     fontWeight: "700",
     color: "#1f2937",
   },
@@ -1793,6 +2241,7 @@ const styles = StyleSheet.create({
   guidanceActionText: {
     color: "#9a4a11",
     fontSize: 14,
+    lineHeight: 20,
     fontWeight: "700",
   },
   focusCard: {
@@ -1877,6 +2326,7 @@ const styles = StyleSheet.create({
   winText: {
     color: "#6b7280",
     fontSize: 14,
+    lineHeight: 20,
     fontWeight: "600",
   },
   focusKicker: {

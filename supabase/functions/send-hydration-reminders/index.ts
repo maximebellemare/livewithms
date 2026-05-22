@@ -135,11 +135,11 @@ Deno.serve(async (req) => {
 
       const remaining = goal - currentIntake;
       const body = currentIntake === 0
-        ? `You haven't logged any water today — aim for ${goal} glasses 💧`
-        : `You've had ${currentIntake} glass${currentIntake !== 1 ? "es" : ""} so far — ${remaining} more to reach your goal of ${goal} 💧`;
+        ? "A small water check-in might help later today."
+        : `You have ${currentIntake} glass${currentIntake !== 1 ? "es" : ""} so far. Another small water break might help.`;
 
       const notification = JSON.stringify({
-        title: "💧 Hydration Reminder",
+        title: "Water check-in",
         body,
         icon: "/pwa-192.png",
         badge: "/pwa-192.png",

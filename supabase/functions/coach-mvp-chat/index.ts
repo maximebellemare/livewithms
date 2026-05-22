@@ -2,6 +2,11 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { applyTrustLayer } from "../../../lib/ai-trust/applyTrustLayer";
 import { detectSensitiveTopics } from "../../../lib/ai-trust/escalation-guardrails/detectSensitiveTopics";
 import { deriveSafeResponseDepth } from "../../../lib/ai-trust/emotional-safety/deriveSafeResponseDepth";
+import {
+  detectCoachLowEnergyMode,
+  detectCoachOverwhelm,
+  softenCoachAssistantText,
+} from "../../../features/coach/refinement";
 import type { AiTrustAdaptiveState } from "../../../lib/ai-trust/types";
 
 const corsHeaders = {
@@ -15,6 +20,7 @@ type CoachContext = {
   mood: number | null;
   stress: number | null;
   sleep_hours: number | null;
+  brain_fog?: number | null;
   recent_reflection: string | null;
   fatigue_average_7d: number | null;
   mood_average_7d: number | null;
@@ -48,6 +54,7 @@ type CoachContext = {
   preferred_checkin_windows?: string[];
   engagement_rhythm?: "light" | "steady" | "sporadic";
   recovery_rhythm?: "quick-reset" | "gradual-return" | "quiet-reentry";
+  low_energy_mode?: boolean;
 };
 
 type CoachMode = "reflect" | "calm" | "practical" | "encouragement";
@@ -74,7 +81,7 @@ const MAX_USER_MESSAGE_LENGTH = 700;
 const MAX_ASSISTANT_CONTENT_LENGTH = 900;
 const MAX_RECENT_REFLECTIONS = 2;
 
-const SYSTEM_PROMPT = `You are LiveWithMS Coach, a calm reflection companion inside a multiple sclerosis self-tracking app.
+const SYSTEM_PROMPT = `You are LiveWithMS Coach, a calm reflection guide inside a multiple sclerosis self-tracking app.
 
 Your role:
 - Help the user reflect, notice patterns, and choose one small supportive next step.
@@ -84,10 +91,11 @@ Your role:
 - Avoid generic wellness clichés, repetitive phrasing, or empty encouragement.
 
 Formatting:
-- Usually reply in 2-4 short paragraphs.
-- Keep each paragraph to 1-3 sentences.
+- Usually reply in 1-3 short paragraphs.
+- Keep each paragraph to 1-2 sentences.
 - Use brief bullets only when that is clearly easier to read.
 - Avoid walls of text.
+- Ask at most one gentle question, and only when it truly helps.
 
 Safety boundaries:
 - Do not provide medical advice, diagnosis, medication instructions, treatment recommendations, or certainty claims.
@@ -98,6 +106,9 @@ Safety boundaries:
 - If the user sounds hopeless, overwhelmed, or in extreme distress, keep the reply short, steady, and encourage reaching out to real-world support.
 - Avoid dependency language, guilt, pressure, dramatic wording, or manipulative emotional framing.
 - Avoid sounding like the user needs you, relies on you, or should return for reassurance.
+- Do not say you are always here, that you will stay with the user, or that you understand them deeply.
+- Do not mirror emotion at length or repeat reassurance in loops.
+- Do not over-reference conversation history or say "last time you said" unless it is truly necessary.
 
 Tone:
 - Calm
@@ -161,6 +172,7 @@ function normalizeContext(context?: Partial<CoachContext>): CoachContext {
     mood: typeof context?.mood === "number" ? context.mood : null,
     stress: typeof context?.stress === "number" ? context.stress : null,
     sleep_hours: typeof context?.sleep_hours === "number" ? context.sleep_hours : null,
+    brain_fog: typeof context?.brain_fog === "number" ? context.brain_fog : null,
     fatigue_average_7d: typeof context?.fatigue_average_7d === "number" ? context.fatigue_average_7d : null,
     mood_average_7d: typeof context?.mood_average_7d === "number" ? context.mood_average_7d : null,
     stress_average_7d: typeof context?.stress_average_7d === "number" ? context.stress_average_7d : null,
@@ -265,6 +277,7 @@ function normalizeContext(context?: Partial<CoachContext>): CoachContext {
       context?.recovery_rhythm === "quiet-reentry"
         ? context.recovery_rhythm
         : "quiet-reentry",
+    low_energy_mode: Boolean(context?.low_energy_mode),
   };
 }
 
@@ -289,7 +302,7 @@ function buildModeInstruction(mode: CoachMode) {
     case "practical":
       return "Mode: Practical. Focus on clarity, next steps, pacing, and reducing overload.";
     case "encouragement":
-      return "Mode: Encouragement. Focus on gentle encouragement, small wins, and steady perspective without sounding overexcited.";
+      return "Mode: Encouragement. Focus on a steady, kind perspective without hype, cheerleading, or emotional intensity.";
     case "reflect":
     default:
       return "Mode: Reflect. Focus on self-awareness, naming what stands out, and helping the user think things through.";
@@ -297,6 +310,27 @@ function buildModeInstruction(mode: CoachMode) {
 }
 
 function deriveTrustAdaptiveState(context: CoachContext): AiTrustAdaptiveState {
+  if (
+    detectCoachOverwhelm({
+      stress: context.stress,
+      brainFog: context.brain_fog,
+      message: context.recent_reflection,
+    })
+  ) {
+    return "OVERWHELMED";
+  }
+
+  if (
+    detectCoachLowEnergyMode({
+      lowEnergyMode: context.low_energy_mode,
+      fatigue: context.fatigue,
+      sleepHours: context.sleep_hours,
+      adaptiveFatigueTrend: context.adaptive_fatigue_trend,
+    })
+  ) {
+    return "LOW_ENERGY";
+  }
+
   if (
     context.adaptive_fatigue_trend === "high" ||
     context.adaptive_sleep_trend === "low" ||
@@ -494,6 +528,30 @@ function buildPreferenceLine(context: CoachContext) {
   return parts.length ? `Personalization preferences: ${parts.join(". ")}.` : "";
 }
 
+function buildResponseConstraintLine(context: CoachContext, message: string) {
+  const lowEnergy = detectCoachLowEnergyMode({
+    lowEnergyMode: context.low_energy_mode,
+    fatigue: context.fatigue,
+    sleepHours: context.sleep_hours,
+    adaptiveFatigueTrend: context.adaptive_fatigue_trend,
+  });
+  const overwhelmed = detectCoachOverwhelm({
+    stress: context.stress,
+    brainFog: context.brain_fog,
+    message,
+  });
+
+  if (overwhelmed) {
+    return "Response guidance: Keep this especially brief, grounding, and low-density. Offer at most one small next step. Reduce analysis.";
+  }
+
+  if (lowEnergy) {
+    return "Response guidance: Keep this brief, simple, and easy to read. Use lighter language and no more than two practical suggestions.";
+  }
+
+  return "Response guidance: Keep the response concise, practical, and emotionally restrained.";
+}
+
 function buildRecentReflectionsLine(context: CoachContext) {
   if (!context.recent_reflections.length) {
     return "";
@@ -613,7 +671,7 @@ Deno.serve(async (req) => {
     let assistantContent = "";
     const trustAdaptiveState = deriveTrustAdaptiveState(context);
     const depth = deriveSafeResponseDepth(trustAdaptiveState, detectSensitiveTopics(message));
-    const maxTokens = depth === "brief" ? 110 : depth === "reflective" ? 170 : 140;
+    const maxTokens = depth === "brief" ? 90 : depth === "reflective" ? 150 : 120;
     const includeTransparencyNote = !((recentMessages ?? []).some((entry) => entry.role === "assistant"));
 
     if (safetyMode === "crisis") {
@@ -629,6 +687,7 @@ Deno.serve(async (req) => {
           buildAdaptiveLine(context),
           buildOnboardingProfileLine(context),
           buildPreferenceLine(context),
+          buildResponseConstraintLine(context, message),
           buildRecentReflectionsLine(context),
         ])
         .filter(Boolean)
@@ -715,6 +774,18 @@ Deno.serve(async (req) => {
         clearTimeout(timeout);
       }
     }
+
+    assistantContent = softenCoachAssistantText(assistantContent, {
+      fatigue: context.fatigue,
+      stress: context.stress,
+      brainFog: context.brain_fog,
+      sleepHours: context.sleep_hours,
+      lowEnergyMode: context.low_energy_mode,
+      adaptiveFatigueTrend: context.adaptive_fatigue_trend,
+      adaptiveStressTrend: context.adaptive_stress_trend,
+      message,
+      timeOfDay: new Date().getHours() >= 18 ? "evening" : new Date().getHours() < 12 ? "morning" : "afternoon",
+    });
 
     const trustedResponse = applyTrustLayer({
       text: assistantContent,

@@ -1,25 +1,53 @@
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { useDerivedCalmEnvironment } from "../../features/calm-environment/hooks";
+import { deriveStateSurfacePresentation } from "../../lib/calm-environment";
 import AppText from "./AppText";
 import { colors, radii, shadows } from "./design";
+import CalmSkeleton from "./CalmSkeleton";
 import { deriveNonJudgmentalEmptyStates } from "../../lib/humane-micro-moments/humane-empty-states/deriveNonJudgmentalEmptyStates";
 import { deriveSubtleHumanWarmth } from "../../lib/humane-micro-moments/quiet-warmth/deriveSubtleHumanWarmth";
 import { preventOverfamiliarity } from "../../lib/humane-micro-moments/quiet-warmth/preventOverfamiliarity";
 import { preserveSubtleReliefMoments } from "../../lib/humane-micro-moments/non-performative-delight/preserveSubtleReliefMoments";
-import { deriveCalmMotionPacing } from "../../lib/humane-micro-moments/sensory-refinement/deriveCalmMotionPacing";
-
 type LoadingStateProps = {
   message?: string;
 };
 
 export default function LoadingState({ message = "Getting things ready..." }: LoadingStateProps) {
+  const calmEnvironment = useDerivedCalmEnvironment();
+  const presentation = deriveStateSurfacePresentation(calmEnvironment);
   const fallback = deriveNonJudgmentalEmptyStates({ context: "loading" });
   const warmth = deriveSubtleHumanWarmth({ surface: "loading" });
+  const skeletonWidths: Array<`${number}%`> =
+    presentation.skeletonLines === 2 ? ["78%", "58%"] : ["72%", "88%", "58%"];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <ActivityIndicator size="large" color={colors.accent} />
-        <AppText style={styles.message}>
+    <View style={[styles.container, { padding: presentation.outerPadding }]}>
+      <View
+        style={[
+          styles.card,
+          {
+            maxWidth: presentation.maxWidth,
+            gap: presentation.cardGap,
+            paddingHorizontal: presentation.cardPaddingHorizontal,
+            paddingVertical: presentation.cardPaddingVertical,
+          },
+        ]}
+        accessibilityRole="progressbar"
+        accessibilityLabel="Loading"
+      >
+        <View style={[styles.indicator, presentation.useStaticLoadingIndicator && styles.indicatorStatic]} />
+        <View style={styles.skeletonGroup}>
+          {skeletonWidths.map((width) => (
+            <CalmSkeleton key={width} width={width} height={12} />
+          ))}
+        </View>
+        <AppText
+          style={[
+            styles.message,
+            presentation.reduceTextWalls && styles.messageReducedWall,
+            presentation.useStaticLoadingIndicator && styles.messageSoftened,
+          ]}
+        >
           {preserveSubtleReliefMoments(
             preventOverfamiliarity(`${message} ${fallback} ${warmth}`.trim()),
           )}
@@ -34,26 +62,45 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
     backgroundColor: colors.page,
   },
   card: {
+    width: "100%",
     minWidth: 240,
-    maxWidth: 360,
-    gap: 12,
+    gap: 14,
     alignItems: "center",
     backgroundColor: colors.surface,
     borderRadius: radii.cardLarge,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 22,
-    paddingVertical: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 24,
     ...shadows.soft,
+  },
+  indicator: {
+    width: 16,
+    height: 16,
+    borderRadius: 999,
+    backgroundColor: colors.accent,
+    opacity: 0.8,
+  },
+  indicatorStatic: {
+    opacity: 0.52,
   },
   message: {
     color: colors.textMuted,
     textAlign: "center",
-    lineHeight: 20,
-    opacity: deriveCalmMotionPacing({}).motionScale < 1 ? 0.94 : 1,
+    lineHeight: 24,
+  },
+  messageReducedWall: {
+    maxWidth: 296,
+  },
+  messageSoftened: {
+    opacity: 0.94,
+  },
+  skeletonGroup: {
+    width: "100%",
+    gap: 8,
+    marginTop: 2,
   },
 });

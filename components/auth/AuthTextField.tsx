@@ -24,6 +24,8 @@ export default function AuthTextField({
     <View style={styles.container}>
       <AppText style={styles.label}>{label}</AppText>
       <TextInput
+        accessibilityLabel={label}
+        allowFontScaling
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -39,10 +41,11 @@ export default function AuthTextField({
 
 const styles = StyleSheet.create({
   container: {
-    gap: 6,
+    gap: 8,
   },
   label: {
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 20,
     fontWeight: "600",
     color: "#374151",
   },
@@ -52,8 +55,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#ffffff",
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
+    minHeight: 54,
     fontSize: 16,
+    lineHeight: 22,
     color: "#111827",
   },
 });

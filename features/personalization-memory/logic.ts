@@ -27,7 +27,11 @@ function getReminderWindow(hour: number): ReminderWindow {
   return "evening";
 }
 
-function getPreferredSupportStyle(input: PersonalizationMemoryInput): SupportStyle {
+function getPreferredSupportStyle(input: PersonalizationMemoryInput, previousMemory?: PersonalizationMemory | null): SupportStyle {
+  if (previousMemory?.onboardingSupportStyleOverride) {
+    return previousMemory.onboardingSupportStyleOverride;
+  }
+
   const goals = input.onboardingGoals.map((goal) => goal.toLowerCase());
   const symptoms = input.onboardingSymptoms.map((symptom) => symptom.toLowerCase());
   const recentActions = input.growthState?.recentActions ?? [];
@@ -102,7 +106,7 @@ export function buildPersonalizationMemory(
   input: PersonalizationMemoryInput,
   previousMemory?: PersonalizationMemory | null,
 ): PersonalizationMemory {
-  const preferredSupportStyle = getPreferredSupportStyle(input);
+  const preferredSupportStyle = getPreferredSupportStyle(input, previousMemory);
   const interactionStyle = evolveInteractionProfile(
     previousMemory?.interactionStyleProfile,
     deriveInteractionStyle({
@@ -113,10 +117,12 @@ export function buildPersonalizationMemory(
   );
   const reflectionDepthPreference = deriveReflectionDepthPreference(input.recentEntries ?? []);
   const promptStylePreference = derivePromptStylePreference(interactionStyle);
-  const complexityTolerance = deriveComplexityTolerance({
-    adaptiveProfile: input.adaptiveProfile,
-    reflectionDepthPreference,
-  });
+  const complexityTolerance =
+    previousMemory?.onboardingComplexityToleranceOverride ??
+    deriveComplexityTolerance({
+      adaptiveProfile: input.adaptiveProfile,
+      reflectionDepthPreference,
+    });
   const previousPreferences: PersonalizationPreferenceSnapshot | null = previousMemory
     ? {
         interactionStyle: previousMemory.interactionStyleProfile,
@@ -154,12 +160,15 @@ export function buildPersonalizationMemory(
     reflectionDepthPreference,
     promptStylePreference,
     complexityTolerance,
-    preferredDensity: derivePreferredDensity(complexityTolerance),
+    preferredDensity: previousMemory?.onboardingPreferredDensityOverride ?? derivePreferredDensity(complexityTolerance),
   });
 
   const baseMemory: PersonalizationMemory = {
     onboardingGoals: input.onboardingGoals.slice(0, 6),
     onboardingSymptoms: input.onboardingSymptoms.slice(0, 6),
+    onboardingSupportStyleOverride: previousMemory?.onboardingSupportStyleOverride ?? null,
+    onboardingPreferredDensityOverride: previousMemory?.onboardingPreferredDensityOverride ?? null,
+    onboardingComplexityToleranceOverride: previousMemory?.onboardingComplexityToleranceOverride ?? null,
     preferredSupportStyle,
     preferredProgramTags: getPreferredProgramTags(input),
     reminderWindow: getReminderWindow(input.reminderSettings.hour),

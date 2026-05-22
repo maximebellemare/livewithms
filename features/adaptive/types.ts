@@ -13,5 +13,5 @@ export type AdaptiveProfile = {
   suggestedProgram: "breathing-reset" | "body-scan" | "low-energy-checklist" | "one-priority-planner" | "hard-moment-reflection" | null;
   secondarySuggestedProgram: "breathing-reset" | "body-scan" | "low-energy-checklist" | "one-priority-planner" | "hard-moment-reflection" | null;
   preferredSupportStyle?: "calm" | "practical" | "reflective" | "steady";
-  preferredProgramTags?: Array<"stress" | "sleep" | "fatigue" | "reflection" | "planning">;
+  preferredProgramTags?: Array<"stress" | "sleep" | "fatigue" | "reflection" | "planning" | "overwhelm" | "brain-fog">;
 };

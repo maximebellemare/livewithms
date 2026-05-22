@@ -7,28 +7,11 @@ import { getErrorMessage, normalizeError } from "../../lib/errors";
 import { logger } from "../../lib/logger";
 import ErrorState from "./ErrorState";
 import LoadingState from "./LoadingState";
-
-type RouteGateMode = "public" | "auth" | "onboarding" | "app";
+import { getAllowedPath, type RouteGateMode } from "./route-gate-logic";
 
 type RouteGateProps = PropsWithChildren<{
   mode: RouteGateMode;
 }>;
-
-function getAllowedPath(mode: RouteGateMode, onboardingCompleted: boolean | null) {
-  if (mode === "public") {
-    return onboardingCompleted === false ? "/welcome" : "/today";
-  }
-
-  if (mode === "auth") {
-    return onboardingCompleted === false ? "/welcome" : "/today";
-  }
-
-  if (mode === "onboarding") {
-    return onboardingCompleted === false ? null : "/today";
-  }
-
-  return onboardingCompleted === false ? "/welcome" : null;
-}
 
 export default function RouteGate({ children, mode }: RouteGateProps) {
   const router = useRouter();

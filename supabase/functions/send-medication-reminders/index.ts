@@ -140,11 +140,11 @@ Deno.serve(async (req) => {
       // Build notification message
       const medNames = unloggedMeds.map((m) => m.name).join(", ");
       const body = unloggedMeds.length === 1
-        ? `Time to take ${medNames}${unloggedMeds[0].dosage ? ` (${unloggedMeds[0].dosage})` : ""}`
-        : `Time to take: ${medNames}`;
+        ? `${medNames}${unloggedMeds[0].dosage ? ` (${unloggedMeds[0].dosage})` : ""} may be ready for a quick check-in.`
+        : `${medNames} may be ready for a quick check-in.`;
 
       const notification = JSON.stringify({
-        title: "💊 Medication Reminder",
+        title: "Medication reminder",
         body,
         icon: "/pwa-192.png",
         badge: "/pwa-192.png",

@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import AppButton from "../ui/AppButton";
+import CalmSkeleton from "../ui/CalmSkeleton";
 import AppScreen from "../ui/AppScreen";
 import AppText from "../ui/AppText";
 import PaywallHero from "./PaywallHero";
 import PlanOptionCard from "./PlanOptionCard";
+import { useLowEnergyMode } from "../../features/low-energy-mode/hooks";
 import { usePremium } from "../../features/premium/hooks";
 import type { PremiumPlan } from "../../features/premium/types";
+import { getLocalizedStorePrice, PREMIUM_PRICE_FALLBACK } from "../../features/premium/display";
 import { trackEvent, trackRetryTriggered } from "../../lib/events";
+import { derivePremiumPositioning } from "../../lib/premium-ecosystem/calm-premium/derivePremiumPositioning";
 import { derivePremiumValue } from "../../lib/premium-ecosystem/calm-premium/derivePremiumValue";
 import { preserveFreeUserDignity } from "../../lib/premium-ecosystem/calm-premium/preserveFreeUserDignity";
 import { deriveAccessibilityPrograms } from "../../lib/premium-ecosystem/financial-accessibility/deriveAccessibilityPrograms";
@@ -20,9 +24,11 @@ import { deriveBillingTransparency } from "../../lib/premium-ecosystem/subscript
 import { preserveGracefulDowngrades } from "../../lib/premium-ecosystem/subscription-calmness/preserveGracefulDowngrades";
 import { deriveLongTermPremiumValue } from "../../lib/premium-ecosystem/sustainable-value/deriveLongTermPremiumValue";
 import { preventArtificialScarcity } from "../../lib/premium-ecosystem/sustainable-value/preventArtificialScarcity";
+import { ENABLE_RC_DEBUG_PANEL } from "../../lib/revenuecat/debug";
 
 const PRIVACY_POLICY_URL = "https://www.livewithms.com/policies/privacy-policy";
 const TERMS_OF_USE_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
+const RC_DEBUG_UNLOCK_TAP_COUNT = 7;
 
 type FuturePaywallScreenProps = {
   onClose: () => void;
@@ -30,7 +36,10 @@ type FuturePaywallScreenProps = {
 
 export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProps) {
   const premium = usePremium();
+  const lowEnergyMode = useLowEnergyMode();
   const [selectedPlan, setSelectedPlan] = useState<PremiumPlan>("yearly");
+  const [debugTapCount, setDebugTapCount] = useState(0);
+  const positioning = derivePremiumPositioning();
   const premiumValue = derivePremiumValue();
   const upgradeTiming = deriveUpgradeTiming({
     source: "premium-screen",
@@ -49,6 +58,10 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
     });
   }, []);
 
+  useEffect(() => {
+    void premium.refreshRevenueCatDiagnostics();
+  }, [premium.refreshRevenueCatDiagnostics]);
+
   const openPrivacyPolicy = () => {
     void Linking.openURL(PRIVACY_POLICY_URL);
   };
@@ -59,13 +72,15 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
 
   const primaryPackage = premium.currentOffering?.[selectedPlan] ?? null;
   const showPlans = !premium.hasPremiumAccess;
-  const monthlyPrice = premium.currentOffering?.monthly?.priceString ?? "Unavailable";
-  const yearlyPrice = premium.currentOffering?.yearly?.priceString ?? "Unavailable";
+  const showLoadingPricingShell =
+    premium.isLoading && !premium.currentOffering && !premium.offeringsErrorMessage;
+  const monthlyPrice = getLocalizedStorePrice(premium.currentOffering?.monthly);
+  const yearlyPrice = getLocalizedStorePrice(premium.currentOffering?.yearly);
   const purchaseLabel = premium.isPurchasing
     ? "Starting purchase..."
     : primaryPackage
-      ? preventConversionPressure(`Continue with ${selectedPlan === "yearly" ? "Yearly" : "Monthly"}`)
-      : "Pricing unavailable right now";
+      ? preventConversionPressure(`Continue with ${selectedPlan === "yearly" ? positioning.yearly.title : positioning.monthly.title}`)
+      : PREMIUM_PRICE_FALLBACK;
 
   const handlePurchase = async () => {
     if (!primaryPackage || premium.isPurchasing) {
@@ -87,14 +102,14 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
       });
       Alert.alert(
         "Premium is ready",
-        "Thank you for supporting LiveWithMS. Your premium features are now available.",
+        "Your calmer Premium support is now available.",
         [{ text: "Continue", onPress: onClose }],
       );
       return;
     }
 
     if (result.message && !result.cancelled) {
-      Alert.alert("Purchase unavailable", result.message);
+      Alert.alert("Purchase needs a moment", result.message);
     }
   };
 
@@ -105,14 +120,14 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
       await trackEvent("restore_completed", {
         status: "success",
       });
-      Alert.alert("Purchases restored", "Your premium access has been refreshed.", [
+      Alert.alert("Premium access is back in place", "Your Premium access has been refreshed.", [
         { text: "Continue", onPress: onClose },
       ]);
       return;
     }
 
     if (result.message) {
-      Alert.alert("Restore unavailable", result.message);
+      Alert.alert("Restore needs a moment", result.message);
     }
   };
 
@@ -124,16 +139,27 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
     });
   };
 
+  const debugPanelVisible = __DEV__ || (ENABLE_RC_DEBUG_PANEL && debugTapCount >= RC_DEBUG_UNLOCK_TAP_COUNT);
+  const debugSnapshot = premium.revenueCatDebugSnapshot;
+
+  const handleVersionTap = () => {
+    if (!ENABLE_RC_DEBUG_PANEL && !__DEV__) {
+      return;
+    }
+
+    setDebugTapCount((current) => Math.min(RC_DEBUG_UNLOCK_TAP_COUNT, current + 1));
+  };
+
   return (
-    <AppScreen title="LiveWithMS Premium" subtitle="An optional upgrade for deeper support, while the calm core experience stays free.">
+    <AppScreen title="LiveWithMS Premium" subtitle={positioning.screenSubtitle}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <PaywallHero />
 
         <View style={styles.valueCard}>
-          <AppText style={styles.valueTitle}>What stays free</AppText>
+          <AppText style={styles.valueTitle}>{positioning.freeTierTitle}</AppText>
           <AppText style={styles.valueBody}>
             {preserveFreeUserDignity(
-              "Daily check-ins, basic tracking, reminders, Programs, Care, and core insights all stay part of the free app.",
+              positioning.freeTierBody,
             )}
           </AppText>
         </View>
@@ -141,7 +167,7 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
         <View style={styles.valueCard}>
           <AppText style={styles.valueTitle}>{premiumValue.title}</AppText>
           <View style={styles.bulletList}>
-            {premiumValue.lines.map((line) => (
+            {(lowEnergyMode.enabled ? positioning.primaryLines.slice(0, 2) : positioning.primaryLines).map((line) => (
               <AppText key={line} style={styles.bulletText}>• {preventEmotionalConversion(line)}</AppText>
             ))}
           </View>
@@ -156,11 +182,23 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
           <AppText style={styles.valueBody}>{deriveLongTermPremiumValue()}</AppText>
         </View>
 
+        <View style={styles.valueCard}>
+          <AppText style={styles.valueTitle}>{positioning.secondaryTitle}</AppText>
+          <View style={styles.bulletList}>
+            {(lowEnergyMode.enabled ? positioning.secondaryLines.slice(0, 2) : positioning.secondaryLines).map((line) => (
+              <AppText key={line} style={styles.bulletText}>• {preventEmotionalConversion(line)}</AppText>
+            ))}
+          </View>
+          <AppText style={styles.valueBody}>
+            {preventEmotionalConversion(positioning.tertiaryBody)}
+          </AppText>
+        </View>
+
         {premium.hasPremiumAccess ? (
           <View style={styles.activeCard}>
             <AppText style={styles.activeTitle}>Premium is active</AppText>
             <AppText style={styles.activeBody}>
-              Unlimited AI Coach is available now, and your premium support can stay available without changing the tone of the rest of the app.
+              {positioning.activeProfileBody}
             </AppText>
             <AppButton
               label={premium.isLoading ? "Refreshing..." : "Refresh Premium Status"}
@@ -173,18 +211,22 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
 
         {showPlans ? (
           <>
-            {premium.isLoading && !premium.currentOffering ? (
+            {showLoadingPricingShell ? (
               <View style={styles.statusCard}>
-                <AppText style={styles.statusTitle}>Checking current pricing…</AppText>
+                <AppText style={styles.statusTitle}>Bringing in current pricing…</AppText>
                 <AppText style={styles.statusBody}>
                   This can take a moment while the App Store refreshes in the background.
                 </AppText>
+                <View style={styles.loadingSkeletonGroup}>
+                  <CalmSkeleton width="64%" height={12} />
+                  <CalmSkeleton width="86%" height={12} />
+                </View>
               </View>
             ) : null}
 
             {premium.offeringsErrorMessage ? (
               <View style={styles.statusCard}>
-                <AppText style={styles.statusTitle}>Premium is almost ready</AppText>
+                <AppText style={styles.statusTitle}>Pricing needs a moment</AppText>
                 <AppText style={styles.statusBody}>
                   {premium.offeringsErrorMessage}
                 </AppText>
@@ -204,63 +246,76 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
             ) : null}
 
             <View style={styles.comparisonCard}>
-              <AppText style={styles.comparisonTitle}>Choose the pace that fits</AppText>
+              <AppText style={styles.comparisonTitle}>{positioning.plansTitle}</AppText>
               <AppText style={styles.comparisonBody}>
                 {upgradeTiming === "defer"
                   ? "You do not need to decide right away. Pricing can wait until it feels clearer."
-                  : "Monthly stays flexible. Yearly is simpler if you expect to use the app regularly."}
+                  : lowEnergyMode.enabled
+                    ? "Monthly stays flexible. Yearly keeps the experience steadier over time."
+                    : positioning.plansBody}
               </AppText>
               <View style={styles.pricingSnapshot}>
                 <View style={styles.pricingPill}>
-                  <AppText style={styles.pricingLabel}>Monthly</AppText>
-                  <AppText style={styles.pricingValue}>{monthlyPrice}</AppText>
+                  <AppText style={styles.pricingLabel}>{positioning.monthly.title}</AppText>
+                  {showLoadingPricingShell ? (
+                    <CalmSkeleton width="70%" height={28} radius={10} />
+                  ) : (
+                    <AppText style={styles.pricingValue}>{monthlyPrice}</AppText>
+                  )}
                 </View>
                 <View style={styles.pricingPill}>
-                  <AppText style={styles.pricingLabel}>Yearly</AppText>
-                  <AppText style={styles.pricingValue}>{yearlyPrice}</AppText>
-                  <AppText style={styles.pricingHint}>{preventArtificialScarcity("Best value over time")}</AppText>
+                  <AppText style={styles.pricingLabel}>{positioning.yearly.title}</AppText>
+                  {showLoadingPricingShell ? (
+                    <CalmSkeleton width="74%" height={28} radius={10} />
+                  ) : (
+                    <>
+                      <AppText style={styles.pricingValue}>{yearlyPrice}</AppText>
+                      <AppText style={styles.pricingHint}>{preventArtificialScarcity(positioning.yearly.badge ?? "Steadier over time")}</AppText>
+                    </>
+                  )}
                 </View>
               </View>
-              <AppText style={styles.comparisonTitle}>Feature comparison</AppText>
-              <View style={styles.comparisonRow}>
-                <AppText style={styles.comparisonLabel}>Free</AppText>
-                <AppText style={styles.comparisonValue}>Check-ins, reminders, Programs, Care, and core insights</AppText>
-              </View>
-              <View style={styles.comparisonRow}>
-                <AppText style={styles.comparisonLabel}>Premium</AppText>
-                <AppText style={styles.comparisonValue}>Unlimited AI Coach plus deeper insights, personalization, and future guided tools</AppText>
-              </View>
+              <AppText style={styles.pricingSupportText}>{positioning.monthly.subtitle}</AppText>
+              <AppText style={styles.pricingSupportText}>{positioning.yearly.subtitle}</AppText>
+              <AppText style={styles.comparisonTitle}>{positioning.trustTitle}</AppText>
+              {positioning.trustLines.map((line) => (
+                <AppText key={line} style={styles.comparisonBody}>
+                  {line}
+                </AppText>
+              ))}
               <AppText style={styles.comparisonBody}>{deriveAccessibilityPrograms()}</AppText>
               <AppText style={styles.comparisonBody}>{deriveRegionalSensitivity()}</AppText>
             </View>
 
             <PlanOptionCard
               plan="yearly"
-              title="Yearly"
+              title={positioning.yearly.title}
               price={yearlyPrice}
-              subtitle="A steadier option if you want support throughout the year."
-              detail="Lower-friction choice if you want the app to stay with you across changing weeks."
-              badge="Best value"
+              subtitle={positioning.yearly.subtitle}
+              detail={positioning.yearly.detail}
+              badge={positioning.yearly.badge}
               selected={selectedPlan === "yearly"}
               onPress={() => handleSelectPlan("yearly")}
+              disabled={showLoadingPricingShell}
             />
 
             <PlanOptionCard
               plan="monthly"
-              title="Monthly"
+              title={positioning.monthly.title}
               price={monthlyPrice}
-              subtitle="Best if you want a simple month-to-month option."
-              detail="A flexible starting point if you want to try Premium without a longer commitment."
+              subtitle={positioning.monthly.subtitle}
+              detail={positioning.monthly.detail}
               selected={selectedPlan === "monthly"}
               onPress={() => handleSelectPlan("monthly")}
+              disabled={showLoadingPricingShell}
             />
           </>
         ) : null}
 
         <View style={styles.disclosureCard}>
-          <AppText style={styles.disclosureTitle}>Restore and privacy</AppText>
+          <AppText style={styles.disclosureTitle}>Restore and billing</AppText>
           <Pressable style={styles.restoreCallout} onPress={() => void handleRestore()}>
-            <AppText style={styles.restoreCalloutText}>Restore Purchases</AppText>
+            <AppText style={styles.restoreCalloutText}>Restore purchases</AppText>
           </Pressable>
           <AppText style={styles.disclosureText}>
             {deriveBillingTransparency()}
@@ -268,9 +323,7 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
           <AppText style={styles.disclosureText}>
             {preserveGracefulDowngrades()}
           </AppText>
-          <AppText style={styles.disclosureText}>
-            Your check-ins and wellness data stay yours. Premium changes access, not your control over the app.
-          </AppText>
+          <AppText style={styles.disclosureText}>{positioning.profileNote}</AppText>
         </View>
 
         <View style={styles.actions}>
@@ -296,6 +349,72 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
             <AppText style={styles.legalText}>Terms of Use</AppText>
           </Pressable>
         </View>
+
+        <Pressable style={styles.debugVersionTapTarget} onPress={handleVersionTap}>
+          <AppText style={styles.debugVersionText}>
+            App {debugSnapshot.appVersion} ({debugSnapshot.buildNumber})
+          </AppText>
+        </Pressable>
+
+        {debugPanelVisible ? (
+          <View style={styles.debugCard}>
+            {/* TODO: Remove or disable RevenueCat debug panel after subscription issue is resolved. */}
+            <AppText style={styles.debugTitle}>RevenueCat debug snapshot</AppText>
+            <AppText style={styles.debugLine}>SDK key: {debugSnapshot.maskedSdkKey}</AppText>
+            <AppText style={styles.debugLine}>Bundle ID: {debugSnapshot.bundleIdentifier}</AppText>
+            <AppText style={styles.debugLine}>Requested offering: {debugSnapshot.requestedOfferingIdentifier}</AppText>
+            <AppText style={styles.debugLine}>
+              Current offering: {debugSnapshot.currentOfferingIdentifier ?? "none"}
+            </AppText>
+            <AppText style={styles.debugLine}>
+              Selected offering: {debugSnapshot.selectedOfferingIdentifier ?? "none"}
+            </AppText>
+            <AppText style={styles.debugLine}>
+              All offerings: {debugSnapshot.allOfferingIdentifiers.join(", ") || "none"}
+            </AppText>
+            <AppText style={styles.debugLine}>
+              Packages: {debugSnapshot.availablePackageIdentifiers.join(", ") || "none"}
+            </AppText>
+            <AppText style={styles.debugLine}>
+              Products: {debugSnapshot.productIdentifiers.join(", ") || "none"}
+            </AppText>
+            <AppText style={styles.debugLine}>
+              Active entitlements: {debugSnapshot.activeEntitlementIdentifiers.join(", ") || "none"}
+            </AppText>
+            <AppText style={styles.debugLine}>
+              Last error: {debugSnapshot.lastErrorCode ?? "none"} {debugSnapshot.lastErrorMessage ?? ""}
+            </AppText>
+            <AppText style={styles.debugLine}>
+              Last fetch: {debugSnapshot.timestamp}
+            </AppText>
+
+            <View style={styles.debugProducts}>
+              {debugSnapshot.products.length ? (
+                debugSnapshot.products.map((product) => (
+                    <View key={`${product.packageIdentifier}:${product.productIdentifier}`} style={styles.debugProductRow}>
+                      <AppText style={styles.debugProductTitle}>
+                        {product.packageIdentifier} {"->"} {product.productIdentifier}
+                      </AppText>
+                    <AppText style={styles.debugLine}>{product.title ?? "title missing"}</AppText>
+                    <AppText style={styles.debugLine}>
+                      {product.priceString ?? "priceString missing"}
+                      {product.currencyCode ? ` (${product.currencyCode})` : ""}
+                    </AppText>
+                  </View>
+                ))
+              ) : (
+                <AppText style={styles.debugLine}>No products in the selected offering.</AppText>
+              )}
+            </View>
+
+            <AppButton
+              label={premium.isLoading ? "Refreshing diagnostics..." : "Refresh RevenueCat Diagnostics"}
+              onPress={() => void premium.refreshRevenueCatDiagnostics()}
+              variant="secondary"
+              disabled={premium.isLoading}
+            />
+          </View>
+        ) : null}
       </ScrollView>
     </AppScreen>
   );
@@ -401,10 +520,13 @@ const styles = StyleSheet.create({
   },
   pricingSnapshot: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
   },
   pricingPill: {
     flex: 1,
+    flexBasis: 160,
+    minWidth: 150,
     backgroundColor: "#fffaf6",
     borderRadius: 16,
     borderWidth: 1,
@@ -422,11 +544,22 @@ const styles = StyleSheet.create({
     color: "#1f2937",
     fontSize: 22,
     fontWeight: "700",
+    lineHeight: 28,
+    flexShrink: 1,
   },
   pricingHint: {
     color: "#8b6a4f",
     fontSize: 12,
     lineHeight: 18,
+  },
+  pricingSupportText: {
+    color: "#8b6a4f",
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  loadingSkeletonGroup: {
+    gap: 8,
+    marginTop: 2,
   },
   comparisonRow: {
     gap: 4,
@@ -487,6 +620,7 @@ const styles = StyleSheet.create({
   },
   legalLinks: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "center",
     gap: 16,
   },
@@ -498,5 +632,47 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     fontSize: 13,
     textDecorationLine: "underline",
+  },
+  debugVersionTapTarget: {
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  debugVersionText: {
+    color: "#9ca3af",
+    fontSize: 11,
+  },
+  debugCard: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#d8dee8",
+    padding: 16,
+    gap: 8,
+  },
+  debugTitle: {
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  debugLine: {
+    color: "#475569",
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  debugProducts: {
+    gap: 8,
+  },
+  debugProductRow: {
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 10,
+    gap: 4,
+  },
+  debugProductTitle: {
+    color: "#1f2937",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });

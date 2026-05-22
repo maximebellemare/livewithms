@@ -10,14 +10,14 @@ type TrendSummaryCardProps = {
 
 function getDirectionLabel(direction: TrendSummary["direction"]) {
   if (direction === "up") {
-    return "Looking better";
+    return "Lighter lately";
   }
 
   if (direction === "down") {
-    return "Needs care";
+    return "More present";
   }
 
-  return "Steady";
+  return "Fairly steady";
 }
 
 function getTrendHighlight(trend: TrendSummary) {
@@ -113,7 +113,7 @@ function getTrendSuggestion(trend: TrendSummary) {
 }
 
 export default function TrendSummaryCard({ trend }: TrendSummaryCardProps) {
-  const [expanded, setExpanded] = useState(trend.key === "fatigue" || trend.key === "mood");
+  const [expanded, setExpanded] = useState(false);
   const highlight = getTrendHighlight(trend);
   const suggestion = getTrendSuggestion(trend);
   const chartMaxValue = trend.key === "sleep_hours" ? 12 : 5;
@@ -135,14 +135,12 @@ export default function TrendSummaryCard({ trend }: TrendSummaryCardProps) {
       <Pressable onPress={() => setExpanded((current) => !current)} style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}>
         <View style={styles.headerText}>
           <AppText style={styles.title}>{trend.label}</AppText>
-          <AppText style={styles.contextText}>Based on your recent entries</AppText>
+          <AppText style={styles.contextText}>A quiet look at your recent entries</AppText>
           <AppText style={styles.badge}>{getDirectionLabel(trend.direction)}</AppText>
         </View>
         <View style={styles.values}>
           <AppText style={styles.averageNumber}>{trend.averageCurrent === null ? "—" : trend.averageCurrent.toFixed(1)}</AppText>
-          <AppText style={styles.averageText}>
-            Average {trend.key === "sleep_hours" ? "hours" : "/5"}
-          </AppText>
+          <AppText style={styles.averageText}>{trend.key === "sleep_hours" ? "Recent hours" : "Recent average"}</AppText>
           <AppText style={styles.expandHint}>{expanded ? "Hide details" : "Show details"}</AppText>
         </View>
       </Pressable>
@@ -171,7 +169,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 14,
+    gap: 16,
   },
   header: {
     flexDirection: "row",
@@ -186,14 +184,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   title: {
-    fontSize: 20,
+    fontSize: 19,
+    lineHeight: 26,
     fontWeight: "700",
     color: "#1f2937",
   },
   badge: {
     alignSelf: "flex-start",
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 999,
     backgroundColor: "#fff7f2",
     color: "#c25d10",
@@ -202,39 +201,45 @@ const styles = StyleSheet.create({
   },
   contextText: {
     fontSize: 13,
+    lineHeight: 19,
     color: "#6b7280",
   },
   values: {
     alignItems: "flex-end",
-    gap: 4,
+    gap: 5,
+    minWidth: 94,
   },
   averageNumber: {
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: "700",
     color: "#1f2937",
   },
   averageText: {
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 18,
     color: "#6b7280",
+    textAlign: "right",
   },
   expandHint: {
     fontSize: 12,
+    lineHeight: 16,
     color: "#c25d10",
     fontWeight: "600",
+    textAlign: "right",
   },
   summary: {
     color: "#4b5563",
-    lineHeight: 22,
+    lineHeight: 23,
   },
   helperText: {
     fontSize: 14,
-    lineHeight: 21,
+    lineHeight: 22,
     color: "#4b5563",
   },
   suggestionText: {
     fontSize: 13,
-    lineHeight: 20,
+    lineHeight: 21,
     color: "#6b7280",
   },
 });

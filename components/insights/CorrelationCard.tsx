@@ -1,27 +1,12 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import type { CorrelationSummary } from "../../features/insights/types";
+import { formatPatternStrength } from "../../features/insights/calm-copy";
 import AppText from "../ui/AppText";
 
 type CorrelationCardProps = {
   correlation: CorrelationSummary;
 };
-
-function formatPatternStrength(value: number | null) {
-  if (value === null) {
-    return "—";
-  }
-
-  if (Math.abs(value) < 0.2) {
-    return "Early";
-  }
-
-  if (Math.abs(value) < 0.45) {
-    return "Growing";
-  }
-
-  return "Clear";
-}
 
 function getCorrelationHighlight(correlation: CorrelationSummary) {
   if (correlation.coefficient === null || correlation.sampleSize < 3) {
@@ -76,7 +61,7 @@ function getCorrelationSuggestion(correlation: CorrelationSummary) {
     return "A small reset on stressful days may help protect your mood.";
   }
 
-  return "Keep logging a few more days so the pattern becomes clearer.";
+  return "A little more time can help this pattern feel clearer.";
 }
 
 export default function CorrelationCard({ correlation }: CorrelationCardProps) {
@@ -89,7 +74,7 @@ export default function CorrelationCard({ correlation }: CorrelationCardProps) {
       <Pressable onPress={() => setExpanded((current) => !current)} style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}>
         <View style={styles.headerText}>
           <AppText style={styles.title}>{correlation.title}</AppText>
-          <AppText style={styles.contextText}>Based on your recent entries</AppText>
+          <AppText style={styles.contextText}>A simple look at your recent entries</AppText>
         </View>
         <AppText style={styles.expandHint}>{expanded ? "Hide details" : "Show details"}</AppText>
       </Pressable>
@@ -100,7 +85,7 @@ export default function CorrelationCard({ correlation }: CorrelationCardProps) {
         </View>
         <View style={styles.metricCard}>
           <AppText style={styles.metricValue}>{correlation.sampleSize}</AppText>
-          <AppText style={styles.metricLabel}>Check-ins used</AppText>
+          <AppText style={styles.metricLabel}>Days compared</AppText>
         </View>
       </View>
       <AppText style={styles.axisText}>Looking at {correlation.leftLabel.toLowerCase()} and {correlation.rightLabel.toLowerCase()} together</AppText>
@@ -122,10 +107,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 12,
+    gap: 14,
   },
   title: {
-    fontSize: 20,
+    fontSize: 19,
+    lineHeight: 26,
     fontWeight: "700",
     color: "#1f2937",
   },
@@ -144,6 +130,7 @@ const styles = StyleSheet.create({
   },
   expandHint: {
     fontSize: 12,
+    lineHeight: 16,
     color: "#c25d10",
     fontWeight: "600",
   },
@@ -153,6 +140,7 @@ const styles = StyleSheet.create({
   },
   contextText: {
     fontSize: 13,
+    lineHeight: 19,
     color: "#6b7280",
   },
   metricCard: {
@@ -160,34 +148,38 @@ const styles = StyleSheet.create({
     backgroundColor: "#fffaf6",
     borderRadius: 16,
     padding: 14,
-    gap: 4,
+    gap: 6,
+    minHeight: 82,
+    justifyContent: "center",
   },
   metricValue: {
-    fontSize: 28,
-    lineHeight: 36,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: "700",
     color: "#1f2937",
   },
   metricLabel: {
     fontSize: 13,
+    lineHeight: 18,
     color: "#6b7280",
   },
   axisText: {
     color: "#c25d10",
     fontWeight: "600",
+    lineHeight: 20,
   },
   summary: {
     color: "#4b5563",
-    lineHeight: 22,
+    lineHeight: 23,
   },
   helperText: {
     fontSize: 14,
-    lineHeight: 21,
+    lineHeight: 22,
     color: "#4b5563",
   },
   suggestionText: {
     fontSize: 13,
-    lineHeight: 20,
+    lineHeight: 21,
     color: "#6b7280",
   },
 });

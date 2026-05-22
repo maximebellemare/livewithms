@@ -120,7 +120,7 @@ export const medicationsApi = {
       dosage: input.dosage?.trim() || null,
       schedule_type: frequency,
       notes: input.notes?.trim() || null,
-      active: true,
+      active: input.active ?? true,
     };
 
     const { data, error } = await supabase
@@ -146,5 +146,112 @@ export const medicationsApi = {
         updated_at: string;
       },
     );
+  },
+
+  async updateMedication(userId: string, medicationId: string, input: MedicationInput) {
+    if (!env.isSupabaseConfigured) {
+      throw new Error("Supabase is not configured for medications.");
+    }
+
+    if (!medicationId) {
+      throw new Error("Missing medication id for save.");
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+
+    if (authError) {
+      throw normalizeError(authError);
+    }
+
+    const currentUser = authData.user;
+
+    if (!currentUser?.id) {
+      throw new Error("Missing authenticated user for medication save.");
+    }
+
+    if (userId && currentUser.id !== userId) {
+      throw new Error("Authenticated user does not match requested medication save.");
+    }
+
+    const name = input.name.trim();
+    const frequency = input.frequency.trim();
+
+    if (!name) {
+      throw new Error("Please enter a medication name.");
+    }
+
+    if (!frequency) {
+      throw new Error("Please enter a medication frequency.");
+    }
+
+    const payload = {
+      name,
+      dosage: input.dosage?.trim() || null,
+      schedule_type: frequency,
+      notes: input.notes?.trim() || null,
+      active: input.active ?? true,
+    };
+
+    const { data, error } = await supabase
+      .from("medications")
+      .update(payload)
+      .eq("id", medicationId)
+      .eq("user_id", currentUser.id)
+      .select(SELECT_FIELDS)
+      .single();
+
+    if (error) {
+      throw normalizeError(error);
+    }
+
+    return mapMedicationRow(
+      data as {
+        id: string;
+        user_id: string;
+        name: string;
+        dosage: string | null;
+        schedule_type: string;
+        notes: string | null;
+        active: boolean;
+        created_at: string;
+        updated_at: string;
+      },
+    );
+  },
+
+  async deleteMedication(userId: string, medicationId: string) {
+    if (!env.isSupabaseConfigured) {
+      throw new Error("Supabase is not configured for medications.");
+    }
+
+    if (!medicationId) {
+      throw new Error("Missing medication id for delete.");
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+
+    if (authError) {
+      throw normalizeError(authError);
+    }
+
+    const currentUser = authData.user;
+
+    if (!currentUser?.id) {
+      throw new Error("Missing authenticated user for medication delete.");
+    }
+
+    if (userId && currentUser.id !== userId) {
+      throw new Error("Authenticated user does not match requested medication delete.");
+    }
+
+    const { error } = await supabase
+      .from("medications")
+      .delete()
+      .eq("id", medicationId)
+      .eq("user_id", currentUser.id);
+
+    if (error) {
+      throw normalizeError(error);
+    }
   },
 };

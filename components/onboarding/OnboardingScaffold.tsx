@@ -49,9 +49,10 @@ export default function OnboardingScaffold({
           contentContainerStyle={[
             styles.scrollContent,
             {
-              paddingBottom: 24,
+              paddingBottom: Math.max(insets.bottom + 156, 168),
             },
           ]}
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -94,25 +95,25 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: spacing.screenX,
-    paddingTop: 4,
-    gap: 18,
+    paddingTop: 6,
+    gap: 20,
   },
   body: {
-    gap: 18,
+    gap: 20,
   },
   footer: {
     borderTopWidth: 1,
     borderTopColor: "#f1e1d4",
     backgroundColor: "#fffaf6",
     paddingHorizontal: spacing.screenX,
-    paddingTop: 14,
-    gap: 10,
+    paddingTop: 18,
+    gap: 12,
   },
   actions: {
-    gap: 12,
+    gap: 14,
   },
   error: {
     color: colors.errorText,
-    lineHeight: 21,
+    lineHeight: 23,
   },
 });

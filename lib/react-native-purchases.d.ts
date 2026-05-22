@@ -10,6 +10,8 @@ declare module "react-native-purchases" {
         }
       >;
     };
+    activeSubscriptions?: string[];
+    originalAppUserId?: string | null;
   };
 
   export type PurchasesPackage = {
@@ -20,6 +22,8 @@ declare module "react-native-purchases" {
       title: string;
       description: string;
       priceString: string;
+      price?: number;
+      currencyCode?: string;
       subscriptionPeriod?: string;
     };
   };

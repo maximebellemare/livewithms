@@ -4,11 +4,13 @@ import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import SelectChips from "../../components/onboarding/SelectChips";
 import { AGE_RANGES, COUNTRIES, ONBOARDING_STEPS } from "../../features/onboarding/constants";
 import { useOnboarding } from "../../features/onboarding/hooks";
+import { deriveCategoryDefiningPositioning } from "../../lib/product-identity/deriveCategoryDefiningPositioning";
 
 export default function AboutYouScreen() {
   const router = useRouter();
   const { draft, setDraft, saveStep, isSavingStep } = useOnboarding();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const positioning = deriveCategoryDefiningPositioning();
 
   const handleNext = async () => {
     if (isSavingStep) return;
@@ -19,7 +21,7 @@ export default function AboutYouScreen() {
     });
 
     if (!ok) {
-      setErrorMessage("Unable to save your profile. Please try again.");
+      setErrorMessage("That step did not save just yet. Please try again in a moment.");
       return;
     }
 
@@ -30,7 +32,7 @@ export default function AboutYouScreen() {
   return (
     <OnboardingScaffold
       title="About You"
-      subtitle="A few optional details help us tailor the experience."
+      subtitle={positioning.onboardingPrivacyLine}
       step={7}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}

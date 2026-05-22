@@ -12,6 +12,7 @@ type PlanOptionCardProps = {
   selected: boolean;
   badge?: string;
   onPress: () => void;
+  disabled?: boolean;
 };
 
 export default function PlanOptionCard({
@@ -22,9 +23,19 @@ export default function PlanOptionCard({
   selected,
   badge,
   onPress,
+  disabled = false,
 }: PlanOptionCardProps) {
   return (
-    <Pressable onPress={onPress} style={[styles.card, selected && styles.cardSelected]}>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.card,
+        selected && styles.cardSelected,
+        disabled && styles.cardDisabled,
+        pressed && !disabled && styles.cardPressed,
+      ]}
+    >
       <View style={styles.header}>
         <View style={styles.textBlock}>
           <AppText style={styles.title}>{title}</AppText>
@@ -54,8 +65,15 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     backgroundColor: colors.accentSoft,
   },
+  cardDisabled: {
+    opacity: 0.92,
+  },
+  cardPressed: {
+    opacity: 0.88,
+  },
   header: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     gap: 16,
     alignItems: "flex-start",
@@ -75,6 +93,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   badge: {
+    alignSelf: "flex-start",
     backgroundColor: colors.accent,
     color: "#ffffff",
     fontSize: 12,
@@ -84,21 +103,24 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
   },
   priceContainer: {
-    flexWrap: "wrap",
-    minHeight: 44,
-    justifyContent: "center",
+    width: "100%",
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
+    gap: 6,
   },
   price: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: "800",
     color: colors.text,
     flexShrink: 1,
-    lineHeight: 38,
+    lineHeight: 36,
+    width: "100%",
   },
   detail: {
-    marginTop: 4,
+    flexShrink: 1,
+    width: "100%",
     color: colors.textWarm,
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 19,
   },
 });

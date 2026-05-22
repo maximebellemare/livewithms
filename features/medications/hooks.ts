@@ -40,3 +40,45 @@ export function useCreateMedication() {
     },
   });
 }
+
+export function useUpdateMedication() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      userId,
+      medicationId,
+      input,
+    }: {
+      userId: string;
+      medicationId: string;
+      input: MedicationInput;
+    }) => medicationsApi.updateMedication(userId, medicationId, input),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["medications", variables.userId],
+        refetchType: "all",
+      });
+    },
+  });
+}
+
+export function useDeleteMedication() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      userId,
+      medicationId,
+    }: {
+      userId: string;
+      medicationId: string;
+    }) => medicationsApi.deleteMedication(userId, medicationId),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["medications", variables.userId],
+        refetchType: "all",
+      });
+    },
+  });
+}

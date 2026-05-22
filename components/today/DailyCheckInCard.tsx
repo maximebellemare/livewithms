@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import AppButton from "../ui/AppButton";
 import type { DailyCheckInInput } from "../../features/checkins/types";
@@ -11,15 +11,14 @@ import { deriveSubtleHumanWarmth } from "../../lib/humane-micro-moments/quiet-wa
 import { preventOverfamiliarity } from "../../lib/humane-micro-moments/quiet-warmth/preventOverfamiliarity";
 import { deriveLowStimulationFeedback } from "../../lib/humane-micro-moments/sensory-refinement/deriveLowStimulationFeedback";
 import { preserveSubtleReliefMoments } from "../../lib/humane-micro-moments/non-performative-delight/preserveSubtleReliefMoments";
+import {
+  deriveReflectionSupport,
+  type ReflectionMode,
+  type ReflectionModeId,
+} from "../../features/today/reflection-regulation";
 
 const SLEEP_PRESETS = ["5", "6", "7", "8"];
 const WATER_PRESETS = ["4", "6", "8"];
-const NOTE_STARTERS = [
-  "What felt hardest today?",
-  "What helped even a little?",
-  "What do I need more of lately?",
-];
-
 export type DailyCheckInDraft = {
   fatigue: number | null;
   pain: number | null;
@@ -37,6 +36,8 @@ type DailyCheckInCardProps = {
   onChange: (next: DailyCheckInDraft) => void;
   saveState: "idle" | "saving" | "saved" | "error";
   onSave: () => void;
+  saveMomentTitle?: string;
+  saveMomentBody?: string;
   postSaveInsight: string;
   onViewInsights: () => void;
   saveFooterText?: string;
@@ -82,19 +83,59 @@ export default function DailyCheckInCard({
   onChange,
   saveState,
   onSave,
+  saveMomentTitle,
+  saveMomentBody,
   postSaveInsight,
   onViewInsights,
   saveFooterText,
   supportMode = "default",
   compressionMode = "standard",
-  noteStarterLimit = NOTE_STARTERS.length,
+  noteStarterLimit = 3,
 }: DailyCheckInCardProps) {
   const [showBodySignals, setShowBodySignals] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const saveErrorCopy = deriveEmotionallySafeErrors({ category: "sync", retryable: true });
   const saveWarmth = deriveSubtleHumanWarmth({ surface: "save" });
   const reduced = compressionMode === "reduced";
-  const visibleNoteStarters = NOTE_STARTERS.slice(0, noteStarterLimit);
+  const reflectionSupport = useMemo(
+    () =>
+      deriveReflectionSupport({
+        fatigue: draft.fatigue,
+        stress: draft.stress,
+        brainFog: draft.brain_fog,
+        mood: draft.mood,
+        lowEnergyMode: supportMode === "low-energy",
+        compressionMode,
+        hasExistingNotes: draft.notes.trim().length > 0,
+        noteStarterLimit,
+      }),
+    [
+      compressionMode,
+      draft.brain_fog,
+      draft.fatigue,
+      draft.mood,
+      draft.notes,
+      draft.stress,
+      noteStarterLimit,
+      supportMode,
+    ],
+  );
+  const [selectedReflectionMode, setSelectedReflectionMode] = useState<ReflectionModeId>(
+    reflectionSupport.defaultMode,
+  );
+
+  useEffect(() => {
+    setSelectedReflectionMode((current) =>
+      reflectionSupport.modes.some((mode) => mode.id === current)
+        ? current
+        : reflectionSupport.defaultMode,
+    );
+  }, [reflectionSupport.defaultMode, reflectionSupport.modes]);
+
+  const activeReflectionMode =
+    reflectionSupport.modes.find((mode) => mode.id === selectedReflectionMode) ??
+    reflectionSupport.modes[0];
+  const visibleNoteStarters = activeReflectionMode.prompts.slice(0, reflectionSupport.starterLimit);
 
   const addNoteStarter = (starter: string) => {
     const prefix = draft.notes.trim().length ? `${draft.notes.trim()}\n` : "";
@@ -273,11 +314,12 @@ export default function DailyCheckInCard({
           style={({ pressed }) => [styles.sectionToggle, pressed && styles.sectionTogglePressed]}
         >
           <View style={styles.sectionToggleHeader}>
-            <AppText style={styles.sectionTitle}>Notes</AppText>
+            <AppText style={styles.sectionTitle}>Reflection</AppText>
             <AppText style={styles.sectionHelper}>
-              {reduced
-                ? "Add a note only if it helps to remember today."
-                : "Add symptoms or a short reflection if you want to remember more."}
+              {activeReflectionMode?.helper ??
+                (reduced
+                  ? "Add a note only if it helps to remember today."
+                  : "A short note can be enough if you want to remember today later.")}
             </AppText>
           </View>
           <AppText style={styles.sectionToggleText}>{showNotes ? "Hide" : "Add"}</AppText>
@@ -285,6 +327,33 @@ export default function DailyCheckInCard({
 
         {showNotes ? (
           <View style={styles.sectionContent}>
+            <View style={styles.reflectionSupportCard}>
+              <AppText style={styles.reflectionSupportText}>
+                {activeReflectionMode?.groundingMoment ?? "You do not need to solve everything right now."}
+              </AppText>
+            </View>
+            <View style={styles.reflectionModeList}>
+              {reflectionSupport.modes.map((mode) => (
+                <Pressable
+                  key={mode.id}
+                  onPress={() => setSelectedReflectionMode(mode.id)}
+                  style={({ pressed }) => [
+                    styles.reflectionModeChip,
+                    selectedReflectionMode === mode.id && styles.reflectionModeChipActive,
+                    pressed && styles.quickChoicePressed,
+                  ]}
+                >
+                  <AppText
+                    style={[
+                      styles.reflectionModeText,
+                      selectedReflectionMode === mode.id && styles.reflectionModeTextActive,
+                    ]}
+                  >
+                    {mode.label}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
             <View style={styles.noteStarterList}>
               {visibleNoteStarters.map((starter) => (
                 <Pressable
@@ -297,10 +366,15 @@ export default function DailyCheckInCard({
               ))}
             </View>
             <View style={styles.fieldGroup}>
-              <AppText style={styles.fieldLabel}>Reflection notes</AppText>
+              <AppText style={styles.fieldLabel}>
+                {activeReflectionMode?.label ? `${activeReflectionMode.label} notes` : "Reflection"}
+              </AppText>
               <TextInput
                 multiline
-                placeholder={reduced ? "A few words, if helpful." : "Anything you want to remember about today?"}
+                placeholder={
+                  activeReflectionMode?.placeholder ??
+                  (reduced ? "A few words, if helpful." : "Anything you want to remember about today?")
+                }
                 placeholderTextColor="#9ca3af"
                 value={draft.notes}
                 onChangeText={(notes) => onChange({ ...draft, notes })}
@@ -323,9 +397,11 @@ export default function DailyCheckInCard({
             <View style={styles.successRow}>
               <AppText style={styles.successBadge}>✓</AppText>
               <View style={styles.successCopy}>
-                <AppText style={styles.successText}>Saved</AppText>
+                <AppText style={styles.successText}>{saveMomentTitle ?? "Checked in"}</AppText>
                 <AppText style={styles.successSubtext}>
-                  {softenSaveMoments(reduced ? "That is enough for today" : "Small steps count")}
+                  {softenSaveMoments(
+                    saveMomentBody ?? (reduced ? "That is enough for today" : "That can be enough for now"),
+                  )}
                 </AppText>
               </View>
             </View>
@@ -435,6 +511,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 14,
     color: "#4b5563",
+    lineHeight: 20,
   },
   fieldInput: {
     borderRadius: 12,
@@ -449,6 +526,7 @@ const styles = StyleSheet.create({
   notesInput: {
     minHeight: 108,
     fontSize: 16,
+    lineHeight: 24,
     color: "#374151",
     borderRadius: 12,
     borderWidth: 1,
@@ -494,6 +572,45 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+  },
+  reflectionSupportCard: {
+    borderRadius: 14,
+    backgroundColor: "#fff6ee",
+    borderWidth: 1,
+    borderColor: "#f4dfcb",
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  reflectionSupportText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#7c5a40",
+  },
+  reflectionModeList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  reflectionModeChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#ead9cb",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  reflectionModeChipActive: {
+    borderColor: "#e8751a",
+    backgroundColor: "#fff0e2",
+  },
+  reflectionModeText: {
+    color: "#8b6a4f",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+  },
+  reflectionModeTextActive: {
+    color: "#9a4a11",
   },
   noteStarterChip: {
     borderRadius: 16,

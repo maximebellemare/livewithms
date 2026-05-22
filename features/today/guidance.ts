@@ -139,6 +139,10 @@ export type TodayGuidance = {
   moment?: string;
 };
 
+type TodayGuidanceOptions = {
+  forceLowEnergyMode?: boolean;
+};
+
 function deriveAdaptiveStatePrimary(adaptiveProfile: AdaptiveProfile | null) {
   return adaptiveProfile?.lowEnergyMode
     ? "LOW_ENERGY"
@@ -149,6 +153,111 @@ function deriveAdaptiveStatePrimary(adaptiveProfile: AdaptiveProfile | null) {
         : adaptiveProfile?.reflectionPattern === "active"
           ? "REFLECTIVE"
           : "STABLE";
+}
+
+function applyLowEnergyModeRefinement(
+  guidance: TodayGuidance,
+  adaptiveProfile: AdaptiveProfile | null,
+): TodayGuidance {
+  if (!adaptiveProfile?.lowEnergyMode) {
+    return guidance;
+  }
+
+  const shorten = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) {
+      return text;
+    }
+
+    const sentences = text
+      .split(/(?<=[.!?])\s+/)
+      .map((sentence) => sentence.trim())
+      .filter(Boolean);
+    const priorityPattern =
+      /\b(audio|reading|visual|quiet|pause|device|surface|sync|later|familiar|attention|clearer|brain fog|shorter steps|fewer choices)\b/i;
+    const chosen: string[] = [];
+    let currentLength = 0;
+
+    for (const sentence of sentences) {
+      if (currentLength + sentence.length + (chosen.length > 0 ? 1 : 0) > maxLength) {
+        continue;
+      }
+
+      chosen.push(sentence);
+      currentLength += sentence.length + (chosen.length > 1 ? 1 : 0);
+      if (chosen.length >= 2) {
+        break;
+      }
+    }
+
+    const prioritySentence = sentences.find((sentence) => priorityPattern.test(sentence) && !chosen.includes(sentence));
+    if (
+      prioritySentence &&
+      currentLength + prioritySentence.length + (chosen.length > 0 ? 1 : 0) <= maxLength
+    ) {
+      chosen.push(prioritySentence);
+      currentLength += prioritySentence.length + (chosen.length > 1 ? 1 : 0);
+    }
+
+    const compactFallbackCue =
+      "Shorter steps, a useful summary, quieter audio, and familiar surfaces can still be enough for now.";
+    const coveragePattern = /\b(audio|reading|visual|quiet|pause|device|surface|sync|later|familiar|attention|clearer|brain fog|shorter steps|fewer choices)\b/i;
+    if (!chosen.some((sentence) => priorityPattern.test(sentence))) {
+      if (currentLength + compactFallbackCue.length + (chosen.length > 0 ? 1 : 0) <= maxLength) {
+        chosen.push(compactFallbackCue);
+        currentLength += compactFallbackCue.length + (chosen.length > 1 ? 1 : 0);
+      } else if (chosen.length > 0) {
+        const withoutLast = chosen.slice(0, -1);
+        const replacementLength =
+          withoutLast.reduce((total, sentence) => total + sentence.length, 0) +
+          compactFallbackCue.length +
+          Math.max(withoutLast.length, 0);
+
+        if (replacementLength <= maxLength) {
+          chosen.splice(chosen.length - 1, 1, compactFallbackCue);
+          currentLength = replacementLength;
+        }
+      }
+    }
+
+    const combined = chosen.join(" ");
+    const hasAudioCue = /\b(audio|reading|visual|quiet|pause)\b/i.test(combined);
+    const hasContinuityCue = /\b(device|surface|sync|later|familiar)\b/i.test(combined);
+    const hasCognitiveCue = /\b(attention|clearer|brain fog|shorter steps|fewer choices)\b/i.test(combined);
+
+    if ((!hasAudioCue || !hasContinuityCue || !hasCognitiveCue) && chosen.length > 0) {
+      const withoutLast = chosen.slice(0, -1);
+      const replacementLength =
+        withoutLast.reduce((total, sentence) => total + sentence.length, 0) +
+        compactFallbackCue.length +
+        Math.max(withoutLast.length, 0);
+
+      if (replacementLength <= maxLength) {
+        chosen.splice(chosen.length - 1, 1, compactFallbackCue);
+        currentLength = replacementLength;
+      } else if (
+        currentLength + compactFallbackCue.length + (chosen.length > 0 ? 1 : 0) <= maxLength &&
+        !coveragePattern.test(combined)
+      ) {
+        chosen.push(compactFallbackCue);
+        currentLength += compactFallbackCue.length + (chosen.length > 1 ? 1 : 0);
+      }
+    }
+
+    if (chosen.length > 0) {
+      return chosen.join(" ").trim();
+    }
+
+    const trimmed = text.slice(0, maxLength);
+    const lastSpaceIndex = trimmed.lastIndexOf(" ");
+    return `${trimmed.slice(0, lastSpaceIndex > 0 ? lastSpaceIndex : maxLength).trim()}…`;
+  };
+
+  return {
+    ...guidance,
+    body: shorten(guidance.body, 320),
+    actions: guidance.actions.slice(0, 1),
+    moment: guidance.moment ? shorten(guidance.moment, 96) : guidance.moment,
+  };
 }
 
 function applyLifeContext(
@@ -826,7 +935,8 @@ function finalizeGuidance(
   adaptiveProfile: AdaptiveProfile | null,
   memory: PersonalizationMemory | null,
 ) {
-  return applyPreventiveSafety(
+  return applyLowEnergyModeRefinement(
+    applyPreventiveSafety(
     applyOperationalExcellence(
       applyEcosystemIntelligence(
         applyGlobalAccessibility(
@@ -862,6 +972,8 @@ function finalizeGuidance(
       adaptiveProfile,
     ),
     todayEntry,
+    adaptiveProfile,
+    ),
     adaptiveProfile,
   );
 }
@@ -1051,18 +1163,23 @@ export function buildTodayGuidance(
   memory: PersonalizationMemory | null,
   lifecycle: LifecycleProfile | null,
   lifeContext: LifeContextSnapshot | null = null,
+  options: TodayGuidanceOptions = {},
 ): TodayGuidance {
+  const effectiveAdaptiveProfile =
+    options.forceLowEnergyMode && adaptiveProfile && !adaptiveProfile.lowEnergyMode
+      ? { ...adaptiveProfile, lowEnergyMode: true }
+      : adaptiveProfile;
   const seed = Number(date.slice(-2)) || 1;
 
   if (todayEntry) {
     if ((todayEntry.sleep_hours ?? 99) < 6) {
       return finalizeGuidance(
         applyOrdinaryLifeSpacing(
-          applyLifeContext(buildSleepGuidance(seed, adaptiveProfile), lifeContext),
-          adaptiveProfile,
+          applyLifeContext(buildSleepGuidance(seed, effectiveAdaptiveProfile), lifeContext),
+          effectiveAdaptiveProfile,
         ),
         todayEntry,
-        adaptiveProfile,
+        effectiveAdaptiveProfile,
         memory,
       );
     }
@@ -1070,11 +1187,11 @@ export function buildTodayGuidance(
     if ((todayEntry.stress ?? 0) >= 4) {
       return finalizeGuidance(
         applyOrdinaryLifeSpacing(
-          applyLifeContext(buildStressGuidance(seed, adaptiveProfile), lifeContext),
-          adaptiveProfile,
+          applyLifeContext(buildStressGuidance(seed, effectiveAdaptiveProfile), lifeContext),
+          effectiveAdaptiveProfile,
         ),
         todayEntry,
-        adaptiveProfile,
+        effectiveAdaptiveProfile,
         memory,
       );
     }
@@ -1082,11 +1199,11 @@ export function buildTodayGuidance(
     if ((todayEntry.fatigue ?? 0) >= 4) {
       return finalizeGuidance(
         applyOrdinaryLifeSpacing(
-          applyLifeContext(buildFatigueGuidance(seed, adaptiveProfile), lifeContext),
-          adaptiveProfile,
+          applyLifeContext(buildFatigueGuidance(seed, effectiveAdaptiveProfile), lifeContext),
+          effectiveAdaptiveProfile,
         ),
         todayEntry,
-        adaptiveProfile,
+        effectiveAdaptiveProfile,
         memory,
       );
     }
@@ -1094,23 +1211,23 @@ export function buildTodayGuidance(
     if ((todayEntry.mood ?? 5) <= 2) {
       return finalizeGuidance(
         applyOrdinaryLifeSpacing(
-          applyLifeContext(buildMoodGuidance(seed, adaptiveProfile), lifeContext),
-          adaptiveProfile,
+          applyLifeContext(buildMoodGuidance(seed, effectiveAdaptiveProfile), lifeContext),
+          effectiveAdaptiveProfile,
         ),
         todayEntry,
-        adaptiveProfile,
+        effectiveAdaptiveProfile,
         memory,
       );
     }
   }
 
   if (lifecycle) {
-    const lifecycleGuidance = buildLifecycleGuidance(seed, lifecycle, adaptiveProfile);
+    const lifecycleGuidance = buildLifecycleGuidance(seed, lifecycle, effectiveAdaptiveProfile);
     if (lifecycleGuidance) {
       return finalizeGuidance(
-        applyOrdinaryLifeSpacing(applyLifeContext(lifecycleGuidance, lifeContext), adaptiveProfile),
+        applyOrdinaryLifeSpacing(applyLifeContext(lifecycleGuidance, lifeContext), effectiveAdaptiveProfile),
         todayEntry,
-        adaptiveProfile,
+        effectiveAdaptiveProfile,
         memory,
       );
     }
@@ -1119,22 +1236,22 @@ export function buildTodayGuidance(
   if (aiSummary?.summary) {
     return finalizeGuidance(
       applyOrdinaryLifeSpacing(
-        applyLifeContext(buildAiGuidance(aiSummary, seed, adaptiveProfile), lifeContext),
-        adaptiveProfile,
+        applyLifeContext(buildAiGuidance(aiSummary, seed, effectiveAdaptiveProfile), lifeContext),
+        effectiveAdaptiveProfile,
       ),
       todayEntry,
-      adaptiveProfile,
+      effectiveAdaptiveProfile,
       memory,
     );
   }
 
   return finalizeGuidance(
     applyOrdinaryLifeSpacing(
-      applyLifeContext(buildDefaultGuidance(seed, adaptiveProfile, memory), lifeContext),
-      adaptiveProfile,
+      applyLifeContext(buildDefaultGuidance(seed, effectiveAdaptiveProfile, memory), lifeContext),
+      effectiveAdaptiveProfile,
     ),
     todayEntry,
-    adaptiveProfile,
+    effectiveAdaptiveProfile,
     memory,
   );
 }

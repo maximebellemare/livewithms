@@ -22,6 +22,9 @@ export type ReminderWindow = "morning" | "midday" | "evening";
 export type PersonalizationMemory = {
   onboardingGoals: string[];
   onboardingSymptoms: string[];
+  onboardingSupportStyleOverride?: SupportStyle | null;
+  onboardingPreferredDensityOverride?: PreferredDensity | null;
+  onboardingComplexityToleranceOverride?: ComplexityTolerance | null;
   preferredSupportStyle: SupportStyle;
   preferredProgramTags: ProgramTool["supportTags"];
   reminderWindow: ReminderWindow;

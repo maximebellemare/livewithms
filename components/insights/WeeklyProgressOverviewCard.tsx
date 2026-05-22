@@ -20,11 +20,11 @@ export default function WeeklyProgressOverviewCard({
   return (
     <View style={styles.card}>
       <AppText style={styles.kicker}>Weekly view</AppText>
-      <AppText style={styles.title}>Your Last 7 Days</AppText>
-      <AppText style={styles.contextText}>Based on your last 7 days</AppText>
+      <AppText style={styles.title}>Your last 7 days</AppText>
+      <AppText style={styles.contextText}>A simple read on how this week has felt.</AppText>
 
       {!overview.hasEnoughData ? (
-        <AppText style={styles.emptyText}>Track a few more days to see your trends</AppText>
+        <AppText style={styles.emptyText}>Patterns become easier to read over time.</AppText>
       ) : (
         <View style={styles.rows}>
           {overview.trends.map((trend) => (
@@ -71,6 +71,7 @@ const styles = StyleSheet.create({
   },
   contextText: {
     fontSize: 13,
+    lineHeight: 18,
     color: "#7b6eaa",
   },
   rows: {
@@ -78,13 +79,13 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 12,
     backgroundColor: "#ffffff",
     borderRadius: 16,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
   },
   rowLeft: {
     flex: 1,
@@ -97,11 +98,14 @@ const styles = StyleSheet.create({
   },
   rowSubtext: {
     fontSize: 13,
+    lineHeight: 18,
     color: "#6b7280",
   },
   rowIndicator: {
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: "700",
     color: "#6d4bc2",
+    textAlign: "right",
   },
 });

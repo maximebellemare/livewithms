@@ -27,11 +27,11 @@ export const radii = {
 } as const;
 
 export const spacing = {
-  screenX: 20,
-  screenTop: 24,
-  sectionGap: 16,
-  cardPadding: 18,
-  compactCardPadding: 16,
+  screenX: 22,
+  screenTop: 26,
+  sectionGap: 18,
+  cardPadding: 20,
+  compactCardPadding: 18,
 } as const;
 
 export const shadows = {

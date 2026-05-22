@@ -1,9 +1,19 @@
+import type { RevenueCatDebugSnapshot } from "../../lib/revenuecat/debug";
+
 export type PremiumPlan = "monthly" | "yearly";
 
 export type PremiumStatus = "free" | "active";
 export type PremiumFeatureKey =
   | "unlimited_ai_coach"
   | "advanced_ai_insights"
+  | "adaptive_support"
+  | "calm_environment"
+  | "calm_daily_environment"
+  | "calm_community_support"
+  | "low_energy_assist"
+  | "calm_audio_support"
+  | "daily_calm_support"
+  | "adaptive_home"
   | "deep_correlations"
   | "guided_programs"
   | "export_reports";
@@ -50,8 +60,10 @@ export type PremiumContextValue = {
   isRestoring: boolean;
   offeringsErrorMessage: string | null;
   debugPremiumOverrideActive: boolean;
+  revenueCatDebugSnapshot: RevenueCatDebugSnapshot;
   purchasePlan: (plan: PremiumPlan) => Promise<PremiumActionResult>;
   restorePurchases: () => Promise<PremiumActionResult>;
   refreshPremiumStatus: () => Promise<void>;
+  refreshRevenueCatDiagnostics: () => Promise<void>;
   setDebugPremiumOverride: (enabled: boolean) => Promise<void>;
 };

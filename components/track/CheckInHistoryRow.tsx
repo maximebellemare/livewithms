@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import type { DailyCheckIn } from "../../features/checkins/types";
 import AppText from "../ui/AppText";
@@ -91,7 +92,7 @@ type CheckInHistoryRowProps = {
   onPress: () => void;
 };
 
-export default function CheckInHistoryRow({
+function CheckInHistoryRow({
   item,
   selected,
   activeFilter,
@@ -184,6 +185,20 @@ export default function CheckInHistoryRow({
     </Pressable>
   );
 }
+
+export default memo(CheckInHistoryRow, (prev, next) => {
+  return (
+    prev.selected === next.selected &&
+    prev.activeFilter === next.activeFilter &&
+    prev.item.id === next.item.id &&
+    prev.item.updated_at === next.item.updated_at &&
+    prev.item.notes === next.item.notes &&
+    prev.item.fatigue === next.item.fatigue &&
+    prev.item.mood === next.item.mood &&
+    prev.item.stress === next.item.stress &&
+    prev.item.sleep_hours === next.item.sleep_hours
+  );
+});
 
 const styles = StyleSheet.create({
   row: {

@@ -8,6 +8,27 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: "#e8751a",
         tabBarInactiveTintColor: "#6b7280",
+        tabBarActiveBackgroundColor: "#fff4ec",
+        tabBarHideOnKeyboard: true,
+        tabBarItemStyle: {
+          marginHorizontal: 2,
+          borderRadius: 18,
+          paddingVertical: 4,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "600",
+          paddingBottom: 2,
+        },
+        tabBarStyle: {
+          height: 72,
+          paddingHorizontal: 10,
+          paddingTop: 8,
+          paddingBottom: 8,
+          backgroundColor: "#fffdfb",
+          borderTopColor: "#f1e1d4",
+          borderTopWidth: 1,
+        },
       }}
     >
       <Tabs.Screen
@@ -16,7 +37,7 @@ export default function TabsLayout() {
           title: "Today",
           tabBarLabel: "Today",
           href: "/today",
-          tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? "home" : "home-outline"} color={color} size={size} />,
         }}
       />
       <Tabs.Screen
@@ -25,8 +46,8 @@ export default function TabsLayout() {
           title: "Track",
           tabBarLabel: "Track",
           href: "/track",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="stats-chart-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "stats-chart" : "stats-chart-outline"} color={color} size={size} />
           ),
         }}
       />
@@ -36,8 +57,8 @@ export default function TabsLayout() {
           title: "Insights",
           tabBarLabel: "Insights",
           href: "/insights",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bulb-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "bulb" : "bulb-outline"} color={color} size={size} />
           ),
         }}
       />
@@ -47,8 +68,8 @@ export default function TabsLayout() {
           title: "Coach",
           tabBarLabel: "Coach",
           href: "/coach",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble-ellipses-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "chatbubble-ellipses" : "chatbubble-ellipses-outline"} color={color} size={size} />
           ),
         }}
       />
@@ -58,8 +79,8 @@ export default function TabsLayout() {
           title: "Care",
           tabBarLabel: "Care",
           href: "/care",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="medical-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "medical" : "medical-outline"} color={color} size={size} />
           ),
         }}
       />
@@ -69,8 +90,8 @@ export default function TabsLayout() {
           title: "Programs",
           tabBarLabel: "Programs",
           href: "/programs",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="sparkles-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "sparkles" : "sparkles-outline"} color={color} size={size} />
           ),
         }}
       />
@@ -86,7 +107,7 @@ export default function TabsLayout() {
           title: "Profile",
           tabBarLabel: "Profile",
           href: "/profile",
-          tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? "person" : "person-outline"} color={color} size={size} />,
         }}
       />
     </Tabs>

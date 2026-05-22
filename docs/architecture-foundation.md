@@ -1,80 +1,208 @@
 # LiveWithMS Architecture Foundation
 
-This document is the lightweight operating guide for long-term iteration.
+This document describes the product freeze architecture for LiveWithMS. The goal is no longer rapid feature invention. The goal is controlled ecosystem evolution that preserves calmness, emotional safety, and long-term maintainability.
 
-## Core principles
+## Platform shape
 
-- Keep product logic local and modular by feature.
-- Keep shared concerns centralized:
-  - config
-  - feature flags
-  - analytics
-  - error normalization
-  - storage helpers
-- Prefer small, readable abstractions over enterprise-style frameworks.
+The stable top-level façade is:
 
-## Shared systems
+- `lib/platform-core`
 
-### App config
+Long-term growth and expansion policy sits one layer above that:
 
-- File: `lib/app-config.ts`
-- Centralizes stable product settings for:
-  - premium defaults
-  - reminder defaults
-  - onboarding step structure
-  - lifecycle thresholds
-  - lightweight AI tuning hints
+- `lib/future-platform-strategy`
 
-### Feature flags
+Use `platform-core` when new work needs platform policy, safety validation, or orchestration across multiple systems.
 
-- File: `lib/feature-flags.ts`
-- Separates:
-  - development flags
-  - rollout flags
-  - experiment variants
-  - premium feature flags
+`platform-core` composes:
 
-### Analytics
+- `lib/platform-governance`
+- `lib/adaptive-intelligence`
+- `lib/calm-life-support`
+- `lib/emotional-support-engine`
+- `lib/programs-ecosystem`
+- `lib/continuity-intelligence`
+- `lib/calm-environment`
 
-- File: `lib/events.ts`
-- Rules:
-  - keep names event-style and product-readable
-  - prefer one reusable helper over repeated raw string calls
-  - sanitize metadata and keep payloads small
-  - analytics must never block UI
+`future-platform-strategy` uses `platform-core` to govern:
 
-### AI runtime
+- growth patterns
+- retention quality
+- community expansion
+- content expansion
+- future AI boundaries
+- monetization ethics
+- platform and partnership expansion
 
-- Files:
-  - `features/ai/modules.ts`
-  - `features/ai/invoke.ts`
-- Responsibilities:
-  - module definitions
-  - shared function invocation
-  - logging and transport-level error handling
-- Keep prompt assembly and context assembly inside each AI feature unless a real shared need appears.
+## What `platform-core` governs
 
-## Feature boundaries
+- Emotional safety
+- Adaptive-boundary limits
+- Calmness constraints
+- Support-density limits
+- Premium integrity
+- Accessibility rules
+- Operational resilience
+- Content safety
+- Future expansion policy
+- Platform quality audits
 
-- `features/onboarding/*`: onboarding state, personalization, completion
-- `features/coach*/*`: AI Coach chat, plans, reflection logic
-- `features/insights/*`: pattern summaries, AI summary fetches, dashboard logic
-- `features/programs/*`: catalog, progress, continuation
-- `features/premium/*`: RevenueCat, entitlements, usage limits, premium config
-- `features/reminders/*`: reminder state, plans, notifications
-- `features/personalization-memory/*`: lightweight long-term memory snapshot
-- `features/lifecycle/*`: lifecycle classification for retention-aware behavior
+## Product philosophy invariants
 
-## Experimentation guidance
+Every future change must preserve:
 
-- Keep experiments config-driven first.
-- Start with variants in `lib/feature-flags.ts`.
-- Only add experiment-specific runtime plumbing when a real experiment needs it.
-- Avoid shipping hidden complexity before rollout needs are concrete.
+- emotional safety
+- calmness
+- realism
+- dignity
+- uncertainty safety
+- autonomy
+- human-centeredness
 
-## Developer guidance
+Every future change must avoid:
 
-- Prefer adding feature logic inside the existing feature folder before creating new global abstractions.
-- If multiple features need the same behavior more than once, extract the smallest shared helper.
-- Keep storage payloads trimmed and stable.
-- Keep production logging sparse and structured.
+- therapy simulation
+- AI companion dynamics
+- emotional dependency
+- manipulative retention
+- self-help culture
+- productivity recovery culture
+- overstimulation
+
+## Adaptive-boundary rules
+
+Adaptive systems must stay:
+
+- subtle
+- predictable
+- low-pressure
+- non-invasive
+- uncertainty-safe
+
+Adaptive systems must not:
+
+- claim the app detected an emotional state with certainty
+- aggressively personalize users psychologically
+- increase recommendation density during harder periods
+- use adaptation to raise engagement pressure
+
+## Premium philosophy
+
+Premium is positioned as:
+
+- calmer support
+- deeper steadiness
+- lower-friction difficult days
+- adaptive simplification
+- long-term continuity
+
+Premium is not:
+
+- a power-user AI tier
+- a pressure-based upgrade funnel
+- a bundle of manipulative feature locks
+
+## AI governance
+
+AI outputs must remain:
+
+- emotionally restrained
+- non-clinical
+- non-companion-like
+- bounded in interpretation
+- free of dependency cues
+
+AI outputs must not:
+
+- simulate therapy
+- imply authority over the user
+- promise safety or certainty
+- encourage over-reliance
+- intensify vulnerability for engagement
+
+## Accessibility principles
+
+The platform defaults toward:
+
+- low cognitive load
+- low sensory load
+- fatigue readability
+- interruption-safe flows
+- reduced motion support
+- emotionally spacious layouts
+
+## Future expansion rules
+
+Before shipping Android, web, partnerships, localization, or new content systems:
+
+1. Validate emotional safety.
+2. Validate adaptive boundaries.
+3. Validate calmness and density.
+4. Validate accessibility and interruption safety.
+5. Validate category identity and anti-drift rules.
+
+Future additions must compose with existing ecosystems instead of introducing parallel orchestration layers.
+
+## Growth and scaling rules
+
+Future growth must come from:
+
+- usefulness
+- trust
+- steadiness
+- reduced overwhelm
+- continuity
+- lower friction
+
+Future growth must not come from:
+
+- urgency
+- streaks
+- dopamine loops
+- emotional dependency
+- manipulative reminders
+- fear-based upgrades
+
+## Community and monetization rules
+
+Community features must not introduce:
+
+- doom scrolling
+- social comparison loops
+- emotional contagion
+- performative coping culture
+
+Monetization must remain:
+
+- transparent
+- calm
+- low-pressure
+- respectful
+
+Monetization must not drift into:
+
+- urgency pricing
+- emotional conversion tactics
+- addiction-based retention
+- fear-based upsells
+
+## Recommended extension path
+
+1. Start in the relevant feature or subsystem façade.
+2. If cross-system policy is involved, add or update `platform-core`.
+3. If the change affects long-term growth, monetization, or future platform expansion, add or update `future-platform-strategy`.
+4. If the change affects identity or safety, extend the governance tests.
+5. Update docs when the rule of the system changes.
+
+## Key helpers
+
+- `derivePlatformCoreState()`
+- `validatePlatformSafety()`
+- `deriveAdaptiveBoundaries()`
+- `derivePlatformCalmnessConstraints()`
+- `deriveSupportDensityLimits()`
+- `deriveSafeExpansionRules()`
+- `deriveFutureGovernancePolicies()`
+- `derivePlatformQualityAudits()`
+- `deriveFuturePlatformStrategy()`
+- `validateFutureExpansion()`

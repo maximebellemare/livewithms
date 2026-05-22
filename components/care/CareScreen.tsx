@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { router } from "expo-router";
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import AppButton from "../ui/AppButton";
 import AppScreen from "../ui/AppScreen";
@@ -22,12 +22,18 @@ import {
   useUpdateCareNote,
 } from "../../features/care-notes/hooks";
 import type { CareNote, CareNoteInput } from "../../features/care-notes/types";
-import { useCreateMedication, useMedications } from "../../features/medications/hooks";
+import {
+  useCreateMedication,
+  useDeleteMedication,
+  useMedications,
+  useUpdateMedication,
+} from "../../features/medications/hooks";
 import type { Medication, MedicationInput } from "../../features/medications/types";
 import { getErrorMessage } from "../../lib/errors";
 import { logger } from "../../lib/logger";
 import { trackRetryTriggered } from "../../lib/events";
 import { useSlowScreenDiagnostics } from "../../lib/observability";
+import { useLowEnergyMode } from "../../features/low-energy-mode/hooks";
 
 const MEDICATION_FREQUENCY_OPTIONS = [
   "Once daily",
@@ -180,11 +186,14 @@ export default function CareScreen() {
   const updateAppointment = useUpdateAppointment();
   const deleteAppointment = useDeleteAppointment();
   const createMedication = useCreateMedication();
+  const updateMedication = useUpdateMedication();
+  const deleteMedication = useDeleteMedication();
   const createCareNote = useCreateCareNote();
   const updateCareNote = useUpdateCareNote();
   const deleteCareNote = useDeleteCareNote();
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const [showMedicationForm, setShowMedicationForm] = useState(false);
+  const [editingMedicationId, setEditingMedicationId] = useState<string | null>(null);
   const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
@@ -217,6 +226,7 @@ export default function CareScreen() {
     (careNotesQuery.isLoading && !careNotesQuery.data);
   useSlowScreenDiagnostics("care", isInitialLoading);
   const [showInactiveMedications, setShowInactiveMedications] = useState(false);
+  const lowEnergyMode = useLowEnergyMode();
 
   const upcomingAppointments = useMemo(() => {
     const today = getTodayDateString();
@@ -230,7 +240,7 @@ export default function CareScreen() {
     return sortAppointmentsByDateTime(items, false);
   }, [appointmentsQuery.data]);
 
-  const medications = medicationsQuery.data ?? [];
+  const medications = useMemo(() => medicationsQuery.data ?? [], [medicationsQuery.data]);
   const activeMedications = useMemo(
     () => medications.filter((medication) => medication.active),
     [medications],
@@ -261,6 +271,7 @@ export default function CareScreen() {
     setMedicationFrequency("");
     setSelectedMedicationFrequencyOption("Once daily");
     setMedicationNotes("");
+    setEditingMedicationId(null);
   };
 
   const handleDateChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -350,13 +361,13 @@ export default function CareScreen() {
           appointmentId: editingAppointmentId,
           input,
         });
-        setMessage("Appointment updated.");
+        setMessage("Your appointment changes are here.");
       } else {
         await createAppointment.mutateAsync({
           userId: user.id,
           input,
         });
-        setMessage("Appointment added.");
+        setMessage("Saved quietly.");
       }
 
       resetAppointmentForm();
@@ -388,8 +399,8 @@ export default function CareScreen() {
 
   const confirmDeleteAppointment = (appointment: Appointment) => {
     Alert.alert(
-      "Delete appointment",
-      `Remove "${appointment.title}" from your care list?`,
+      "Remove appointment",
+      `Take "${appointment.title}" out of this care list?`,
       [
         {
           text: "Cancel",
@@ -425,14 +436,14 @@ export default function CareScreen() {
         setShowAppointmentForm(false);
       }
 
-      setMessage("Appointment deleted.");
+      setMessage("That appointment has been removed.");
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     }
   };
 
   const handleMedicationSubmit = async () => {
-    if (!user?.id || createMedication.isPending) {
+    if (!user?.id || createMedication.isPending || updateMedication.isPending) {
       return;
     }
 
@@ -449,19 +460,85 @@ export default function CareScreen() {
       dosage: medicationDosage || null,
       frequency: effectiveFrequency,
       notes: medicationNotes || null,
+      active: editingMedicationId ? medications.find((item) => item.id === editingMedicationId)?.active ?? true : true,
     };
 
     try {
-      await createMedication.mutateAsync({
-        userId: user.id,
-        input,
-      });
+      if (editingMedicationId) {
+        await updateMedication.mutateAsync({
+          userId: user.id,
+          medicationId: editingMedicationId,
+          input,
+        });
+      } else {
+        await createMedication.mutateAsync({
+          userId: user.id,
+          input,
+        });
+      }
       resetMedicationForm();
       setShowMedicationForm(false);
-      setMedicationMessage("Medication added.");
+      setMedicationMessage(editingMedicationId ? "Your medication changes are here." : "Saved quietly.");
     } catch (error) {
       setMedicationErrorMessage(getErrorMessage(error));
     }
+  };
+
+  const startEditingMedication = (medication: Medication) => {
+    setMedicationName(medication.name);
+    setMedicationDosage(medication.dosage ?? "");
+    setMedicationFrequency(medication.frequency);
+    setSelectedMedicationFrequencyOption(getInitialFrequencyOption(medication.frequency));
+    setMedicationNotes(medication.notes ?? "");
+    setEditingMedicationId(medication.id);
+    setShowMedicationForm(true);
+    setMedicationErrorMessage(null);
+    setMedicationMessage(null);
+  };
+
+  const handleDeleteMedication = async (medicationId: string) => {
+    if (!user?.id || deleteMedication.isPending) {
+      return;
+    }
+
+    setMedicationErrorMessage(null);
+    setMedicationMessage(null);
+
+    try {
+      await deleteMedication.mutateAsync({
+        userId: user.id,
+        medicationId,
+      });
+
+      if (editingMedicationId === medicationId) {
+        resetMedicationForm();
+        setShowMedicationForm(false);
+      }
+
+      setMedicationMessage("That medication has been removed.");
+    } catch (error) {
+      setMedicationErrorMessage(getErrorMessage(error));
+    }
+  };
+
+  const confirmDeleteMedication = (medication: Medication) => {
+    Alert.alert(
+      "Remove medication",
+      `Take "${medication.name}" out of this medication list?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            void handleDeleteMedication(medication.id);
+          },
+        },
+      ],
+    );
   };
 
   const handleMedicationFrequencyOptionPress = (
@@ -496,13 +573,13 @@ export default function CareScreen() {
           noteId: editingCareNoteId,
           input,
         });
-        setCareNoteMessage("Care note updated.");
+        setCareNoteMessage("Your note changes are here.");
       } else {
         await createCareNote.mutateAsync({
           userId: user.id,
           input,
         });
-        setCareNoteMessage("Care note saved.");
+        setCareNoteMessage("Care note saved and easy to come back to.");
       }
 
       resetCareNoteForm();
@@ -541,7 +618,7 @@ export default function CareScreen() {
         setShowCareNoteForm(false);
       }
 
-      setCareNoteMessage("Care note deleted.");
+      setCareNoteMessage("That note has been removed.");
     } catch (error) {
       setCareNoteErrorMessage(getErrorMessage(error));
     }
@@ -549,8 +626,8 @@ export default function CareScreen() {
 
   const confirmDeleteCareNote = (note: CareNote) => {
     Alert.alert(
-      "Delete care note",
-      `Remove "${note.title || "this note"}"?`,
+      "Remove note",
+      `Take "${note.title || "this note"}" out of Care notes?`,
       [
         {
           text: "Cancel",
@@ -568,11 +645,11 @@ export default function CareScreen() {
   };
 
   if (!user?.id) {
-    return <ErrorState message="You need to be signed in to view Care." />;
+    return <ErrorState message="Care is available once you’re signed in." />;
   }
 
   if (isInitialLoading) {
-    return <LoadingState message="Loading Care..." />;
+    return <LoadingState message="Getting your care details ready..." />;
   }
 
   if (appointmentsQuery.isError) {
@@ -613,15 +690,29 @@ export default function CareScreen() {
 
   return (
     <AppScreen
+      eyebrow="Appointments and notes"
       title="Care organizer"
-      subtitle="Keep appointments, medications, and notes in one place."
+      subtitle="Keep medications, visits, and care notes close by in one calmer place."
     >
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView
+        contentContainerStyle={[styles.content, lowEnergyMode.enabled && styles.contentLowEnergy]}
+        showsVerticalScrollIndicator={false}
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.heroCard}>
           <AppText style={styles.heroTitle}>Your care tools in one place</AppText>
           <AppText style={styles.body}>
-            Keep the essentials close by so appointments, medications, and important reminders feel easier to manage.
+            Keep the essentials close by so appointments, medications, and notes feel easier to hold in one calm place.
           </AppText>
+          {lowEnergyMode.enabled ? (
+            <View style={styles.lowEnergyBanner}>
+              <AppText style={styles.lowEnergyBannerText}>
+                Care is keeping things a little lighter and roomier today.
+              </AppText>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.summaryGrid}>
@@ -632,18 +723,18 @@ export default function CareScreen() {
                 <AppText style={styles.summaryTitle}>{nextAppointment.title}</AppText>
                 <AppText style={styles.summaryBody}>
                   {formatAppointmentDateLong(nextAppointment.appointment_date)}
-                  {nextAppointment.appointment_time ? ` · ${nextAppointment.appointment_time}` : ""}
+                  {nextAppointment.appointment_time ? ` · ${formatAppointmentTimeInput(nextAppointment.appointment_time)}` : ""}
                 </AppText>
                 {nextAppointment.provider ? (
                   <AppText style={styles.summaryBody}>{nextAppointment.provider}</AppText>
                 ) : (
-                  <AppText style={styles.summaryHint}>Nothing scheduled yet? Add your next visit.</AppText>
+                  <AppText style={styles.summaryHint}>Your next visit can live here whenever it helps.</AppText>
                 )}
               </>
             ) : (
               <>
-                <AppText style={styles.summaryEmptyTitle}>No upcoming appointments yet.</AppText>
-                <AppText style={styles.summaryHint}>Add one so it’s easier to stay organized.</AppText>
+                <AppText style={styles.summaryEmptyTitle}>Appointments will appear here when needed.</AppText>
+                <AppText style={styles.summaryHint}>A title and date are enough to start.</AppText>
               </>
             )}
           </View>
@@ -653,7 +744,7 @@ export default function CareScreen() {
             <AppText style={styles.summaryCount}>{activeMedications.length}</AppText>
             <AppText style={styles.summaryBody}>
               {activeMedications.length === 0
-                ? "No medications added yet."
+                ? "Your medication list can rest here."
                 : activeMedications.length === 1
                   ? activeMedications[0]?.name ?? "1 medication"
                   : `${activeMedications.length} medications currently listed`}
@@ -672,8 +763,8 @@ export default function CareScreen() {
               </>
             ) : (
               <>
-                <AppText style={styles.summaryEmptyTitle}>No care notes yet.</AppText>
-                <AppText style={styles.summaryHint}>Keep questions and reminders here when you need them.</AppText>
+                <AppText style={styles.summaryEmptyTitle}>Notes can settle here when useful.</AppText>
+                <AppText style={styles.summaryHint}>Questions or reminders can live here whenever they’re useful.</AppText>
               </>
             )}
           </View>
@@ -681,9 +772,11 @@ export default function CareScreen() {
 
         <View style={styles.quickLinksCard}>
           <AppText style={styles.sectionTitle}>Quick links</AppText>
+          <AppText style={styles.body}>Move between the essentials without opening extra menus.</AppText>
           <View style={styles.navButtons}>
-            <AppButton label="Go to Today" onPress={() => router.push("/today")} variant="secondary" />
-            <AppButton label="Go to Profile" onPress={() => router.push("/profile")} variant="secondary" />
+            <AppButton label="Today" onPress={() => router.push("/today")} variant="secondary" />
+            <AppButton label="Profile" onPress={() => router.push("/profile")} variant="secondary" />
+            <AppButton label="Health Summary" onPress={() => router.push("/health-summary")} variant="secondary" />
           </View>
         </View>
 
@@ -691,10 +784,10 @@ export default function CareScreen() {
           <View style={styles.formHeader}>
             <View style={styles.formHeaderCopy}>
               <AppText style={styles.title}>Appointments</AppText>
-              <AppText style={styles.body}>Keep upcoming visits easy to find, with quick notes attached.</AppText>
+              <AppText style={styles.body}>Keep upcoming visits easy to find, with only the details you want close by.</AppText>
             </View>
             <AppButton
-              label={showAppointmentForm ? "Hide form" : "Add Appointment"}
+              label={showAppointmentForm ? "Hide form" : "Add appointment"}
               onPress={() => setShowAppointmentForm((current) => !current)}
               variant="secondary"
             />
@@ -702,6 +795,9 @@ export default function CareScreen() {
 
           {showAppointmentForm ? (
             <View style={styles.formCard}>
+              <AppText style={styles.formIntro}>
+                Keep this brief. A title, date, and optional time are enough.
+              </AppText>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Title</AppText>
                 <TextInput
@@ -739,6 +835,7 @@ export default function CareScreen() {
                     {formatAppointmentTimeInput(time)}
                   </AppText>
                 </Pressable>
+                <AppText style={styles.helperText}>Optional. Leave this open if the time is not settled yet.</AppText>
               </View>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Provider</AppText>
@@ -765,7 +862,7 @@ export default function CareScreen() {
                 <TextInput
                   value={notes}
                   onChangeText={setNotes}
-                  placeholder="Questions to ask or details to remember"
+                  placeholder="Questions, reminders, or anything you want handy"
                   placeholderTextColor="#9ca3af"
                   multiline
                   textAlignVertical="top"
@@ -792,8 +889,8 @@ export default function CareScreen() {
           <AppText style={styles.sectionLabel}>Upcoming appointments</AppText>
           {upcomingAppointments.length === 0 ? (
             <View style={styles.emptyState}>
-              <AppText style={styles.body}>No upcoming appointments yet.</AppText>
-              <AppText style={styles.emptyHint}>Add one so it’s easier to stay organized.</AppText>
+              <AppText style={styles.body}>Your appointments will appear here when needed.</AppText>
+              <AppText style={styles.emptyHint}>Your next visit can live here whenever it feels useful.</AppText>
             </View>
           ) : (
             <View style={styles.list}>
@@ -809,15 +906,15 @@ export default function CareScreen() {
                       <AppText style={styles.itemTitle}>{appointment.title}</AppText>
                       <AppText style={styles.itemMeta}>
                         {formatAppointmentDateLong(appointment.appointment_date)}
-                        {appointment.appointment_time ? ` · ${appointment.appointment_time}` : ""}
+                        {appointment.appointment_time ? ` · ${formatAppointmentTimeInput(appointment.appointment_time)}` : ""}
                       </AppText>
                     </View>
                   </View>
                   {appointment.provider ? (
-                    <AppText style={styles.detailText}>Provider: {appointment.provider}</AppText>
+                    <AppText style={styles.detailText}>With {appointment.provider}</AppText>
                   ) : null}
                   {appointment.location ? (
-                    <AppText style={styles.detailText}>Location: {appointment.location}</AppText>
+                    <AppText style={styles.detailText}>At {appointment.location}</AppText>
                   ) : null}
                   {appointment.notes ? <AppText style={styles.itemNotes}>{appointment.notes}</AppText> : null}
                   <View style={styles.itemActions}>
@@ -837,8 +934,8 @@ export default function CareScreen() {
           <AppText style={styles.sectionLabel}>Past appointments</AppText>
           {pastAppointments.length === 0 ? (
             <View style={styles.emptyState}>
-              <AppText style={styles.body}>No past appointments yet.</AppText>
-              <AppText style={styles.emptyHint}>Completed visits will settle here over time.</AppText>
+              <AppText style={styles.body}>Past appointments can settle here over time.</AppText>
+              <AppText style={styles.emptyHint}>Completed visits can collect here for easy reference.</AppText>
             </View>
           ) : (
             <View style={styles.list}>
@@ -854,15 +951,15 @@ export default function CareScreen() {
                       <AppText style={styles.itemTitle}>{appointment.title}</AppText>
                       <AppText style={styles.itemMeta}>
                         {formatAppointmentDateLong(appointment.appointment_date)}
-                        {appointment.appointment_time ? ` · ${appointment.appointment_time}` : ""}
+                        {appointment.appointment_time ? ` · ${formatAppointmentTimeInput(appointment.appointment_time)}` : ""}
                       </AppText>
                     </View>
                   </View>
                   {appointment.provider ? (
-                    <AppText style={styles.detailText}>Provider: {appointment.provider}</AppText>
+                    <AppText style={styles.detailText}>With {appointment.provider}</AppText>
                   ) : null}
                   {appointment.location ? (
-                    <AppText style={styles.detailText}>Location: {appointment.location}</AppText>
+                    <AppText style={styles.detailText}>At {appointment.location}</AppText>
                   ) : null}
                   {appointment.notes ? <AppText style={styles.itemNotes}>{appointment.notes}</AppText> : null}
                   <View style={styles.itemActions}>
@@ -884,10 +981,10 @@ export default function CareScreen() {
           <View style={styles.formHeader}>
             <View style={styles.formHeaderCopy}>
               <AppText style={styles.title}>Medications</AppText>
-              <AppText style={styles.body}>Keep current medications together with the basics you want to remember.</AppText>
+              <AppText style={styles.body}>Keep current medications together with a simple schedule and any notes you want nearby.</AppText>
             </View>
             <AppButton
-              label={showMedicationForm ? "Hide form" : "Add Medication"}
+              label={showMedicationForm ? "Hide form" : "Add medication"}
               onPress={() => setShowMedicationForm((current) => !current)}
               variant="secondary"
             />
@@ -895,6 +992,9 @@ export default function CareScreen() {
 
           {showMedicationForm ? (
             <View style={styles.formCard}>
+              <AppText style={styles.formIntro}>
+                Start with the name and choose the closest schedule. You can keep the rest minimal.
+              </AppText>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Name</AppText>
                 <TextInput
@@ -943,6 +1043,7 @@ export default function CareScreen() {
                     );
                   })}
                 </View>
+                <AppText style={styles.helperText}>Choose the closest fit, or use Custom only if you need to.</AppText>
                 {selectedMedicationFrequencyOption === "Custom" ? (
                   <TextInput
                     value={medicationFrequency}
@@ -958,7 +1059,7 @@ export default function CareScreen() {
                 <TextInput
                   value={medicationNotes}
                   onChangeText={setMedicationNotes}
-                  placeholder="Take with food"
+                  placeholder="Anything useful to remember"
                   placeholderTextColor="#9ca3af"
                   multiline
                   textAlignVertical="top"
@@ -966,9 +1067,15 @@ export default function CareScreen() {
                 />
               </View>
               <AppButton
-                label={createMedication.isPending ? "Saving..." : "Save medication"}
+                label={
+                  createMedication.isPending || updateMedication.isPending
+                    ? "Saving..."
+                    : editingMedicationId
+                      ? "Save changes"
+                      : "Save medication"
+                }
                 onPress={() => void handleMedicationSubmit()}
-                disabled={createMedication.isPending}
+                disabled={createMedication.isPending || updateMedication.isPending}
               />
               {medicationErrorMessage ? <AppText style={styles.errorText}>{medicationErrorMessage}</AppText> : null}
             </View>
@@ -979,22 +1086,33 @@ export default function CareScreen() {
           <AppText style={styles.sectionLabel}>Active medications</AppText>
           {activeMedications.length === 0 ? (
             <View style={styles.emptyState}>
-              <AppText style={styles.body}>No medications added yet.</AppText>
-              <AppText style={styles.emptyHint}>Keep dosage and frequency here for quick reference.</AppText>
+              <AppText style={styles.body}>Your medications will appear here when you want them nearby.</AppText>
+              <AppText style={styles.emptyHint}>Dosage, schedule, and short notes can stay here for easy reference.</AppText>
             </View>
           ) : (
             <View style={styles.list}>
               {activeMedications.map((medication) => (
                 <View key={medication.id} style={styles.itemCard}>
                   <View style={styles.medicationHeader}>
-                    <AppText style={styles.itemTitle}>{medication.name}</AppText>
-                    <AppText style={[styles.badge, styles.badgeActive]}>Active</AppText>
+                    <View style={styles.itemHeaderCopy}>
+                      <AppText style={styles.itemTitle}>{medication.name}</AppText>
+                      <AppText style={styles.itemMeta}>
+                        {medication.dosage ? `${medication.dosage} · ` : ""}
+                        {medication.frequency}
+                      </AppText>
+                    </View>
+                    <AppText style={[styles.badge, styles.badgeActive]}>Current</AppText>
                   </View>
-                  <AppText style={styles.itemMeta}>
-                    {medication.dosage ? `${medication.dosage} · ` : ""}
-                    {medication.frequency}
-                  </AppText>
                   {medication.notes ? <AppText style={styles.itemNotes}>{medication.notes}</AppText> : null}
+                  <View style={styles.itemActions}>
+                    <AppButton label="Edit" onPress={() => startEditingMedication(medication)} variant="secondary" />
+                    <AppButton
+                      label={deleteMedication.isPending ? "Deleting..." : "Delete"}
+                      onPress={() => confirmDeleteMedication(medication)}
+                      variant="secondary"
+                      disabled={deleteMedication.isPending}
+                    />
+                  </View>
                 </View>
               ))}
             </View>
@@ -1017,14 +1135,25 @@ export default function CareScreen() {
                   {inactiveMedications.map((medication) => (
                     <View key={medication.id} style={styles.itemCard}>
                       <View style={styles.medicationHeader}>
-                        <AppText style={styles.itemTitle}>{medication.name}</AppText>
+                        <View style={styles.itemHeaderCopy}>
+                          <AppText style={styles.itemTitle}>{medication.name}</AppText>
+                          <AppText style={styles.itemMeta}>
+                            {medication.dosage ? `${medication.dosage} · ` : ""}
+                            {medication.frequency}
+                          </AppText>
+                        </View>
                         <AppText style={[styles.badge, styles.badgeInactive]}>Inactive</AppText>
                       </View>
-                      <AppText style={styles.itemMeta}>
-                        {medication.dosage ? `${medication.dosage} · ` : ""}
-                        {medication.frequency}
-                      </AppText>
                       {medication.notes ? <AppText style={styles.itemNotes}>{medication.notes}</AppText> : null}
+                      <View style={styles.itemActions}>
+                        <AppButton label="Edit" onPress={() => startEditingMedication(medication)} variant="secondary" />
+                        <AppButton
+                          label={deleteMedication.isPending ? "Deleting..." : "Delete"}
+                          onPress={() => confirmDeleteMedication(medication)}
+                          variant="secondary"
+                          disabled={deleteMedication.isPending}
+                        />
+                      </View>
                     </View>
                   ))}
                 </View>
@@ -1038,11 +1167,11 @@ export default function CareScreen() {
             <View style={styles.formHeaderCopy}>
               <AppText style={styles.title}>Care notes</AppText>
               <AppText style={styles.body}>
-                Save questions, reminders, or things to mention at your next appointment.
+                Questions, reminders, and ordinary details can live here without needing to sound formal.
               </AppText>
             </View>
             <AppButton
-              label={showCareNoteForm ? "Hide form" : "Add Note"}
+              label={showCareNoteForm ? "Hide form" : "Add note"}
               onPress={() => setShowCareNoteForm((current) => !current)}
               variant="secondary"
             />
@@ -1050,6 +1179,9 @@ export default function CareScreen() {
 
           {showCareNoteForm ? (
             <View style={styles.formCard}>
+              <AppText style={styles.formIntro}>
+                This can stay loose and informal. A short note is enough.
+              </AppText>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Title</AppText>
                 <TextInput
@@ -1071,14 +1203,14 @@ export default function CareScreen() {
                 />
               </View>
               <AppText style={styles.helperText}>
-                Try: Questions for doctor, Symptoms to mention, Medication notes, Personal note
+                Try: Questions for a visit, Symptoms to mention, Medication notes, Personal reminder
               </AppText>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Note</AppText>
                 <TextInput
                   value={careNoteBody}
                   onChangeText={setCareNoteBody}
-                  placeholder="Write anything you want to remember or bring up later"
+                  placeholder="Write anything you want to remember, mention, or come back to later"
                   placeholderTextColor="#9ca3af"
                   multiline
                   textAlignVertical="top"
@@ -1104,9 +1236,9 @@ export default function CareScreen() {
 
           {(careNotesQuery.data ?? []).length === 0 ? (
             <View style={styles.emptyState}>
-              <AppText style={styles.body}>No care notes yet.</AppText>
+              <AppText style={styles.body}>Notes can help you keep small details in one place.</AppText>
               <AppText style={styles.emptyHint}>
-                Save questions, reminders, or things to mention at your next appointment.
+                Questions, reminders, or anything you want handy before a visit can live here.
               </AppText>
             </View>
           ) : (
@@ -1138,6 +1270,7 @@ export default function CareScreen() {
           )}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
       <Modal
         visible={activePicker !== null}
         transparent
@@ -1176,11 +1309,17 @@ export default function CareScreen() {
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   content: {
     paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: 120,
-    gap: 16,
+    gap: 18,
+  },
+  contentLowEnergy: {
+    gap: 20,
   },
   heroCard: {
     backgroundColor: "#fff4ec",
@@ -1190,8 +1329,21 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 10,
   },
+  lowEnergyBanner: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#eadfd6",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  lowEnergyBannerText: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 19,
+  },
   summaryGrid: {
-    gap: 12,
+    gap: 14,
   },
   summaryCard: {
     backgroundColor: "#ffffff",
@@ -1199,7 +1351,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 8,
+    gap: 10,
   },
   quickLinksCard: {
     backgroundColor: "#ffffff",
@@ -1207,7 +1359,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 12,
+    gap: 14,
   },
   card: {
     backgroundColor: "#ffffff",
@@ -1215,7 +1367,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 12,
+    gap: 14,
   },
   title: {
     fontSize: 20,
@@ -1230,7 +1382,7 @@ const styles = StyleSheet.create({
   },
   body: {
     color: "#4b5563",
-    lineHeight: 22,
+    lineHeight: 23,
   },
   sectionTitle: {
     fontSize: 18,
@@ -1271,7 +1423,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   formHeader: {
-    gap: 12,
+    gap: 14,
   },
   formHeaderCopy: {
     gap: 6,
@@ -1281,14 +1433,19 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#f3dfd1",
-    padding: 14,
-    gap: 12,
+    padding: 16,
+    gap: 16,
+  },
+  formIntro: {
+    color: "#6b7280",
+    lineHeight: 20,
   },
   fieldGroup: {
-    gap: 6,
+    gap: 8,
   },
   fieldLabel: {
     fontSize: 14,
+    lineHeight: 20,
     color: "#374151",
   },
   helperText: {
@@ -1303,9 +1460,11 @@ const styles = StyleSheet.create({
     borderColor: "#e5d6cb",
     backgroundColor: "#ffffff",
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 16,
+    lineHeight: 22,
     color: "#1f2937",
+    minHeight: 52,
   },
   selectionField: {
     borderRadius: 12,
@@ -1313,17 +1472,20 @@ const styles = StyleSheet.create({
     borderColor: "#e5d6cb",
     backgroundColor: "#ffffff",
     paddingHorizontal: 12,
-    paddingVertical: 14,
+    paddingVertical: 15,
+    minHeight: 54,
   },
   selectionFieldPressed: {
     opacity: 0.88,
   },
   selectionValue: {
     fontSize: 16,
+    lineHeight: 22,
     color: "#1f2937",
   },
   selectionPlaceholder: {
     fontSize: 16,
+    lineHeight: 22,
     color: "#9ca3af",
   },
   modalOverlay: {
@@ -1342,7 +1504,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 16,
     minHeight: 320,
-    overflow: "hidden",
   },
   modalHeader: {
     flexDirection: "row",
@@ -1375,7 +1536,7 @@ const styles = StyleSheet.create({
   frequencyOptions: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 10,
   },
   frequencyChip: {
     borderRadius: 999,
@@ -1383,7 +1544,7 @@ const styles = StyleSheet.create({
     borderColor: "#ead8ca",
     backgroundColor: "#ffffff",
     paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingVertical: 10,
   },
   frequencyChipSelected: {
     borderColor: "#e8751a",
@@ -1395,13 +1556,14 @@ const styles = StyleSheet.create({
   frequencyChipText: {
     color: "#6b7280",
     fontSize: 13,
+    lineHeight: 18,
     fontWeight: "600",
   },
   frequencyChipTextSelected: {
     color: "#9a4a11",
   },
   notesInput: {
-    minHeight: 96,
+    minHeight: 124,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#e5d6cb",
@@ -1409,6 +1571,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
+    lineHeight: 23,
     color: "#1f2937",
   },
   sectionLabel: {
@@ -1422,17 +1585,19 @@ const styles = StyleSheet.create({
   },
   successText: {
     fontSize: 14,
+    lineHeight: 21,
     color: "#166534",
   },
   emptyState: {
-    gap: 4,
+    gap: 8,
+    paddingVertical: 8,
   },
   emptyHint: {
     color: "#6b7280",
     lineHeight: 20,
   },
   list: {
-    gap: 10,
+    gap: 12,
   },
   inactiveSection: {
     gap: 10,
@@ -1456,8 +1621,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#f3dfd1",
-    padding: 14,
-    gap: 6,
+    padding: 16,
+    gap: 10,
   },
   itemHeader: {
     flexDirection: "row",
@@ -1472,7 +1637,7 @@ const styles = StyleSheet.create({
   },
   medicationHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 12,
   },
@@ -1486,12 +1651,13 @@ const styles = StyleSheet.create({
   },
   datePillText: {
     fontSize: 14,
+    lineHeight: 20,
     fontWeight: "700",
     color: "#c25d10",
   },
   itemHeaderCopy: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
   itemTitle: {
     fontSize: 16,
@@ -1500,6 +1666,7 @@ const styles = StyleSheet.create({
   },
   itemMeta: {
     fontSize: 13,
+    lineHeight: 19,
     color: "#c25d10",
     fontWeight: "600",
   },
@@ -1511,6 +1678,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "#fff0e2",
     fontSize: 12,
+    lineHeight: 16,
     color: "#c25d10",
     fontWeight: "600",
   },
@@ -1519,8 +1687,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     fontSize: 12,
+    lineHeight: 16,
     fontWeight: "700",
-    overflow: "hidden",
   },
   badgeActive: {
     backgroundColor: "#e8f7ec",
@@ -1532,18 +1700,19 @@ const styles = StyleSheet.create({
   },
   detailText: {
     color: "#4b5563",
-    lineHeight: 20,
+    lineHeight: 21,
   },
   itemNotes: {
     color: "#4b5563",
-    lineHeight: 20,
+    lineHeight: 21,
   },
   noteMeta: {
     fontSize: 12,
+    lineHeight: 17,
     color: "#6b7280",
   },
   itemActions: {
-    flexDirection: "row",
     gap: 10,
+    paddingTop: 6,
   },
 });

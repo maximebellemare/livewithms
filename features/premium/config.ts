@@ -17,8 +17,40 @@ export const PREMIUM_FEATURE_DEFINITIONS = {
     category: "ai-support",
   },
   advanced_ai_insights: {
-    title: "Advanced AI Insights",
+    title: "Deeper reflection and continuity",
     category: "insights",
+  },
+  adaptive_support: {
+    title: "Gentle adaptive support",
+    category: "accessibility",
+  },
+  calm_environment: {
+    title: "Calm environment",
+    category: "accessibility",
+  },
+  calm_daily_environment: {
+    title: "Calm daily environment",
+    category: "accessibility",
+  },
+  calm_community_support: {
+    title: "Calm community support",
+    category: "connection",
+  },
+  low_energy_assist: {
+    title: "Low Energy Assist",
+    category: "accessibility",
+  },
+  calm_audio_support: {
+    title: "Calming audio support",
+    category: "accessibility",
+  },
+  daily_calm_support: {
+    title: "Calmer daily support",
+    category: "accessibility",
+  },
+  adaptive_home: {
+    title: "Adaptive calm home",
+    category: "accessibility",
   },
   deep_correlations: {
     title: "Deeper correlations",
@@ -38,6 +70,5 @@ export function isPremiumEnabled() {
   return ENABLE_SUBSCRIPTIONS;
 }
 
-// TODO: Configure RevenueCat offerings to map to the monthly and yearly product ids above.
-// TODO: Attach the matching subscriptions in App Store Connect before enabling subscriptions.
-// TODO: Enable the production flag only when subscriptions are fully ready for App Review.
+// RevenueCat offering expected by the app: `default`
+// RevenueCat packages expected by the app: `$rc_monthly`, `$rc_annual`

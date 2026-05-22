@@ -4,10 +4,12 @@ import { StyleSheet, View } from "react-native";
 import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
 import { trackEvent } from "../../lib/events";
+import { deriveCategoryDefiningPositioning } from "../../lib/product-identity/deriveCategoryDefiningPositioning";
 import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const positioning = deriveCategoryDefiningPositioning();
 
   useEffect(() => {
     void trackEvent("onboarding_started", {
@@ -17,8 +19,8 @@ export default function WelcomeScreen() {
 
   return (
     <OnboardingScaffold
-      title="Welcome to LiveWithMS"
-      subtitle="A calm daily companion for noticing patterns, one small check-in at a time."
+      title="Support for living with MS, gently."
+      subtitle={positioning.onboardingSubtitle}
       step={1}
       totalSteps={ONBOARDING_STEPS.length}
       onNext={() => router.push("/symptoms")}
@@ -26,20 +28,18 @@ export default function WelcomeScreen() {
     >
       <View style={styles.stack}>
         <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>Small check-ins can make hard days easier to understand.</AppText>
+          <AppText style={styles.heroTitle}>A calmer place to carry difficult days.</AppText>
           <AppText style={styles.heroBody}>
-            LiveWithMS helps you notice how you are doing, without asking for more than you can give on a hard day.
+            LiveWithMS helps you check in, notice patterns, and feel a little more supported during difficult periods.
           </AppText>
         </View>
 
         <View style={styles.infoCard}>
-          <AppText style={styles.infoTitle}>Private by design</AppText>
+          <AppText style={styles.infoTitle}>Simple, low-pressure support</AppText>
           <AppText style={styles.infoBody}>
-            Your check-ins and notes stay connected to your account so you can come back later and build a steadier picture over time.
+            This is not just a symptom tracker. It is a calmer support environment for check-ins, reflection, care, and steadier continuity over time.
           </AppText>
-          <AppText style={styles.infoBody}>
-            In the next few steps, we’ll lightly tailor the app around what feels most useful right now. You can always use the app in a flexible, low-pressure way.
-          </AppText>
+          <AppText style={styles.infoBody}>{positioning.onboardingPrivacyLine}</AppText>
         </View>
       </View>
     </OnboardingScaffold>

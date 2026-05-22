@@ -1,18 +1,20 @@
 import { Linking, Pressable, StyleSheet } from "react-native";
 import AppScreen from "../../components/ui/AppScreen";
 import AppText from "../../components/ui/AppText";
+import { deriveCategoryDefiningPositioning } from "../../lib/product-identity/deriveCategoryDefiningPositioning";
 
 const TERMS_OF_USE_URL = "https://www.livewithms.com/policies/terms-of-service";
 
 export default function TermsScreen() {
+  const positioning = deriveCategoryDefiningPositioning();
+
   return (
     <AppScreen
       title="Terms"
-      subtitle="Use LiveWithMS as a personal wellness companion, not a substitute for medical care."
+      subtitle={positioning.termsSubtitle}
     >
       <AppText>
-        LiveWithMS is intended to help you record symptoms, reflect on changes, and follow your
-        wellness routines more consistently.
+        LiveWithMS is intended to help you record symptoms, reflect on changes, and move through everyday life with calmer support during difficult periods.
       </AppText>
       <AppText>
         The app does not diagnose, treat, or replace professional medical advice. Always speak

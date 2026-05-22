@@ -1,5 +1,5 @@
 import { appSecureStore } from "../../lib/secure-store";
-import type { ProgramProgressEntry, ProgramProgressSnapshot } from "./types";
+import type { ProgramAudioSessionProgress, ProgramProgressEntry, ProgramProgressSnapshot } from "./types";
 
 const PROGRAM_PROGRESS_KEY = "livewithms.programs.progress";
 const MAX_RECENT_PROGRAMS = 4;
@@ -11,6 +11,7 @@ const EMPTY_PROGRESS: ProgramProgressSnapshot = {
   recentToolIds: [],
   lastOpenedToolId: null,
   activeToolId: null,
+  audioSession: null,
   toolProgress: {},
   updatedAt: null,
 };
@@ -25,12 +26,36 @@ function sanitizeProgressEntry(input: Partial<ProgramProgressEntry> | undefined,
   };
 }
 
+function sanitizeAudioSession(input: Partial<ProgramAudioSessionProgress> | null | undefined): ProgramAudioSessionProgress | null {
+  if (!input || typeof input !== "object") {
+    return null;
+  }
+
+  if (typeof input.sessionId !== "string" || typeof input.toolId !== "string") {
+    return null;
+  }
+
+  return {
+    sessionId: input.sessionId,
+    toolId: input.toolId,
+    phaseIndex: typeof input.phaseIndex === "number" ? Math.max(0, input.phaseIndex) : 0,
+    phaseSecondsRemaining:
+      typeof input.phaseSecondsRemaining === "number" ? Math.max(0, input.phaseSecondsRemaining) : 0,
+    totalSecondsRemaining:
+      typeof input.totalSecondsRemaining === "number" ? Math.max(0, input.totalSecondsRemaining) : 0,
+    isPlaying: Boolean(input.isPlaying),
+    hapticsEnabled: input.hapticsEnabled !== false,
+    updatedAt: typeof input.updatedAt === "string" ? input.updatedAt : new Date().toISOString(),
+  };
+}
+
 function sanitizeSnapshot(input: Partial<ProgramProgressSnapshot> | null | undefined): ProgramProgressSnapshot {
   return {
     completedToolIds: Array.isArray(input?.completedToolIds) ? input.completedToolIds.slice(0, 24) : [],
     recentToolIds: Array.isArray(input?.recentToolIds) ? input.recentToolIds.slice(0, MAX_RECENT_PROGRAMS) : [],
     lastOpenedToolId: typeof input?.lastOpenedToolId === "string" ? input.lastOpenedToolId : null,
     activeToolId: typeof input?.activeToolId === "string" ? input.activeToolId : null,
+    audioSession: sanitizeAudioSession(input?.audioSession),
     toolProgress:
       input?.toolProgress && typeof input.toolProgress === "object"
         ? Object.fromEntries(
