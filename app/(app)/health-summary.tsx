@@ -1,8 +1,6 @@
 import { useMemo, useState } from "react";
 import { router } from "expo-router";
 import { Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
-import * as FileSystem from "expo-file-system";
-import jsPDF from "jspdf";
 import { useAppointments } from "../../features/appointments/hooks";
 import { useAuth } from "../../features/auth/hooks";
 import { useCheckInHistory, useCheckInOverview } from "../../features/checkins/hooks";
@@ -292,92 +290,6 @@ function buildShareText(input: {
     "",
     "Sharing stays in your control and can stay brief, occasional, and revocable.",
   ].join("\n");
-}
-
-function addPdfSection(doc: jsPDF, title: string, lines: string[], y: number) {
-  const pageHeight = doc.internal.pageSize.getHeight();
-
-  if (y > pageHeight - 32) {
-    doc.addPage();
-    y = 20;
-  }
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.setTextColor(31, 41, 55);
-  doc.text(title, 16, y);
-  y += 7;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.setTextColor(75, 85, 99);
-
-  for (const line of lines) {
-    const wrapped = doc.splitTextToSize(`• ${line}`, 176);
-    const neededHeight = wrapped.length * 6;
-
-    if (y + neededHeight > pageHeight - 20) {
-      doc.addPage();
-      y = 20;
-    }
-
-    doc.text(wrapped, 18, y);
-    y += neededHeight + 2;
-  }
-
-  return y + 3;
-}
-
-async function buildPremiumCarePdf(content: ReturnType<typeof buildPremiumCareExportContent>) {
-  const doc = new jsPDF({
-    orientation: "portrait",
-    unit: "mm",
-    format: "a4",
-  });
-
-  doc.setFillColor(255, 244, 236);
-  doc.rect(0, 0, 210, 34, "F");
-  doc.setTextColor(31, 41, 55);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.text(content.title, 16, 16);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(75, 85, 99);
-  doc.text(content.subtitle, 16, 24, { maxWidth: 176 });
-  doc.text(`Generated ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`, 16, 30);
-
-  let y = 42;
-  for (const section of content.sections) {
-    y = addPdfSection(doc, section.title, section.lines, y);
-  }
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(107, 114, 128);
-  const footer = doc.splitTextToSize(
-    "This summary is meant to support conversations, not replace professional judgment.",
-    176,
-  );
-  if (y + footer.length * 5 > doc.internal.pageSize.getHeight() - 14) {
-    doc.addPage();
-    y = 20;
-  }
-  doc.text(footer, 16, y);
-
-  const dataUri = doc.output("datauristring");
-  const base64 = dataUri.split(",")[1];
-
-  if (!base64 || !FileSystem.cacheDirectory) {
-    throw new Error("Printable summary is not ready just yet.");
-  }
-
-  const fileUri = `${FileSystem.cacheDirectory}${content.fileName}`;
-  await FileSystem.writeAsStringAsync(fileUri, base64, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-
-  return fileUri;
 }
 
 export default function HealthSummaryScreen() {
@@ -882,18 +794,16 @@ export default function HealthSummaryScreen() {
     try {
       setIsExportingPrintableSummary(true);
       setExportFeedback(null);
-      const fileUri = await buildPremiumCarePdf(clinicianExport);
       await Share.share({
-        url: fileUri,
-        message: clinicianExport.title,
+        message: clinicianExport.text,
       });
       await growth.recordEvent("export_used", {
         range,
         source: "premium_printable_summary",
       });
-      setExportFeedback("Your printable summary is ready to share.");
+      setExportFeedback("Export is not available in this testing environment. You can still view and share this summary.");
     } catch {
-      setExportFeedback("Your printable summary may need another moment.");
+      setExportFeedback("You can still view and share this summary.");
     } finally {
       setIsExportingPrintableSummary(false);
     }

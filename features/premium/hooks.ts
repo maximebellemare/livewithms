@@ -7,6 +7,7 @@ import { trackDiagnosticEvent } from "../../lib/events";
 import { logger } from "../../lib/logger";
 import { deriveFriendlyFailureMessage } from "../../lib/operational-calm/failure-softening/deriveFriendlyFailureMessage";
 import type { RevenueCatDebugSnapshot } from "../../lib/revenuecat/debug";
+import { shouldUseRevenueCatNativeStore } from "../../lib/runtime/native-store";
 import { loadPremiumDebugOverride, savePremiumDebugOverride } from "./debug";
 import { ENABLE_PREMIUM_DEBUG_TOOLS, isPremiumEnabled, PREMIUM_FEATURE_FLAGS } from "./config";
 import { getPremiumStatusFromCustomerInfo, hasPremiumAccess as getHasPremiumAccess } from "./entitlements";
@@ -117,6 +118,15 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       setStatus(debugPremiumOverrideActive ? "active" : "free");
       setCurrentOffering(null);
       setOfferingsErrorMessage(null);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!shouldUseRevenueCatNativeStore()) {
+      setStatus(debugPremiumOverrideActive ? "active" : "free");
+      setCurrentOffering(null);
+      setOfferingsErrorMessage("Premium pricing and purchases are not available in this testing environment.");
+      setRevenueCatDebugSnapshot(revenueCatClient.getDebugSnapshot());
       setIsLoading(false);
       return;
     }
@@ -252,6 +262,10 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       return { success: false, message: "Premium purchases are not available in this build right now." };
     }
 
+    if (!shouldUseRevenueCatNativeStore()) {
+      return { success: false, message: "Premium purchases are not available in this testing environment." };
+    }
+
     setIsPurchasing(true);
 
     try {
@@ -277,6 +291,10 @@ export function PremiumProvider({ children }: PropsWithChildren) {
   const restorePurchases = useCallback<PremiumContextValue["restorePurchases"]>(async () => {
     if (!subscriptionsEnabled || !user?.id) {
       return { success: false, message: "Restore is not available in this build right now." };
+    }
+
+    if (!shouldUseRevenueCatNativeStore()) {
+      return { success: false, message: "Restore is not available in this testing environment." };
     }
 
     setIsRestoring(true);

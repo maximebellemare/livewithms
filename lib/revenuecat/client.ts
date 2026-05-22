@@ -2,6 +2,7 @@ import env from "../env";
 import { normalizeError } from "../errors";
 import { logger } from "../logger";
 import type { PremiumPlan, PremiumOffering, PremiumOfferingPackage } from "../../features/premium/types";
+import { shouldUseRevenueCatNativeStore } from "../runtime/native-store";
 import {
   deriveOfferingsDiagnostics,
   EXPECTED_REVENUECAT_OFFERING_IDENTIFIER,
@@ -71,7 +72,7 @@ function logRevenueCatDebug(prefix: string, message: string, meta?: Record<strin
     return;
   }
 
-  console.error(`${prefix} ${message}`, meta ?? {});
+  logger.info(`${prefix} ${message}`, meta ?? {});
 }
 
 function updateDebugSnapshot(updater: (snapshot: RevenueCatDebugSnapshot) => RevenueCatDebugSnapshot) {
@@ -142,6 +143,10 @@ export const revenueCatClient = {
       throw new Error("RevenueCat is not configured.");
     }
 
+    if (!shouldUseRevenueCatNativeStore()) {
+      return;
+    }
+
     try {
       const { default: Purchases, LOG_LEVEL } = await loadPurchasesModule();
       const shouldConfigure = configuredApiKey !== env.revenueCatIosApiKey;
@@ -177,6 +182,10 @@ export const revenueCatClient = {
   },
 
   async getCurrentOffering() {
+    if (!shouldUseRevenueCatNativeStore()) {
+      return null;
+    }
+
     const { default: Purchases } = await loadPurchasesModule();
     logRevenueCatDebug("[LIVEWITHMS_RC_DEBUG]", "RC STEP 1: starting offerings fetch", {
       requestedOfferingIdentifier: EXPECTED_REVENUECAT_OFFERING_IDENTIFIER,
@@ -232,6 +241,16 @@ export const revenueCatClient = {
   },
 
   async getCustomerInfo() {
+    if (!shouldUseRevenueCatNativeStore()) {
+      return {
+        entitlements: {
+          active: {},
+        },
+        activeSubscriptions: [],
+        originalAppUserId: null,
+      } satisfies RevenueCatCustomerInfo;
+    }
+
     const { default: Purchases } = await loadPurchasesModule();
     try {
       const customerInfo = (await Purchases.getCustomerInfo()) as RevenueCatCustomerInfo;
@@ -252,6 +271,10 @@ export const revenueCatClient = {
   },
 
   async purchasePlan(userId: string, plan: PremiumPlan): Promise<RevenueCatPurchaseResult> {
+    if (!shouldUseRevenueCatNativeStore()) {
+      throw new Error("Premium purchases are not available in this testing environment.");
+    }
+
     await revenueCatClient.configureRevenueCat(userId);
     const { default: Purchases } = await loadPurchasesModule();
     const offerings = await Purchases.getOfferings();
@@ -291,6 +314,10 @@ export const revenueCatClient = {
   },
 
   async restorePurchases(userId: string): Promise<RevenueCatCustomerInfo> {
+    if (!shouldUseRevenueCatNativeStore()) {
+      throw new Error("Restore is not available in this testing environment.");
+    }
+
     await revenueCatClient.configureRevenueCat(userId);
     const { default: Purchases } = await loadPurchasesModule();
     try {
@@ -317,6 +344,11 @@ export const revenueCatClient = {
   },
 
   async resetUser() {
+    if (!shouldUseRevenueCatNativeStore()) {
+      loggedInUserId = null;
+      return;
+    }
+
     try {
       const { default: Purchases } = await loadPurchasesModule();
       if (configuredApiKey && typeof Purchases.logOut === "function") {

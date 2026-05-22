@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
 import { Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
-import * as FileSystem from "expo-file-system";
-import jsPDF from "jspdf";
 import { useAuth } from "../../features/auth/hooks";
 import { useCheckInHistory } from "../../features/checkins/hooks";
 import { useGrowthState } from "../../features/growth/hooks";
@@ -2133,95 +2131,6 @@ function PremiumCalmCommunityCard({ summary }: { summary: PremiumCalmCommunitySu
   );
 }
 
-function addContinuityPdfSection(doc: jsPDF, title: string, lines: string[], startY: number) {
-  let y = startY;
-  const pageHeight = doc.internal.pageSize.getHeight();
-
-  if (y > pageHeight - 34) {
-    doc.addPage();
-    y = 18;
-  }
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.setTextColor(31, 41, 55);
-  doc.text(title, 16, y);
-  y += 8;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10.5);
-  doc.setTextColor(75, 85, 99);
-
-  for (const line of lines) {
-    const wrapped = doc.splitTextToSize(`• ${line}`, 176);
-    const neededHeight = wrapped.length * 5;
-    if (y + neededHeight > pageHeight - 16) {
-      doc.addPage();
-      y = 18;
-    }
-    doc.text(wrapped, 18, y);
-    y += neededHeight + 2;
-  }
-
-  return y + 3;
-}
-
-async function buildPremiumContinuityPdf(content: ReturnType<typeof buildPremiumContinuityExportContent>) {
-  const doc = new jsPDF({
-    orientation: "portrait",
-    unit: "mm",
-    format: "a4",
-  });
-
-  doc.setFillColor(255, 244, 236);
-  doc.rect(0, 0, 210, 34, "F");
-  doc.setTextColor(31, 41, 55);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.text(content.title, 16, 16);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(75, 85, 99);
-  doc.text(content.subtitle, 16, 24, { maxWidth: 176 });
-  doc.text(
-    `Generated ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`,
-    16,
-    30,
-  );
-
-  let y = 42;
-  for (const section of content.sections) {
-    y = addContinuityPdfSection(doc, section.title, section.lines, y);
-  }
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(107, 114, 128);
-  const footer = doc.splitTextToSize(
-    "This summary is meant to support reflection and conversations, not replace professional judgment.",
-    176,
-  );
-  if (y + footer.length * 5 > doc.internal.pageSize.getHeight() - 14) {
-    doc.addPage();
-    y = 20;
-  }
-  doc.text(footer, 16, y);
-
-  const dataUri = doc.output("datauristring");
-  const base64 = dataUri.split(",")[1];
-
-  if (!base64 || !FileSystem.cacheDirectory) {
-    throw new Error("Continuity export is not ready just yet.");
-  }
-
-  const fileUri = `${FileSystem.cacheDirectory}${content.fileName}`;
-  await FileSystem.writeAsStringAsync(fileUri, base64, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-
-  return fileUri;
-}
-
 export default function InsightsScreen() {
   const { user } = useAuth();
   const lowEnergyMode = useLowEnergyMode();
@@ -3770,18 +3679,16 @@ export default function InsightsScreen() {
     try {
       setIsExportingContinuityPdf(true);
       setContinuityFeedback(null);
-      const fileUri = await buildPremiumContinuityPdf(continuityExport);
       await Share.share({
-        url: fileUri,
-        message: continuityExport.title,
+        message: continuityExport.text,
       });
       void growth.recordEvent("export_used", {
         range,
         source: "premium_continuity_pdf",
       });
-      setContinuityFeedback("Your continuity PDF is ready to share.");
+      setContinuityFeedback("Export is not available in this testing environment. You can still view and share this summary.");
     } catch {
-      setContinuityFeedback("Your continuity PDF may need another moment.");
+      setContinuityFeedback("You can still view and share this summary.");
     } finally {
       setIsExportingContinuityPdf(false);
     }
