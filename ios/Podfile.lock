@@ -38,7 +38,7 @@ PODS:
     - ExpoModulesCore
   - ExpoFileSystem (18.1.11):
     - ExpoModulesCore
-  - ExpoFont (55.0.7):
+  - ExpoFont (13.3.2):
     - ExpoModulesCore
   - ExpoHaptics (14.1.4):
     - ExpoModulesCore
@@ -76,6 +76,8 @@ PODS:
   - ExpoSecureStore (14.2.4):
     - ExpoModulesCore
   - ExpoSharing (13.1.5):
+    - ExpoModulesCore
+  - ExpoSpeechRecognition (2.1.5):
     - ExpoModulesCore
   - ExpoStoreReview (8.1.5):
     - ExpoModulesCore
@@ -1932,6 +1934,7 @@ DEPENDENCIES:
   - ExpoPrint (from `../node_modules/expo-print/ios`)
   - ExpoSecureStore (from `../node_modules/expo-secure-store/ios`)
   - ExpoSharing (from `../node_modules/expo-sharing/ios`)
+  - ExpoSpeechRecognition (from `../node_modules/expo-speech-recognition/ios`)
   - ExpoStoreReview (from `../node_modules/expo-store-review/ios`)
   - fast_float (from `../node_modules/react-native/third-party-podspecs/fast_float.podspec`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
@@ -2048,6 +2051,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-secure-store/ios"
   ExpoSharing:
     :path: "../node_modules/expo-sharing/ios"
+  ExpoSpeechRecognition:
+    :path: "../node_modules/expo-speech-recognition/ios"
   ExpoStoreReview:
     :path: "../node_modules/expo-store-review/ios"
   fast_float:
@@ -2207,7 +2212,7 @@ SPEC CHECKSUMS:
   Expo: 7e07803ccc34cdf144a0d51cc2684a60628b6593
   ExpoAsset: ef06e880126c375f580d4923fdd1cdf4ee6ee7d6
   ExpoFileSystem: 7f92f7be2f5c5ed40a7c9efc8fa30821181d9d63
-  ExpoFont: a95606f106a6394df8edf6d0d87aab9020af5ad4
+  ExpoFont: cf508bc2e6b70871e05386d71cab927c8524cc8e
   ExpoHaptics: 0ff6e0d83cd891178a306e548da1450249d54500
   ExpoHead: cfc12096c9a68cbe25de93a8bfc4781c7689467e
   ExpoLinking: d5c183998ca6ada66ff45e407e0f965b398a8902
@@ -2215,6 +2220,7 @@ SPEC CHECKSUMS:
   ExpoPrint: b278f5d9ac844f4b1f65dd06183970602e09bc8b
   ExpoSecureStore: 3f1b632d6d40bcc62b4983ef9199cd079592a50a
   ExpoSharing: b0377be82430d07398c6a4cd60b5a15696accbd3
+  ExpoSpeechRecognition: c927769c7bec19204fc0bfe28355487fbc87f871
   ExpoStoreReview: f70e5929ba4a594078dd3285d5151427167f48fa
   fast_float: 06eeec4fe712a76acc9376682e4808b05ce978b6
   FBLazyVector: 07309209b7b914451b8f822544a18e2a0a85afff
@@ -2293,6 +2299,6 @@ SPEC CHECKSUMS:
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: dc7c21200195acacb62fa920c588e7c2106de45e
 
-PODFILE CHECKSUM: bf185be8166b9e9c8e6b3a5f52e4f45280130c22
+PODFILE CHECKSUM: 2817806b5c8a4079f8f87328161f4375985f45d2
 
 COCOAPODS: 1.16.2

@@ -56,7 +56,11 @@ as $$
 declare
   target_post_id uuid;
 begin
-  target_post_id := coalesce(new.post_id, old.post_id);
+  if tg_op = 'DELETE' then
+    target_post_id := old.post_id;
+  else
+    target_post_id := new.post_id;
+  end if;
 
   if target_post_id is not null then
     update public.community_posts

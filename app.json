@@ -2,12 +2,12 @@
   "expo": {
     "name": "LiveWithMS",
     "description": "A calm, emotionally safe support environment for people living with MS. Designed to reduce overwhelm, support steadiness, and make difficult periods feel lighter and more manageable.",
-    "version": "1.0.6",
+    "version": "1.0.8",
     "scheme": "com.livewithms.app",
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.livewithms.app",
-      "buildNumber": "55",
+      "buildNumber": "61",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "LiveWithMS uses voice input so you can speak instead of typing.",
         "NSSpeechRecognitionUsageDescription": "LiveWithMS uses voice input so you can speak instead of typing."

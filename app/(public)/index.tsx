@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import appIcon from "../../assets/icon.png";
 import AppText from "../../components/ui/AppText";
 import { colors, radii, shadows, spacing } from "../../components/ui/design";
 
@@ -22,7 +23,7 @@ export default function PublicIndexScreen() {
           <View style={styles.brandLockup}>
             <Image
               accessibilityIgnoresInvertColors
-              source={require("../../assets/icon.png")}
+              source={appIcon}
               style={styles.brandIcon}
             />
             <View style={styles.brandTextBlock}>
