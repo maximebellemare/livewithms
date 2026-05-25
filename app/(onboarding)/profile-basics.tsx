@@ -4,7 +4,6 @@ import AuthTextField from "../../components/auth/AuthTextField";
 import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
 import { useOnboarding } from "../../features/onboarding/hooks";
-import { getErrorMessage } from "../../lib/errors";
 
 export default function ProfileBasicsScreen() {
   const router = useRouter();
@@ -23,7 +22,7 @@ export default function ProfileBasicsScreen() {
     });
 
     if (!ok) {
-      setErrorMessage("That step did not save just yet. Please try again in a moment.");
+      setErrorMessage("Could not save profile. Please try again.");
       return;
     }
 

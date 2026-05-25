@@ -105,8 +105,8 @@ function describeSleepStabilityChange(recent: DailyCheckIn[], previous: DailyChe
   }
 
   return difference < 0
-    ? "Sleep appears a little steadier recently."
-    : "Sleep has looked a little less steady recently.";
+    ? "Sleep has been more consistent than the previous week."
+    : "Sleep has been less consistent than the previous week.";
 }
 
 export function deriveWhatChangedRecently(entries: DailyCheckIn[]) {
@@ -130,24 +130,24 @@ export function deriveWhatChangedRecently(entries: DailyCheckIn[]) {
   if (Math.abs(fatigueDifference) >= 0.45) {
     observations.push(
       fatigueDifference > 0
-        ? "Fatigue has felt a little heavier recently."
-        : "Fatigue has felt a little lighter recently.",
+        ? "Fatigue is higher than the previous week."
+        : "Fatigue is lower than the previous week.",
     );
   }
 
   if (Math.abs(stressDifference) >= 0.45) {
     observations.push(
       stressDifference > 0
-        ? "Stress has felt a little heavier recently."
-        : "Stress has felt a little lighter recently.",
+        ? "Stress is higher than the previous week."
+        : "Stress is lower than the previous week.",
     );
   }
 
   if (Math.abs(moodSpreadDifference) >= 0.3) {
     observations.push(
       moodSpreadDifference < 0
-        ? "Mood has looked a little steadier recently."
-        : "Mood has looked a little more variable recently.",
+        ? "Mood is more stable than the previous week."
+        : "Mood is less stable than the previous week.",
     );
   }
 
@@ -173,7 +173,7 @@ function buildCorrelationCandidate(
   leftAccessor: (entry: DailyCheckIn) => number | null,
   rightAccessor: (entry: DailyCheckIn) => number | null,
   positiveSummary: string,
-  negativeSummary: string,
+  negativeSummary: string | null,
   supportivePositiveSummary?: string,
   supportiveNegativeSummary?: string,
 ) {
@@ -194,6 +194,10 @@ function buildCorrelationCandidate(
   }
 
   const positive = coefficient > 0;
+  if (!positive && !negativeSummary) {
+    return null;
+  }
+
   const summary = positive ? positiveSummary : negativeSummary;
   const supportiveSummary = positive
     ? supportivePositiveSummary
@@ -219,9 +223,21 @@ export function deriveCalmCorrelations(entries: DailyCheckIn[]) {
       "Sleep",
       (entry) => entry.fatigue,
       (entry) => entry.sleep_hours,
-      "On days with longer sleep, fatigue often appears a little lighter.",
-      "On days with shorter sleep, fatigue often appears a little heavier.",
-      "Longer sleep often lines up with lighter fatigue.",
+      "Longer sleep days often line up with higher fatigue.",
+      "Shorter sleep days often line up with higher fatigue.",
+      undefined,
+      "Shorter sleep days often line up with higher fatigue.",
+    ),
+    buildCorrelationCandidate(
+      sorted,
+      "fatigue-sleep-lower",
+      "Fatigue",
+      "Sleep",
+      (entry) => entry.sleep_hours,
+      (entry) => entry.fatigue,
+      "Longer sleep days often line up with lower fatigue.",
+      null,
+      "Longer sleep days often line up with lower fatigue.",
       undefined,
     ),
     buildCorrelationCandidate(
@@ -231,8 +247,8 @@ export function deriveCalmCorrelations(entries: DailyCheckIn[]) {
       "Stress",
       (entry) => entry.fatigue,
       (entry) => entry.stress,
-      "On days with higher stress, fatigue often appears a little heavier.",
-      "Stress and fatigue do not seem to move in a simple way right now.",
+      "Higher-stress days often line up with higher fatigue.",
+      null,
       undefined,
       undefined,
     ),
@@ -243,9 +259,9 @@ export function deriveCalmCorrelations(entries: DailyCheckIn[]) {
       "Sleep",
       (entry) => entry.mood,
       (entry) => entry.sleep_hours,
-      "On days with longer sleep, mood often appears a little steadier.",
-      "On days with shorter sleep, mood often appears a little lower.",
-      "Longer sleep often lines up with steadier mood.",
+      "Longer sleep days often line up with steadier mood.",
+      "Shorter sleep days often line up with lower mood.",
+      "Longer sleep days often line up with steadier mood.",
       undefined,
     ),
     buildCorrelationCandidate(
@@ -255,8 +271,8 @@ export function deriveCalmCorrelations(entries: DailyCheckIn[]) {
       "Fatigue",
       (entry) => entry.brain_fog,
       (entry) => entry.fatigue,
-      "On days with heavier fatigue, brain fog often appears a little more present.",
-      "Brain fog and fatigue are not moving together in a simple way right now.",
+      "Higher-fatigue days often line up with more brain fog.",
+      null,
     ),
     buildCorrelationCandidate(
       sorted,
@@ -265,8 +281,8 @@ export function deriveCalmCorrelations(entries: DailyCheckIn[]) {
       "Stress",
       (entry) => entry.pain,
       (entry) => entry.stress,
-      "On days with higher stress, pain often appears a little more noticeable.",
-      "Pain and stress are not moving together in a simple way right now.",
+      "Higher-stress days often line up with higher pain.",
+      null,
     ),
   ].filter((item): item is NonNullable<typeof item> => Boolean(item));
 
@@ -287,9 +303,21 @@ export function deriveWhatSeemsToHelp(entries: DailyCheckIn[]) {
       "Sleep",
       (entry) => entry.fatigue,
       (entry) => entry.sleep_hours,
-      "On days with longer sleep, fatigue often appears a little lighter.",
-      "On days with shorter sleep, fatigue often appears a little heavier.",
-      "Longer sleep often lines up with lighter fatigue.",
+      "Longer sleep days often line up with higher fatigue.",
+      "Shorter sleep days often line up with higher fatigue.",
+      undefined,
+      "Shorter sleep days often line up with higher fatigue.",
+    ),
+    buildCorrelationCandidate(
+      sorted,
+      "fatigue-sleep-lower",
+      "Fatigue",
+      "Sleep",
+      (entry) => entry.sleep_hours,
+      (entry) => entry.fatigue,
+      "Longer sleep days often line up with lower fatigue.",
+      null,
+      "Longer sleep days often line up with lower fatigue.",
     ),
     buildCorrelationCandidate(
       sorted,
@@ -298,9 +326,9 @@ export function deriveWhatSeemsToHelp(entries: DailyCheckIn[]) {
       "Sleep",
       (entry) => entry.mood,
       (entry) => entry.sleep_hours,
-      "On days with longer sleep, mood often appears a little steadier.",
-      "On days with shorter sleep, mood often appears a little lower.",
-      "Longer sleep often lines up with steadier mood.",
+      "Longer sleep days often line up with steadier mood.",
+      "Shorter sleep days often line up with lower mood.",
+      "Longer sleep days often line up with steadier mood.",
     ),
   ].filter((item): item is NonNullable<typeof item> => Boolean(item));
 
@@ -331,7 +359,7 @@ export function deriveWhatSeemsToHelp(entries: DailyCheckIn[]) {
     higherHydration + 0.35 < lowerHydration
   ) {
     suggestions.push({
-      summary: "Check-ins with hydration noted sometimes look a little easier.",
+      summary: "Days with higher hydration often line up with lower fatigue.",
       strength: lowerHydration - higherHydration,
     });
   }
@@ -358,7 +386,7 @@ export function deriveWhatSeemsToHelp(entries: DailyCheckIn[]) {
     restDayFatigue + 0.35 < nonRestDayFatigue
   ) {
     suggestions.push({
-      summary: "Rest days sometimes line up with lighter fatigue.",
+      summary: "Rest days often line up with lower fatigue.",
       strength: nonRestDayFatigue - restDayFatigue,
     });
   }
@@ -384,15 +412,15 @@ export function deriveFluctuationNote(entries: DailyCheckIn[]) {
   const stressRange = stressValues.length ? Math.max(...stressValues) - Math.min(...stressValues) : 0;
 
   if (fatigueRange >= 2) {
-    return "Your energy has varied this week. Fluctuation can happen, and one difficult day does not define the whole pattern.";
+    return "Fatigue has varied by 2 or more points this week.";
   }
 
   if (stressRange >= 2) {
-    return "Stress has moved around this week. A heavier day can be part of a larger pattern, not the whole story.";
+    return "Stress has varied by 2 or more points this week.";
   }
 
   if (moodRange >= 2) {
-    return "Mood has shifted around this week. It may help to look at the stretch gently rather than any single day.";
+    return "Mood has varied by 2 or more points this week.";
   }
 
   return null;
@@ -403,11 +431,11 @@ function describeSleepTrend(entries: DailyCheckIn[]) {
   const previous = entries.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(7, 14);
 
   if (recent.length < 4 || previous.length < 4) {
-    return "Sleep patterns are still taking shape.";
+    return "Not enough sleep entries yet.";
   }
 
   const sleepChange = describeSleepStabilityChange(recent, previous);
-  return sleepChange ?? "Sleep has looked fairly steady lately.";
+  return sleepChange ?? "Sleep has been fairly steady recently.";
 }
 
 function buildSummaryCard(
@@ -425,8 +453,8 @@ function buildSummaryCard(
     title,
     body:
       dayCount === 7
-        ? "A quieter read on this week so far."
-        : "A gentler monthly overview to make the bigger picture easier to hold.",
+        ? "Average values from recent check-ins."
+        : "Average values across the past month.",
     metrics: [
       formatAverage("Fatigue", average(sorted.map((entry) => entry.fatigue))),
       formatAverage("Mood", average(sorted.map((entry) => entry.mood))),

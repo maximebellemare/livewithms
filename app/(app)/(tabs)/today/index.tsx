@@ -3,14 +3,11 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import ReflectionSurfaceStack from "../../../../components/reflection-surfaces/ReflectionSurfaceStack";
 import DailyCheckInCard, {
   getEmptyCheckInDraft,
   normalizeCheckInInput,
   type DailyCheckInDraft,
 } from "../../../../components/today/DailyCheckInCard";
-import GuidanceSection from "../../../../components/today/GuidanceSection";
-import AppButton from "../../../../components/ui/AppButton";
 import CalmSkeleton from "../../../../components/ui/CalmSkeleton";
 import ErrorState from "../../../../components/ui/ErrorState";
 import AppScreen from "../../../../components/ui/AppScreen";
@@ -38,7 +35,6 @@ import { derivePremiumCalmCompanionEnvironment } from "../../../../features/toda
 import { useMyProfile } from "../../../../features/profile/hooks";
 import { useProgramProgress } from "../../../../features/programs/hooks";
 import { buildTodayGuidance } from "../../../../features/today/guidance";
-import { deriveTodayOrientation } from "../../../../features/today/orientation";
 import { derivePostCheckInMoment } from "../../../../features/today/post-check-in";
 import { getErrorMessage } from "../../../../lib/errors";
 import { buildAdaptiveProfile } from "../../../../features/adaptive/logic";
@@ -79,7 +75,6 @@ import { deriveAtmosphereState } from "../../../../lib/emotional-environment/atm
 import { deriveAtmosphereTransitions } from "../../../../lib/emotional-environment/atmosphere/deriveAtmosphereTransitions";
 import { deriveEmotionalDensity } from "../../../../lib/emotional-environment/emotional-pacing/deriveEmotionalDensity";
 import { deriveReflectionSpacing } from "../../../../lib/emotional-environment/emotional-pacing/deriveReflectionSpacing";
-import { deriveMotionIntensity } from "../../../../lib/emotional-environment/motion-softening/deriveMotionIntensity";
 import { deriveQuietMoments as deriveEnvironmentQuietMoment } from "../../../../lib/emotional-environment/recovery-moments/deriveQuietMoments";
 import { deriveAttentionLoad } from "../../../../lib/attention-respect/attention-budgeting/deriveAttentionLoad";
 import { derivePromptSuppression } from "../../../../lib/attention-respect/attention-budgeting/derivePromptSuppression";
@@ -283,12 +278,64 @@ function getGentleFocus(checkIn: DailyCheckIn | null) {
   };
 }
 
+function getOperationalObservation(entries: DailyCheckIn[]) {
+  const recent = entries.slice(0, 7);
+
+  if (recent.length < 3) {
+    return null;
+  }
+
+  const sleep = average(recent.map((entry) => entry.sleep_hours));
+  const fatigue = average(recent.map((entry) => entry.fatigue));
+  const stress = average(recent.map((entry) => entry.stress));
+  const brainFog = average(recent.map((entry) => entry.brain_fog));
+
+  if (sleep !== null && sleep < 6 && fatigue !== null && fatigue >= 3.5) {
+    return "Lower sleep has often matched higher fatigue recently.";
+  }
+
+  if (sleep !== null && sleep < 6 && stress !== null && stress >= 3.5) {
+    return "Lower sleep has often matched higher stress recently.";
+  }
+
+  if (stress !== null && stress >= 4 && brainFog !== null && brainFog >= 3.5) {
+    return "Higher stress has often matched more brain fog recently.";
+  }
+
+  if (fatigue !== null && fatigue >= 4) {
+    return "Fatigue has been higher across recent check-ins.";
+  }
+
+  return null;
+}
+
+const TODAY_FOCUS_LINES = [
+  "Protect your energy before expanding it.",
+  "Reduce overload before adding more.",
+  "Smaller plans can still carry the day.",
+  "Lower stimulation can make the next step clearer.",
+  "Protecting recovery is part of functioning.",
+  "Let the day fit the energy available.",
+  "One necessary thing can orient the day.",
+  "Simpler choices can lower the load.",
+  "Pacing works best before energy is fully spent.",
+  "A quieter environment can make planning easier.",
+] as const;
+
+function getTodayFocusLine(date: string) {
+  const seed = date
+    .split("")
+    .reduce((sum, character) => sum + character.charCodeAt(0), 0);
+
+  return TODAY_FOCUS_LINES[seed % TODAY_FOCUS_LINES.length];
+}
+
 function TodayLoadingShell({ today }: { today: string }) {
     return (
       <AppScreen
         eyebrow="Daily check-in"
         title="Today"
-        subtitle="Check in, notice what today feels like, and keep things simple."
+        subtitle="Track energy, mood, stress, and symptoms."
       >
       <ScrollView
         contentContainerStyle={styles.content}
@@ -378,6 +425,7 @@ export default function TodayScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const today = getTodayDateString();
+  const todayFocusLine = useMemo(() => getTodayFocusLine(today), [today]);
   const profileQuery = useMyProfile(user?.id);
   const checkInQuery = useTodaysCheckIn(user?.id, today);
   const historyQuery = useCheckInHistory(user?.id, 30);
@@ -413,6 +461,7 @@ export default function TodayScreen() {
     const cutoff = getCutoffDate(7);
     return historyEntries.filter((entry) => entry.date >= cutoff);
   }, [historyEntries]);
+  const operationalObservation = useMemo(() => getOperationalObservation(recentRangeEntries), [recentRangeEntries]);
   const aiSummaryQuery = useAiInsightsSummary(recentRangeEntries, 7);
   useSlowScreenDiagnostics("today", checkInQuery.isLoading);
   const previousEntry = useMemo(() => {
@@ -438,6 +487,11 @@ export default function TodayScreen() {
       minute: reminderSettings.minute,
       permissionStatus: reminderSettings.permissionStatus,
       notificationId: reminderSettings.notificationId,
+      medicationRemindersEnabled: reminderSettings.medicationRemindersEnabled,
+      appointmentRemindersEnabled: reminderSettings.appointmentRemindersEnabled,
+      appointmentReminderOneDay: reminderSettings.appointmentReminderOneDay,
+      appointmentReminderOneHour: reminderSettings.appointmentReminderOneHour,
+      quietReminders: reminderSettings.quietReminders,
     },
     growthState: growth.state,
     programProgress: programProgress.progress,
@@ -1032,62 +1086,36 @@ export default function TodayScreen() {
       }),
     [aiSummaryQuery.data?.summary, lifecycleProfile.stage, longitudinalAnalysis.adaptiveState.primary, reflectionFeed.length, todayEntry],
   );
-  const visibleReflectionCards = useMemo(
-    () =>
-      reflectionFeed.slice(
-        0,
-        preventAdaptiveOverstacking({
-          requestedCount: Math.min(
-            reflectionDensity.maxCards,
-            coherenceDensityLimits.maxReflectionCards,
-            hasAdaptiveHome && premiumAdaptiveHome.active ? premiumAdaptiveHome.layout.maxReflectionCards : reflectionDensity.maxCards,
-            hasCalmDailyEnvironment && premiumCalmCompanionEnvironment.active
-              ? premiumCalmCompanionEnvironment.spacing.maxReflectionCards
-              : reflectionDensity.maxCards,
-          ),
-          maxAllowedCount: preventMetaOverstacking({
-            requestedCount: coherenceAdaptive.maxReflectionCards,
-            adaptationIntensity: metaOrchestration.adaptationIntensity,
-            hasAiVisible: Boolean(aiSummaryQuery.data?.summary),
-            hasReflectionsVisible: reflectionFeed.length > 0,
-          }),
-          hasAiSummary: Boolean(aiSummaryQuery.data?.summary),
-          hasReflectionCards: reflectionFeed.length > 0,
-        }),
-      ),
-    [
-      aiSummaryQuery.data?.summary,
-      coherenceAdaptive.maxReflectionCards,
-      coherenceDensityLimits.maxReflectionCards,
-      hasAdaptiveHome,
-      hasCalmDailyEnvironment,
-      premiumAdaptiveHome.active,
-      premiumAdaptiveHome.layout.maxReflectionCards,
-      premiumCalmCompanionEnvironment.active,
-      premiumCalmCompanionEnvironment.spacing.maxReflectionCards,
-      reflectionDensity.maxCards,
-      reflectionFeed,
-    ],
-  );
+  const visibleReflectionCards = useMemo(() => [], []);
   const visibleQuickLinks = useMemo(
     () =>
       [
         {
-          title: "Coach",
-          body: "Reflect, reset, or plan tomorrow.",
+          title: "Reduce overwhelm",
+          body: "Open Coach to sort through what feels difficult.",
           route: "/coach" as const,
         },
         {
-          title: "Insights",
-          body: "See trends and gentle patterns.",
-          route: "/insights" as const,
+          title: "Brain fog support",
+          body: "Open a short support tool.",
+          route: "/programs" as const,
         },
         {
-          title: "Care",
+          title: "Low-energy planning",
+          body: "Choose one priority for today.",
+          route: "/programs" as const,
+        },
+        {
+          title: "Breathing reset",
+          body: "Open a short reset tool.",
+          route: "/programs" as const,
+        },
+        {
+          title: "Care tools",
           body: "Keep notes, meds, and appointments together.",
           route: "/care" as const,
         },
-      ].slice(0, energyAwareFlow.density === "MINIMAL" ? 2 : 3),
+      ].slice(0, energyAwareFlow.density === "MINIMAL" ? 3 : 5),
     [energyAwareFlow.density],
   );
   const visibleQuickLinksQuiet = useMemo(
@@ -1221,17 +1249,6 @@ export default function TodayScreen() {
       todayGuidance.actions,
     ],
   );
-  const todayOrientation = useMemo(
-    () =>
-      deriveTodayOrientation({
-        todayEntry,
-        recentEntries: recentRangeEntries,
-        adaptiveProfile,
-        aiSummary: aiSummaryQuery.data ?? null,
-      }),
-    [adaptiveProfile, aiSummaryQuery.data, recentRangeEntries, todayEntry],
-  );
-
   useEffect(() => {
     if (growth.isLoading) {
       return;
@@ -1404,7 +1421,7 @@ export default function TodayScreen() {
     <AppScreen
       eyebrow="Daily check-in"
       title="Today"
-      subtitle="Check in, notice what today feels like, and keep things simple."
+      subtitle="Track energy, mood, stress, and symptoms."
     >
       <ScrollView
         contentContainerStyle={[
@@ -1419,164 +1436,26 @@ export default function TodayScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.overviewCard}>
-          <AppText style={styles.greeting}>{greeting}</AppText>
-          <AppText style={styles.todayDate}>{formatLongDate(today)}</AppText>
-          <AppText style={styles.overviewTitle}>
-            {primarySurface === "re-entry"
-              ? "You can ease back in today"
-              : primarySurface === "guidance"
-                ? "Let’s keep today manageable"
-                : "How are you feeling today?"}
+          <AppText style={styles.todayDate}>
+            {formatLongDate(today)}
+            {todayEntry ? " • Check-in saved ✓" : ""}
           </AppText>
           <AppText style={styles.overviewBody}>
-            {promptSuppressed
-              ? calmOrientation.body
-              : todayEntry
-              ? energyAwareFlow.contentReduction.shortenSupportCopy
-                ? "You checked in today. Update it only if something changes."
-                : "You checked in today. You can update it anytime if things change."
-              : energyAwareFlow.contentReduction.shortenSupportCopy
-                ? "We can keep this short today. A brief check-in is enough."
-                : "A quick check-in helps Coach feel more personal and gives Insights more to work with."}
-          </AppText>
-          {hasCalmDailyEnvironment && premiumCalmCompanionEnvironment.active ? (
-            <AppText style={styles.overviewSupportNote}>{premiumCalmCompanionEnvironment.returnLine}</AppText>
-          ) : null}
-          {hasAdaptiveHome && premiumAdaptiveHome.active ? (
-            <AppText style={styles.overviewSupportNote}>{premiumAdaptiveHome.supportPriority.summary}</AppText>
-          ) : null}
-          {hasAdaptiveSupport && premiumAdaptiveSupport.active ? (
-            <AppText style={styles.overviewSupportNote}>{premiumAdaptiveSupport.tone.supportLine}</AppText>
-          ) : null}
-        </View>
-
-        {hasAdaptiveHome && premiumAdaptiveHome.active ? (
-          <View style={styles.premiumDailySupportCard}>
-            <AppText style={styles.premiumDailySupportLabel}>Adaptive calm home</AppText>
-            <AppText style={styles.premiumDailySupportTitle}>{premiumAdaptiveHome.calmness.title}</AppText>
-            <AppText style={styles.premiumDailySupportBody}>{premiumAdaptiveHome.calmness.body}</AppText>
-            <View style={styles.premiumDailySupportPill}>
-              <AppText style={styles.premiumDailySupportPillText}>{premiumAdaptiveHome.calmness.toneLine}</AppText>
-            </View>
-          </View>
-        ) : null}
-
-        {hasCalmDailyEnvironment && premiumCalmCompanionEnvironment.active ? (
-          <View style={styles.premiumDailySupportCard}>
-            <AppText style={styles.premiumDailySupportLabel}>Quiet daily environment</AppText>
-            <AppText style={styles.premiumDailySupportTitle}>{premiumCalmCompanionEnvironment.title}</AppText>
-            <AppText style={styles.premiumDailySupportBody}>{premiumCalmCompanionEnvironment.body}</AppText>
-            <View style={styles.premiumDailySupportPill}>
-              <AppText style={styles.premiumDailySupportPillText}>{premiumCalmCompanionEnvironment.continuityLine}</AppText>
-            </View>
-            <View style={styles.companionMomentList}>
-              {premiumCalmCompanionEnvironment.microMoments.map((moment) => (
-                <AppText key={moment} style={styles.companionMomentText}>• {moment}</AppText>
-              ))}
-            </View>
-          </View>
-        ) : null}
-
-        {lowStimulusSurface ? (
-          <View style={styles.infoCard}>
-            <AppText style={styles.infoTitle}>{lowStimulusSurface.title}</AppText>
-            <AppText style={styles.infoBody}>{lowStimulusSurface.body}</AppText>
-          </View>
-        ) : null}
-
-        <View style={styles.infoCard}>
-          <AppText style={styles.infoTitle}>
-            {lifecycleProfile.stage === "new"
-              ? "Start gently"
-              : lifecycleProfile.stage === "first-week"
-                ? "Your first week"
-                : lifecycleProfile.stage === "long-term"
-                  ? "Your long view"
-                  : lifecycleProfile.stage === "active"
-                    ? "Your rhythm"
-                    : gentleReentry.title}
-          </AppText>
-          <AppText style={styles.infoBody}>
-            {lifecycleProfile.stage === "new"
-              ? "You do not need to do much today. One short check-in is enough to begin."
-              : lifecycleProfile.stage === "first-week"
-                ? "This week is about learning what feels useful, not doing everything at once."
-                : lifecycleProfile.stage === "long-term"
-                    ? "You have built a steadier history here. Smaller changes may be easier to notice now."
-                    : lifecycleProfile.stage === "active"
-                      ? continuityMessaging.body
-                      : gentleReentry.body}
+            {todayEntry
+              ? "Update it if something changes."
+              : "Start with a short check-in."}
           </AppText>
         </View>
 
-        {premiumDailySupport ? (
-          <View style={styles.premiumDailySupportCard}>
-            <AppText style={styles.premiumDailySupportLabel}>
-              {premiumDailySupport.moment === "morning"
-                ? "Morning grounding"
-                : premiumDailySupport.moment === "evening"
-                  ? "Evening support"
-                  : "Daily grounding"}
-            </AppText>
-            <AppText style={styles.premiumDailySupportTitle}>{premiumDailySupport.title}</AppText>
-            <AppText style={styles.premiumDailySupportBody}>{premiumDailySupport.body}</AppText>
-            <View style={styles.premiumDailySupportPill}>
-              <AppText style={styles.premiumDailySupportPillText}>{premiumDailySupport.pacing}</AppText>
-            </View>
-            <AppText style={styles.premiumDailySupportReflection}>{premiumDailySupport.reflection}</AppText>
-          </View>
-        ) : hasDailyCalmSupport === false ? (
-          <View style={styles.premiumDailySupportLockCard}>
-            <AppText style={styles.premiumDailySupportLabel}>Daily calm support</AppText>
-            <AppText style={styles.premiumDailySupportTitle}>Calmer daily grounding, pacing, and reflection</AppText>
-            <AppText style={styles.premiumDailySupportBody}>
-              Premium includes calmer daily support and grounding tools without making the app feel pushy or attached.
-            </AppText>
-            <AppButton
-              label="Explore Premium"
-              onPress={() => router.push("/premium?source=today")}
-              variant="secondary"
-            />
-          </View>
-        ) : null}
-
-        {totalCheckIns > 0 ? (
-          <View style={styles.consistencyCard}>
-            <View style={styles.consistencyPill}>
-              <AppText style={styles.consistencyValue}>{weeklyCheckIns}</AppText>
-              <AppText style={styles.consistencyLabel}>days this week</AppText>
-            </View>
-            <View style={styles.consistencyPill}>
-              <AppText style={styles.consistencyValue}>{continuityState.continuitySignal}</AppText>
-              <AppText style={styles.consistencyLabel}>recent returns</AppText>
-            </View>
-            <AppText style={styles.consistencyTitle}>{continuityMessaging.title}</AppText>
-            <AppText style={styles.consistencyBody}>{continuityMessaging.summary}</AppText>
-            <AppText style={styles.consistencySupport}>{continuityFeedback.body}</AppText>
-            <AppText style={styles.consistencySupport}>{selfCompassionReinforcement}</AppText>
-          </View>
-        ) : null}
-
-        {!overviewQuery.isLoading && totalCheckIns === 0 ? (
-          <View style={styles.emptyConsistencyCard}>
-            <AppText style={styles.emptyConsistencyTitle}>Consistency starts gently</AppText>
-            <AppText style={styles.emptyConsistencyBody}>
-              One check-in at a time is enough. Over time, your patterns become easier to understand.
-            </AppText>
-          </View>
-        ) : null}
-
-        {(environmentQuietMoment ?? quietMoment) && disclosureDepth === "minimal" ? (
-          <View style={styles.emptyConsistencyCard}>
-            <AppText style={styles.emptyConsistencyTitle}>{(environmentQuietMoment ?? quietMoment)?.title}</AppText>
-            <AppText style={styles.emptyConsistencyBody}>{(environmentQuietMoment ?? quietMoment)?.body}</AppText>
-          </View>
-        ) : null}
+        <View style={styles.todayFocusCard}>
+          <AppText style={styles.todayFocusLabel}>Today’s focus</AppText>
+          <AppText style={styles.todayFocusText}>{todayFocusLine}</AppText>
+        </View>
 
         {historyQuery.isLoading && historyEntries.length === 0 ? (
           <View style={styles.infoCard}>
-            <AppText style={styles.infoTitle}>Bringing in your recent check-ins…</AppText>
-            <AppText style={styles.infoBody}>Your recent patterns are settling in now.</AppText>
+            <AppText style={styles.infoTitle}>Loading recent check-ins</AppText>
+            <AppText style={styles.infoBody}>Recent entries are loading now.</AppText>
           </View>
         ) : null}
 
@@ -1591,9 +1470,10 @@ export default function TodayScreen() {
 
         {adaptiveProfile.lowEnergyMode ? (
           <View style={styles.warningCard}>
-            <AppText style={styles.warningTitle}>{adaptiveProfile.simplificationTitle}</AppText>
-            <AppText style={styles.warningBody}>{adaptiveProfile.simplificationBody}</AppText>
-            <AppText style={styles.warningBody}>{gentleNormalization}</AppText>
+            <AppText style={styles.warningTitle}>Low-Energy Mode is on</AppText>
+            <AppText style={styles.warningBody}>
+              The layout is simplified to reduce reading and decision load.
+            </AppText>
             <View style={styles.guidanceActions}>
               {lowEnergyQuickActions.map((action) => (
                 <Pressable
@@ -1608,57 +1488,23 @@ export default function TodayScreen() {
           </View>
         ) : null}
 
-        {!todayEntry ? (
-          <View style={styles.welcomeCard}>
-            <AppText style={styles.welcomeTitle}>
-              {previousEntry ? gentleReentry.title : "Let’s start your first check-in"}
-            </AppText>
-            {previousEntry ? (
-              <>
-                <AppText style={styles.welcomeBody}>Yesterday you tracked:</AppText>
-                <View style={styles.previousMetrics}>
-                  <View style={styles.previousMetricPill}>
-                    <AppText style={styles.previousMetricText}>
-                      {formatPreviousMetric("Fatigue", previousEntry.fatigue)}
-                    </AppText>
-                  </View>
-                  <View style={styles.previousMetricPill}>
-                    <AppText style={styles.previousMetricText}>
-                      {formatPreviousMetric("Mood", previousEntry.mood)}
-                    </AppText>
-                  </View>
-                  <View style={styles.previousMetricPill}>
-                    <AppText style={styles.previousMetricText}>
-                      {formatPreviousMetric("Stress", previousEntry.stress)}
-                    </AppText>
-                  </View>
-                </View>
-                <AppText style={styles.welcomeBody}>
-                  {energyAwareFlow.contentReduction.shortenSupportCopy
-                    ? "You can start with a simple check-in today."
-                    : "Add today’s check-in so Coach and Insights can stay helpful."}
-                </AppText>
-              </>
-            ) : (
-              <AppText style={styles.welcomeBody}>
-                {lifecycleProfile.stage === "returning"
-                  ? gentleReentry.body
-                  : "Takes less than 30 seconds and helps build more useful Insights and Coach support."}
-              </AppText>
-            )}
-          </View>
-        ) : (
-          <View style={styles.confirmationCard}>
-            <AppText style={styles.confirmationTitle}>
-              {saveState === "saved" ? postCheckInMoment.title : "You checked in today"}
-            </AppText>
-            <AppText style={styles.confirmationBody}>
-              {saveState === "saved"
-                ? `${postCheckInMoment.body} ${postCheckInMoment.insight}`
-                : "Your daily picture is here if you want to glance back later."}
-            </AppText>
-          </View>
-        )}
+        <DailyCheckInCard
+          draft={draft}
+          onChange={setDraft}
+          saveState={saveState}
+          onSave={() => void handleSaveCheckIn()}
+          saveMomentTitle={lastSaveQueued ? "Saved offline" : "Saved"}
+          saveMomentBody={lastSaveQueued ? "This check-in will sync when the connection returns." : "Check-in saved ✓"}
+          postSaveInsight={operationalObservation ?? undefined}
+          saveFooterText={lastSaveQueued ? "Waiting to sync." : "Saved."}
+          onViewInsights={() => router.push("/insights")}
+          supportMode={adaptiveProfile.lowEnergyMode ? "low-energy" : "default"}
+          compressionMode={energyAwareFlow.compressedCheckIn.enabled ? "reduced" : "standard"}
+          noteStarterLimit={Math.min(
+            adaptiveDefaults.noteStarterCount,
+            energyAwareFlow.compressedCheckIn.limitNoteStarters ? 2 : 3,
+          )}
+        />
 
         {todayEntry ? (
           <View style={styles.summaryCard}>
@@ -1674,172 +1520,19 @@ export default function TodayScreen() {
           </View>
         ) : null}
 
-        {milestone && optionalExpansion.showCelebrations && !deferredContent.hideCelebrations ? (
-          <View style={styles.milestoneCard}>
-            <AppText style={styles.milestoneTitle}>{milestone.title}</AppText>
-            <AppText style={styles.milestoneBody}>{milestone.body}</AppText>
-          </View>
-        ) : null}
-
-        {recentActionCard &&
-        energyAwareFlow.density !== "MINIMAL" &&
-        !hiddenComplexity.hideSecondarySupport &&
-        (!hasAdaptiveSupport || premiumAdaptiveSupport.density.maxSecondarySections >= 2) &&
-        (!hasAdaptiveHome || premiumAdaptiveHome.layout.showRecentAction) ? (
-          <View style={styles.resumeCard}>
-            <AppText style={styles.navTitle}>{recentActionCard.title}</AppText>
-            <AppText style={styles.resumeBody}>{recentActionCard.body}</AppText>
-            <AppButton
-              label={recentActionCard.actionLabel}
-              onPress={() => router.push(recentActionCard.route)}
-              variant="secondary"
-            />
-          </View>
-        ) : null}
-
-        {growth.getCelebrationAvailable("first_week_of_checkins") && optionalExpansion.showCelebrations ? (
-          <View style={styles.milestoneCard}>
-            <View style={styles.inlineHeader}>
-              <AppText style={styles.milestoneTitle}>A steady first week</AppText>
-              <Pressable
-                onPress={() => {
-                  void growth.markCelebrationSeen("first_week_of_checkins");
-                }}
-                style={({ pressed }) => [styles.dismissButton, pressed && styles.quickLinkPressed]}
-              >
-                <AppText style={styles.dismissButtonText}>Dismiss</AppText>
-              </Pressable>
-            </View>
-            <AppText style={styles.milestoneBody}>
-              You’ve completed your first week of check-ins. That steady rhythm helps Coach and Insights feel more personal.
-            </AppText>
-          </View>
-        ) : null}
-
-        <View style={styles.infoCard}>
-          <AppText style={styles.infoTitle}>{sessionClosure.title}</AppText>
-          <AppText style={styles.infoBody}>
-            {healthyExitState === "soft-exit"
-              ? sessionClosure.body
-              : `${sessionClosure.body} Keep the next part of the day light.`}
-          </AppText>
-        </View>
-
-        <View style={styles.guidanceCard}>
-          <AppText style={styles.guidanceKicker}>Today&apos;s orientation</AppText>
-          <AppText style={styles.guidanceTitle}>{todayOrientation.title}</AppText>
-          <View style={styles.guidanceModuleStack}>
-            {todayOrientation.modules.map((module) => (
-              <GuidanceSection
-                key={module.id}
-                title={module.title}
-                body={module.body}
-                icon={module.icon}
-                tone={module.tone}
-              />
-            ))}
-          </View>
-          <View style={styles.guidanceActions}>
-            {visibleGuidanceActions.map((action) => (
-              <Pressable
-                key={`${action.route}-${action.label}`}
-                onPress={() => router.push(action.route)}
-                style={({ pressed }) => [styles.guidanceAction, pressed && styles.quickLinkPressed]}
-              >
-                <AppText style={styles.guidanceActionText}>{action.label}</AppText>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {visibleReflectionCards.length > 0 ? (
-          <View style={styles.reflectionSurfaceSection}>
-            <AppText style={styles.focusKicker}>A gentle reflection</AppText>
-            <ReflectionSurfaceStack
-              cards={visibleReflectionCards}
-              reducedMotion={
-                energyAwareFlow.motionIntensity === "REDUCED" ||
-                adaptiveDefaults.useCondensedSpacing ||
-                deriveMotionIntensity(atmosphere) === "reduced"
-              }
-              gap={reflectionSpacing.gap}
-              topMargin={reflectionSpacing.topMargin}
-              transitionDurationMs={atmosphereTransition.durationMs}
-            />
-          </View>
-        ) : null}
-
-        {suggestedProgram ? (
-          <View style={styles.resumeCard}>
-            <AppText style={styles.navTitle}>A gentle support option</AppText>
-            <AppText style={styles.resumeBody}>
-              {(hasAdaptiveHome && premiumAdaptiveHome.active
-                ? premiumAdaptiveHome.supportPriority.primarySupport === "sleep"
-                  ? "A quieter support tool may fit today better."
-                  : premiumAdaptiveHome.supportPriority.primarySupport === "grounding"
-                    ? "A grounding tool may feel easier to reach for today."
-                    : premiumAdaptiveHome.supportPriority.primarySupport === "low-energy"
-                      ? "A lower-effort support tool may fit today better."
-                      : `${suggestedProgram.title} may fit this stretch well.`
-                : `${suggestedProgram.title} may fit this stretch well.`) +
-                " You can use it if a little support would help today feel steadier."}
-            </AppText>
-            <AppButton
-              label="Open Programs"
-              onPress={() => router.push("/programs")}
-              variant="secondary"
-            />
-          </View>
-        ) : null}
-
-        {!suggestedProgram &&
-        secondarySuggestedProgram &&
-        energyAwareFlow.density !== "MINIMAL" &&
-        optionalExpansion.showSecondaryProgram &&
-        !deferredContent.hideSecondaryProgram &&
-        (!hasAdaptiveHome || premiumAdaptiveHome.layout.showSecondaryProgram) ? (
-          <View style={styles.resumeCard}>
-            <AppText style={styles.navTitle}>A softer place to return</AppText>
-            <AppText style={styles.resumeBody}>
-              {secondarySuggestedProgram.title} is here if you want one small support tool without adding much pressure.
-            </AppText>
-            <AppButton label="Open Programs" onPress={() => router.push("/programs")} variant="secondary" />
-          </View>
-        ) : null}
-
-        <View style={styles.focusCard}>
-          <AppText style={styles.focusKicker}>Today&apos;s gentle focus</AppText>
-          <AppText style={styles.focusTitle}>{gentleFocus.title}</AppText>
-          <AppText style={styles.focusBody}>{gentleFocus.body}</AppText>
-        </View>
-
-        {!energyAwareFlow.contentReduction.hideSecondaryWins &&
-        !deferredContent.hideWins &&
-        (!hasAdaptiveHome || premiumAdaptiveHome.layout.showWins) ? (
-          <View style={styles.winsCard}>
-            <AppText style={styles.navTitle}>Small wins</AppText>
-            {wins.length > 0 ? (
-              <View style={styles.winsList}>
-                {wins.map((win) => (
-                  <View key={win} style={styles.winPill}>
-                    <AppText style={styles.winText}>{win}</AppText>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <AppText style={styles.focusBody}>
-                Your wins will start to gather here as you check in and reflect.
-              </AppText>
-            )}
+        {operationalObservation ? (
+          <View style={styles.guidanceCard}>
+            <AppText style={styles.guidanceKicker}>Recent pattern</AppText>
+            <AppText style={styles.guidanceTitle}>{operationalObservation}</AppText>
           </View>
         ) : null}
 
         <View style={styles.navCard}>
-          <AppText style={styles.navTitle}>Quick links</AppText>
+          <AppText style={styles.navTitle}>Quick support</AppText>
           <View style={styles.quickLinks}>
             {visibleQuickLinksQuiet.slice(0, interactionLoopGuard.maxSuggestedNextActions).map((link) => (
               <Pressable
-                key={link.route}
+                key={`${link.route}-${link.title}`}
                 onPress={() => router.push(link.route)}
                 style={({ pressed }) => [styles.quickLinkCard, pressed && styles.quickLinkPressed]}
               >
@@ -1849,37 +1542,6 @@ export default function TodayScreen() {
             ))}
           </View>
         </View>
-
-        <View style={styles.header}>
-          <AppText style={styles.kicker}>Today&apos;s check-in</AppText>
-          <AppText style={styles.date}>{today}</AppText>
-        </View>
-
-        <DailyCheckInCard
-          draft={draft}
-          onChange={setDraft}
-          saveState={saveState}
-          onSave={() => void handleSaveCheckIn()}
-          saveMomentTitle={postCheckInMoment.title}
-          saveMomentBody={postCheckInMoment.body}
-          postSaveInsight={postCheckInMoment.insight}
-          saveFooterText={
-            lastSaveQueued
-              ? postCheckInMoment.footer
-              : suggestedEffortLevel === "brief"
-                ? "That is enough for today."
-                : suggestedEffortLevel === "gentle"
-                  ? "Keep the rest of today light."
-                  : postCheckInMoment.footer
-          }
-          onViewInsights={() => router.push("/insights")}
-          supportMode={adaptiveProfile.lowEnergyMode ? "low-energy" : "default"}
-          compressionMode={energyAwareFlow.compressedCheckIn.enabled ? "reduced" : "standard"}
-          noteStarterLimit={Math.min(
-            adaptiveDefaults.noteStarterCount,
-            energyAwareFlow.compressedCheckIn.limitNoteStarters ? 2 : 3,
-          )}
-        />
       </ScrollView>
     </AppScreen>
   );
@@ -1933,6 +1595,28 @@ const styles = StyleSheet.create({
   overviewBody: {
     color: "#4b5563",
     lineHeight: 22,
+  },
+  todayFocusCard: {
+    backgroundColor: "#fffaf6",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f2dfcf",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 6,
+  },
+  todayFocusLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
+    color: "#9a4b0c",
+    textTransform: "uppercase",
+  },
+  todayFocusText: {
+    color: "#374151",
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "600",
   },
   overviewSupportNote: {
     color: "#6b7280",

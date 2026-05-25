@@ -18,6 +18,8 @@ export type RevenueCatDebugSnapshot = {
   appVersion: string;
   buildNumber: string;
   bundleIdentifier: string;
+  configured: boolean;
+  loggedInAppUserId: string | null;
   maskedSdkKey: string;
   requestedOfferingIdentifier: string;
   currentOfferingIdentifier: string | null;
@@ -82,6 +84,8 @@ export function createBaseRevenueCatDebugSnapshot(input: {
     appVersion: appJson.expo.version,
     buildNumber: appJson.expo.ios.buildNumber,
     bundleIdentifier: input.bundleIdentifier,
+    configured: false,
+    loggedInAppUserId: null,
     maskedSdkKey: maskRevenueCatKey(input.sdkKey),
     requestedOfferingIdentifier: input.requestedOfferingIdentifier,
     currentOfferingIdentifier: null,

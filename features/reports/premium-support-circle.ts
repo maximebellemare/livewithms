@@ -38,7 +38,7 @@ export type PremiumSupportCircleShareContent = {
 
 export type PremiumSupportCircleSummaries = Record<SupportCircleAudience, PremiumSupportCircleSummary>;
 
-const FALLBACK_MESSAGE = "A calmer support summary can stay available whenever explaining everything feels like too much.";
+const FALLBACK_MESSAGE = "A support summary is available when details are hard to explain in the moment.";
 const BANNED_PATTERNS = /\bai caregiver assistant\b|\brelationship support system\b|\bmonitor(?:ing)?\b|\boversight\b|\bworsening\b|\bdecline\b|\bcrisis\b|\balways here for you\b/gi;
 
 function average(values: Array<number | null | undefined>) {
@@ -77,22 +77,22 @@ function buildAtAGlance(values: {
   const { fatigueAverage, stressAverage, sleepAverage, lowEnergyDays } = values;
 
   if (fatigueAverage !== null && fatigueAverage >= 4.2) {
-    return "This week included several lower-energy days and may have needed a quieter pace.";
+    return "This week included several lower-energy days.";
   }
 
   if (stressAverage !== null && stressAverage >= 4) {
-    return "Stress looked a little heavier this week, so steadier pacing may have mattered more.";
+    return "Stress looked higher this week.";
   }
 
   if (sleepAverage !== null && sleepAverage < 6.5) {
-    return "Sleep and recovery looked a little lighter this week, which may have shaped the pace of things.";
+    return "Sleep was lower this week, which may have affected energy and pace.";
   }
 
   if (lowEnergyDays >= 2) {
     return "Some days looked lower-energy this week, even if others felt more manageable.";
   }
 
-  return "This week had some variation, and a calmer pace may still have helped on harder days.";
+  return "This week included a mix of steadier and harder days.";
 }
 
 function buildWhatThisWeekFeltLike(input: {
@@ -115,15 +115,15 @@ function buildWhatThisWeekFeltLike(input: {
   }).map((line) => softenSharedInterpretation(line));
 
   if (input.audience === "partner" && lines.length < 3) {
-    lines.push("Some days may have needed shorter plans or a gentler pace.");
+    lines.push("Some days may have needed shorter plans.");
   }
 
   if (input.audience === "family-member" && lines.length < 3) {
-    lines.push("Keeping things simpler may have mattered more than doing more.");
+    lines.push("Keeping things simpler may have helped more than adding more.");
   }
 
   if (input.audience === "caregiver" && lines.length < 3) {
-    lines.push("A calmer practical overview may help more than repeated explanations.");
+    lines.push("A short practical overview may help more than repeated explanations.");
   }
 
   return lines;

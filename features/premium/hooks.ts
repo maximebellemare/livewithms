@@ -10,7 +10,15 @@ import type { RevenueCatDebugSnapshot } from "../../lib/revenuecat/debug";
 import { shouldUseRevenueCatNativeStore } from "../../lib/revenueCatEnvironment";
 import { loadPremiumDebugOverride, savePremiumDebugOverride } from "./debug";
 import { ENABLE_PREMIUM_DEBUG_TOOLS, isPremiumEnabled, PREMIUM_FEATURE_FLAGS } from "./config";
+import { isDevPremiumOverrideAvailable } from "./devPremium";
 import { getPremiumStatusFromCustomerInfo, hasPremiumAccess as getHasPremiumAccess } from "./entitlements";
+import {
+  getActiveTesterPremiumOverrideSafely,
+  normalizePremiumOverrideEmail,
+  type PremiumAccessSource,
+  type PremiumTesterOverride,
+  shouldShowPremiumInternalDebug,
+} from "./tester-overrides";
 import type { PremiumContextValue } from "./types";
 import { deriveRetryStrategy } from "../../lib/operational-calm/retry-orchestration/deriveRetryStrategy";
 import { scheduleSilentRetry } from "../../lib/operational-calm/retry-orchestration/scheduleSilentRetry";
@@ -47,10 +55,28 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     revenueCatClient.getDebugSnapshot(),
   );
   const [debugPremiumOverrideActive, setDebugPremiumOverrideActiveState] = useState(false);
+  const [testerPremiumOverrideActive, setTesterPremiumOverrideActive] = useState(false);
+  const [testerPremiumOverride, setTesterPremiumOverride] = useState<PremiumTesterOverride | null>(null);
+  const devPremiumOverrideAvailable = isDevPremiumOverrideAvailable();
   const lastRefreshAtRef = useRef(0);
   const refreshPromiseRef = useRef<Promise<void> | null>(null);
   const lastSuccessfulRefreshAtRef = useRef<number | null>(null);
   const refreshStateRef = useRef(getInitialRevenueCatRefreshState());
+  const testerOverrideRefreshPromiseRef = useRef<Promise<boolean> | null>(null);
+  const premiumDebugSignatureRef = useRef<string | null>(null);
+  const normalizedUserEmail = normalizePremiumOverrideEmail(user?.email);
+  const shouldEmitTestFlightPremiumDebug = !__DEV__ && shouldShowPremiumInternalDebug(normalizedUserEmail);
+
+  const logTestFlightPremiumDebug = useCallback(
+    (label: string, payload: Record<string, unknown>) => {
+      if (!shouldEmitTestFlightPremiumDebug) {
+        return;
+      }
+
+      console.info("[premium-debug]", label, payload);
+    },
+    [shouldEmitTestFlightPremiumDebug],
+  );
 
   useEffect(() => {
     if (!ENABLE_PREMIUM_DEBUG_TOOLS) {
@@ -72,6 +98,13 @@ export function PremiumProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
+    if (!devPremiumOverrideAvailable && debugPremiumOverrideActive) {
+      console.warn("DEV premium override should never run in production");
+      setDebugPremiumOverrideActiveState(false);
+    }
+  }, [debugPremiumOverrideActive, devPremiumOverrideAvailable]);
+
+  useEffect(() => {
     let cancelled = false;
 
     void (async () => {
@@ -87,6 +120,49 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       cancelled = true;
     };
   }, [debugPremiumOverrideActive]);
+
+  const refreshTesterPremiumOverride = useCallback(async () => {
+    if (testerOverrideRefreshPromiseRef.current) {
+      return testerOverrideRefreshPromiseRef.current;
+    }
+
+    const runRefresh = async () => {
+      if (!user?.id && !user?.email) {
+        setTesterPremiumOverrideActive(false);
+        setTesterPremiumOverride(null);
+        logTestFlightPremiumDebug("override_lookup", {
+          userId: null,
+          userEmail: null,
+          queryResult: "skipped",
+          overrideActive: false,
+          overrideExpiresAt: null,
+        });
+        return false;
+      }
+
+      const testerOverride = await getActiveTesterPremiumOverrideSafely({
+        userId: user?.id ?? null,
+        email: user?.email ?? null,
+      });
+      const hasTesterOverride = Boolean(testerOverride);
+      setTesterPremiumOverride(testerOverride);
+      setTesterPremiumOverrideActive(hasTesterOverride);
+      logTestFlightPremiumDebug("override_lookup", {
+        userId: user?.id ?? null,
+        userEmail: normalizedUserEmail,
+        queryResult: testerOverride ? "matched" : "none",
+        overrideActive: testerOverride?.active ?? false,
+        overrideExpiresAt: testerOverride?.expires_at ?? null,
+      });
+      return hasTesterOverride;
+    };
+
+    const promise = runRefresh().finally(() => {
+      testerOverrideRefreshPromiseRef.current = null;
+    });
+    testerOverrideRefreshPromiseRef.current = promise;
+    return promise;
+  }, [logTestFlightPremiumDebug, normalizedUserEmail, user?.email, user?.id]);
 
   const refreshPremiumStatus = useCallback(async (options?: { force?: boolean }) => {
     const now = Date.now();
@@ -115,7 +191,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     }
 
     if (!user?.id) {
-      setStatus(debugPremiumOverrideActive ? "active" : "free");
+      setStatus("free");
       setCurrentOffering(null);
       setOfferingsErrorMessage(null);
       setIsLoading(false);
@@ -123,7 +199,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     }
 
     if (!shouldUseRevenueCatNativeStore()) {
-      setStatus(debugPremiumOverrideActive ? "active" : "free");
+      setStatus("free");
       setCurrentOffering(null);
       setOfferingsErrorMessage("Premium pricing and purchases are not available in this testing environment.");
       setRevenueCatDebugSnapshot(revenueCatClient.getDebugSnapshot());
@@ -180,13 +256,11 @@ export function PremiumProvider({ children }: PropsWithChildren) {
         lastSuccessfulRefreshAt: lastSuccessfulRefreshAtRef.current,
         refreshFailed: true,
       });
-      const resolvedStatus = debugPremiumOverrideActive
-        ? "active"
-        : reconcileEntitlements({
-            remoteStatus: null,
-            cachedStatus: cached?.status ?? status,
-            graceActive: grace.active,
-          });
+      const resolvedStatus = reconcileEntitlements({
+        remoteStatus: null,
+        cachedStatus: cached?.status ?? status,
+        graceActive: grace.active,
+      });
       setStatus(resolvedStatus);
       setCurrentOffering(null);
       const nextFailureState = resolveRevenueCatFailureState(refreshStateRef.current, now);
@@ -218,15 +292,24 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     });
     refreshPromiseRef.current = promise;
     return promise;
-  }, [debugPremiumOverrideActive, status, subscriptionsEnabled, user?.id]);
+  }, [debugPremiumOverrideActive, status, subscriptionsEnabled, user?.email, user?.id]);
 
   useEffect(() => {
+    void refreshTesterPremiumOverride();
     void refreshPremiumStatus({ force: true });
-  }, [debugPremiumOverrideActive, refreshPremiumStatus, subscriptionsEnabled, user?.id]);
+  }, [
+    debugPremiumOverrideActive,
+    refreshPremiumStatus,
+    refreshTesterPremiumOverride,
+    subscriptionsEnabled,
+    user?.email,
+    user?.id,
+  ]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") {
+        void refreshTesterPremiumOverride();
         void refreshPremiumStatus();
       }
     });
@@ -234,16 +317,16 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     return () => {
       subscription.remove();
     };
-  }, [refreshPremiumStatus]);
+  }, [refreshPremiumStatus, refreshTesterPremiumOverride]);
 
   const setDebugPremiumOverride = useCallback(async (enabled: boolean) => {
-    if (!ENABLE_PREMIUM_DEBUG_TOOLS) {
+    if (!ENABLE_PREMIUM_DEBUG_TOOLS || !devPremiumOverrideAvailable) {
       return;
     }
 
     setDebugPremiumOverrideActiveState(enabled);
     await savePremiumDebugOverride(enabled);
-  }, []);
+  }, [devPremiumOverrideAvailable]);
 
   const refreshRevenueCatDiagnostics = useCallback(async () => {
     if (!subscriptionsEnabled) {
@@ -271,7 +354,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
 
     try {
       const result = await revenueCatClient.purchasePlan(user.id, plan);
-      const nextStatus = debugPremiumOverrideActive ? "active" : getPremiumStatusFromCustomerInfo(result.customerInfo);
+      const nextStatus = getPremiumStatusFromCustomerInfo(result.customerInfo);
       setStatus(nextStatus);
       await preserveCachedPremiumState(nextStatus);
       return { success: !result.cancelled, cancelled: result.cancelled };
@@ -302,7 +385,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
 
     try {
       const customerInfo = await revenueCatClient.restorePurchases(user.id);
-      const nextStatus = debugPremiumOverrideActive ? "active" : getPremiumStatusFromCustomerInfo(customerInfo);
+      const nextStatus = getPremiumStatusFromCustomerInfo(customerInfo);
       setStatus(nextStatus);
       await preserveCachedPremiumState(nextStatus);
       await refreshPremiumStatus({ force: true });
@@ -321,13 +404,63 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     }
   }, [debugPremiumOverrideActive, subscriptionsEnabled, user?.id]);
 
-  const hasPremiumAccess = debugPremiumOverrideActive || getHasPremiumAccess(status);
+  const hasRevenueCatAccess = getHasPremiumAccess(status);
+  const hasPremiumAccess =
+    debugPremiumOverrideActive || hasRevenueCatAccess || testerPremiumOverrideActive;
+  const premiumAccessSource: PremiumAccessSource = hasRevenueCatAccess
+    ? "revenuecat"
+    : testerPremiumOverrideActive
+      ? "tester_override"
+      : debugPremiumOverrideActive
+        ? "dev_override"
+        : "none";
+
+  useEffect(() => {
+    if (!shouldEmitTestFlightPremiumDebug) {
+      premiumDebugSignatureRef.current = null;
+      return;
+    }
+
+    const signature = JSON.stringify({
+      userId: user?.id ?? null,
+      userEmail: normalizedUserEmail,
+      overrideId: testerPremiumOverride?.id ?? null,
+      overrideActive: testerPremiumOverride?.active ?? false,
+      overrideExpiresAt: testerPremiumOverride?.expires_at ?? null,
+      premiumAccessSource,
+      isPremium: hasPremiumAccess,
+    });
+
+    if (premiumDebugSignatureRef.current === signature) {
+      return;
+    }
+
+    premiumDebugSignatureRef.current = signature;
+    console.info("[premium-debug]", "resolved_access", {
+      userId: user?.id ?? null,
+      userEmail: normalizedUserEmail,
+      overrideId: testerPremiumOverride?.id ?? null,
+      overrideActive: testerPremiumOverride?.active ?? false,
+      overrideExpiresAt: testerPremiumOverride?.expires_at ?? null,
+      premiumAccessSource,
+      isPremium: hasPremiumAccess,
+    });
+  }, [
+    hasPremiumAccess,
+    normalizedUserEmail,
+    premiumAccessSource,
+    shouldEmitTestFlightPremiumDebug,
+    testerPremiumOverride,
+    user?.id,
+  ]);
 
   const value = useMemo<PremiumContextValue>(
     () => ({
       subscriptionsEnabled,
       status,
       hasPremiumAccess,
+      premiumAccessSource,
+      revenueCatEntitlementActive: hasRevenueCatAccess,
       premiumFeatureFlags: PREMIUM_FEATURE_FLAGS,
       currentOffering,
       isLoading,
@@ -336,6 +469,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       offeringsErrorMessage,
       revenueCatDebugSnapshot,
       debugPremiumOverrideActive,
+      testerPremiumOverrideActive,
       purchasePlan,
       restorePurchases,
       refreshPremiumStatus,
@@ -346,6 +480,8 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       subscriptionsEnabled,
       status,
       hasPremiumAccess,
+      premiumAccessSource,
+      hasRevenueCatAccess,
       currentOffering,
       isLoading,
       isPurchasing,
@@ -353,6 +489,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       offeringsErrorMessage,
       revenueCatDebugSnapshot,
       debugPremiumOverrideActive,
+      testerPremiumOverrideActive,
       purchasePlan,
       restorePurchases,
       refreshPremiumStatus,

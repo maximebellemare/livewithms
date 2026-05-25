@@ -15,7 +15,8 @@ export type ProgramLibraryCategory =
   | "sleep"
   | "pacing"
   | "brain-fog"
-  | "emotional-regulation";
+  | "emotional-regulation"
+  | "care-prep";
 
 export type ProgramContentKind = "micro-guide" | "reflection-prompt" | "wellness-note" | "audio-cue";
 

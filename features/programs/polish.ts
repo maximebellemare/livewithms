@@ -3,15 +3,15 @@ import type { ProgramLibraryCategory, ProgramModule, ProgramSection } from "./ty
 export function deriveProgramSectionLabel(section: ProgramSection) {
   switch (section) {
     case "Calm":
-      return "Grounding";
+      return "Reduce overwhelm";
     case "Energy":
       return "Low energy";
     case "Planning":
-      return "Pacing";
+      return "Planning";
     case "Rest":
       return "Sleep and rest";
     case "Reflection":
-      return "Reflection";
+      return "Symptom notes";
     default:
       return section;
   }
@@ -20,15 +20,15 @@ export function deriveProgramSectionLabel(section: ProgramSection) {
 export function deriveProgramSectionSubtitle(section: ProgramSection) {
   switch (section) {
     case "Calm":
-      return "Grounding and nervous-system support.";
+      return "Short resets for stress, tension, and overload.";
     case "Energy":
       return "Lower-demand support for heavier days.";
     case "Planning":
-      return "Gentler structure when the day feels crowded.";
+      return "Practical structure for decisions, appointments, and busy days.";
     case "Rest":
       return "Quieter evening and sleep support.";
     case "Reflection":
-      return "Light reflection without overprocessing.";
+      return "Short notes for symptoms, changes, and care conversations.";
     default:
       return "Gentle structured support.";
   }
@@ -37,7 +37,7 @@ export function deriveProgramSectionSubtitle(section: ProgramSection) {
 export function deriveProgramCategoryLabel(category: ProgramLibraryCategory | null | undefined) {
   switch (category) {
     case "grounding":
-      return "Grounding";
+      return "Body reset";
     case "overwhelm":
       return "Overwhelm";
     case "low-energy":
@@ -45,11 +45,13 @@ export function deriveProgramCategoryLabel(category: ProgramLibraryCategory | nu
     case "sleep":
       return "Sleep";
     case "pacing":
-      return "Pacing";
+      return "Protecting energy";
     case "brain-fog":
       return "Brain fog";
     case "emotional-regulation":
-      return "Emotional decompression";
+      return "Symptom notes";
+    case "care-prep":
+      return "Care prep";
     default:
       return "Support";
   }
@@ -96,12 +98,12 @@ export function derivePremiumProgramsCopy(input: {
   if (input.overwhelmed) {
     return {
       title: "More support when everything feels loud",
-      body: "Premium includes shorter overwhelm resets, pacing tools, and calmer decompression support for harder stretches.",
+      body: "Premium includes shorter overwhelm resets, energy-protection tools, and cognitive support for harder stretches.",
     };
   }
 
   return {
     title: "A deeper library of calmer support",
-    body: "Premium includes more grounding, sleep, brain fog, pacing, and low-energy programs that still stay short and interruption-safe.",
+    body: "Premium includes more body resets, sleep support, brain fog tools, energy planning, and low-energy programs that stay short.",
   };
 }

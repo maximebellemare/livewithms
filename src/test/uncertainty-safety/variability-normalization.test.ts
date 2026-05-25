@@ -14,7 +14,6 @@ describe("uncertainty safety variability normalization", () => {
 
     const context = deriveVariabilityContext(entries);
     expect(context.level).not.toBe("low");
-    expect(generateNormalizationLanguage(context).toLowerCase()).toContain("variable");
+    expect(generateNormalizationLanguage(context).toLowerCase()).toMatch(/fluctuate|clear pattern/);
   });
 });
-

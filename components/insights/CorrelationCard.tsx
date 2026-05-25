@@ -19,24 +19,24 @@ function getCorrelationHighlight(correlation: CorrelationSummary) {
 
   if (correlation.key === "fatigue-sleep") {
     return correlation.coefficient < 0
-      ? "On days when sleep is lower, fatigue tends to feel higher."
-      : "Sleep and fatigue seem connected, though not always in the same direction.";
+      ? "Lower-sleep days line up with higher fatigue."
+      : "Higher-sleep days line up with higher fatigue in this range.";
   }
 
   if (correlation.key === "fatigue-stress") {
     return correlation.coefficient > 0
-      ? "On days when stress is higher, fatigue tends to rise too."
+      ? "Higher-stress days line up with higher fatigue."
       : "Stress and fatigue do not seem to move together in a clear way.";
   }
 
   if (correlation.key === "mood-stress") {
     return correlation.coefficient < 0
-      ? "On days when stress is higher, mood tends to feel a little lower."
-      : "Mood and stress are moving together in an unusual way, so there may be other factors shaping the day.";
+      ? "Higher-stress days line up with lower mood."
+      : "Mood and stress move together in this range.";
   }
 
   return correlation.coefficient > 0
-    ? "On days when sleep is higher, mood tends to feel a little better."
+    ? "Higher-sleep days line up with higher mood."
     : "Mood and sleep do not seem to move together in a clear way.";
 }
 
@@ -46,7 +46,7 @@ function getCorrelationSuggestion(correlation: CorrelationSummary) {
   }
 
   if (correlation.key === "fatigue-sleep" && correlation.coefficient < -0.2) {
-    return "A little more rest may help your energy feel steadier.";
+    return "Track whether shorter sleep is followed by higher fatigue.";
   }
 
   if (correlation.key === "fatigue-stress" && correlation.coefficient > 0.2) {
@@ -54,14 +54,14 @@ function getCorrelationSuggestion(correlation: CorrelationSummary) {
   }
 
   if (correlation.key === "mood-sleep" && correlation.coefficient > 0.2) {
-    return "A steadier bedtime routine may help support your mood.";
+    return "Track whether higher-sleep days continue to line up with higher mood.";
   }
 
   if (correlation.key === "mood-stress" && correlation.coefficient < -0.2) {
     return "A small reset on stressful days may help protect your mood.";
   }
 
-  return "A little more time can help this pattern feel clearer.";
+  return "More check-ins may make this relationship clearer.";
 }
 
 export default function CorrelationCard({ correlation }: CorrelationCardProps) {
@@ -74,7 +74,7 @@ export default function CorrelationCard({ correlation }: CorrelationCardProps) {
       <Pressable onPress={() => setExpanded((current) => !current)} style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}>
         <View style={styles.headerText}>
           <AppText style={styles.title}>{correlation.title}</AppText>
-          <AppText style={styles.contextText}>A simple look at your recent entries</AppText>
+          <AppText style={styles.contextText}>Relationship across recent entries</AppText>
         </View>
         <AppText style={styles.expandHint}>{expanded ? "Hide details" : "Show details"}</AppText>
       </Pressable>

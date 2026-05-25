@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { buildPersonalizationMemory } from "./logic";
 import { loadPersonalizationMemory, savePersonalizationMemory } from "./storage";
 import type { PersonalizationMemory, PersonalizationMemoryInput } from "./types";
@@ -6,6 +6,7 @@ import type { PersonalizationMemory, PersonalizationMemoryInput } from "./types"
 export function usePersonalizationMemory(input: PersonalizationMemoryInput) {
   const [storedMemory, setStoredMemory] = useState<PersonalizationMemory | null>(null);
   const [lastPersistedKey, setLastPersistedKey] = useState<string | null>(null);
+  const persistedMemoryRef = useRef<PersonalizationMemory | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -13,6 +14,7 @@ export function usePersonalizationMemory(input: PersonalizationMemoryInput) {
     void (async () => {
       const loaded = await loadPersonalizationMemory();
       if (!cancelled) {
+        persistedMemoryRef.current = loaded;
         setStoredMemory(loaded);
       }
     })();
@@ -23,7 +25,7 @@ export function usePersonalizationMemory(input: PersonalizationMemoryInput) {
   }, []);
 
   const memory = useMemo(
-    () => buildPersonalizationMemory(input, storedMemory),
+    () => buildPersonalizationMemory(input, persistedMemoryRef.current ?? storedMemory),
     [
       input.adaptiveProfile.engagementPattern,
       input.adaptiveProfile.fatigueTrend,
@@ -43,7 +45,7 @@ export function usePersonalizationMemory(input: PersonalizationMemoryInput) {
       input.reminderSettings.enabled,
       input.reminderSettings.hour,
       input.reminderSettings.minute,
-      storedMemory,
+      storedMemory?.updatedAt,
     ],
   );
 
@@ -79,13 +81,13 @@ export function usePersonalizationMemory(input: PersonalizationMemoryInput) {
       return;
     }
 
-    setStoredMemory(memory);
+    persistedMemoryRef.current = memory;
     setLastPersistedKey(memoryKey);
     void savePersonalizationMemory(memory);
   }, [lastPersistedKey, memory, memoryKey]);
 
   return {
-    memory: storedMemory ?? memory,
+    memory,
     isLoading: storedMemory === null,
   };
 }

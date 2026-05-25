@@ -8,7 +8,7 @@ const CALM_POINTS = [
   "No streak pressure",
   "No guilt if you skip a day",
   "No overwhelming dashboards",
-  "Just calmer tools for tracking, reflection, care, and support",
+  "Clear tools for tracking, reflection, care, and support",
 ];
 
 export default function CalmPhilosophyScreen() {
@@ -17,7 +17,7 @@ export default function CalmPhilosophyScreen() {
   return (
     <OnboardingScaffold
       title="Built for low-energy days."
-      subtitle="This app is designed to feel calmer, lighter, and easier to return to."
+      subtitle="Short check-ins, clear patterns, and care tools without extra pressure."
       step={2}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
@@ -26,9 +26,9 @@ export default function CalmPhilosophyScreen() {
     >
       <View style={styles.stack}>
         <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>Calmer by design.</AppText>
+          <AppText style={styles.heroTitle}>Built to stay usable on hard days.</AppText>
           <AppText style={styles.heroBody}>
-            No streak pressure. No guilt. No overwhelming dashboards. Just calmer tools for tracking, reflection, care, and support.
+            No streak pressure. No guilt. No overwhelming dashboards. Just clear tools for tracking, reflection, care, and support.
           </AppText>
         </View>
 

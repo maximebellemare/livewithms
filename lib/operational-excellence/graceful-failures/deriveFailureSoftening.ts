@@ -6,14 +6,14 @@ export function deriveFailureSoftening(input: {
 }) {
   const message =
     input.category === "offline"
-      ? "Some parts can wait quietly until your connection is back."
+      ? "Check your connection and try again."
       : input.category === "sync"
-        ? "Things may need a little time to settle, but your progress should stay steady."
+        ? "Sync did not finish. Try again."
         : input.category === "storage"
-          ? "What you entered may just need another quiet save."
+          ? "Your changes could not be saved. Try again."
           : input.category === "auth"
-            ? "A short refresh may help this continue."
-            : "This can stay simple while things recover.";
+            ? "Refresh or sign in again."
+            : "Please try again.";
 
   return {
     tone: "calm",

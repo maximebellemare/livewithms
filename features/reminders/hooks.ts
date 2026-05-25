@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  cancelCareRemindersByPrefix,
   cancelScheduledReminder,
   getReminderPermissionStatus,
   isNotificationsAvailable,
@@ -51,6 +52,11 @@ function toReminderSettings(state: ReminderState): ReminderSettings {
     minute: state.minute,
     permissionStatus: state.permissionStatus,
     notificationId: state.notificationId,
+    medicationRemindersEnabled: state.medicationRemindersEnabled,
+    appointmentRemindersEnabled: state.appointmentRemindersEnabled,
+    appointmentReminderOneDay: state.appointmentReminderOneDay,
+    appointmentReminderOneHour: state.appointmentReminderOneHour,
+    quietReminders: state.quietReminders,
   };
 }
 
@@ -296,6 +302,44 @@ export function useReminderSettings() {
     }
   }, [attentionReminderSilenced, overloadProtectedReminder, reminderPressure, state]);
 
+  const updateNotificationPreference = useCallback(
+    async (
+      updates: Partial<
+        Pick<
+          ReminderSettings,
+          | "medicationRemindersEnabled"
+          | "appointmentRemindersEnabled"
+          | "appointmentReminderOneDay"
+          | "appointmentReminderOneHour"
+          | "quietReminders"
+        >
+      >,
+    ) => {
+      setState((current) => ({ ...current, isSaving: true }));
+
+      const nextSettings: ReminderSettings = {
+        ...toReminderSettings(state),
+        ...updates,
+      };
+
+      if (updates.medicationRemindersEnabled === false) {
+        await cancelCareRemindersByPrefix("medication.");
+      }
+
+      if (updates.appointmentRemindersEnabled === false) {
+        await cancelCareRemindersByPrefix("appointment.");
+      }
+
+      await persistSettings(nextSettings);
+      setState((current) => ({
+        ...current,
+        ...nextSettings,
+        isSaving: false,
+      }));
+    },
+    [state],
+  );
+
   const disableReminders = useCallback(async () => {
     setState((current) => ({ ...current, isSaving: true }));
 
@@ -401,6 +445,7 @@ export function useReminderSettings() {
     enableReminders,
     disableReminders,
     updateTime,
+    updateNotificationPreference,
     refresh,
     adaptiveReminderTone: overloadProtectedReminder.tone,
     adaptiveReminderCadence: overloadProtectedReminder.cadence,

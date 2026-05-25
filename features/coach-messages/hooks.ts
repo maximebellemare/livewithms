@@ -2,6 +2,23 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { coachMessagesApi } from "./api";
 import type { CoachChatMessage, SendCoachMessageInput } from "./types";
 
+export function mergeCoachMessages(
+  existing: CoachChatMessage[] | undefined,
+  nextMessages: CoachChatMessage[],
+) {
+  const merged = [...(existing ?? [])];
+  const knownIds = new Set(merged.map((message) => message.id));
+
+  for (const message of nextMessages) {
+    if (!knownIds.has(message.id)) {
+      merged.push(message);
+      knownIds.add(message.id);
+    }
+  }
+
+  return merged;
+}
+
 export function useCoachMessages(userId?: string) {
   return useQuery({
     queryKey: ["coach-messages", userId],
@@ -34,7 +51,7 @@ export function useSendCoachMessage(userId?: string) {
 
       queryClient.setQueryData<CoachChatMessage[]>(
         ["coach-messages", userId],
-        (existing) => [...(existing ?? []), data.userMessage, data.assistantMessage],
+        (existing) => mergeCoachMessages(existing, [data.userMessage, data.assistantMessage]),
       );
     },
   });

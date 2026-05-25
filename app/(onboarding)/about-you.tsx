@@ -21,7 +21,7 @@ export default function AboutYouScreen() {
     });
 
     if (!ok) {
-      setErrorMessage("That step did not save just yet. Please try again in a moment.");
+      setErrorMessage("Could not save profile. Please try again.");
       return;
     }
 

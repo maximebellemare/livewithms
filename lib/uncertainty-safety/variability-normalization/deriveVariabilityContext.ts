@@ -15,7 +15,7 @@ export function deriveVariabilityContext(entries: LongitudinalEntry[]): Variabil
   if (entries.length < UNCERTAINTY_SAFETY_DEFAULTS.sparseEntryCount) {
     return {
       level: "low",
-      summary: "Short stretches can look more changeable than they really are.",
+      summary: "A few days of data may not reflect longer-term patterns yet.",
     };
   }
 
@@ -28,20 +28,19 @@ export function deriveVariabilityContext(entries: LongitudinalEntry[]): Variabil
   if (composite >= UNCERTAINTY_SAFETY_DEFAULTS.variabilityDeltaThreshold * 1.8) {
     return {
       level: "high",
-      summary: "Some periods naturally feel more variable, and short stretches do not always point to a larger change.",
+      summary: "Short-term trends can fluctuate day to day.",
     };
   }
 
   if (composite >= UNCERTAINTY_SAFETY_DEFAULTS.variabilityDeltaThreshold) {
     return {
       level: "moderate",
-      summary: "Energy, mood, and clarity can shift from day to day without forming a single clear pattern.",
+      summary: "Recent entries are changing day to day, so this is not a clear pattern yet.",
     };
   }
 
   return {
     level: "low",
-    summary: "A steadier stretch can still include fluctuation from one day to the next.",
+    summary: "This stretch looks fairly steady overall.",
   };
 }
-

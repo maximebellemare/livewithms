@@ -22,7 +22,7 @@ export default function CompleteScreen() {
 
     const ok = await completeOnboarding();
     if (!ok) {
-      setErrorMessage("We could not finish this step just yet. Please try again.");
+      setErrorMessage("Could not save profile. Please try again.");
       return;
     }
 
@@ -33,7 +33,7 @@ export default function CompleteScreen() {
   return (
     <OnboardingScaffold
       title="Start with today."
-      subtitle="A simple check-in helps the app begin building your patterns gently."
+      subtitle="A simple check-in helps the app start building useful patterns."
       step={7}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
@@ -54,7 +54,7 @@ export default function CompleteScreen() {
           <AppText style={styles.infoTitle}>What happens next</AppText>
           <AppText style={styles.infoBody}>You’ll land in Today for your first check-in.</AppText>
           <AppText style={styles.infoBody}>{guidance.nextSecondary}</AppText>
-          <AppText style={styles.infoBody}>The first few check-ins help Insights start to feel clearer over time.</AppText>
+          <AppText style={styles.infoBody}>The first few check-ins help Insights start showing clearer patterns.</AppText>
           <AppText style={styles.infoBody}>{positioning.onboardingCompletionLine}</AppText>
           <AppText style={styles.infoBody}>AI support stays optional and is meant for reflection, not diagnosis, treatment, or emergency care.</AppText>
           <AppText style={styles.infoBody}>{premiumPositioning.onboardingBody}</AppText>

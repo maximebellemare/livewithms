@@ -43,50 +43,50 @@ export function buildAdaptiveProfile(
     engagementPattern = "gentle-reengagement";
   }
 
-  let homeMoment = "Small patterns are becoming clearer.";
+  let homeMoment = "Recent check-ins are starting to show useful patterns.";
   let suggestedProgram: AdaptiveProfile["suggestedProgram"] = null;
   let secondarySuggestedProgram: AdaptiveProfile["secondarySuggestedProgram"] = null;
-  let simplificationTitle = "Keep things simple";
-  let simplificationBody = "A few basics may be enough today. You can skip anything that feels like too much.";
+  let simplificationTitle = "Keep today simple";
+  let simplificationBody = "Focus on the basics and reduce extra decisions.";
   const lowEnergyMode =
     fatigueTrend === "high" ||
     brainFogTrend === "high" ||
     (stressTrend === "elevated" && sleepTrend === "low");
 
   if (stressTrend === "elevated") {
-    homeMoment = "Stress has felt a little steadier to watch this week.";
+    homeMoment = "Stress has been one of the stronger recent signals.";
     suggestedProgram = "breathing-reset";
     secondarySuggestedProgram = "hard-moment-reflection";
     simplificationTitle = "Reduce pressure where you can";
-    simplificationBody = "A calmer pace, fewer decisions, and one short reset may help the day feel less loaded.";
+    simplificationBody = "Reduce decisions and narrow the next step.";
   } else if (sleepTrend === "low") {
-    homeMoment = "Sleep has looked lighter lately, so a gentler pace may help.";
+    homeMoment = "Sleep has been lower recently.";
     suggestedProgram = "body-scan";
     secondarySuggestedProgram = "low-energy-checklist";
     simplificationTitle = "Lower the bar for today";
-    simplificationBody = "Lighter sleep can make everything feel louder. The basics may be enough today.";
+    simplificationBody = "Lower sleep can make the day harder. Focus on the basics.";
   } else if (fatigueTrend === "high") {
-    homeMoment = "Your energy has seemed lower lately, which is worth keeping in mind today.";
+    homeMoment = "Fatigue has been higher recently.";
     suggestedProgram = "low-energy-checklist";
     secondarySuggestedProgram = "body-scan";
     simplificationTitle = "Protect your energy";
-    simplificationBody = "Try to keep steps shorter, choices fewer, and expectations gentler while your energy is lower.";
+    simplificationBody = "Keep steps shorter and reduce extra demands.";
   } else if (brainFogTrend === "high") {
-    homeMoment = "Brain fog may be shaping this stretch more than usual.";
+    homeMoment = "Brain fog has been more noticeable recently.";
     suggestedProgram = "one-priority-planner";
     secondarySuggestedProgram = "low-energy-checklist";
     simplificationTitle = "Keep decisions lighter";
-    simplificationBody = "When thinking feels slower or foggier, one priority and simpler choices may help the day feel steadier.";
+    simplificationBody = "Choose one priority and simplify the rest.";
   } else if (engagementPattern === "steady") {
-    homeMoment = "You’ve been checking in consistently, and that is helping patterns take shape.";
+    homeMoment = "Regular check-ins are making patterns easier to review.";
     suggestedProgram = "one-priority-planner";
     secondarySuggestedProgram = "hard-moment-reflection";
   } else if (reflectionCount >= 2) {
-    homeMoment = "Your reflections are adding more shape to what this week has felt like.";
+    homeMoment = "Recent reflections are adding more context to this week.";
     suggestedProgram = "hard-moment-reflection";
     secondarySuggestedProgram = "breathing-reset";
   } else if (engagementPattern === "gentle-reengagement") {
-    homeMoment = "Even a small return today can make the picture feel clearer again.";
+    homeMoment = "A new check-in can add more context.";
     suggestedProgram = "breathing-reset";
     secondarySuggestedProgram = "one-priority-planner";
   }

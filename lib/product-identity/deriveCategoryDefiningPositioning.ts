@@ -16,11 +16,11 @@ export function deriveCategoryDefiningPositioning(): CategoryDefiningPositioning
     appStoreSubtitle:
       "Calm support for difficult days, lower-energy periods, and steadier routines with MS.",
     onboardingSubtitle:
-      "A calmer support environment for noticing patterns, reducing overwhelm, and getting through difficult days with less pressure.",
+      "A support environment for noticing patterns, reducing overwhelm, and getting through difficult days with less pressure.",
     onboardingPrivacyLine:
-      "A few optional details help the app stay calmer, lighter, and more relevant without asking you to track more than feels useful.",
+      "A few optional details help the app stay relevant without asking you to track more than feels useful.",
     onboardingCompletionLine:
-      "The first few check-ins help the app become steadier and easier to use over time, without turning it into a high-pressure tracking system.",
+      "The first few check-ins help the app show clearer patterns over time, without turning it into a high-pressure tracking system.",
     termsSubtitle:
       "Use LiveWithMS as a calm support tool for living with MS, not a substitute for medical care.",
     identitySummary:

@@ -41,7 +41,7 @@ export type PremiumCareExportContent = {
   text: string;
 };
 
-const FALLBACK_MESSAGE = "More gentle patterns may appear over time.";
+const FALLBACK_MESSAGE = "More check-ins may help reveal clearer patterns over time.";
 
 function average(values: Array<number | null | undefined>) {
   const valid = values.filter((value): value is number => typeof value === "number");
@@ -99,13 +99,13 @@ function describeContinuity(entries: DailyCheckIn[], window: PremiumCareWindow) 
 
   if (reflections >= (window === "weekly" ? 2 : 4)) {
     return window === "weekly"
-      ? "A few reflections added a little more context to this week."
-      : "Your check-ins and reflections have gradually built more context over the month.";
+      ? "Recent reflections add more context to this week."
+      : "Recent reflections add more context to this month.";
   }
 
   return window === "weekly"
-    ? "This week has a little more context now."
-    : "Your check-ins have gradually built more context over time.";
+    ? "This week has enough context for a short summary."
+    : "These check-ins provide enough context for a monthly summary.";
 }
 
 function buildMedicationOverview(
@@ -330,7 +330,7 @@ function buildCareWindowSummary(input: {
       patternsWorthNoticing: [],
       thingsThatSeemedSteadier: [],
       whatMayHelpNext: [],
-      continuitySummary: window === "weekly" ? "A few more check-ins can make this week easier to read." : "A little more time can help this month feel clearer.",
+      continuitySummary: window === "weekly" ? "A few more check-ins may make this week easier to read." : "A few more check-ins may make this month easier to read.",
       helpfulContextForAppointments: [],
       medicationConsistencyOverview: buildMedicationOverview(medications, lowEnergyMode),
       symptomContextSummary: [],
@@ -347,21 +347,21 @@ function buildCareWindowSummary(input: {
 
   if (currentFatigue !== null && currentFatigue >= 4) {
     atAGlanceParts.push(window === "weekly" ? "Fatigue appeared somewhat heavier this week." : "Fatigue appeared somewhat heavier this month.");
-    whatMayHelpNext.push("A simpler day structure may feel easier right now.");
+    whatMayHelpNext.push("A simpler day structure may help right now.");
   } else if (currentFatigue !== null && currentFatigue <= 2.7) {
     atAGlanceParts.push(window === "weekly" ? "Energy has looked a little steadier this week." : "Energy has had a steadier feel this month.");
   }
 
   if (currentStress !== null && currentStress >= 4) {
     atAGlanceParts.push(window === "weekly" ? "Stress seemed a little heavier this week." : "Stress levels varied across the past few weeks.");
-    whatMayHelpNext.push("A little more space around plans may help next week.");
+    whatMayHelpNext.push("More space around plans may help next week.");
   } else if (currentStress !== null && currentStress <= 2.6) {
     steadier.push("Stress has looked a little lighter on some recent days.");
   }
 
   if (currentSleep !== null && currentSleep < 6.5) {
     patterns.push("Sleep has been somewhat inconsistent recently.");
-    whatMayHelpNext.push("A calmer evening rhythm may be worth noticing.");
+    whatMayHelpNext.push("A steadier evening rhythm may help if sleep has been short.");
   }
 
   if (
@@ -409,16 +409,16 @@ function buildCareWindowSummary(input: {
   if (!patterns.length) {
     patterns.push(
       window === "weekly"
-        ? "A few small patterns are starting to take shape."
-        : "A broader pattern is starting to feel a little easier to notice.",
+        ? "This pattern is still early."
+        : "A broader pattern is starting to show up.",
     );
   }
 
   if (!steadier.length) {
     steadier.push(
       window === "weekly"
-        ? "Even this week, a steadier moment or two may still be part of the picture."
-        : "Even in a mixed month, steadier moments can still be part of the picture.",
+        ? "This week still included a few steadier moments."
+        : "This month still included a few steadier moments.",
     );
   }
 
@@ -426,7 +426,7 @@ function buildCareWindowSummary(input: {
     whatMayHelpNext.push(
       window === "weekly"
         ? "Keeping the next few days simpler may be enough."
-        : "A gentler rhythm may feel more realistic than trying to do too much at once.",
+        : "A simpler rhythm may be more realistic than trying to do too much at once.",
     );
   }
 
@@ -558,8 +558,8 @@ export function buildPremiumCareExportContent(input: {
       : "LiveWithMS caregiver-friendly summary";
   const subtitle =
     audience === "clinician"
-      ? "A calmer overview of recent patterns, care details, and appointment context."
-      : "A calm, shareable overview for support conversations when explaining everything feels like too much.";
+      ? "An overview of recent patterns, care details, and appointment context."
+      : "A shareable overview for support conversations when details are hard to explain in the moment.";
   const fileName =
     audience === "clinician"
       ? "livewithms-care-summary.pdf"

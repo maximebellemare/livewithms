@@ -8,11 +8,11 @@ export function deriveEmotionallySafeErrors(input: {
   const softened = deriveFailureSoftening(input);
   const title =
     input.category === "offline"
-      ? "Connection is taking a pause"
+      ? "Connection problem"
       : input.category === "auth"
-        ? "This needs a short refresh"
-        : "Something needs a moment";
-  const retryLabel = softened.showRetry ? "Try again gently" : "Okay";
+        ? "Sign-in problem"
+        : "Something went wrong";
+  const retryLabel = softened.showRetry ? "Try again" : "Okay";
 
   return {
     title,

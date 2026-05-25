@@ -10,6 +10,11 @@ export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
   minute: APP_CONFIG.reminders.defaultMinute,
   permissionStatus: "unknown",
   notificationId: null,
+  medicationRemindersEnabled: true,
+  appointmentRemindersEnabled: true,
+  appointmentReminderOneDay: true,
+  appointmentReminderOneHour: true,
+  quietReminders: true,
 };
 
 export async function loadReminderSettings(): Promise<ReminderSettings> {

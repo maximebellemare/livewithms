@@ -65,13 +65,13 @@ export function deriveWeeklyMeaning(entries: DailyCheckIn[]) {
   const suggestions: string[] = [];
 
   if (averageFatigue !== null && averageFatigue >= 4) {
-    observations.push("Fatigue appears a little heavier recently.");
-    suggestions.push("A simpler day structure may feel easier.");
+    observations.push("Fatigue is higher across recent check-ins.");
+    suggestions.push("Reduce decision load on higher-fatigue days.");
   }
 
   if (averageSleep !== null && averageSleep < 6.5 && averageStress !== null && averageStress >= 3.5) {
-    observations.push("Sleep and stress seem connected this week.");
-    suggestions.push("A calmer evening routine may be worth noticing.");
+    observations.push("Lower sleep and higher stress are both present in this range.");
+    suggestions.push("Track whether shorter sleep is followed by higher stress.");
   }
 
   if (averageStress !== null && averageStress >= 4) {
@@ -80,13 +80,13 @@ export function deriveWeeklyMeaning(entries: DailyCheckIn[]) {
   }
 
   if (averageMood !== null && averageMood <= 2.5) {
-    observations.push("Mood has looked a little lower recently.");
-    suggestions.push("Keep the next step small and concrete if that helps.");
+    observations.push("Mood is lower across recent check-ins.");
+    suggestions.push("Look for what changed on lower-mood days.");
   }
 
   if (averageFatigue !== null && averageFatigue <= 2.5 && averageStress !== null && averageStress <= 2.5) {
-    observations.push("This stretch looks a little steadier overall.");
-    suggestions.push("Notice anything simple that seems to support that steadier stretch.");
+    observations.push("Fatigue and stress are both lower in this range.");
+    suggestions.push("Compare these days with higher-fatigue periods.");
   }
 
   if (!observations.length) {

@@ -27,49 +27,49 @@ function getTrendHighlight(trend: TrendSummary) {
 
   if (trend.key === "fatigue") {
     return trend.direction === "up"
-      ? "You may be feeling a little less weighed down lately."
+      ? "Fatigue is lower than the previous range."
       : trend.direction === "down"
-        ? "You may be feeling a bit more tired lately."
-        : "Your fatigue has been fairly steady.";
+        ? "Fatigue is higher than the previous range."
+        : "Fatigue is stable in this range.";
   }
 
   if (trend.key === "mood") {
     return trend.direction === "up"
-      ? "Your mood may be feeling a little steadier this week."
+      ? "Mood is higher than the previous range."
       : trend.direction === "down"
-        ? "Your mood may have been a little lower than usual."
-        : "Your mood has been fairly steady.";
+        ? "Mood is lower than the previous range."
+        : "Mood is stable in this range.";
   }
 
   if (trend.key === "stress") {
     return trend.direction === "up"
-      ? "Stress may be feeling a little lighter lately."
+      ? "Stress is lower than the previous range."
       : trend.direction === "down"
-        ? "Stress may have felt a little more noticeable lately."
-        : "Your stress has been fairly steady.";
+        ? "Stress is higher than the previous range."
+        : "Stress is stable in this range.";
   }
 
   if (trend.key === "pain") {
     return trend.direction === "up"
-      ? "Pain may have felt a little lighter lately."
+      ? "Pain is lower than the previous range."
       : trend.direction === "down"
-        ? "Pain may have been a little more noticeable lately."
-        : "Your pain has been fairly steady.";
+        ? "Pain is higher than the previous range."
+        : "Pain is stable in this range.";
   }
 
   if (trend.key === "brain_fog") {
     return trend.direction === "up"
-      ? "Brain fog may have felt a little lighter lately."
+      ? "Brain fog is lower than the previous range."
       : trend.direction === "down"
-        ? "Brain fog may have been a little more noticeable lately."
-        : "Your brain fog has been fairly steady.";
+        ? "Brain fog is higher than the previous range."
+        : "Brain fog is stable in this range.";
   }
 
   return trend.direction === "up"
-    ? "You seem to be getting a little more rest this week."
+    ? "Sleep is higher than the previous range."
     : trend.direction === "down"
-      ? "Your sleep may have been a little lighter than usual."
-      : "Your sleep has been fairly steady.";
+      ? "Sleep is lower than the previous range."
+      : "Sleep is stable in this range.";
 }
 
 function getTrendSuggestion(trend: TrendSummary) {
@@ -79,37 +79,37 @@ function getTrendSuggestion(trend: TrendSummary) {
 
   if (trend.key === "fatigue") {
     return trend.direction === "down"
-      ? "A lighter plan or steadier breaks may help on heavier days."
-      : "Keep noticing what helps you feel more steady.";
+      ? "Reduce decision load on higher-fatigue days."
+      : "Compare lower-fatigue days with heavier periods.";
   }
 
   if (trend.key === "mood") {
     return trend.direction === "down"
-      ? "A small supportive routine may help on lower days."
-      : "Keep leaning into what helps you feel more grounded.";
+      ? "Look for what changed on lower-mood days."
+      : "Compare higher-mood days with lower periods.";
   }
 
   if (trend.key === "stress") {
     return trend.direction === "down"
-      ? "A short reset may help when stress starts to build."
-      : "Keep noticing what helps your day feel a little lighter.";
+      ? "Track what tends to happen before higher-stress days."
+      : "Compare lower-stress days with heavier periods.";
   }
 
   if (trend.key === "pain") {
     return trend.direction === "down"
-      ? "A gentler pace may help when pain feels more present."
-      : "Keep noticing what seems to help your body feel a little more comfortable.";
+      ? "Track what tends to happen before higher-pain days."
+      : "Compare lower-pain days with heavier periods.";
   }
 
   if (trend.key === "brain_fog") {
     return trend.direction === "down"
-      ? "A simpler plan may help on foggier days."
-      : "Keep noticing what helps your thinking feel a little clearer.";
+      ? "Reduce task switching on higher brain-fog days."
+      : "Compare clearer days with foggier periods.";
   }
 
   return trend.direction === "down"
-    ? "A calmer wind-down may help you settle a little more easily."
-    : "Keep noticing the habits that support better rest.";
+    ? "Track whether lower sleep is followed by higher fatigue."
+    : "Compare higher-sleep days with lower-sleep periods.";
 }
 
 export default function TrendSummaryCard({ trend }: TrendSummaryCardProps) {
@@ -135,7 +135,7 @@ export default function TrendSummaryCard({ trend }: TrendSummaryCardProps) {
       <Pressable onPress={() => setExpanded((current) => !current)} style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}>
         <View style={styles.headerText}>
           <AppText style={styles.title}>{trend.label}</AppText>
-          <AppText style={styles.contextText}>A quiet look at your recent entries</AppText>
+          <AppText style={styles.contextText}>Recent average and direction</AppText>
           <AppText style={styles.badge}>{getDirectionLabel(trend.direction)}</AppText>
         </View>
         <View style={styles.values}>

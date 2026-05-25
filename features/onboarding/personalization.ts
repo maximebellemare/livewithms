@@ -30,7 +30,7 @@ export const ONBOARDING_FOCUS_OPTIONS: Array<{
 }> = [
   {
     key: "stress-support",
-    title: "Feel a little calmer",
+    title: "Reduce overwhelm",
     body: "Use short resets and steadier support on heavier days.",
     goalValue: "Stress Support",
   },
@@ -49,7 +49,7 @@ export const ONBOARDING_FOCUS_OPTIONS: Array<{
   {
     key: "reflection-support",
     title: "Understand how I’m doing",
-    body: "Use reflection and patterns to make harder stretches feel clearer.",
+    body: "Use reflection and patterns to make harder stretches easier to understand.",
     goalValue: "Reflection Support",
   },
 ];
@@ -120,17 +120,17 @@ export const ONBOARDING_SUPPORT_STYLE_OPTIONS: Array<{
   {
     key: "short-simple",
     title: "Short and simple",
-    body: "Keep things lighter, clearer, and easier to scan.",
+    body: "Keep screens brief, clear, and easy to scan.",
   },
   {
     key: "gentle-reflective",
     title: "Gentle and reflective",
-    body: "Leave a little more room for calm reflection.",
+    body: "Leave more room for reflection and less for structure.",
   },
   {
     key: "practical-structured",
     title: "Practical and structured",
-    body: "Focus on steadier next steps without making things feel crowded.",
+    body: "Focus on clear next steps without making things feel crowded.",
   },
   {
     key: "low-energy",
@@ -301,16 +301,16 @@ export function getPersonalizedOnboardingGuidance(draft: OnboardingDraft) {
   if (supportStyle === "low-energy" || hasPriority("low-energy-days")) {
     return {
       title: "Start with a lighter version of today",
-      body: "Your first check-in can stay small. From there, the app can keep things calmer and easier to scan on heavier days.",
+      body: "Your first check-in can stay short. Low Energy Mode can simplify the app on heavier days.",
       nextPrimary: "Start with Today",
-      nextSecondary: "Let the first step stay small",
+      nextSecondary: "Start with a short check-in",
     };
   }
 
   if (hasPriority("fatigue") || hasPriority("sleep") || hasPriority("brain-fog")) {
     return {
       title: "Start with steadier pacing",
-      body: "A simple check-in is enough to begin. You do not need to track everything to make the app useful.",
+      body: "A simple check-in is enough to begin. You do not need to track everything at once.",
       nextPrimary: "Start with Today",
       nextSecondary: "Keep the next step simple if energy is limited",
     };
@@ -319,34 +319,34 @@ export function getPersonalizedOnboardingGuidance(draft: OnboardingDraft) {
   if (hasPriority("stress") || hasPriority("mood") || hasPriority("emotional-overwhelm")) {
     return {
       title: "Start with a steadier moment",
-      body: "A short check-in can make difficult days feel a little less crowded without turning this into more work.",
+      body: "A short check-in can help sort out what today feels like without adding much work.",
       nextPrimary: "Start with Today",
-      nextSecondary: "Notice what today feels like without pressure to explain everything",
+      nextSecondary: "Note what stands out today",
     };
   }
 
   if (hasPriority("care-organization")) {
     return {
-      title: "Start by making life easier to hold",
-      body: "A check-in can help the app become more useful, and Care can keep important details in one calmer place when you need them.",
+      title: "Start by keeping details in one place",
+      body: "A check-in helps the app become more useful, and Care keeps appointments, notes, and medications together.",
       nextPrimary: "Start with Today",
-      nextSecondary: "Use Care when you want one quieter place for details",
+      nextSecondary: "Use Care when you want one place for details",
     };
   }
 
   if (supportStyle === "gentle-reflective") {
     return {
       title: "Start with one honest check-in",
-      body: "A simple check-in now can make reflection feel gentler later, without asking you to process everything at once.",
+      body: "A simple check-in now gives reflection more context later without asking you to write much today.",
       nextPrimary: "Start with Today",
-      nextSecondary: "Let reflection stay light for now",
+      nextSecondary: "Keep the first check-in brief",
     };
   }
 
   return {
     title: "Start with one simple check-in",
-    body: "A gentle first check-in is enough to help the app begin building patterns without making the day feel heavier.",
+    body: "A first check-in is enough to help the app begin building patterns.",
     nextPrimary: "Start with Today",
-    nextSecondary: "Let the next step stay small",
+    nextSecondary: "Start with one short check-in",
   };
 }

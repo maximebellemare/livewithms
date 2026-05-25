@@ -219,15 +219,94 @@ type CoachMessagesTable = {
   Relationships: [];
 };
 
+type PremiumOverridesTable = {
+  Row: {
+    id: string;
+    user_id: string | null;
+    email: string | null;
+    active: boolean;
+    expires_at: string | null;
+    note: string | null;
+    created_at: string;
+  };
+  Insert: {
+    id?: string;
+    user_id?: string | null;
+    email?: string | null;
+    active?: boolean;
+    expires_at?: string | null;
+    note?: string | null;
+    created_at?: string;
+  };
+  Update: {
+    id?: string;
+    user_id?: string | null;
+    email?: string | null;
+    active?: boolean;
+    expires_at?: string | null;
+    note?: string | null;
+    created_at?: string;
+  };
+  Relationships: [];
+};
+
+type ProfilesTable = {
+  Row: {
+    user_id: string;
+    username: string | null;
+    display_name: string | null;
+    onboarding_completed: boolean;
+    ms_type: string | null;
+    year_diagnosed: string | null;
+    symptoms: string[];
+    goals: string[];
+    country: string | null;
+    age_range: string | null;
+    created_at: string;
+    updated_at: string;
+  };
+  Insert: {
+    user_id: string;
+    username?: string | null;
+    display_name?: string | null;
+    onboarding_completed?: boolean;
+    ms_type?: string | null;
+    year_diagnosed?: string | null;
+    symptoms?: string[];
+    goals?: string[];
+    country?: string | null;
+    age_range?: string | null;
+    created_at?: string;
+    updated_at?: string;
+  };
+  Update: {
+    user_id?: string;
+    username?: string | null;
+    display_name?: string | null;
+    onboarding_completed?: boolean;
+    ms_type?: string | null;
+    year_diagnosed?: string | null;
+    symptoms?: string[];
+    goals?: string[];
+    country?: string | null;
+    age_range?: string | null;
+    created_at?: string;
+    updated_at?: string;
+  };
+  Relationships: [];
+};
+
 export type Database = Omit<GeneratedDatabase, "public"> & {
   public: Omit<GeneratedDatabase["public"], "Tables"> & {
-    Tables: GeneratedDatabase["public"]["Tables"] & {
+    Tables: Omit<GeneratedDatabase["public"]["Tables"], "profiles"> & {
+      profiles: ProfilesTable;
       daily_checkins: DailyCheckInsTable;
       appointments: AppointmentsTable;
       medications: MedicationsTable;
       care_notes: CareNotesTable;
       coach_plans: CoachPlansTable;
       coach_messages: CoachMessagesTable;
+      premium_overrides: PremiumOverridesTable;
     };
   };
 };

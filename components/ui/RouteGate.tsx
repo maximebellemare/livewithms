@@ -1,11 +1,8 @@
 import { PropsWithChildren, useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter, useSegments } from "expo-router";
-import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../features/auth/hooks";
 import { useMyProfile } from "../../features/profile/hooks";
-import { getErrorMessage, normalizeError } from "../../lib/errors";
 import { logger } from "../../lib/logger";
-import ErrorState from "./ErrorState";
 import LoadingState from "./LoadingState";
 import { getAllowedPath, type RouteGateMode } from "./route-gate-logic";
 
@@ -17,7 +14,6 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
   const router = useRouter();
   const pathname = usePathname();
   const segments = useSegments();
-  const queryClient = useQueryClient();
   const { isReady, isAuthenticated, session, user } = useAuth();
   const redirectInFlightRef = useRef<string | null>(null);
   const shouldLoadProfile = isReady && isAuthenticated && !!user?.id;
@@ -35,12 +31,12 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
 
   const onboardingCompleted = profileQuery.data?.onboarding_completed ?? false;
   const authenticatedTargetPath = useMemo(() => {
-    if (!isAuthenticated || profileQuery.isLoading || profileQuery.isError) {
+    if (!isAuthenticated || profileQuery.isLoading) {
       return null;
     }
 
     return getAllowedPath(mode, onboardingCompleted);
-  }, [isAuthenticated, mode, onboardingCompleted, profileQuery.isError, profileQuery.isLoading]);
+  }, [isAuthenticated, mode, onboardingCompleted, profileQuery.isLoading]);
 
   useEffect(() => {
     if (!isReady) {
@@ -52,7 +48,7 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
     if (!isAuthenticated) {
       targetPath = mode === "app" || mode === "onboarding" ? "/sign-in" : null;
     } else {
-      if (profileQuery.isLoading || profileQuery.isError) {
+      if (profileQuery.isLoading) {
         return;
       }
 
@@ -77,8 +73,6 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
     isReady,
     mode,
     pathname,
-    profileQuery.error,
-    profileQuery.isError,
     profileQuery.isLoading,
     router,
     session,
@@ -99,16 +93,6 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
 
   if (profileQuery.isLoading) {
     return <LoadingState message="Loading profile..." />;
-  }
-
-  if (profileQuery.isError) {
-    const normalizedError = normalizeError(profileQuery.error);
-    return (
-      <ErrorState
-        message={normalizedError.message}
-        onRetry={() => void queryClient.invalidateQueries({ queryKey: ["profile", user?.id] })}
-      />
-    );
   }
 
   if (authenticatedTargetPath && pathname !== authenticatedTargetPath) {

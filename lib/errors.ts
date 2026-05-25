@@ -107,6 +107,21 @@ function getFriendlyMessage(message: string, code?: string) {
   }
 
   if (
+    normalizedMessage.includes("username is already taken") ||
+    (normalizedCode === "23505" && normalizedMessage.includes("username"))
+  ) {
+    return "That username is already taken.";
+  }
+
+  if (normalizedMessage.includes("use 3–20 letters") || normalizedMessage.includes("use 3-20 letters")) {
+    return "Use 3–20 letters, numbers, or underscores.";
+  }
+
+  if (normalizedMessage.includes("could not save profile") || normalizedMessage.includes("profile could not be updated")) {
+    return "Could not save profile. Please try again.";
+  }
+
+  if (
     normalizedMessage.includes("network request failed") ||
     normalizedMessage.includes("failed to fetch") ||
     normalizedMessage.includes("network") ||

@@ -35,7 +35,7 @@ export default function ReminderPreferenceScreen() {
         const result = await reminders.enableReminders();
 
         if (!result.ok) {
-          setErrorMessage("Reminders can stay off for now. You can turn them on later in Profile if you want to.");
+          setErrorMessage("Reminders were not turned on. You can update this later in Profile.");
         }
       } else if (reminders.enabled) {
         await reminders.disableReminders();
@@ -50,7 +50,7 @@ export default function ReminderPreferenceScreen() {
   return (
     <OnboardingScaffold
       title="Reminders, only if they help."
-      subtitle="You can use gentle check-in reminders, or skip them completely."
+      subtitle="Set a daily reminder, or leave reminders off."
       step={6}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
@@ -68,8 +68,8 @@ export default function ReminderPreferenceScreen() {
             pressed && styles.optionCardPressed,
           ]}
         >
-          <AppText style={styles.optionTitle}>Enable gentle reminders</AppText>
-          <AppText style={styles.optionBody}>A small daily nudge can be there when it feels useful.</AppText>
+          <AppText style={styles.optionTitle}>Enable reminders</AppText>
+          <AppText style={styles.optionBody}>Set a gentle daily check-in reminder.</AppText>
         </Pressable>
 
         <Pressable
@@ -81,7 +81,7 @@ export default function ReminderPreferenceScreen() {
           ]}
         >
           <AppText style={styles.optionTitle}>Not now</AppText>
-          <AppText style={styles.optionBody}>You can skip reminders completely and still use the app normally.</AppText>
+          <AppText style={styles.optionBody}>Leave reminders off and use the app on your own schedule.</AppText>
         </Pressable>
       </View>
     </OnboardingScaffold>

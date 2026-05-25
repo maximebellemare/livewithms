@@ -88,23 +88,18 @@ function getMoodTone(value: number | null) {
 type CheckInHistoryRowProps = {
   item: DailyCheckIn;
   selected: boolean;
-  activeFilter: "all" | "fatigue" | "mood" | "stress" | "sleep";
   onPress: () => void;
 };
 
 function CheckInHistoryRow({
   item,
   selected,
-  activeFilter,
   onPress,
 }: CheckInHistoryRowProps) {
   const fatigueTone = getFatigueTone(item.fatigue);
   const moodTone = getMoodTone(item.mood);
   const stressTone = getFatigueTone(item.stress);
   const sleepTone = getMoodTone(item.sleep_hours);
-
-  const isMetricHighlighted = (metric: "fatigue" | "mood" | "stress" | "sleep") =>
-    activeFilter === "all" || activeFilter === metric;
 
   return (
     <Pressable
@@ -122,7 +117,6 @@ function CheckInHistoryRow({
           <View
             style={[
               styles.metricPill,
-              isMetricHighlighted("fatigue") && styles.metricPillActive,
               {
                 backgroundColor: fatigueTone.backgroundColor,
                 borderColor: fatigueTone.borderColor,
@@ -136,7 +130,6 @@ function CheckInHistoryRow({
           <View
             style={[
               styles.metricPill,
-              isMetricHighlighted("mood") && styles.metricPillActive,
               {
                 backgroundColor: moodTone.backgroundColor,
                 borderColor: moodTone.borderColor,
@@ -150,7 +143,6 @@ function CheckInHistoryRow({
           <View
             style={[
               styles.metricPill,
-              isMetricHighlighted("stress") && styles.metricPillActive,
               {
                 backgroundColor: stressTone.backgroundColor,
                 borderColor: stressTone.borderColor,
@@ -164,7 +156,6 @@ function CheckInHistoryRow({
           <View
             style={[
               styles.metricPill,
-              isMetricHighlighted("sleep") && styles.metricPillActive,
               {
                 backgroundColor: sleepTone.backgroundColor,
                 borderColor: sleepTone.borderColor,
@@ -189,7 +180,6 @@ function CheckInHistoryRow({
 export default memo(CheckInHistoryRow, (prev, next) => {
   return (
     prev.selected === next.selected &&
-    prev.activeFilter === next.activeFilter &&
     prev.item.id === next.item.id &&
     prev.item.updated_at === next.item.updated_at &&
     prev.item.notes === next.item.notes &&

@@ -7,7 +7,11 @@
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.livewithms.app",
-      "buildNumber": "54"
+      "buildNumber": "55",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "LiveWithMS uses voice input so you can speak instead of typing.",
+        "NSSpeechRecognitionUsageDescription": "LiveWithMS uses voice input so you can speak instead of typing."
+      }
     },
     "android": {
       "package": "com.livewithms.app"
@@ -18,7 +22,14 @@
       }
     },
     "plugins": [
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "LiveWithMS uses voice input so you can speak instead of typing.",
+          "speechRecognitionPermission": "LiveWithMS uses voice input so you can speak instead of typing."
+        }
+      ]
     ]
   }
 }

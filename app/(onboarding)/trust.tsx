@@ -5,7 +5,7 @@ import AppText from "../../components/ui/AppText";
 import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
 
 const BOUNDARY_LINES = [
-  "AI in LiveWithMS is here to summarize, reflect, and support gently.",
+  "AI in LiveWithMS can summarize, reflect, and help organize thoughts.",
   "It does not diagnose, treat, or replace medical or mental health care.",
   "It is not for emergencies or crisis care.",
 ];
@@ -16,7 +16,7 @@ export default function TrustScreen() {
   return (
     <OnboardingScaffold
       title="AI support, with boundaries."
-      subtitle="Support here stays calm and helpful, without pretending to be care."
+      subtitle="Clear about what AI can do, and what it cannot."
       step={5}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
@@ -25,9 +25,9 @@ export default function TrustScreen() {
     >
       <View style={styles.stack}>
         <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>Clear about what it is, and what it is not.</AppText>
+          <AppText style={styles.heroTitle}>Clear boundaries matter here.</AppText>
           <AppText style={styles.heroBody}>
-            LiveWithMS can help you notice patterns, reflect more clearly, and keep things easier to carry during difficult periods.
+            LiveWithMS can help you notice patterns, reflect more clearly, and organize what is going on.
           </AppText>
         </View>
 

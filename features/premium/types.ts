@@ -1,4 +1,5 @@
 import type { RevenueCatDebugSnapshot } from "../../lib/revenuecat/debug";
+import type { PremiumAccessSource } from "./tester-overrides";
 
 export type PremiumPlan = "monthly" | "yearly";
 
@@ -53,6 +54,8 @@ export type PremiumContextValue = {
   subscriptionsEnabled: boolean;
   status: PremiumStatus;
   hasPremiumAccess: boolean;
+  premiumAccessSource: PremiumAccessSource;
+  revenueCatEntitlementActive: boolean;
   premiumFeatureFlags: PremiumFeatureFlags;
   currentOffering: PremiumOffering | null;
   isLoading: boolean;
@@ -60,6 +63,7 @@ export type PremiumContextValue = {
   isRestoring: boolean;
   offeringsErrorMessage: string | null;
   debugPremiumOverrideActive: boolean;
+  testerPremiumOverrideActive: boolean;
   revenueCatDebugSnapshot: RevenueCatDebugSnapshot;
   purchasePlan: (plan: PremiumPlan) => Promise<PremiumActionResult>;
   restorePurchases: () => Promise<PremiumActionResult>;

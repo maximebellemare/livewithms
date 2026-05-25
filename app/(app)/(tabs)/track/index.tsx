@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import PatternSummaryCard from "../../../../components/insights/PatternSummaryCard";
 import CheckInDetailCard from "../../../../components/track/CheckInDetailCard";
 import CheckInHistoryList from "../../../../components/track/CheckInHistoryList";
 import AppButton from "../../../../components/ui/AppButton";
@@ -12,54 +11,31 @@ import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
 import { useAuth } from "../../../../features/auth/hooks";
 import { useCoachPlan } from "../../../../features/coach-plans/hooks";
-import { getCheckInsInLastDays, getCurrentCheckInStreak } from "../../../../features/checkins/consistency";
-import { deriveGentleContinuityFeedback } from "../../../../features/checkins/continuity-feedback";
 import { useCheckInHistory, useSaveDailyCheckIn } from "../../../../features/checkins/hooks";
 import type { DailyCheckIn, DailyCheckInInput } from "../../../../features/checkins/types";
-import { usePatternSummary } from "../../../../features/insights/hooks";
 import { useLowEnergyMode } from "../../../../features/low-energy-mode/hooks";
-import { buildTrackClaritySnapshot, LIFE_CONTEXT_TAGS } from "../../../../features/track/clarity";
+import { buildTrackClaritySnapshot, LIFE_CONTEXT_TAGS, type TrackClaritySnapshot } from "../../../../features/track/clarity";
 import { getErrorMessage } from "../../../../lib/errors";
 
 const QUERY_LIMIT = 30;
 const VISIBLE_HISTORY_LIMIT = 12;
-type TrackFilter = "all" | "fatigue" | "mood" | "stress" | "sleep";
-const FILTERS: TrackFilter[] = ["all", "fatigue", "mood", "stress", "sleep"];
 
-function average(values: Array<number | null>) {
-  const validValues = values.filter((value): value is number => value !== null);
-  if (!validValues.length) {
-    return null;
+function getPrimaryPattern(snapshot: TrackClaritySnapshot, entryCount: number) {
+  const primary =
+    snapshot.correlations[0] ??
+    snapshot.recentChanges[0] ??
+    snapshot.whatSeemsToHelp[0] ??
+    snapshot.fluctuationNote;
+
+  if (primary) {
+    return primary;
   }
 
-  return validValues.reduce((sum, value) => sum + value, 0) / validValues.length;
-}
-
-function getTrackSummary(entries: Array<{ fatigue: number | null; mood: number | null }>) {
-  const last7 = entries.slice(0, 7);
-  const prior7 = entries.slice(7, 14);
-
-  const averageFatigueLast7 = average(last7.map((entry) => entry.fatigue));
-  const averageFatiguePrior7 = average(prior7.map((entry) => entry.fatigue));
-  const averageMoodLast7 = average(last7.map((entry) => entry.mood));
-
-  if (averageFatigueLast7 !== null && averageFatiguePrior7 !== null) {
-    const difference = averageFatigueLast7 - averageFatiguePrior7;
-
-    if (difference <= -0.35) {
-      return "Last 7 days: fatigue has looked a little lighter.";
-    }
-
-    if (difference >= 0.35) {
-      return "Last 7 days: fatigue has looked a little heavier.";
-    }
+  if (entryCount >= 4) {
+    return "Recent check-ins are ready to review in the timeline.";
   }
 
-  if (averageMoodLast7 !== null && averageMoodLast7 >= 4) {
-    return "Last 7 days: mood has looked a little steadier.";
-  }
-
-  return "Last 7 days: your check-ins are building a clearer picture.";
+  return "More check-ins are needed before patterns are reliable.";
 }
 
 function getDateCountLabel(count: number) {
@@ -102,8 +78,6 @@ export default function TrackScreen() {
   const historyQuery = useCheckInHistory(user?.id, QUERY_LIMIT);
   const saveCheckIn = useSaveDailyCheckIn();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<TrackFilter>("all");
-  const [simplifiedView, setSimplifiedView] = useState(lowEnergyMode.enabled);
   const [showHistory, setShowHistory] = useState(!lowEnergyMode.enabled);
   const [showMonthlyOverview, setShowMonthlyOverview] = useState(false);
 
@@ -113,58 +87,23 @@ export default function TrackScreen() {
     }
   }, [historyQuery.data]);
 
-  const filteredItems = useMemo(() => {
-    const items = historyQuery.data ?? [];
-
-    if (activeFilter === "all") {
-      return items;
-    }
-
-    if (activeFilter === "sleep") {
-      return items.filter((item) => item.sleep_hours !== null);
-    }
-
-    return items.filter((item) => item[activeFilter] !== null);
-  }, [activeFilter, historyQuery.data]);
-
-  const visibleItems = useMemo(() => filteredItems.slice(0, VISIBLE_HISTORY_LIMIT), [filteredItems]);
+  const visibleItems = useMemo(() => (historyQuery.data ?? []).slice(0, VISIBLE_HISTORY_LIMIT), [historyQuery.data]);
   const totalCheckIns = historyQuery.data?.length ?? 0;
-  const overviewEntries = useMemo(
-    () =>
-      (historyQuery.data ?? []).map((entry) => ({
-        date: entry.date,
-        hasReflection: typeof entry.notes === "string" && entry.notes.trim().length > 0,
-      })),
-    [historyQuery.data],
-  );
-  const weeklyCheckIns = useMemo(
-    () => getCheckInsInLastDays(overviewEntries, new Date().toISOString().slice(0, 10), 7),
-    [overviewEntries],
-  );
-  const streak = useMemo(
-    () => getCurrentCheckInStreak(overviewEntries, new Date().toISOString().slice(0, 10)),
-    [overviewEntries],
-  );
-  const continuityFeedback = useMemo(
-    () => deriveGentleContinuityFeedback({ totalCheckIns, weeklyCheckIns, streak }),
-    [streak, totalCheckIns, weeklyCheckIns],
-  );
-
-  const patternSummaryQuery = usePatternSummary(visibleItems, 7);
-  const topSummary = useMemo(() => getTrackSummary(historyQuery.data ?? []), [historyQuery.data]);
   const claritySnapshot = useMemo(
     () => buildTrackClaritySnapshot(historyQuery.data ?? []),
     [historyQuery.data],
   );
+  const primaryPattern = useMemo(
+    () => getPrimaryPattern(claritySnapshot, totalCheckIns),
+    [claritySnapshot, totalCheckIns],
+  );
 
   useEffect(() => {
     if (lowEnergyMode.enabled) {
-      setSimplifiedView(true);
       setShowHistory(false);
       return;
     }
 
-    setSimplifiedView(false);
     setShowHistory(true);
   }, [lowEnergyMode.enabled]);
 
@@ -223,65 +162,10 @@ export default function TrackScreen() {
   }
 
   if (!visibleItems.length) {
-    if ((historyQuery.data?.length ?? 0) > 0) {
-      return (
-        <AppScreen
-          eyebrow="History and patterns"
-          title="Track"
-          subtitle="Look back gently at recent check-ins and what has been shifting."
-        >
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            <View style={styles.heroCard}>
-              <AppText style={styles.heroTitle}>Your check-in history</AppText>
-              <AppText style={styles.heroSubtitle}>
-                Look back gently, notice what changes, and keep building a clearer picture over time.
-              </AppText>
-              <AppText style={styles.heroCount}>{getDateCountLabel(historyQuery.data?.length ?? 0)}</AppText>
-              <AppText style={styles.heroSubtitle}>{continuityFeedback.compact}</AppText>
-            </View>
-
-            <View style={styles.filterRow}>
-              {FILTERS.map((filter) => {
-                const selected = filter === activeFilter;
-                const label =
-                  filter === "all"
-                    ? "All"
-                    : filter === "sleep"
-                      ? "Sleep"
-                      : filter.charAt(0).toUpperCase() + filter.slice(1);
-
-                return (
-                  <Pressable
-                    key={filter}
-                    onPress={() => setActiveFilter(filter)}
-                    style={({ pressed }) => [
-                      styles.filterChip,
-                      selected && styles.filterChipActive,
-                      pressed && styles.filterChipPressed,
-                    ]}
-                  >
-                    <AppText style={[styles.filterChipText, selected && styles.filterChipTextActive]}>
-                      {label}
-                    </AppText>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <EmptyState
-              title="Nothing is showing for this filter just yet"
-              message="Another filter may fit better, or Today may be a clearer starting point."
-              action={<AppButton label="Go to Today" onPress={() => router.push("/today")} />}
-            />
-          </ScrollView>
-        </AppScreen>
-      );
-    }
-
     return (
       <EmptyState
         title="Your check-ins will appear here when you’re ready"
-        message="When you want to begin, one check-in is enough."
+        message="Track will show trends and relationships once check-ins are available."
         action={<AppButton label="Go to Today" onPress={() => router.push("/today")} />}
       />
     );
@@ -291,98 +175,21 @@ export default function TrackScreen() {
     <AppScreen
       eyebrow="History and patterns"
       title="Track"
-      subtitle="Look back gently at recent check-ins and what has been shifting."
+      subtitle="Review changes, relationships, and symptom trends over time."
     >
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>Your check-in history</AppText>
+          <AppText style={styles.heroTitle}>Pattern view</AppText>
           <AppText style={styles.heroSubtitle}>
-            Look back gently, notice what changes, and keep building a clearer picture over time.
+            {primaryPattern}
           </AppText>
           <AppText style={styles.heroCount}>{getDateCountLabel(historyQuery.data?.length ?? 0)}</AppText>
-          <AppText style={styles.heroSubtitle}>{continuityFeedback.compact}</AppText>
         </View>
 
         <View style={styles.sectionCard}>
-          <View style={styles.viewModeRow}>
-            <View style={styles.viewModeCopy}>
-              <AppText style={styles.sectionTitle}>Viewing mode</AppText>
-              <AppText style={styles.sectionHelper}>
-                {simplifiedView
-                  ? "Summaries come first, with deeper details tucked behind."
-                  : "You can move between summaries and the full history here."}
-              </AppText>
-            </View>
-            <Pressable
-              onPress={() => setSimplifiedView((current) => !current)}
-              style={({ pressed }) => [
-                styles.viewModeToggle,
-                simplifiedView && styles.viewModeToggleActive,
-                pressed && styles.filterChipPressed,
-              ]}
-            >
-              <AppText style={[styles.viewModeToggleText, simplifiedView && styles.viewModeToggleTextActive]}>
-                {simplifiedView ? "Simplified" : "Full"}
-              </AppText>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.filterRow}>
-          {FILTERS.map((filter) => {
-            const selected = filter === activeFilter;
-            const label =
-              filter === "all"
-                ? "All"
-                : filter === "sleep"
-                  ? "Sleep"
-                  : filter.charAt(0).toUpperCase() + filter.slice(1);
-
-            return (
-              <Pressable
-                key={filter}
-                onPress={() => setActiveFilter(filter)}
-                style={({ pressed }) => [
-                  styles.filterChip,
-                  selected && styles.filterChipActive,
-                  pressed && styles.filterChipPressed,
-                ]}
-              >
-                <AppText style={[styles.filterChipText, selected && styles.filterChipTextActive]}>
-                  {label}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <View style={styles.sectionCard}>
-          <AppText style={styles.sectionTitle}>Quick links</AppText>
-          <AppText style={styles.sectionHelper}>Move between spaces without losing your place here.</AppText>
-          <View style={styles.navButtons}>
-            <AppButton label="Today" onPress={() => router.push("/today")} variant="secondary" />
-            <AppButton label="Coach" onPress={() => router.push("/coach")} variant="secondary" />
-            <AppButton label="Insights" onPress={() => router.push("/insights")} variant="secondary" />
-          </View>
-        </View>
-
-        <PatternSummaryCard
-          title="Recent patterns"
-          summary={
-            patternSummaryQuery.data?.insight ??
-            "A little more history can help patterns feel clearer here."
-          }
-        />
-
-        <View style={styles.summaryCard}>
-          <AppText style={styles.summaryKicker}>Quick read</AppText>
-          <AppText style={styles.summaryText}>{topSummary}</AppText>
-        </View>
-
-        <View style={styles.sectionCard}>
-          <AppText style={styles.sectionTitle}>What changed recently?</AppText>
+          <AppText style={styles.sectionTitle}>Recent changes</AppText>
           <AppText style={styles.sectionHelper}>
-            A simple comparison of the last 7 days and the week before.
+            Last 7 days compared with the week before.
           </AppText>
           {claritySnapshot.recentChanges.length > 0 ? (
             <View style={styles.insightList}>
@@ -394,13 +201,13 @@ export default function TrackScreen() {
               ))}
             </View>
           ) : (
-            <AppText style={styles.sectionHelper}>Patterns become clearer with a little more time.</AppText>
+            <AppText style={styles.sectionHelper}>Not enough comparison data yet.</AppText>
           )}
         </View>
 
         {claritySnapshot.fluctuationNote ? (
           <View style={styles.summaryCard}>
-            <AppText style={styles.summaryKicker}>A note on fluctuation</AppText>
+            <AppText style={styles.summaryKicker}>Trend stability</AppText>
             <AppText style={styles.summaryBody}>{claritySnapshot.fluctuationNote}</AppText>
           </View>
         ) : null}
@@ -445,12 +252,12 @@ export default function TrackScreen() {
 
         {claritySnapshot.correlations.length > 0 ? (
           <View style={styles.sectionCard}>
-            <AppText style={styles.sectionTitle}>Things that may be connected</AppText>
+            <AppText style={styles.sectionTitle}>Pattern connections</AppText>
             <AppText style={styles.sectionHelper}>
-              These are simple relationships from recent days, not fixed rules.
+              Relationships found across recent check-ins.
             </AppText>
             <View style={styles.insightList}>
-              {claritySnapshot.correlations.slice(0, simplifiedView ? 2 : 3).map((item) => (
+              {claritySnapshot.correlations.slice(0, lowEnergyMode.enabled ? 2 : 3).map((item) => (
                 <View key={item} style={styles.insightRow}>
                   <AppText style={styles.insightBullet}>•</AppText>
                   <AppText style={styles.insightText}>{item}</AppText>
@@ -462,7 +269,7 @@ export default function TrackScreen() {
 
         {claritySnapshot.whatSeemsToHelp.length > 0 ? (
           <View style={styles.summaryCard}>
-            <AppText style={styles.summaryKicker}>What seems to help?</AppText>
+            <AppText style={styles.summaryKicker}>What improved</AppText>
             <View style={styles.insightList}>
               {claritySnapshot.whatSeemsToHelp.map((item) => (
                 <View key={item} style={styles.insightRow}>
@@ -482,18 +289,17 @@ export default function TrackScreen() {
             <View style={styles.expandCopy}>
               <AppText style={styles.sectionTitle}>Recent days</AppText>
               <AppText style={styles.sectionHelper}>
-                Tap any day to open the full details.
+                Timeline of recent check-ins.
               </AppText>
             </View>
             <AppText style={styles.expandLabel}>
-              {showHistory ? "Hide" : simplifiedView ? "Show" : "Open"}
+              {showHistory ? "Hide" : "Show"}
             </AppText>
           </Pressable>
           {showHistory ? (
             <CheckInHistoryList
               items={visibleItems}
               selectedDate={selectedDate}
-              activeFilter={activeFilter}
               onSelectDate={(date) => setSelectedDate((current) => (current === date ? null : date))}
             />
           ) : null}

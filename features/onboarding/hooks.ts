@@ -139,6 +139,7 @@ export function useOnboarding() {
         userId: user.id,
         payload,
       });
+      await profileQuery.refetch();
       await trackEvent("onboarding_completed", {
         userId: user.id,
         focus: getSelectedOnboardingFocus(draft) ?? "unknown",

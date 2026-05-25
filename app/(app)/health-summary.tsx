@@ -4,20 +4,8 @@ import { Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
 import { useAppointments } from "../../features/appointments/hooks";
 import { useAuth } from "../../features/auth/hooks";
 import { useCheckInHistory, useCheckInOverview } from "../../features/checkins/hooks";
-import { useCareNotes } from "../../features/care-notes/hooks";
 import { useMedications } from "../../features/medications/hooks";
 import { useGrowthState } from "../../features/growth/hooks";
-import { canAccessPremiumFeature } from "../../features/premium/entitlements";
-import { usePremium } from "../../features/premium/hooks";
-import {
-  buildPremiumCareExportContent,
-  canAccessPremiumCareSummaries,
-  derivePremiumCareSummaries,
-} from "../../features/reports/premium-care-summaries";
-import {
-  buildPremiumSupportCircleShareContent,
-  derivePremiumSupportCircleSummaries,
-} from "../../features/reports/premium-support-circle";
 import AppButton from "../../components/ui/AppButton";
 import AppScreen from "../../components/ui/AppScreen";
 import AppText from "../../components/ui/AppText";
@@ -25,44 +13,6 @@ import ErrorState from "../../components/ui/ErrorState";
 import LoadingState from "../../components/ui/LoadingState";
 import { exportHealthSummary } from "../../lib/exportHealthSummary";
 import { getErrorMessage } from "../../lib/errors";
-import { buildJourneySnapshot } from "../../lib/journey-design/buildJourneySnapshot";
-import type { LongitudinalEntry } from "../../lib/longitudinal/types";
-import { deriveEnergyCommunication } from "../../lib/support-circle/communication-support/deriveEnergyCommunication";
-import { derivePacingExplanation } from "../../lib/support-circle/communication-support/derivePacingExplanation";
-import { deriveBoundaryProtection } from "../../lib/support-circle/caregiver-safety/deriveBoundaryProtection";
-import { preventCaregiverOverload } from "../../lib/support-circle/caregiver-safety/preventCaregiverOverload";
-import { deriveGranularConsent } from "../../lib/support-circle/consent-governance/deriveGranularConsent";
-import { validateSharingBoundaries } from "../../lib/support-circle/consent-governance/validateSharingBoundaries";
-import { deriveLowPressureSharing } from "../../lib/support-circle/shared-calmness/deriveLowPressureSharing";
-import { preventSurveillanceDynamics } from "../../lib/support-circle/shared-calmness/preventSurveillanceDynamics";
-import { deriveSafeSharedContext } from "../../lib/support-circle/shared-insights/deriveSafeSharedContext";
-import { softenSharedInterpretation } from "../../lib/support-circle/shared-insights/softenSharedInterpretation";
-import { deriveRoleBoundaries } from "../../lib/support-circle/support-roles/deriveRoleBoundaries";
-import { deriveSupportPermissions } from "../../lib/support-circle/support-roles/deriveSupportPermissions";
-import { deriveAppointmentPreparation } from "../../lib/professional-support/appointment-support/deriveAppointmentPreparation";
-import { deriveConversationSupport } from "../../lib/professional-support/appointment-support/deriveConversationSupport";
-import { deriveEmotionallySafeReports } from "../../lib/professional-support/calm-summaries/deriveEmotionallySafeReports";
-import { deriveHealthSummaries } from "../../lib/professional-support/calm-summaries/deriveHealthSummaries";
-import { deriveProfessionalConsent } from "../../lib/professional-support/consent-sharing/deriveProfessionalConsent";
-import { validateSharingControls } from "../../lib/professional-support/consent-sharing/validateSharingControls";
-import { preventFearBasedSummaries } from "../../lib/professional-support/emotional-clinical-safety/preventFearBasedSummaries";
-import { softenClinicalInterpretation } from "../../lib/professional-support/emotional-clinical-safety/softenClinicalInterpretation";
-import { deriveDignityPreservingExports } from "../../lib/professional-support/human-centered-exports/deriveDignityPreservingExports";
-import { preventReductionistScoring } from "../../lib/professional-support/human-centered-exports/preventReductionistScoring";
-import { preserveTherapyBoundaries } from "../../lib/professional-support/therapy-boundaries/preserveTherapyBoundaries";
-import { preventTherapeuticReplacement } from "../../lib/professional-support/therapy-boundaries/preventTherapeuticReplacement";
-import { deriveMeaningfulExports } from "../../lib/legacy-integrity/human-centered-exports/deriveMeaningfulExports";
-import { preserveReflectionOwnership } from "../../lib/legacy-integrity/human-centered-exports/preserveReflectionOwnership";
-import { derivePauseSupport } from "../../lib/legacy-integrity/graceful-pauses/derivePauseSupport";
-import { preserveCalmDisengagement } from "../../lib/legacy-integrity/graceful-pauses/preserveCalmDisengagement";
-import { deriveHealthyDistance } from "../../lib/legacy-integrity/healthy-completion/deriveHealthyDistance";
-import { preventRetentionClinginess } from "../../lib/legacy-integrity/healthy-completion/preventRetentionClinginess";
-import { deriveLongTermArchives } from "../../lib/legacy-integrity/legacy-preservation/deriveLongTermArchives";
-import { preserveContinuitySnapshots } from "../../lib/legacy-integrity/legacy-preservation/preserveContinuitySnapshots";
-import { validateOwnershipTransparency } from "../../lib/legacy-integrity/data-ownership/validateOwnershipTransparency";
-import { deriveDeletionClarity } from "../../lib/legacy-integrity/data-ownership/deriveDeletionClarity";
-import { deriveGentleReturnFlows } from "../../lib/legacy-integrity/calm-reentry/deriveGentleReturnFlows";
-import { preventGuiltReactivation } from "../../lib/legacy-integrity/calm-reentry/preventGuiltReactivation";
 import { useLowEnergyMode } from "../../features/low-energy-mode/hooks";
 
 function getCutoffDate(days: number) {
@@ -99,49 +49,12 @@ function average(values: Array<number | null>) {
   return roundToOneDecimal(validValues.reduce((sum, value) => sum + value, 0) / validValues.length);
 }
 
-function buildTrendCopy(
-  earlier: number | null,
-  later: number | null,
-  config: {
-    label: string;
-    higherIsBetter: boolean;
-    positive: string;
-    negative: string;
-    stable: string;
-  },
-) {
-  if (later === null) {
-    return `There is not enough recent ${config.label.toLowerCase()} data yet.`;
-  }
-
-  if (earlier === null || Math.abs(later - earlier) < 0.35) {
-    return config.stable;
-  }
-
-  const improving = config.higherIsBetter ? later > earlier : later < earlier;
-  return improving ? config.positive : config.negative;
-}
-
 function formatAverage(value: number | null, suffix = "/5") {
   if (value === null) {
     return "—";
   }
 
   return `${value}${suffix}`;
-}
-
-function getNotableChangeLabel(earlier: number | null, later: number | null, higherIsBetter: boolean) {
-  if (earlier === null || later === null) {
-    return "Still taking shape";
-  }
-
-  const difference = later - earlier;
-  if (Math.abs(difference) < 0.35) {
-    return "Mostly steady";
-  }
-
-  const improving = higherIsBetter ? difference > 0 : difference < 0;
-  return improving ? "A little steadier" : "A little heavier";
 }
 
 function getConsistencyLabel(entryCount: number, range: 7 | 30) {
@@ -158,92 +71,112 @@ function getConsistencyLabel(entryCount: number, range: 7 | 30) {
   return "Just getting started";
 }
 
+function describeAverageChange(
+  label: string,
+  current: number | null,
+  previous: number | null,
+  options: { higherIsBetter?: boolean; unit?: string } = {},
+) {
+  if (current === null) {
+    return `${label}: no recent data.`;
+  }
+
+  if (previous === null) {
+    return `${label}: ${formatAverage(current, options.unit ?? "/5")} average this period.`;
+  }
+
+  const difference = roundToOneDecimal(current - previous) ?? 0;
+  if (Math.abs(difference) < 0.35) {
+    return `${label} remained similar to the previous period.`;
+  }
+
+  const direction = difference > 0 ? "increased" : "decreased";
+  return `${label} ${direction} compared with the previous period.`;
+}
+
+function describeHalfChange(
+  label: string,
+  earlier: number | null,
+  later: number | null,
+) {
+  if (earlier === null || later === null) {
+    return null;
+  }
+
+  const difference = later - earlier;
+  if (Math.abs(difference) < 0.35) {
+    return `${label} stayed relatively stable during this period.`;
+  }
+
+  return `${label} ${difference > 0 ? "increased" : "decreased"} during the second half of the period.`;
+}
+
+function standardDeviation(values: Array<number | null>) {
+  const validValues = values.filter((value): value is number => value !== null);
+
+  if (validValues.length < 3) {
+    return null;
+  }
+
+  const mean = validValues.reduce((sum, value) => sum + value, 0) / validValues.length;
+  const variance = validValues.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / validValues.length;
+  return Math.sqrt(variance);
+}
+
+function countRelationship<T>(
+  entries: T[],
+  predicate: (entry: T) => boolean,
+) {
+  return entries.reduce((count, entry) => count + (predicate(entry) ? 1 : 0), 0);
+}
+
 function formatMedicationLine(name: string, dosage: string | null, frequency: string) {
   const details = [dosage, frequency].filter(Boolean).join(" • ");
   return details ? `${name} (${details})` : name;
 }
 
-function getReflectionPreview(note: string | null | undefined, maxLength = 120) {
-  const trimmed = note?.trim() ?? "";
-
-  if (!trimmed) {
-    return null;
-  }
-
-  if (trimmed.length <= maxLength) {
-    return trimmed;
-  }
-
-  return `${trimmed.slice(0, maxLength).trimEnd()}…`;
-}
-
-function mapCheckInsToLongitudinalEntries(
-  entries: Array<{
-    date: string;
-    fatigue: number | null;
-    stress: number | null;
-    brain_fog: number | null;
-    mood: number | null;
-    sleep_hours: number | null;
-    water_glasses: number | null;
-    notes: string | null;
-    updated_at: string;
-    created_at: string;
-  }>,
-): LongitudinalEntry[] {
-  return entries.map((entry) => {
-    const timestamp = entry.updated_at || entry.created_at;
-    const parsedHour = Number.isNaN(new Date(timestamp).getHours()) ? null : new Date(timestamp).getHours();
-
-    return {
-      date: entry.date,
-      fatigue: entry.fatigue,
-      stress: entry.stress,
-      brain_fog: entry.brain_fog,
-      mood: entry.mood,
-      sleep_hours: entry.sleep_hours,
-      water_glasses: entry.water_glasses,
-      notes: entry.notes,
-      reflection_text: entry.notes,
-      interaction_count: entry.notes?.trim() ? 2 : 1,
-      hour_of_day: parsedHour,
-    };
-  });
-}
-
 function buildShareText(input: {
   range: 7 | 30;
-  totalCheckIns: number;
   rangeCheckIns: number;
-  fatigueAverage: number | null;
-  moodAverage: number | null;
-  stressAverage: number | null;
-  sleepAverage: number | null;
-  symptomSummaryLines: string[];
-  trendLines: string[];
-  supportCircleLines: string[];
-  sharedContextLines: string[];
-  professionalLines: string[];
-  legacyLines: string[];
+  mainChangeLines: string[];
+  comparedLines: string[];
+  patternConnectionLines: string[];
+  stabilityLines: string[];
+  monitoringLines: string[];
+  appointmentTopicLines: string[];
   nextAppointmentLine: string | null;
   medicationLines: string[];
-  appointmentQuestionLines: string[];
   activeMedicationsCount: number;
   upcomingAppointmentsCount: number;
 }) {
   return [
-    `LiveWithMS summary (${input.range} days)`,
+    `LiveWithMS health summary (${input.range} days)`,
     "",
-    "At a glance",
+    "Summary period",
     `• ${input.rangeCheckIns} ${input.rangeCheckIns === 1 ? "check-in" : "check-ins"} in this range`,
-    `• ${input.totalCheckIns} total ${input.totalCheckIns === 1 ? "check-in" : "check-ins"} completed`,
-    `• Fatigue average: ${formatAverage(input.fatigueAverage)}`,
-    `• Mood average: ${formatAverage(input.moodAverage)}`,
-    `• Stress average: ${formatAverage(input.stressAverage)}`,
-    `• Sleep average: ${formatAverage(input.sleepAverage, "h")}`,
     "",
-    "Recent patterns",
-    ...input.symptomSummaryLines,
+    "Main changes",
+    ...input.mainChangeLines.map((line) => `• ${line}`),
+    "",
+    `Compared to the previous ${input.range} days`,
+    ...input.comparedLines.map((line) => `• ${line}`),
+    "",
+    "Pattern connections",
+    ...input.patternConnectionLines.map((line) => `• ${line}`),
+    "",
+    "Stability",
+    ...input.stabilityLines.map((line) => `• ${line}`),
+    "",
+    "Worth monitoring",
+    ...input.monitoringLines.map((line) => `• ${line}`),
+    "",
+    ...(input.appointmentTopicLines.length
+      ? [
+          "Possible appointment topics",
+          ...input.appointmentTopicLines.map((line) => `• ${line}`),
+          "",
+        ]
+      : []),
     "",
     "Care details",
     `• Active medications: ${input.activeMedicationsCount}`,
@@ -251,92 +184,34 @@ function buildShareText(input: {
     ...(input.nextAppointmentLine ? [`• Next appointment: ${input.nextAppointmentLine}`] : []),
     ...input.medicationLines.map((line) => `• ${line}`),
     "",
-    "What stands out",
-    ...input.trendLines,
-    ...(input.sharedContextLines.length
-      ? [
-          "",
-          "Support circle context",
-          ...input.sharedContextLines.map((line) => `• ${line}`),
-        ]
-      : []),
-    ...(input.supportCircleLines.length
-      ? [
-          "",
-          "Communication support",
-          ...input.supportCircleLines.map((line) => `• ${line}`),
-        ]
-      : []),
-    ...(input.professionalLines.length
-      ? [
-          "",
-          "For appointments or care conversations",
-          ...input.professionalLines.map((line) => `• ${line}`),
-        ]
-      : []),
-    ...(input.legacyLines.length
-      ? [
-          "",
-          "Ownership and archives",
-          ...input.legacyLines.map((line) => `• ${line}`),
-        ]
-      : []),
-    ...(input.appointmentQuestionLines.length
-      ? [
-          "",
-          "Questions to bring",
-          ...input.appointmentQuestionLines,
-        ]
-      : []),
-    "",
-    "Sharing stays in your control and can stay brief, occasional, and revocable.",
+    "This summary does not replace professional medical care.",
   ].join("\n");
 }
 
 export default function HealthSummaryScreen() {
   const { user } = useAuth();
-  const premium = usePremium();
   const lowEnergyMode = useLowEnergyMode();
   const [range, setRange] = useState<7 | 30>(7);
-  const [isSharingClinicianSummary, setIsSharingClinicianSummary] = useState(false);
-  const [isSharingCaregiverSummary, setIsSharingCaregiverSummary] = useState(false);
-  const [isSharingPartnerSummary, setIsSharingPartnerSummary] = useState(false);
-  const [isSharingFamilySummary, setIsSharingFamilySummary] = useState(false);
-  const [isSharingCaregiverSupportSummary, setIsSharingCaregiverSupportSummary] = useState(false);
   const [isExportingPrintableSummary, setIsExportingPrintableSummary] = useState(false);
   const [exportFeedback, setExportFeedback] = useState<string | null>(null);
   const historyQuery = useCheckInHistory(user?.id, 60);
   const overviewQuery = useCheckInOverview(user?.id);
   const medicationsQuery = useMedications(user?.id);
   const appointmentsQuery = useAppointments(user?.id);
-  const careNotesQuery = useCareNotes(user?.id);
   const growth = useGrowthState({
     totalCheckIns: overviewQuery.data?.length ?? 0,
   });
-  const canUsePremiumCareSummaries = canAccessPremiumCareSummaries(
-    premium.subscriptionsEnabled,
-    premium.hasPremiumAccess,
-    canAccessPremiumFeature("export_reports", {
-      subscriptionsEnabled: premium.subscriptionsEnabled,
-      hasPremiumAccess: premium.hasPremiumAccess,
-      premiumFeatureFlags: premium.premiumFeatureFlags,
-    }),
-  );
-
   const rangeEntries = useMemo(() => {
     const entries = historyQuery.data ?? [];
     const cutoff = getCutoffDate(range);
     return entries.filter((entry) => entry.date >= cutoff);
   }, [historyQuery.data, range]);
-  const longitudinalEntries = useMemo(
-    () => mapCheckInsToLongitudinalEntries(historyQuery.data ?? []),
-    [historyQuery.data],
-  );
-  const journeySnapshot = useMemo(
-    () => buildJourneySnapshot(longitudinalEntries),
-    [longitudinalEntries],
-  );
-
+  const previousRangeEntries = useMemo(() => {
+    const entries = historyQuery.data ?? [];
+    const currentCutoff = getCutoffDate(range);
+    const previousCutoff = getCutoffDate(range * 2);
+    return entries.filter((entry) => entry.date >= previousCutoff && entry.date < currentCutoff);
+  }, [historyQuery.data, range]);
   const sortedRangeEntries = useMemo(
     () => rangeEntries.slice().sort((left, right) => left.date.localeCompare(right.date)),
     [rangeEntries],
@@ -346,7 +221,6 @@ export default function HealthSummaryScreen() {
   const laterRangeEntries = sortedRangeEntries.slice(midpoint);
 
   const today = getTodayDateString();
-  const totalCheckIns = overviewQuery.data?.length ?? 0;
   const consistencyLabel = getConsistencyLabel(rangeEntries.length, range);
   const activeMedicationsCount = useMemo(
     () => (medicationsQuery.data ?? []).filter((medication) => medication.active).length,
@@ -374,85 +248,16 @@ export default function HealthSummaryScreen() {
         })[0] ?? null,
     [appointmentsQuery.data, today],
   );
-  const recentReflections = useMemo(
-    () =>
-      rangeEntries
-        .filter((entry) => Boolean(entry.notes?.trim()))
-        .slice(0, 2)
-        .map((entry) => ({
-          date: entry.date,
-          preview: getReflectionPreview(entry.notes),
-        }))
-        .filter((entry): entry is { date: string; preview: string } => Boolean(entry.preview)),
-    [rangeEntries],
-  );
-  const recentCareNotes = useMemo(
-    () => (careNotesQuery.data ?? []).slice(0, 2),
-    [careNotesQuery.data],
-  );
-  const premiumCareSummaries = useMemo(
-    () =>
-      derivePremiumCareSummaries({
-        entries: historyQuery.data ?? [],
-        medications: medicationsQuery.data ?? [],
-        appointments: appointmentsQuery.data ?? [],
-        careNotes: careNotesQuery.data ?? [],
-        lowEnergyMode: lowEnergyMode.enabled,
-      }),
-    [appointmentsQuery.data, careNotesQuery.data, historyQuery.data, lowEnergyMode.enabled, medicationsQuery.data],
-  );
-  const clinicianExport = useMemo(
-    () =>
-      buildPremiumCareExportContent({
-        audience: "clinician",
-        summaries: premiumCareSummaries,
-      }),
-    [premiumCareSummaries],
-  );
-  const caregiverExport = useMemo(
-    () =>
-      buildPremiumCareExportContent({
-        audience: "caregiver",
-        summaries: premiumCareSummaries,
-      }),
-    [premiumCareSummaries],
-  );
-  const premiumSupportCircleSummaries = useMemo(
-    () =>
-      derivePremiumSupportCircleSummaries({
-        entries: historyQuery.data ?? [],
-        appointments: appointmentsQuery.data ?? [],
-        medications: medicationsQuery.data ?? [],
-        lowEnergyMode: lowEnergyMode.enabled,
-      }),
-    [appointmentsQuery.data, historyQuery.data, lowEnergyMode.enabled, medicationsQuery.data],
-  );
-  const supportCircleConsent = useMemo(
-    () =>
-      deriveGranularConsent("trusted-friend", {
-        shareHighLevelSummary: true,
-        shareEnergyContext: true,
-        sharePacingNeeds: true,
-        shareAppointments: true,
-        shareMedicationSummary: true,
-        shareCareQuestions: true,
-      }),
-    [],
-  );
-  const supportCirclePermissions = useMemo(
-    () => deriveSupportPermissions("trusted-friend", supportCircleConsent),
-    [supportCircleConsent],
-  );
-  const supportRoleBoundary = useMemo(() => deriveRoleBoundaries("trusted-friend"), []);
-  const professionalConsent = useMemo(
-    () => deriveProfessionalConsent("neurologist"),
-    [],
-  );
-
   const fatigueAverage = average(rangeEntries.map((entry) => entry.fatigue));
   const moodAverage = average(rangeEntries.map((entry) => entry.mood));
   const stressAverage = average(rangeEntries.map((entry) => entry.stress));
   const sleepAverage = average(rangeEntries.map((entry) => entry.sleep_hours));
+  const brainFogAverage = average(rangeEntries.map((entry) => entry.brain_fog));
+  const previousFatigueAverage = average(previousRangeEntries.map((entry) => entry.fatigue));
+  const previousMoodAverage = average(previousRangeEntries.map((entry) => entry.mood));
+  const previousStressAverage = average(previousRangeEntries.map((entry) => entry.stress));
+  const previousSleepAverage = average(previousRangeEntries.map((entry) => entry.sleep_hours));
+  const previousBrainFogAverage = average(previousRangeEntries.map((entry) => entry.brain_fog));
   const fatigueEarlierAverage = average(earlierRangeEntries.map((entry) => entry.fatigue));
   const moodEarlierAverage = average(earlierRangeEntries.map((entry) => entry.mood));
   const stressEarlierAverage = average(earlierRangeEntries.map((entry) => entry.stress));
@@ -462,89 +267,192 @@ export default function HealthSummaryScreen() {
   const stressLaterAverage = average(laterRangeEntries.map((entry) => entry.stress));
   const sleepLaterAverage = average(laterRangeEntries.map((entry) => entry.sleep_hours));
 
-  const trendLines = useMemo(
+  const mainChangeLines = useMemo(() => {
+    const lines = [
+      describeHalfChange("Stress", stressEarlierAverage, stressLaterAverage),
+      describeHalfChange("Sleep", sleepEarlierAverage, sleepLaterAverage),
+      describeHalfChange("Mood", moodEarlierAverage, moodLaterAverage),
+      describeHalfChange("Fatigue", fatigueEarlierAverage, fatigueLaterAverage),
+      describeHalfChange("Brain fog", average(earlierRangeEntries.map((entry) => entry.brain_fog)), average(laterRangeEntries.map((entry) => entry.brain_fog))),
+    ].filter((line): line is string => Boolean(line));
+
+    if (lines.length) {
+      return lines.slice(0, lowEnergyMode.enabled ? 3 : 4);
+    }
+
+    return rangeEntries.length
+      ? [`${rangeEntries.length} ${rangeEntries.length === 1 ? "check-in" : "check-ins"} logged in this period.`]
+      : ["No check-ins in this period yet."];
+  }, [
+    earlierRangeEntries,
+    fatigueEarlierAverage,
+    fatigueLaterAverage,
+    laterRangeEntries,
+    lowEnergyMode.enabled,
+    moodEarlierAverage,
+    moodLaterAverage,
+    rangeEntries.length,
+    sleepEarlierAverage,
+    sleepLaterAverage,
+    stressEarlierAverage,
+    stressLaterAverage,
+  ]);
+  const comparedLines = useMemo(
     () => [
-      buildTrendCopy(fatigueEarlierAverage, fatigueLaterAverage, {
-        label: "Fatigue",
-        higherIsBetter: false,
-        positive: "Fatigue has felt a little lighter recently.",
-        negative: "Fatigue has been more elevated recently.",
-        stable: "Fatigue has been relatively steady lately.",
-      }),
-      buildTrendCopy(moodEarlierAverage, moodLaterAverage, {
-        label: "Mood",
-        higherIsBetter: true,
-        positive: "Mood has been trending upward.",
-        negative: "Mood has felt a little lower recently.",
-        stable: "Mood has been relatively stable.",
-      }),
-      buildTrendCopy(stressEarlierAverage, stressLaterAverage, {
-        label: "Stress",
-        higherIsBetter: false,
-        positive: "Stress has felt a little lighter recently.",
-        negative: "Stress has been more noticeable recently.",
-        stable: "Stress has been fairly steady lately.",
-      }),
-      buildTrendCopy(sleepEarlierAverage, sleepLaterAverage, {
-        label: "Sleep",
-        higherIsBetter: true,
-        positive: "Sleep has been a little steadier recently.",
-        negative: "Sleep has been lighter recently.",
-        stable: "Sleep has been fairly steady lately.",
-      }),
-    ],
+      describeAverageChange("Stress", stressAverage, previousStressAverage),
+      describeAverageChange("Sleep", sleepAverage, previousSleepAverage, { unit: "h", higherIsBetter: true }),
+      describeAverageChange("Fatigue", fatigueAverage, previousFatigueAverage),
+      describeAverageChange("Mood", moodAverage, previousMoodAverage, { higherIsBetter: true }),
+      describeAverageChange("Brain fog", brainFogAverage, previousBrainFogAverage),
+    ].slice(0, lowEnergyMode.enabled ? 3 : 5),
     [
-      fatigueEarlierAverage,
-      fatigueLaterAverage,
-      moodEarlierAverage,
-      moodLaterAverage,
-      sleepEarlierAverage,
-      sleepLaterAverage,
-      stressEarlierAverage,
-      stressLaterAverage,
-    ],
-  );
-  const symptomSummaryLines = useMemo(
-    () => [
-      `• Fatigue: ${formatAverage(fatigueAverage)} (${getNotableChangeLabel(fatigueEarlierAverage, fatigueLaterAverage, false)})`,
-      `• Mood: ${formatAverage(moodAverage)} (${getNotableChangeLabel(moodEarlierAverage, moodLaterAverage, true)})`,
-      `• Stress: ${formatAverage(stressAverage)} (${getNotableChangeLabel(stressEarlierAverage, stressLaterAverage, false)})`,
-      `• Sleep: ${formatAverage(sleepAverage, "h")} (${getNotableChangeLabel(sleepEarlierAverage, sleepLaterAverage, true)})`,
-      `• Check-in consistency: ${consistencyLabel}`,
-    ],
-    [
-      consistencyLabel,
+      brainFogAverage,
       fatigueAverage,
-      fatigueEarlierAverage,
-      fatigueLaterAverage,
+      lowEnergyMode.enabled,
       moodAverage,
-      moodEarlierAverage,
-      moodLaterAverage,
+      previousBrainFogAverage,
+      previousFatigueAverage,
+      previousMoodAverage,
+      previousSleepAverage,
+      previousStressAverage,
       sleepAverage,
-      sleepEarlierAverage,
-      sleepLaterAverage,
       stressAverage,
-      stressEarlierAverage,
-      stressLaterAverage,
     ],
   );
+  const patternConnectionLines = useMemo(() => {
+    const highStressFatigueMatches = countRelationship(
+      rangeEntries,
+      (entry) => (entry.stress ?? 0) >= 4 && (entry.fatigue ?? 0) >= 4,
+    );
+    const lowSleepBrainFogMatches = countRelationship(
+      rangeEntries,
+      (entry) => entry.sleep_hours !== null && entry.sleep_hours < 6.5 && (entry.brain_fog ?? 0) >= 3,
+    );
+    const lowSleepFatigueMatches = countRelationship(
+      rangeEntries,
+      (entry) => entry.sleep_hours !== null && entry.sleep_hours < 6.5 && (entry.fatigue ?? 0) >= 4,
+    );
+    const highStressMoodMatches = countRelationship(
+      rangeEntries,
+      (entry) => (entry.stress ?? 0) >= 4 && entry.mood !== null && entry.mood <= 2,
+    );
+    const lines: string[] = [];
+
+    if (highStressFatigueMatches > 0) {
+      lines.push(`Higher stress matched higher fatigue on ${highStressFatigueMatches} ${highStressFatigueMatches === 1 ? "day" : "days"}.`);
+    }
+
+    if (lowSleepBrainFogMatches > 0) {
+      lines.push(`Brain fog appeared more often after shorter sleep on ${lowSleepBrainFogMatches} ${lowSleepBrainFogMatches === 1 ? "day" : "days"}.`);
+    }
+
+    if (lowSleepFatigueMatches > 0) {
+      lines.push(`Fatigue was higher after shorter sleep on ${lowSleepFatigueMatches} ${lowSleepFatigueMatches === 1 ? "day" : "days"}.`);
+    }
+
+    if (highStressMoodMatches > 0) {
+      lines.push(`Lower mood appeared on higher-stress days ${highStressMoodMatches} ${highStressMoodMatches === 1 ? "time" : "times"}.`);
+    }
+
+    return lines.length ? lines.slice(0, 3) : ["No strong pattern connections stood out in this period."];
+  }, [rangeEntries]);
+  const stabilityLines = useMemo(() => {
+    const lines = [
+      Math.abs((moodLaterAverage ?? moodAverage ?? 0) - (moodEarlierAverage ?? moodAverage ?? 0)) < 0.35 && moodAverage !== null
+        ? "Mood stayed relatively stable."
+        : null,
+      Math.abs((sleepLaterAverage ?? sleepAverage ?? 0) - (sleepEarlierAverage ?? sleepAverage ?? 0)) < 0.35 && sleepAverage !== null
+        ? "Sleep stayed relatively stable."
+        : null,
+      Math.abs((stressLaterAverage ?? stressAverage ?? 0) - (stressEarlierAverage ?? stressAverage ?? 0)) < 0.35 && stressAverage !== null
+        ? "Stress stayed relatively stable."
+        : null,
+      consistencyLabel ? `Check-in consistency: ${consistencyLabel}.` : null,
+    ].filter((line): line is string => Boolean(line));
+
+    return lines.length ? lines.slice(0, 3) : ["Stability is still hard to assess from this range."];
+  }, [
+    consistencyLabel,
+    moodAverage,
+    moodEarlierAverage,
+    moodLaterAverage,
+    sleepAverage,
+    sleepEarlierAverage,
+    sleepLaterAverage,
+    stressAverage,
+    stressEarlierAverage,
+    stressLaterAverage,
+  ]);
+  const monitoringLines = useMemo(() => {
+    const fatigueVariability = standardDeviation(rangeEntries.map((entry) => entry.fatigue));
+    const stressVariability = standardDeviation(rangeEntries.map((entry) => entry.stress));
+    const lines: string[] = [];
+
+    if (fatigueVariability !== null && fatigueVariability >= 1.1) {
+      lines.push("Fatigue varied more during this period.");
+    }
+
+    if (stressLaterAverage !== null && stressEarlierAverage !== null && stressLaterAverage - stressEarlierAverage >= 0.35) {
+      lines.push("Stress increased during the second half of the period.");
+    }
+
+    if (stressVariability !== null && stressVariability >= 1.1) {
+      lines.push("Stress levels were more variable.");
+    }
+
+    if (brainFogAverage !== null && brainFogAverage >= 3.5) {
+      lines.push("Brain fog was elevated in this period.");
+    }
+
+    return lines.length ? lines.slice(0, 3) : ["No major monitoring flags stood out in this period."];
+  }, [brainFogAverage, rangeEntries, stressEarlierAverage, stressLaterAverage]);
   const appointmentQuestionLines = useMemo(() => {
     const suggestions: string[] = [];
+    const hasLowerSleepFatiguePattern = patternConnectionLines.some(
+      (line) => line.includes("Fatigue was higher after shorter sleep"),
+    );
+    const hasLowerSleepBrainFogPattern = patternConnectionLines.some(
+      (line) => line.includes("Brain fog appeared more often after shorter sleep"),
+    );
+    const hasStressFatiguePattern = patternConnectionLines.some(
+      (line) => line.includes("Higher stress matched higher fatigue"),
+    );
+    const stressIncreased = monitoringLines.some(
+      (line) => line.includes("Stress increased"),
+    );
+    const fatigueVaried = monitoringLines.some(
+      (line) => line.includes("Fatigue varied more"),
+    );
+    const brainFogElevated = monitoringLines.some(
+      (line) => line.includes("Brain fog was elevated"),
+    );
 
-    if (fatigueLaterAverage !== null && fatigueLaterAverage >= 4) {
-      suggestions.push("• Fatigue has felt heavier lately. Is there anything worth watching or simplifying?");
+    if (hasLowerSleepFatiguePattern) {
+      suggestions.push("Fatigue after shorter sleep");
     }
 
-    if (sleepLaterAverage !== null && sleepLaterAverage < 6.5) {
-      suggestions.push("• Sleep has been lighter recently. Are there patterns or habits worth paying attention to?");
+    if (hasLowerSleepBrainFogPattern) {
+      suggestions.push("Brain fog after shorter sleep");
     }
 
-    if (stressLaterAverage !== null && stressLaterAverage >= 4) {
-      suggestions.push("• Stress has been more noticeable recently. What supports tend to matter most when stress is high?");
+    if (hasStressFatiguePattern) {
+      suggestions.push("Fatigue during higher-stress periods");
     }
 
-    return suggestions.slice(0, 3);
-  }, [fatigueLaterAverage, sleepLaterAverage, stressLaterAverage]);
+    if (stressIncreased) {
+      suggestions.push("Stress increased during this period");
+    }
+
+    if (fatigueVaried) {
+      suggestions.push("Fatigue has become more variable recently");
+    }
+
+    if (brainFogElevated) {
+      suggestions.push("Brain fog was elevated in this period");
+    }
+
+    return Array.from(new Set(suggestions)).slice(0, 3);
+  }, [monitoringLines, patternConnectionLines]);
   const nextAppointmentLine = useMemo(
     () =>
       nextAppointment
@@ -556,202 +464,66 @@ export default function HealthSummaryScreen() {
         : null,
     [nextAppointment],
   );
-  const supportContextLines = useMemo(
-    () =>
-      deriveSafeSharedContext({
-        permissions: supportCirclePermissions,
-        fatigueAverage,
-        stressAverage,
-        sleepAverage,
-        activeMedicationsCount,
-        nextAppointmentLine,
-        careQuestionCount: appointmentQuestionLines.length,
-      }).map((line) => softenSharedInterpretation(line)),
+  const practicalExportSections = useMemo(
+    () => [
+      {
+        title: "Summary period",
+        lines: [
+          `${rangeEntries.length} ${rangeEntries.length === 1 ? "check-in" : "check-ins"} in the last ${range} days.`,
+        ],
+      },
+      { title: "Main changes", lines: mainChangeLines },
+      { title: `Compared to previous ${range} days`, lines: comparedLines },
+      { title: "Pattern connections", lines: patternConnectionLines },
+      { title: "Stability", lines: stabilityLines },
+      { title: "Worth monitoring", lines: monitoringLines },
+      ...(appointmentQuestionLines.length
+        ? [{ title: "Possible appointment topics", lines: appointmentQuestionLines }]
+        : []),
+      {
+        title: "Care details",
+        lines: [
+          `Active medications: ${activeMedicationsCount}`,
+          `Upcoming appointments: ${upcomingAppointmentsCount}`,
+          ...(nextAppointmentLine ? [`Next appointment: ${nextAppointmentLine}`] : []),
+          ...activeMedications.map((medication) =>
+            formatMedicationLine(medication.name, medication.dosage, medication.frequency),
+          ),
+        ],
+      },
+    ],
     [
+      activeMedications,
       activeMedicationsCount,
-      appointmentQuestionLines.length,
-      fatigueAverage,
+      appointmentQuestionLines,
+      comparedLines,
+      mainChangeLines,
+      monitoringLines,
       nextAppointmentLine,
-      sleepAverage,
-      stressAverage,
-      supportCirclePermissions,
+      patternConnectionLines,
+      range,
+      rangeEntries.length,
+      stabilityLines,
+      upcomingAppointmentsCount,
     ],
   );
-  const supportCommunicationLines = useMemo(
-    () =>
-      [
-        deriveEnergyCommunication({
-          fatigueAverage,
-          stressAverage,
-        }),
-        derivePacingExplanation({
-          fatigueAverage,
-          sleepAverage,
-        }),
-        deriveLowPressureSharing({
-          role: "trusted-friend",
-          hasRecentDifficulty: (fatigueAverage ?? 0) >= 4 || (stressAverage ?? 0) >= 4,
-        }),
-        deriveBoundaryProtection("trusted-friend"),
-      ].map((line) => preventSurveillanceDynamics(preventCaregiverOverload(line))),
-    [fatigueAverage, sleepAverage, stressAverage],
-  );
-  const supportCircleSharingValid = useMemo(
-    () =>
-      validateSharingBoundaries({
-        consent: supportCircleConsent,
-        includesPersonalNotes: false,
-        includesRealTimeData: false,
-        lineCount: supportContextLines.length + supportCommunicationLines.length,
-      }).valid,
-    [supportCircleConsent, supportCommunicationLines.length, supportContextLines.length],
-  );
-  const professionalSummary = useMemo(
-    () =>
-      deriveHealthSummaries({
-        fatigueAverage,
-        stressAverage,
-        sleepAverage,
-        symptomSummaryLines,
-        trendLines,
-      }),
-    [fatigueAverage, sleepAverage, stressAverage, symptomSummaryLines, trendLines],
-  );
-  const professionalAppointmentPrep = useMemo(
-    () =>
-      deriveAppointmentPreparation({
-        fatigueAverage: fatigueLaterAverage,
-        stressAverage: stressLaterAverage,
-        sleepAverage: sleepLaterAverage,
-      }),
-    [fatigueLaterAverage, sleepLaterAverage, stressLaterAverage],
-  );
-  const professionalConversationSupport = useMemo(
-    () =>
-      deriveConversationSupport({
-        fatigueAverage: fatigueAverage,
-        brainFogAverage: average(rangeEntries.map((entry) => entry.brain_fog)),
-      }),
-    [fatigueAverage, rangeEntries],
-  );
-  const professionalLines = useMemo(() => {
-    const rawLines = [
-      ...professionalSummary.lines,
-      ...deriveEmotionallySafeReports({
-        trendLines,
-        questionLines: appointmentQuestionLines.map((line) => line.replace(/^•\s*/, "")),
-      }),
-      ...professionalAppointmentPrep,
-      professionalConversationSupport,
-      preserveTherapyBoundaries(
-        preventTherapeuticReplacement(
-          "This can support therapy preparation without becoming a therapist in your pocket.",
-        ),
-      ),
-    ];
-
-    return deriveDignityPreservingExports(
-      rawLines.map((line) =>
-        preventFearBasedSummaries(
-          softenClinicalInterpretation(
-            preventReductionistScoring(line),
-          ),
-        ),
-      ),
-    ).slice(0, 6);
-  }, [
-    appointmentQuestionLines,
-    professionalAppointmentPrep,
-    professionalConversationSupport,
-    professionalSummary.lines,
-    trendLines,
-  ]);
-  const professionalSharingValid = useMemo(
-    () =>
-      validateSharingControls({
-        consent: professionalConsent,
-        includesPersonalNotes: false,
-        includesEmotionalContext: false,
-        lineCount: professionalLines.length,
-      }).valid,
-    [professionalConsent, professionalLines.length],
-  );
-  const legacyExport = useMemo(
-    () =>
-      deriveMeaningfulExports({
-        hasReflections: recentReflections.length > 0,
-        hasLongTermHistory: Boolean(journeySnapshot?.seasonalSummary || journeySnapshot?.continuitySignals.length),
-        includeSupportContext: supportCircleSharingValid,
-      }),
-    [journeySnapshot, recentReflections.length, supportCircleSharingValid],
-  );
-  const legacyArchive = useMemo(
-    () =>
-      deriveLongTermArchives({
-        hasJourneySnapshot: Boolean(journeySnapshot),
-        hasReflections: recentReflections.length > 0,
-      }),
-    [journeySnapshot, recentReflections.length],
-  );
-  const legacyPause = useMemo(
-    () =>
-      derivePauseSupport({
-        lowEngagement: rangeEntries.length < 4,
-        wantsDistance: false,
-      }),
-    [rangeEntries.length],
-  );
-  const legacyLines = useMemo(() => {
-    const lines = [
-      ...legacyExport.lines,
-      ...legacyArchive.lines,
-      deriveHealthyDistance({
-        totalCheckIns,
-        wantsLessIllnessCentrality: true,
-      }),
-      deriveGentleReturnFlows({
-        hasHistory: totalCheckIns > 0,
-      }),
-      legacyPause.body,
-      deriveDeletionClarity(),
-    ].map((line) =>
-      preventGuiltReactivation(
-        preventRetentionClinginess(
-          preserveCalmDisengagement(
-            preserveContinuitySnapshots(
-              preserveReflectionOwnership(line),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    return validateOwnershipTransparency(lines).valid ? lines.slice(0, 5) : [deriveDeletionClarity()];
-  }, [legacyArchive.lines, legacyExport.lines, legacyPause.body, totalCheckIns]);
-
   const handleShare = async () => {
     try {
       setExportFeedback(null);
       await Share.share({
         message: buildShareText({
           range,
-          totalCheckIns,
           rangeCheckIns: rangeEntries.length,
-          fatigueAverage,
-          moodAverage,
-          stressAverage,
-          sleepAverage,
-          symptomSummaryLines,
-          trendLines,
-          supportCircleLines: supportCircleSharingValid ? supportCommunicationLines : [],
-          sharedContextLines: supportCircleSharingValid ? supportContextLines : [],
-          professionalLines: professionalSharingValid ? professionalLines : [],
-          legacyLines,
+          mainChangeLines,
+          comparedLines,
+          patternConnectionLines,
+          stabilityLines,
+          monitoringLines,
+          appointmentTopicLines: appointmentQuestionLines,
           nextAppointmentLine,
           medicationLines: activeMedications.map((medication) =>
             formatMedicationLine(medication.name, medication.dosage, medication.frequency),
           ),
-          appointmentQuestionLines,
           activeMedicationsCount,
           upcomingAppointmentsCount,
         }),
@@ -761,33 +533,7 @@ export default function HealthSummaryScreen() {
         source: "health_summary",
       });
     } catch {
-      // Keep sharing failures quiet so this never disrupts the summary itself.
-    }
-  };
-
-  const handleSharePremiumSummary = async (audience: "clinician" | "caregiver") => {
-    const setBusy = audience === "clinician" ? setIsSharingClinicianSummary : setIsSharingCaregiverSummary;
-    const content = audience === "clinician" ? clinicianExport : caregiverExport;
-
-    try {
-      setBusy(true);
-      setExportFeedback(null);
-      await Share.share({
-        message: content.text,
-      });
-      await growth.recordEvent("export_used", {
-        range,
-        source: audience === "clinician" ? "premium_clinician_summary" : "premium_caregiver_summary",
-      });
-      setExportFeedback(
-        audience === "clinician"
-          ? "Your clinician summary is ready to share."
-          : "Your caregiver-friendly summary is ready to share.",
-      );
-    } catch {
-      setExportFeedback("Something may need another moment before sharing.");
-    } finally {
-      setBusy(false);
+      // Sharing failures should not disrupt the summary screen.
     }
   };
 
@@ -796,67 +542,39 @@ export default function HealthSummaryScreen() {
       setIsExportingPrintableSummary(true);
       setExportFeedback(null);
       const result = await exportHealthSummary({
-        title: clinicianExport.title,
-        subtitle: clinicianExport.subtitle,
-        text: clinicianExport.text,
-        sections: clinicianExport.sections,
+        title: `LiveWithMS health summary: last ${range} days`,
+        subtitle: "A practical briefing of recent check-ins, pattern connections, care details, and appointment topics.",
+        text: buildShareText({
+          range,
+          rangeCheckIns: rangeEntries.length,
+          mainChangeLines,
+          comparedLines,
+          patternConnectionLines,
+          stabilityLines,
+          monitoringLines,
+          appointmentTopicLines: appointmentQuestionLines,
+          nextAppointmentLine,
+          medicationLines: activeMedications.map((medication) =>
+            formatMedicationLine(medication.name, medication.dosage, medication.frequency),
+          ),
+          activeMedicationsCount,
+          upcomingAppointmentsCount,
+        }),
+        sections: practicalExportSections,
       });
       await growth.recordEvent("export_used", {
         range,
-        source: "premium_printable_summary",
+        source: "health_summary_pdf",
       });
       setExportFeedback(
         result.ok
           ? "Your summary is ready to share."
-          : "Export wasn’t available on this device. Your insights are still saved in the app.",
+          : "Export was not available on this device. The summary is still visible in the app.",
       );
     } catch {
-      setExportFeedback("Export wasn’t available on this device. Your insights are still saved in the app.");
+      setExportFeedback("Export was not available on this device. The summary is still visible in the app.");
     } finally {
       setIsExportingPrintableSummary(false);
-    }
-  };
-
-  const handleShareSupportCircleSummary = async (
-    audience: "partner" | "family-member" | "caregiver",
-  ) => {
-    const setBusy =
-      audience === "partner"
-        ? setIsSharingPartnerSummary
-        : audience === "family-member"
-          ? setIsSharingFamilySummary
-          : setIsSharingCaregiverSupportSummary;
-    const content = buildPremiumSupportCircleShareContent({
-      audience,
-      summary: premiumSupportCircleSummaries[audience],
-    });
-
-    try {
-      setBusy(true);
-      setExportFeedback(null);
-      await Share.share({
-        message: content.text,
-      });
-      await growth.recordEvent("export_used", {
-        range,
-        source:
-          audience === "partner"
-            ? "premium_partner_support_summary"
-            : audience === "family-member"
-              ? "premium_family_support_summary"
-              : "premium_caregiver_support_summary",
-      });
-      setExportFeedback(
-        audience === "partner"
-          ? "Your partner summary is ready to share."
-          : audience === "family-member"
-            ? "Your family summary is ready to share."
-            : "Your caregiver support summary is ready to share.",
-      );
-    } catch {
-      setExportFeedback("Something may need another moment before sharing.");
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -864,7 +582,7 @@ export default function HealthSummaryScreen() {
     return <ErrorState message="Your health summary is available once you’re signed in." />;
   }
 
-  if (historyQuery.isLoading || overviewQuery.isLoading || medicationsQuery.isLoading || appointmentsQuery.isLoading || careNotesQuery.isLoading) {
+  if (historyQuery.isLoading || overviewQuery.isLoading || medicationsQuery.isLoading || appointmentsQuery.isLoading) {
     return <LoadingState message="Loading your summary..." />;
   }
 
@@ -884,10 +602,6 @@ export default function HealthSummaryScreen() {
     return <ErrorState message={getErrorMessage(appointmentsQuery.error)} onRetry={() => void appointmentsQuery.refetch()} />;
   }
 
-  if (careNotesQuery.isError) {
-    return <ErrorState message={getErrorMessage(careNotesQuery.error)} onRetry={() => void careNotesQuery.refetch()} />;
-  }
-
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -900,7 +614,7 @@ export default function HealthSummaryScreen() {
   return (
     <AppScreen
       title="Health Summary"
-      subtitle="A calmer overview of recent check-ins, care details, and practical context."
+      subtitle="A practical briefing of recent patterns, changes, and appointment topics."
     >
       <ScrollView
         contentContainerStyle={[styles.content, lowEnergyMode.enabled && styles.contentLowEnergy]}
@@ -916,14 +630,14 @@ export default function HealthSummaryScreen() {
         </Pressable>
 
         <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>Your recent summary</AppText>
+          <AppText style={styles.heroTitle}>Recent health briefing</AppText>
           <AppText style={styles.heroBody}>
-            See the patterns you&apos;ve been logging in a format that stays easier to read and share only if you want to.
+            Review what changed, what stayed stable, and what may be useful to discuss.
           </AppText>
           {lowEnergyMode.enabled ? (
             <View style={styles.lowEnergyBanner}>
               <AppText style={styles.lowEnergyBannerText}>
-                This summary is keeping things a little lighter today.
+                Low Energy Mode is showing fewer sections.
               </AppText>
             </View>
           ) : null}
@@ -947,22 +661,22 @@ export default function HealthSummaryScreen() {
         </View>
 
         <View style={styles.privacyCard}>
-          <AppText style={styles.privacyText}>Your summaries are private and controlled by you.</AppText>
+          <AppText style={styles.privacyText}>Exports are created only when you choose to share them.</AppText>
         </View>
 
         {rangeEntries.length < 2 ? (
           <View style={styles.emptyCard}>
-            <AppText style={styles.emptyTitle}>Your summary will build gently over time</AppText>
+            <AppText style={styles.emptyTitle}>Add another check-in to compare changes</AppText>
             <AppText style={styles.emptyBody}>
-              A few more entries will make this summary easier to read later. It can build gradually.
+              Health Summary starts showing comparisons after at least two check-ins in the selected period.
             </AppText>
             <AppButton label="Go to Today" onPress={() => router.push("/today")} />
           </View>
         ) : (
           <>
             <View style={styles.summaryCard}>
-              <AppText style={styles.sectionTitle}>At a glance</AppText>
-              <AppText style={styles.sectionSubtitle}>A calm snapshot of what this recent stretch has looked like.</AppText>
+              <AppText style={styles.sectionTitle}>Summary period</AppText>
+              <AppText style={styles.sectionSubtitle}>Average values from the last {range} days.</AppText>
               <View style={styles.metricGrid}>
                 <View style={styles.metricPill}>
                   <AppText style={styles.metricLabel}>Check-ins</AppText>
@@ -992,10 +706,10 @@ export default function HealthSummaryScreen() {
             </View>
 
             <View style={styles.summaryCard}>
-              <AppText style={styles.sectionTitle}>Recent patterns</AppText>
-              <AppText style={styles.sectionSubtitle}>A simple read on what has felt steadier, lighter, or heavier.</AppText>
+              <AppText style={styles.sectionTitle}>Main changes</AppText>
+              <AppText style={styles.sectionSubtitle}>What shifted during this period.</AppText>
               <View style={styles.trendList}>
-                {(lowEnergyMode.enabled ? symptomSummaryLines.slice(0, 4) : symptomSummaryLines).map((line) => (
+                {mainChangeLines.map((line) => (
                   <View key={line} style={styles.trendRow}>
                     <AppText style={styles.trendBullet}>•</AppText>
                     <AppText style={styles.trendText}>{line.replace(/^•\s*/, "")}</AppText>
@@ -1005,8 +719,56 @@ export default function HealthSummaryScreen() {
             </View>
 
             <View style={styles.summaryCard}>
+              <AppText style={styles.sectionTitle}>Compared to previous {range} days</AppText>
+              <View style={styles.trendList}>
+                {comparedLines.map((line) => (
+                  <View key={line} style={styles.trendRow}>
+                    <AppText style={styles.trendBullet}>•</AppText>
+                    <AppText style={styles.trendText}>{line}</AppText>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.summaryCard}>
+              <AppText style={styles.sectionTitle}>Pattern connections</AppText>
+              <View style={styles.trendList}>
+                {patternConnectionLines.map((line) => (
+                  <View key={line} style={styles.trendRow}>
+                    <AppText style={styles.trendBullet}>•</AppText>
+                    <AppText style={styles.trendText}>{line}</AppText>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.summaryCard}>
+              <AppText style={styles.sectionTitle}>Stability</AppText>
+              <View style={styles.trendList}>
+                {stabilityLines.map((line) => (
+                  <View key={line} style={styles.trendRow}>
+                    <AppText style={styles.trendBullet}>•</AppText>
+                    <AppText style={styles.trendText}>{line}</AppText>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.summaryCard}>
+              <AppText style={styles.sectionTitle}>Worth monitoring</AppText>
+              <View style={styles.trendList}>
+                {monitoringLines.map((line) => (
+                  <View key={line} style={styles.trendRow}>
+                    <AppText style={styles.trendBullet}>•</AppText>
+                    <AppText style={styles.trendText}>{line}</AppText>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.summaryCard}>
               <AppText style={styles.sectionTitle}>Care snapshot</AppText>
-              <AppText style={styles.sectionSubtitle}>The practical details you may want close by, without the extra noise.</AppText>
+              <AppText style={styles.sectionSubtitle}>Care details that may help during appointments.</AppText>
               <View style={styles.metricGrid}>
                 <View style={styles.metricPill}>
                   <AppText style={styles.metricLabel}>Active meds</AppText>
@@ -1038,410 +800,40 @@ export default function HealthSummaryScreen() {
               ) : null}
             </View>
 
-            <View style={styles.summaryCard}>
-              <AppText style={styles.sectionTitle}>Premium care summaries</AppText>
-              <AppText style={styles.sectionSubtitle}>
-                Premium includes richer care summaries and calmer appointment preparation tools.
-              </AppText>
-              {canUsePremiumCareSummaries ? (
-                <>
-                  <View style={styles.prepCard}>
-                    <AppText style={styles.prepTitle}>{premiumCareSummaries.weekly.title}</AppText>
-                    <AppText style={styles.prepBody}>{premiumCareSummaries.weekly.atAGlance}</AppText>
-                    <AppText style={styles.prepDetail}>{premiumCareSummaries.weekly.continuitySummary}</AppText>
-                  </View>
-
-                  <View style={styles.prepGroup}>
-                    <AppText style={styles.prepTitle}>Patterns worth noticing</AppText>
-                    <View style={styles.trendList}>
-                      {premiumCareSummaries.weekly.patternsWorthNoticing.map((line) => (
-                        <View key={`premium-weekly-pattern-${line}`} style={styles.trendRow}>
-                          <AppText style={styles.trendBullet}>•</AppText>
-                          <AppText style={styles.trendText}>{line}</AppText>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-
-                  <View style={styles.prepGroup}>
-                    <AppText style={styles.prepTitle}>What may help next week</AppText>
-                    <View style={styles.trendList}>
-                      {premiumCareSummaries.weekly.whatMayHelpNext.map((line) => (
-                        <View key={`premium-weekly-next-${line}`} style={styles.trendRow}>
-                          <AppText style={styles.trendBullet}>•</AppText>
-                          <AppText style={styles.trendText}>{line}</AppText>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-
-                  <View style={styles.prepGroup}>
-                    <AppText style={styles.prepTitle}>Helpful context for appointments</AppText>
-                    <View style={styles.trendList}>
-                      {premiumCareSummaries.weekly.helpfulContextForAppointments.map((line) => (
-                        <View key={`premium-appointment-${line}`} style={styles.trendRow}>
-                          <AppText style={styles.trendBullet}>•</AppText>
-                          <AppText style={styles.trendText}>{line}</AppText>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-
-                  <View style={styles.prepGroup}>
-                    <AppText style={styles.prepTitle}>{premiumCareSummaries.monthly.title}</AppText>
-                    <View style={styles.prepCard}>
-                      <AppText style={styles.prepBody}>{premiumCareSummaries.monthly.atAGlance}</AppText>
-                      <AppText style={styles.prepDetail}>{premiumCareSummaries.monthly.continuitySummary}</AppText>
-                    </View>
-                    <View style={styles.trendList}>
-                      {premiumCareSummaries.monthly.symptomContextSummary.map((line) => (
-                        <View key={`premium-monthly-${line}`} style={styles.trendRow}>
-                          <AppText style={styles.trendBullet}>•</AppText>
-                          <AppText style={styles.trendText}>{line}</AppText>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-
-                  <View style={styles.prepGroup}>
-                    <AppText style={styles.prepTitle}>Medication overview</AppText>
-                    <View style={styles.trendList}>
-                      {premiumCareSummaries.weekly.medicationConsistencyOverview.map((line) => (
-                        <View key={`premium-medication-${line}`} style={styles.trendRow}>
-                          <AppText style={styles.trendBullet}>•</AppText>
-                          <AppText style={styles.trendText}>{line}</AppText>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-
-                  {premiumCareSummaries.weekly.reflectionContextHighlights.length ? (
-                    <View style={styles.prepGroup}>
-                      <AppText style={styles.prepTitle}>Reflection and context highlights</AppText>
-                      {premiumCareSummaries.weekly.reflectionContextHighlights.map((line) => (
-                        <View key={`premium-reflection-${line}`} style={styles.prepNote}>
-                          <AppText style={styles.prepNoteBody}>{line}</AppText>
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
-
-                  <View style={styles.actionGroup}>
-                    <AppButton
-                      label={isSharingClinicianSummary ? "Preparing clinician summary..." : "Share clinician summary"}
-                      onPress={() => void handleSharePremiumSummary("clinician")}
-                      disabled={
-                        isSharingClinicianSummary ||
-                        isSharingCaregiverSummary ||
-                        isSharingPartnerSummary ||
-                        isSharingFamilySummary ||
-                        isSharingCaregiverSupportSummary ||
-                        isExportingPrintableSummary
-                      }
-                    />
-                    <AppButton
-                      label={isExportingPrintableSummary ? "Building printable summary..." : "Export printable PDF"}
-                      onPress={() => void handleExportPrintableSummary()}
-                      variant="secondary"
-                      disabled={
-                        isExportingPrintableSummary ||
-                        isSharingClinicianSummary ||
-                        isSharingCaregiverSummary ||
-                        isSharingPartnerSummary ||
-                        isSharingFamilySummary ||
-                        isSharingCaregiverSupportSummary
-                      }
-                    />
-                    <AppButton
-                      label={isSharingCaregiverSummary ? "Preparing caregiver summary..." : "Share caregiver summary"}
-                      onPress={() => void handleSharePremiumSummary("caregiver")}
-                      variant="secondary"
-                      disabled={
-                        isSharingCaregiverSummary ||
-                        isSharingClinicianSummary ||
-                        isSharingPartnerSummary ||
-                        isSharingFamilySummary ||
-                        isSharingCaregiverSupportSummary ||
-                        isExportingPrintableSummary
-                      }
-                    />
-                  </View>
-
-                  <View style={styles.prepGroup}>
-                    <AppText style={styles.prepTitle}>Support-circle summaries</AppText>
-                    <AppText style={styles.prepBody}>
-                      Premium includes calmer support summaries and communication tools for trusted people in your life.
-                    </AppText>
-
-                    <View style={styles.prepCard}>
-                      <AppText style={styles.prepTitle}>{premiumSupportCircleSummaries.partner.title}</AppText>
-                      <AppText style={styles.prepBody}>{premiumSupportCircleSummaries.partner.atAGlance}</AppText>
-                      <View style={styles.trendList}>
-                        {premiumSupportCircleSummaries.partner.whatThisWeekFeltLike.map((line) => (
-                          <View key={`partner-summary-${line}`} style={styles.trendRow}>
-                            <AppText style={styles.trendBullet}>•</AppText>
-                            <AppText style={styles.trendText}>{line}</AppText>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-
-                    <View style={styles.prepCard}>
-                      <AppText style={styles.prepTitle}>{premiumSupportCircleSummaries["family-member"].title}</AppText>
-                      <AppText style={styles.prepBody}>{premiumSupportCircleSummaries["family-member"].atAGlance}</AppText>
-                      <View style={styles.trendList}>
-                        {premiumSupportCircleSummaries["family-member"].communicationShortcuts.map((line) => (
-                          <View key={`family-summary-${line}`} style={styles.trendRow}>
-                            <AppText style={styles.trendBullet}>•</AppText>
-                            <AppText style={styles.trendText}>{line}</AppText>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-
-                    <View style={styles.prepCard}>
-                      <AppText style={styles.prepTitle}>{premiumSupportCircleSummaries.caregiver.title}</AppText>
-                      <AppText style={styles.prepBody}>{premiumSupportCircleSummaries.caregiver.atAGlance}</AppText>
-                      <View style={styles.trendList}>
-                        {premiumSupportCircleSummaries.caregiver.boundaryGuidance.map((line) => (
-                          <View key={`caregiver-summary-${line}`} style={styles.trendRow}>
-                            <AppText style={styles.trendBullet}>•</AppText>
-                            <AppText style={styles.trendText}>{line}</AppText>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-
-                    <View style={styles.feedbackCard}>
-                      <AppText style={styles.feedbackText}>
-                        Sharing stays manual, optional, and revocable anytime. Nothing is shared unless you choose it.
-                      </AppText>
-                    </View>
-
-                    <View style={styles.actionGroup}>
-                      <AppButton
-                        label={isSharingPartnerSummary ? "Preparing partner summary..." : "Share partner summary"}
-                        onPress={() => void handleShareSupportCircleSummary("partner")}
-                        variant="secondary"
-                        disabled={
-                          isSharingPartnerSummary ||
-                          isSharingFamilySummary ||
-                          isSharingCaregiverSupportSummary ||
-                          isSharingClinicianSummary ||
-                          isSharingCaregiverSummary ||
-                          isExportingPrintableSummary
-                        }
-                      />
-                      <AppButton
-                        label={isSharingFamilySummary ? "Preparing family summary..." : "Share family summary"}
-                        onPress={() => void handleShareSupportCircleSummary("family-member")}
-                        variant="secondary"
-                        disabled={
-                          isSharingFamilySummary ||
-                          isSharingPartnerSummary ||
-                          isSharingCaregiverSupportSummary ||
-                          isSharingClinicianSummary ||
-                          isSharingCaregiverSummary ||
-                          isExportingPrintableSummary
-                        }
-                      />
-                      <AppButton
-                        label={isSharingCaregiverSupportSummary ? "Preparing caregiver support..." : "Share caregiver support"}
-                        onPress={() => void handleShareSupportCircleSummary("caregiver")}
-                        variant="secondary"
-                        disabled={
-                          isSharingCaregiverSupportSummary ||
-                          isSharingPartnerSummary ||
-                          isSharingFamilySummary ||
-                          isSharingClinicianSummary ||
-                          isSharingCaregiverSummary ||
-                          isExportingPrintableSummary
-                        }
-                      />
-                    </View>
-                  </View>
-
-                  {exportFeedback ? (
-                    <View style={styles.feedbackCard}>
-                      <AppText style={styles.feedbackText}>{exportFeedback}</AppText>
-                    </View>
-                  ) : null}
-                </>
-              ) : (
-                <View style={styles.premiumLockCard}>
-                  <AppText style={styles.premiumLockTitle}>Richer care summaries</AppText>
-                  <AppText style={styles.premiumLockBody}>
-                    Premium includes richer care summaries, calmer appointment preparation, and cleaner printable exports. The core health summary stays fully available without them.
-                  </AppText>
-                  <AppButton
-                    label="Explore Premium"
-                    onPress={() => router.push("/premium?source=health-summary")}
-                    variant="secondary"
-                  />
-                </View>
-              )}
-            </View>
-
-            <View style={styles.summaryCard}>
-              <AppText style={styles.sectionTitle}>What changed recently</AppText>
-              <AppText style={styles.sectionSubtitle}>A quick read on what may have felt steadier or heavier recently.</AppText>
-              <View style={styles.trendList}>
-                {(lowEnergyMode.enabled ? trendLines.slice(0, 3) : trendLines).map((line) => (
-                  <View key={line} style={styles.trendRow}>
-                    <AppText style={styles.trendBullet}>•</AppText>
-                    <AppText style={styles.trendText}>{line}</AppText>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.summaryCard}>
-              <AppText style={styles.sectionTitle}>Support circle</AppText>
-              <AppText style={styles.sectionSubtitle}>
-                If explaining takes extra energy, you can share a calmer high-level summary without giving away everything.
-              </AppText>
-              <View style={styles.trendList}>
-                {(lowEnergyMode.enabled ? supportCommunicationLines.slice(0, 2) : supportCommunicationLines.slice(0, 3)).map((line) => (
-                  <View key={line} style={styles.trendRow}>
-                    <AppText style={styles.trendBullet}>•</AppText>
-                    <AppText style={styles.trendText}>{line}</AppText>
-                  </View>
-                ))}
-              </View>
-              <View style={styles.prepCard}>
-                <AppText style={styles.prepBody}>{supportRoleBoundary.summary}</AppText>
-              </View>
-            </View>
-
-            <View style={styles.summaryCard}>
-              <AppText style={styles.sectionTitle}>Helpful for visits</AppText>
-              <AppText style={styles.sectionSubtitle}>
-                A calmer way to bring context into appointments or care conversations without turning your experience into a clinical profile.
-              </AppText>
-              <View style={styles.trendList}>
-                {(lowEnergyMode.enabled ? professionalLines.slice(0, 3) : professionalLines.slice(0, 4)).map((line) => (
-                  <View key={line} style={styles.trendRow}>
-                    <AppText style={styles.trendBullet}>•</AppText>
-                    <AppText style={styles.trendText}>{line}</AppText>
-                  </View>
-                ))}
-              </View>
-              <View style={styles.prepCard}>
-                <AppText style={styles.prepBody}>
-                  Sharing with professionals stays manual, limited, and fully under your control.
-                </AppText>
-              </View>
-            </View>
-
-            {!lowEnergyMode.enabled ? (
-            <View style={styles.summaryCard}>
-              <AppText style={styles.sectionTitle}>Ownership and archives</AppText>
-              <AppText style={styles.sectionSubtitle}>
-                Keep what matters, step away when needed, and stay fully in control of what belongs to you.
-              </AppText>
-              <View style={styles.trendList}>
-                {legacyLines.map((line) => (
-                  <View key={line} style={styles.trendRow}>
-                    <AppText style={styles.trendBullet}>•</AppText>
-                    <AppText style={styles.trendText}>{line}</AppText>
-                  </View>
-                ))}
-              </View>
-            </View>
-            ) : null}
-
-            {!lowEnergyMode.enabled && (journeySnapshot?.seasonalSummary || journeySnapshot?.memoryResurfacing || journeySnapshot?.continuitySignals.length) ? (
+            {appointmentQuestionLines.length ? (
               <View style={styles.summaryCard}>
-                <AppText style={styles.sectionTitle}>Longer view</AppText>
-                <AppText style={styles.sectionSubtitle}>
-                  A quieter sense of continuity across longer stretches, without turning your experience into a single story.
-                </AppText>
-                {journeySnapshot.seasonalSummary ? (
-                  <View style={styles.prepCard}>
-                    <AppText style={styles.prepTitle}>{journeySnapshot.seasonalSummary.title}</AppText>
-                    <AppText style={styles.prepBody}>{journeySnapshot.seasonalSummary.body}</AppText>
-                  </View>
-                ) : null}
-                {journeySnapshot.continuitySignals.slice(0, 2).map((signal) => (
-                  <View key={`${signal.kind}-${signal.title}`} style={styles.trendRow}>
-                    <AppText style={styles.trendBullet}>•</AppText>
-                    <AppText style={styles.trendText}>{signal.body}</AppText>
-                  </View>
-                ))}
-                {journeySnapshot.memoryResurfacing?.shouldResurface && journeySnapshot.memoryResurfacing.reflection ? (
-                  <View style={styles.prepNote}>
-                    <AppText style={styles.prepNoteDate}>A grounding note from {journeySnapshot.memoryResurfacing.reflection.date}</AppText>
-                    <AppText style={styles.prepNoteBody}>
-                      {getReflectionPreview(journeySnapshot.memoryResurfacing.reflection.text, 160)}
-                    </AppText>
-                  </View>
-                ) : null}
+                <AppText style={styles.sectionTitle}>Possible appointment topics</AppText>
+                <View style={styles.trendList}>
+                  {appointmentQuestionLines.map((topic) => (
+                    <View key={topic} style={styles.trendRow}>
+                      <AppText style={styles.trendBullet}>•</AppText>
+                      <AppText style={styles.trendText}>{topic}</AppText>
+                    </View>
+                  ))}
+                </View>
               </View>
             ) : null}
 
             <View style={styles.summaryCard}>
-              <AppText style={styles.sectionTitle}>Questions and context</AppText>
-              <AppText style={styles.sectionSubtitle}>A quiet place to gather what may be useful before a visit, without writing a full report.</AppText>
-              <View style={styles.prepGroup}>
-                <AppText style={styles.prepTitle}>Recent symptom highlights</AppText>
-                {(lowEnergyMode.enabled ? trendLines.slice(0, 3) : trendLines).map((line) => (
-                  <View key={`prep-${line}`} style={styles.trendRow}>
-                    <AppText style={styles.trendBullet}>•</AppText>
-                    <AppText style={styles.trendText}>{line}</AppText>
-                  </View>
-                ))}
+              <AppText style={styles.sectionTitle}>Export</AppText>
+              <AppText style={styles.sectionSubtitle}>Create a concise summary for care conversations.</AppText>
+              <View style={styles.actionGroup}>
+                <AppButton label="Share summary" onPress={() => void handleShare()} />
+                <AppButton
+                  label={isExportingPrintableSummary ? "Building PDF..." : "Export PDF"}
+                  onPress={() => void handleExportPrintableSummary()}
+                  variant="secondary"
+                  disabled={isExportingPrintableSummary}
+                />
               </View>
-              <View style={styles.prepGroup}>
-                <AppText style={styles.prepTitle}>Recent reflections</AppText>
-                {recentReflections.length ? (
-                  recentReflections.map((reflection) => (
-                    <View key={`${reflection.date}-${reflection.preview}`} style={styles.prepNote}>
-                      <AppText style={styles.prepNoteDate}>{reflection.date}</AppText>
-                      <AppText style={styles.prepNoteBody}>{reflection.preview}</AppText>
-                    </View>
-                  ))
-                ) : recentCareNotes.length ? (
-                  recentCareNotes.map((note) => (
-                    <View key={note.id} style={styles.prepNote}>
-                      <AppText style={styles.prepNoteDate}>{note.category ?? "Care note"}</AppText>
-                      <AppText style={styles.prepNoteBody}>{getReflectionPreview(note.body, 140)}</AppText>
-                    </View>
-                  ))
-                ) : (
-                  <AppText style={styles.prepEmpty}>A few short notes here can make appointment prep feel easier later.</AppText>
-                )}
-              </View>
-              <View style={styles.prepGroup}>
-                <AppText style={styles.prepTitle}>Medication notes</AppText>
-                {activeMedications.length ? (
-                  activeMedications.map((medication) => (
-                    <View key={medication.id} style={styles.trendRow}>
-                      <AppText style={styles.trendBullet}>•</AppText>
-                      <AppText style={styles.trendText}>
-                        {formatMedicationLine(medication.name, medication.dosage, medication.frequency)}
-                      </AppText>
-                    </View>
-                  ))
-                ) : (
-                  <AppText style={styles.prepEmpty}>No active medications are listed right now.</AppText>
-                )}
-              </View>
-              <View style={styles.prepGroup}>
-                <AppText style={styles.prepTitle}>Questions to bring</AppText>
-                {appointmentQuestionLines.length ? (
-                  appointmentQuestionLines.map((question) => (
-                    <View key={question} style={styles.trendRow}>
-                      <AppText style={styles.trendBullet}>•</AppText>
-                      <AppText style={styles.trendText}>{question.replace(/^•\s*/, "")}</AppText>
-                    </View>
-                  ))
-                ) : (
-                  <AppText style={styles.prepEmpty}>You can add your own questions in Care notes when something feels worth bringing up.</AppText>
-                )}
-              </View>
+              {exportFeedback ? (
+                <View style={styles.feedbackCard}>
+                  <AppText style={styles.feedbackText}>{exportFeedback}</AppText>
+                </View>
+              ) : null}
             </View>
 
-            <AppButton label="Share summary" onPress={() => void handleShare()} />
+
           </>
         )}
       </ScrollView>

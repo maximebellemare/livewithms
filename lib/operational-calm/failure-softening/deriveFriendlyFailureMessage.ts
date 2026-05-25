@@ -35,5 +35,5 @@ export function deriveFriendlyFailureMessage(error: unknown) {
     return "Something was not fully saved just yet. We’ll keep this as steady as we can.";
   }
 
-  return "Something did not come through just yet. A quiet retry may help.";
+  return "Could not save profile. Please try again.";
 }

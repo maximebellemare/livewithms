@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { router } from "expo-router";
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
@@ -34,6 +34,12 @@ import { logger } from "../../lib/logger";
 import { trackRetryTriggered } from "../../lib/events";
 import { useSlowScreenDiagnostics } from "../../lib/observability";
 import { useLowEnergyMode } from "../../features/low-energy-mode/hooks";
+import {
+  addCareNotificationResponseListener,
+  cancelCareReminders,
+  scheduleAppointmentReminders,
+  scheduleMedicationReminder,
+} from "../../features/reminders/notifications";
 
 const MEDICATION_FREQUENCY_OPTIONS = [
   "Once daily",
@@ -44,6 +50,14 @@ const MEDICATION_FREQUENCY_OPTIONS = [
   "As needed",
   "Weekly",
   "Custom",
+] as const;
+
+const CARE_NOTE_CATEGORIES = [
+  "Symptoms noticed",
+  "Questions for provider",
+  "Medication side effects",
+  "Important changes",
+  "Things helping",
 ] as const;
 
 function getTodayDateString() {
@@ -177,6 +191,13 @@ function getNotePreview(note: string, maxLength = 110) {
   return `${trimmed.slice(0, maxLength).trimEnd()}…`;
 }
 
+function formatTakenTime(isoDate: string) {
+  return new Date(isoDate).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function CareScreen() {
   const { user } = useAuth();
   const appointmentsQuery = useAppointments(user?.id);
@@ -220,6 +241,7 @@ export default function CareScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [medicationErrorMessage, setMedicationErrorMessage] = useState<string | null>(null);
   const [careNoteErrorMessage, setCareNoteErrorMessage] = useState<string | null>(null);
+  const [medicationsTakenToday, setMedicationsTakenToday] = useState<Record<string, string>>({});
   const isInitialLoading =
     (appointmentsQuery.isLoading && !appointmentsQuery.data) ||
     (medicationsQuery.isLoading && !medicationsQuery.data) ||
@@ -227,6 +249,31 @@ export default function CareScreen() {
   useSlowScreenDiagnostics("care", isInitialLoading);
   const [showInactiveMedications, setShowInactiveMedications] = useState(false);
   const lowEnergyMode = useLowEnergyMode();
+
+  useEffect(() => {
+    return addCareNotificationResponseListener((action) => {
+      if (action.type === "medication-taken") {
+        setMedicationsTakenToday((current) => ({
+          ...current,
+          [action.medicationId]: new Date().toISOString(),
+        }));
+        setMedicationMessage("Medication marked taken today.");
+        return;
+      }
+
+      if (action.type === "medication-skipped") {
+        setMedicationMessage("Medication reminder skipped.");
+        return;
+      }
+
+      if (action.type === "medication-later") {
+        setMedicationMessage("Medication reminder moved later.");
+        return;
+      }
+
+      router.push("/health-summary");
+    });
+  }, []);
 
   const upcomingAppointments = useMemo(() => {
     const today = getTodayDateString();
@@ -251,6 +298,62 @@ export default function CareScreen() {
   );
   const recentCareNote = careNotesQuery.data?.[0] ?? null;
   const nextAppointment = upcomingAppointments[0] ?? null;
+  const takenMedicationCount = useMemo(
+    () => activeMedications.filter((medication) => medicationsTakenToday[medication.id]).length,
+    [activeMedications, medicationsTakenToday],
+  );
+
+  const toggleMedicationTakenToday = (medicationId: string) => {
+    setMedicationsTakenToday((current) => {
+      if (current[medicationId]) {
+        const next = { ...current };
+        delete next[medicationId];
+        return next;
+      }
+
+      return {
+        ...current,
+        [medicationId]: new Date().toISOString(),
+      };
+    });
+  };
+
+  const scheduleMedicationReminderQuietly = async (medication: Medication) => {
+    if (!medication.active || medication.frequency.toLowerCase().includes("as needed")) {
+      return;
+    }
+
+    try {
+      const identifier = await scheduleMedicationReminder({
+        medicationId: medication.id,
+        name: medication.name,
+        frequency: medication.frequency,
+      });
+
+      if (identifier) {
+        setMedicationMessage(`Medication saved. Reminder scheduled for ${medication.frequency.toLowerCase()}.`);
+      }
+    } catch {
+      setMedicationMessage("Medication saved. Reminder setup was not available right now.");
+    }
+  };
+
+  const scheduleAppointmentRemindersQuietly = async (appointment: Appointment) => {
+    try {
+      const identifiers = await scheduleAppointmentReminders({
+        appointmentId: appointment.id,
+        title: appointment.title,
+        appointmentDate: appointment.appointment_date,
+        appointmentTime: appointment.appointment_time,
+      });
+
+      if (identifiers.length > 0) {
+        setMessage("Appointment saved. Reminders are scheduled.");
+      }
+    } catch {
+      setMessage("Appointment saved. Reminder setup was not available right now.");
+    }
+  };
 
   const resetAppointmentForm = () => {
     setTitle("");
@@ -355,21 +458,23 @@ export default function CareScreen() {
     };
 
     try {
+      let savedAppointment: Appointment;
       if (editingAppointmentId) {
-        await updateAppointment.mutateAsync({
+        savedAppointment = await updateAppointment.mutateAsync({
           userId: user.id,
           appointmentId: editingAppointmentId,
           input,
         });
-        setMessage("Your appointment changes are here.");
+        setMessage("Appointment updated.");
       } else {
-        await createAppointment.mutateAsync({
+        savedAppointment = await createAppointment.mutateAsync({
           userId: user.id,
           input,
         });
-        setMessage("Saved quietly.");
+        setMessage("Appointment saved.");
       }
 
+      void scheduleAppointmentRemindersQuietly(savedAppointment);
       resetAppointmentForm();
       setShowAppointmentForm(false);
     } catch (error) {
@@ -430,6 +535,7 @@ export default function CareScreen() {
         userId: user.id,
         appointmentId,
       });
+      await cancelCareReminders(`appointment.${appointmentId}`);
 
       if (editingAppointmentId === appointmentId) {
         resetAppointmentForm();
@@ -464,21 +570,23 @@ export default function CareScreen() {
     };
 
     try {
+      let savedMedication: Medication;
       if (editingMedicationId) {
-        await updateMedication.mutateAsync({
+        savedMedication = await updateMedication.mutateAsync({
           userId: user.id,
           medicationId: editingMedicationId,
           input,
         });
       } else {
-        await createMedication.mutateAsync({
+        savedMedication = await createMedication.mutateAsync({
           userId: user.id,
           input,
         });
       }
       resetMedicationForm();
       setShowMedicationForm(false);
-      setMedicationMessage(editingMedicationId ? "Your medication changes are here." : "Saved quietly.");
+      setMedicationMessage(editingMedicationId ? "Medication updated." : "Medication saved.");
+      void scheduleMedicationReminderQuietly(savedMedication);
     } catch (error) {
       setMedicationErrorMessage(getErrorMessage(error));
     }
@@ -509,6 +617,7 @@ export default function CareScreen() {
         userId: user.id,
         medicationId,
       });
+      await cancelCareReminders(`medication.${medicationId}`);
 
       if (editingMedicationId === medicationId) {
         resetMedicationForm();
@@ -573,13 +682,13 @@ export default function CareScreen() {
           noteId: editingCareNoteId,
           input,
         });
-        setCareNoteMessage("Your note changes are here.");
+        setCareNoteMessage("Care reminder updated.");
       } else {
         await createCareNote.mutateAsync({
           userId: user.id,
           input,
         });
-        setCareNoteMessage("Care note saved and easy to come back to.");
+        setCareNoteMessage("Care reminder saved.");
       }
 
       resetCareNoteForm();
@@ -627,7 +736,7 @@ export default function CareScreen() {
   const confirmDeleteCareNote = (note: CareNote) => {
     Alert.alert(
       "Remove note",
-      `Take "${note.title || "this note"}" out of Care notes?`,
+      `Remove "${note.title || "this reminder"}" from appointment notes?`,
       [
         {
           text: "Cancel",
@@ -690,9 +799,9 @@ export default function CareScreen() {
 
   return (
     <AppScreen
-      eyebrow="Appointments and notes"
-      title="Care organizer"
-      subtitle="Keep medications, visits, and care notes close by in one calmer place."
+      eyebrow="Care"
+      title="Care"
+      subtitle="Organize medications, appointments, and important care notes."
     >
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView
@@ -701,19 +810,13 @@ export default function CareScreen() {
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>Your care tools in one place</AppText>
-          <AppText style={styles.body}>
-            Keep the essentials close by so appointments, medications, and notes feel easier to hold in one calm place.
-          </AppText>
-          {lowEnergyMode.enabled ? (
-            <View style={styles.lowEnergyBanner}>
-              <AppText style={styles.lowEnergyBannerText}>
-                Care is keeping things a little lighter and roomier today.
-              </AppText>
-            </View>
-          ) : null}
-        </View>
+        {lowEnergyMode.enabled ? (
+          <View style={styles.lowEnergyBanner}>
+            <AppText style={styles.lowEnergyBannerText}>
+              Simplified layout is active.
+            </AppText>
+          </View>
+        ) : null}
 
         <View style={styles.summaryGrid}>
           <View style={styles.summaryCard}>
@@ -728,12 +831,12 @@ export default function CareScreen() {
                 {nextAppointment.provider ? (
                   <AppText style={styles.summaryBody}>{nextAppointment.provider}</AppText>
                 ) : (
-                  <AppText style={styles.summaryHint}>Your next visit can live here whenever it helps.</AppText>
+                  <AppText style={styles.summaryHint}>Add a provider if you want it listed here.</AppText>
                 )}
               </>
             ) : (
               <>
-                <AppText style={styles.summaryEmptyTitle}>Appointments will appear here when needed.</AppText>
+                <AppText style={styles.summaryEmptyTitle}>No appointment saved yet.</AppText>
                 <AppText style={styles.summaryHint}>A title and date are enough to start.</AppText>
               </>
             )}
@@ -744,18 +847,16 @@ export default function CareScreen() {
             <AppText style={styles.summaryCount}>{activeMedications.length}</AppText>
             <AppText style={styles.summaryBody}>
               {activeMedications.length === 0
-                ? "Your medication list can rest here."
-                : activeMedications.length === 1
-                  ? activeMedications[0]?.name ?? "1 medication"
-                  : `${activeMedications.length} medications currently listed`}
+                ? "No medications listed yet."
+                : `${takenMedicationCount}/${activeMedications.length} marked taken today`}
             </AppText>
           </View>
 
           <View style={styles.summaryCard}>
-            <AppText style={styles.summaryLabel}>Recent care note</AppText>
+            <AppText style={styles.summaryLabel}>Recent care reminder</AppText>
             {recentCareNote ? (
               <>
-                <AppText style={styles.summaryTitle}>{recentCareNote.title || "Care note"}</AppText>
+                <AppText style={styles.summaryTitle}>{recentCareNote.title || "Care reminder"}</AppText>
                 <AppText style={styles.summaryBody}>{getNotePreview(recentCareNote.body, 90)}</AppText>
                 <AppText style={styles.summaryHint}>
                   Updated {formatShortDateFromIso(recentCareNote.updated_at)}
@@ -763,19 +864,17 @@ export default function CareScreen() {
               </>
             ) : (
               <>
-                <AppText style={styles.summaryEmptyTitle}>Notes can settle here when useful.</AppText>
-                <AppText style={styles.summaryHint}>Questions or reminders can live here whenever they’re useful.</AppText>
+                <AppText style={styles.summaryEmptyTitle}>No care reminder saved yet.</AppText>
+                <AppText style={styles.summaryHint}>Questions, side effects, or changes can be saved here.</AppText>
               </>
             )}
           </View>
         </View>
 
         <View style={styles.quickLinksCard}>
-          <AppText style={styles.sectionTitle}>Quick links</AppText>
-          <AppText style={styles.body}>Move between the essentials without opening extra menus.</AppText>
+          <AppText style={styles.sectionTitle}>Health summary</AppText>
+          <AppText style={styles.body}>Prepare a shareable summary for appointments.</AppText>
           <View style={styles.navButtons}>
-            <AppButton label="Today" onPress={() => router.push("/today")} variant="secondary" />
-            <AppButton label="Profile" onPress={() => router.push("/profile")} variant="secondary" />
             <AppButton label="Health Summary" onPress={() => router.push("/health-summary")} variant="secondary" />
           </View>
         </View>
@@ -784,7 +883,7 @@ export default function CareScreen() {
           <View style={styles.formHeader}>
             <View style={styles.formHeaderCopy}>
               <AppText style={styles.title}>Appointments</AppText>
-              <AppText style={styles.body}>Keep upcoming visits easy to find, with only the details you want close by.</AppText>
+              <AppText style={styles.body}>Save upcoming visits and any details you want to keep handy.</AppText>
             </View>
             <AppButton
               label={showAppointmentForm ? "Hide form" : "Add appointment"}
@@ -889,8 +988,8 @@ export default function CareScreen() {
           <AppText style={styles.sectionLabel}>Upcoming appointments</AppText>
           {upcomingAppointments.length === 0 ? (
             <View style={styles.emptyState}>
-              <AppText style={styles.body}>Your appointments will appear here when needed.</AppText>
-              <AppText style={styles.emptyHint}>Your next visit can live here whenever it feels useful.</AppText>
+              <AppText style={styles.body}>No upcoming appointments saved yet.</AppText>
+              <AppText style={styles.emptyHint}>Add a visit to keep it easy to find.</AppText>
             </View>
           ) : (
             <View style={styles.list}>
@@ -934,8 +1033,8 @@ export default function CareScreen() {
           <AppText style={styles.sectionLabel}>Past appointments</AppText>
           {pastAppointments.length === 0 ? (
             <View style={styles.emptyState}>
-              <AppText style={styles.body}>Past appointments can settle here over time.</AppText>
-              <AppText style={styles.emptyHint}>Completed visits can collect here for easy reference.</AppText>
+              <AppText style={styles.body}>No past appointments saved yet.</AppText>
+              <AppText style={styles.emptyHint}>Completed visits will appear here.</AppText>
             </View>
           ) : (
             <View style={styles.list}>
@@ -978,11 +1077,11 @@ export default function CareScreen() {
         </View>
 
         <View style={styles.card}>
-          <View style={styles.formHeader}>
-            <View style={styles.formHeaderCopy}>
-              <AppText style={styles.title}>Medications</AppText>
-              <AppText style={styles.body}>Keep current medications together with a simple schedule and any notes you want nearby.</AppText>
-            </View>
+            <View style={styles.formHeader}>
+              <View style={styles.formHeaderCopy}>
+                <AppText style={styles.title}>Medications</AppText>
+              <AppText style={styles.body}>Track current medications and mark what has been taken today.</AppText>
+              </View>
             <AppButton
               label={showMedicationForm ? "Hide form" : "Add medication"}
               onPress={() => setShowMedicationForm((current) => !current)}
@@ -1086,13 +1185,16 @@ export default function CareScreen() {
           <AppText style={styles.sectionLabel}>Active medications</AppText>
           {activeMedications.length === 0 ? (
             <View style={styles.emptyState}>
-              <AppText style={styles.body}>Your medications will appear here when you want them nearby.</AppText>
-              <AppText style={styles.emptyHint}>Dosage, schedule, and short notes can stay here for easy reference.</AppText>
+              <AppText style={styles.body}>No active medications saved yet.</AppText>
+              <AppText style={styles.emptyHint}>Add a medication to track dosage, schedule, and today’s taken status.</AppText>
             </View>
           ) : (
             <View style={styles.list}>
-              {activeMedications.map((medication) => (
-                <View key={medication.id} style={styles.itemCard}>
+              {activeMedications.map((medication) => {
+                const takenAt = medicationsTakenToday[medication.id];
+
+                return (
+                <View key={medication.id} style={[styles.itemCard, takenAt && styles.medicationTakenCard]}>
                   <View style={styles.medicationHeader}>
                     <View style={styles.itemHeaderCopy}>
                       <AppText style={styles.itemTitle}>{medication.name}</AppText>
@@ -1101,9 +1203,33 @@ export default function CareScreen() {
                         {medication.frequency}
                       </AppText>
                     </View>
-                    <AppText style={[styles.badge, styles.badgeActive]}>Current</AppText>
+                    <AppText style={[styles.badge, takenAt ? styles.badgeTaken : styles.badgeActive]}>
+                      {takenAt ? "Taken today" : "Current"}
+                    </AppText>
                   </View>
                   {medication.notes ? <AppText style={styles.itemNotes}>{medication.notes}</AppText> : null}
+                  <View style={styles.adherenceRow}>
+                    <View style={styles.itemHeaderCopy}>
+                      <AppText style={styles.adherenceTitle}>
+                        {takenAt ? `Taken at ${formatTakenTime(takenAt)}` : "Not marked taken today"}
+                      </AppText>
+                      <AppText style={styles.adherenceBody}>Today only. Edit the medication for schedule changes.</AppText>
+                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${takenAt ? "Undo taken status for" : "Mark taken for"} ${medication.name}`}
+                      onPress={() => toggleMedicationTakenToday(medication.id)}
+                      style={({ pressed }) => [
+                        styles.takenButton,
+                        takenAt && styles.takenButtonActive,
+                        pressed && styles.takenButtonPressed,
+                      ]}
+                    >
+                      <AppText style={[styles.takenButtonText, takenAt && styles.takenButtonTextActive]}>
+                        {takenAt ? "Taken ✓" : "Taken"}
+                      </AppText>
+                    </Pressable>
+                  </View>
                   <View style={styles.itemActions}>
                     <AppButton label="Edit" onPress={() => startEditingMedication(medication)} variant="secondary" />
                     <AppButton
@@ -1114,7 +1240,8 @@ export default function CareScreen() {
                     />
                   </View>
                 </View>
-              ))}
+                );
+              })}
             </View>
           )}
 
@@ -1165,13 +1292,13 @@ export default function CareScreen() {
         <View style={styles.card}>
           <View style={styles.formHeader}>
             <View style={styles.formHeaderCopy}>
-              <AppText style={styles.title}>Care notes</AppText>
+              <AppText style={styles.title}>Appointment notes</AppText>
               <AppText style={styles.body}>
-                Questions, reminders, and ordinary details can live here without needing to sound formal.
+                Save questions, symptoms, side effects, and changes to discuss with your care team.
               </AppText>
             </View>
             <AppButton
-              label={showCareNoteForm ? "Hide form" : "Add note"}
+              label={showCareNoteForm ? "Hide form" : "Add care reminder"}
               onPress={() => setShowCareNoteForm((current) => !current)}
               variant="secondary"
             />
@@ -1180,14 +1307,14 @@ export default function CareScreen() {
           {showCareNoteForm ? (
             <View style={styles.formCard}>
               <AppText style={styles.formIntro}>
-                This can stay loose and informal. A short note is enough.
+                Choose a category and write only what you want to remember.
               </AppText>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Title</AppText>
                 <TextInput
                   value={careNoteTitle}
                   onChangeText={setCareNoteTitle}
-                  placeholder="Questions for my next visit"
+                  placeholder="Questions for next visit"
                   placeholderTextColor="#9ca3af"
                   style={styles.input}
                 />
@@ -1197,20 +1324,43 @@ export default function CareScreen() {
                 <TextInput
                   value={careNoteCategory}
                   onChangeText={setCareNoteCategory}
-                  placeholder="Questions for doctor"
+                  placeholder="Questions for provider"
                   placeholderTextColor="#9ca3af"
                   style={styles.input}
                 />
               </View>
-              <AppText style={styles.helperText}>
-                Try: Questions for a visit, Symptoms to mention, Medication notes, Personal reminder
-              </AppText>
+              <View style={styles.categoryOptions}>
+                {CARE_NOTE_CATEGORIES.map((category) => {
+                  const isSelected = careNoteCategory === category;
+
+                  return (
+                    <Pressable
+                      key={category}
+                      onPress={() => setCareNoteCategory(category)}
+                      style={({ pressed }) => [
+                        styles.frequencyChip,
+                        isSelected && styles.frequencyChipSelected,
+                        pressed && styles.frequencyChipPressed,
+                      ]}
+                    >
+                      <AppText
+                        style={[
+                          styles.frequencyChipText,
+                          isSelected && styles.frequencyChipTextSelected,
+                        ]}
+                      >
+                        {category}
+                      </AppText>
+                    </Pressable>
+                  );
+                })}
+              </View>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Note</AppText>
                 <TextInput
                   value={careNoteBody}
                   onChangeText={setCareNoteBody}
-                  placeholder="Write anything you want to remember, mention, or come back to later"
+                  placeholder="Write what you want to remember or discuss"
                   placeholderTextColor="#9ca3af"
                   multiline
                   textAlignVertical="top"
@@ -1223,7 +1373,7 @@ export default function CareScreen() {
                     ? "Saving..."
                     : editingCareNoteId
                       ? "Save changes"
-                      : "Save note"
+                      : "Save care reminder"
                 }
                 onPress={() => void handleCareNoteSave()}
                 disabled={createCareNote.isPending || updateCareNote.isPending}
@@ -1236,9 +1386,9 @@ export default function CareScreen() {
 
           {(careNotesQuery.data ?? []).length === 0 ? (
             <View style={styles.emptyState}>
-              <AppText style={styles.body}>Notes can help you keep small details in one place.</AppText>
+              <AppText style={styles.body}>No care reminders saved yet.</AppText>
               <AppText style={styles.emptyHint}>
-                Questions, reminders, or anything you want handy before a visit can live here.
+                Save provider questions, symptom changes, medication side effects, or things helping.
               </AppText>
             </View>
           ) : (
@@ -1538,6 +1688,11 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 10,
   },
+  categoryOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
   frequencyChip: {
     borderRadius: 999,
     borderWidth: 1,
@@ -1624,6 +1779,10 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 10,
   },
+  medicationTakenCard: {
+    borderColor: "#cfe8d4",
+    backgroundColor: "#fbfdf9",
+  },
   itemHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -1694,6 +1853,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#e8f7ec",
     color: "#166534",
   },
+  badgeTaken: {
+    backgroundColor: "#dff3e4",
+    color: "#166534",
+  },
   badgeInactive: {
     backgroundColor: "#f3f4f6",
     color: "#4b5563",
@@ -1705,6 +1868,52 @@ const styles = StyleSheet.create({
   itemNotes: {
     color: "#4b5563",
     lineHeight: 21,
+  },
+  adherenceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#eadfd6",
+    backgroundColor: "#ffffff",
+    padding: 12,
+  },
+  adherenceTitle: {
+    color: "#1f2937",
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  adherenceBody: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  takenButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#d8ead9",
+    backgroundColor: "#f7fbf7",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minWidth: 82,
+    alignItems: "center",
+  },
+  takenButtonActive: {
+    borderColor: "#7abf83",
+    backgroundColor: "#e8f7ec",
+  },
+  takenButtonPressed: {
+    opacity: 0.86,
+  },
+  takenButtonText: {
+    color: "#166534",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  takenButtonTextActive: {
+    color: "#14532d",
   },
   noteMeta: {
     fontSize: 12,

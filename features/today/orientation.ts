@@ -106,7 +106,7 @@ function deriveSmallObservation(
     return firstSentence(aiSummary.summary, 92);
   }
 
-  return "Small patterns can still become clearer over time.";
+  return "There is not enough information yet to call this a clear pattern.";
 }
 
 function deriveLowEnergyOption(todayEntry: DailyCheckIn | null, adaptiveProfile: AdaptiveProfile | null) {
@@ -126,7 +126,7 @@ function deriveLowEnergyOption(todayEntry: DailyCheckIn | null, adaptiveProfile:
     return "Treat today like a lower-capacity day where you can.";
   }
 
-  return "Let one steady thing be enough for now.";
+  return "Keep the plan smaller than usual today.";
 }
 
 export function deriveTodayOrientation(input: {
@@ -136,7 +136,7 @@ export function deriveTodayOrientation(input: {
   aiSummary: AiInsightsSummary | null;
 }) : TodayOrientation {
   return {
-    title: "A calm read on today",
+    title: "Today at a glance",
     modules: [
       {
         id: "focus",

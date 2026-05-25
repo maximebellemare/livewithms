@@ -79,3 +79,4 @@ npm run test:unit -- src/test/platform-stewardship/launch-readiness-audit.test.t
 ## Further reading
 
 - `docs/architecture-foundation.md`
+- `docs/ux-writing-guidelines.md`

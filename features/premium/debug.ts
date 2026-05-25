@@ -1,5 +1,6 @@
 import { appSecureStore } from "../../lib/secure-store";
 import { ENABLE_PREMIUM_DEBUG_TOOLS } from "./config";
+import { DEV_PREMIUM_OVERRIDE } from "./devPremium";
 
 const PREMIUM_DEBUG_OVERRIDE_KEY = "livewithms.premium-debug-override";
 
@@ -8,16 +9,27 @@ export async function loadPremiumDebugOverride() {
     return false;
   }
 
+  if (!DEV_PREMIUM_OVERRIDE) {
+    return false;
+  }
+
   try {
     const raw = await appSecureStore.getItem(PREMIUM_DEBUG_OVERRIDE_KEY);
+    if (raw === null) {
+      return DEV_PREMIUM_OVERRIDE;
+    }
     return raw === "true";
   } catch {
-    return false;
+    return DEV_PREMIUM_OVERRIDE;
   }
 }
 
 export async function savePremiumDebugOverride(enabled: boolean) {
   if (!ENABLE_PREMIUM_DEBUG_TOOLS) {
+    return;
+  }
+
+  if (!DEV_PREMIUM_OVERRIDE) {
     return;
   }
 

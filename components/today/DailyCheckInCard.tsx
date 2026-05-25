@@ -5,12 +5,6 @@ import type { DailyCheckInInput } from "../../features/checkins/types";
 import AppText from "../ui/AppText";
 import SymptomSliderCard from "./SymptomSliderCard";
 import { deriveEmotionallySafeErrors } from "../../lib/operational-excellence/calm-error-states/deriveEmotionallySafeErrors";
-import { softenSaveMoments } from "../../lib/humane-micro-moments/friction-softening/softenSaveMoments";
-import { deriveGentleRecoveryFlows } from "../../lib/humane-micro-moments/friction-softening/deriveGentleRecoveryFlows";
-import { deriveSubtleHumanWarmth } from "../../lib/humane-micro-moments/quiet-warmth/deriveSubtleHumanWarmth";
-import { preventOverfamiliarity } from "../../lib/humane-micro-moments/quiet-warmth/preventOverfamiliarity";
-import { deriveLowStimulationFeedback } from "../../lib/humane-micro-moments/sensory-refinement/deriveLowStimulationFeedback";
-import { preserveSubtleReliefMoments } from "../../lib/humane-micro-moments/non-performative-delight/preserveSubtleReliefMoments";
 import {
   deriveReflectionSupport,
   type ReflectionMode,
@@ -38,7 +32,7 @@ type DailyCheckInCardProps = {
   onSave: () => void;
   saveMomentTitle?: string;
   saveMomentBody?: string;
-  postSaveInsight: string;
+  postSaveInsight?: string;
   onViewInsights: () => void;
   saveFooterText?: string;
   supportMode?: "default" | "low-energy";
@@ -78,6 +72,24 @@ export function getEmptyCheckInDraft(): DailyCheckInDraft {
   };
 }
 
+function getHydrationNote(waterGlasses: string) {
+  const value = Number(waterGlasses.trim());
+
+  if (!Number.isFinite(value) || waterGlasses.trim().length === 0 || value < 0) {
+    return null;
+  }
+
+  if (value <= 2) {
+    return "Hydration looks lower today.";
+  }
+
+  if (value <= 5) {
+    return "Hydration is moderate today.";
+  }
+
+  return "Hydration has stayed more consistent today.";
+}
+
 export default function DailyCheckInCard({
   draft,
   onChange,
@@ -95,7 +107,6 @@ export default function DailyCheckInCard({
   const [showBodySignals, setShowBodySignals] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const saveErrorCopy = deriveEmotionallySafeErrors({ category: "sync", retryable: true });
-  const saveWarmth = deriveSubtleHumanWarmth({ surface: "save" });
   const reduced = compressionMode === "reduced";
   const reflectionSupport = useMemo(
     () =>
@@ -136,6 +147,7 @@ export default function DailyCheckInCard({
     reflectionSupport.modes.find((mode) => mode.id === selectedReflectionMode) ??
     reflectionSupport.modes[0];
   const visibleNoteStarters = activeReflectionMode.prompts.slice(0, reflectionSupport.starterLimit);
+  const hydrationNote = getHydrationNote(draft.water_glasses);
 
   const addNoteStarter = (starter: string) => {
     const prefix = draft.notes.trim().length ? `${draft.notes.trim()}\n` : "";
@@ -150,9 +162,9 @@ export default function DailyCheckInCard({
           <AppText style={styles.title}>Daily check-in</AppText>
           <AppText style={styles.subtitle}>
             {supportMode === "low-energy"
-              ? "Keep this short if you need to. The basics are enough today."
+              ? "Use the shortest check-in that works today."
               : reduced
-                ? "Start with the basics. You can leave the extras for another time."
+                ? "Start with the basics."
                 : "Start with the basics. Add details only if you want."}
           </AppText>
         </View>
@@ -173,9 +185,7 @@ export default function DailyCheckInCard({
           <AppText style={styles.sectionHelper}>
             {supportMode === "low-energy"
               ? "Start with the clearest signals and skip the rest if needed."
-              : reduced
-                ? "Start with fatigue, mood, and stress. That may be enough."
-                : "Start with fatigue, mood, and stress."}
+              : "Start with fatigue, mood, and stress."}
           </AppText>
         </View>
 
@@ -277,7 +287,7 @@ export default function DailyCheckInCard({
               />
             </View>
             <View style={styles.fieldGroup}>
-              <AppText style={styles.fieldLabel}>Water glasses today</AppText>
+              <AppText style={styles.fieldLabel}>Hydration</AppText>
               <View style={styles.quickChoices}>
                 {WATER_PRESETS.map((option) => (
                   <Pressable
@@ -303,6 +313,7 @@ export default function DailyCheckInCard({
                 onChangeText={(water_glasses) => onChange({ ...draft, water_glasses })}
                 style={styles.fieldInput}
               />
+              {hydrationNote ? <AppText style={styles.fieldNote}>{hydrationNote}</AppText> : null}
             </View>
           </View>
         ) : null}
@@ -398,30 +409,16 @@ export default function DailyCheckInCard({
               <AppText style={styles.successBadge}>✓</AppText>
               <View style={styles.successCopy}>
                 <AppText style={styles.successText}>{saveMomentTitle ?? "Checked in"}</AppText>
-                <AppText style={styles.successSubtext}>
-                  {softenSaveMoments(
-                    saveMomentBody ?? (reduced ? "That is enough for today" : "That can be enough for now"),
-                  )}
-                </AppText>
+                <AppText style={styles.successSubtext}>{saveMomentBody ?? "Saved."}</AppText>
               </View>
             </View>
-            <AppText style={styles.savedInsight}>{postSaveInsight}</AppText>
-            <AppText style={styles.savedReturnText}>
-              {preserveSubtleReliefMoments(
-                preventOverfamiliarity(
-                  `${softenSaveMoments(saveFooterText ?? "See you tomorrow.")} ${deriveGentleRecoveryFlows({ state: "saved" })} ${saveWarmth}`.trim(),
-                ),
-              )}
-            </AppText>
+            {postSaveInsight ? <AppText style={styles.savedInsight}>{postSaveInsight}</AppText> : null}
+            {saveFooterText ? <AppText style={styles.savedReturnText}>{saveFooterText}</AppText> : null}
             <AppButton label="View Insights" onPress={onViewInsights} variant="secondary" />
           </View>
         ) : null}
         {saveState === "error" ? (
-          <AppText style={styles.errorText}>
-            {preserveSubtleReliefMoments(
-              `${saveErrorCopy.message} ${deriveGentleRecoveryFlows({ state: "error" })}`.trim(),
-            )}
-          </AppText>
+          <AppText style={styles.errorText}>{saveErrorCopy.message}</AppText>
         ) : null}
       </View>
     </View>
@@ -512,6 +509,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#4b5563",
     lineHeight: 20,
+  },
+  fieldNote: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#6b7280",
   },
   fieldInput: {
     borderRadius: 12,

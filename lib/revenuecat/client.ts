@@ -166,6 +166,11 @@ export const revenueCatClient = {
         await Purchases.configure({ apiKey: env.revenueCatIosApiKey });
         configuredApiKey = env.revenueCatIosApiKey;
         loggedInUserId = null;
+        updateDebugSnapshot((snapshot) => ({
+          ...snapshot,
+          timestamp: new Date().toISOString(),
+          configured: true,
+        }));
       }
 
       if (loggedInUserId !== userId) {
@@ -173,6 +178,13 @@ export const revenueCatClient = {
         loggedInUserId = userId;
         logger.info("RevenueCat user logged in", { hasUserId: true });
       }
+
+      updateDebugSnapshot((snapshot) => ({
+        ...snapshot,
+        timestamp: new Date().toISOString(),
+        configured: true,
+        loggedInAppUserId: userId,
+      }));
     } catch (error) {
       updateDebugSnapshot((snapshot) => withRevenueCatError(snapshot, error));
       const details = extractRevenueCatErrorDetails(error);

@@ -96,7 +96,7 @@ export function buildPremiumContinuityExportContent(
 
   if (snapshots.yearly.hasEnoughData) {
     sections.push({
-      title: "Yearly continuity summary",
+      title: "Yearly summary",
       lines: sectionLines(snapshots.yearly),
     });
   }
@@ -108,7 +108,7 @@ export function buildPremiumContinuityExportContent(
   return {
     title: "LiveWithMS continuity summary",
     subtitle:
-      "A calmer longer-view reflection built from recent check-ins, steadier moments, and ordinary continuity.",
+      "A longer-term summary built from recent check-ins and patterns.",
     fileName: `livewithms-continuity-summary-${new Date().toISOString().slice(0, 10)}.pdf`,
     sections,
     text,

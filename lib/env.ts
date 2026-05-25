@@ -11,6 +11,16 @@ const bundleIdentifier = "com.livewithms.app" as const;
 const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 const isRevenueCatConfigured = !!revenueCatIosApiKey;
 
+export function getSupabaseProjectRef(url: string) {
+  try {
+    const hostname = new URL(url).hostname;
+    const [projectRef] = hostname.split(".");
+    return projectRef || null;
+  } catch {
+    return null;
+  }
+}
+
 if (!isSupabaseConfigured) {
   console.warn(
     "[livewithms] Supabase env missing. Running in dev-only mock auth mode.",
@@ -21,9 +31,19 @@ if (!isSupabaseConfigured) {
   );
 }
 
+if (__DEV__) {
+  console.info("[livewithms] Active Supabase config", {
+    EXPO_PUBLIC_SUPABASE_URL: supabaseUrl || null,
+    projectRef: getSupabaseProjectRef(supabaseUrl),
+    anonKeyExists: Boolean(supabaseAnonKey),
+    anonKeyLength: supabaseAnonKey.length,
+  });
+}
+
 const env = {
   supabaseUrl,
   supabaseAnonKey,
+  supabaseProjectRef: getSupabaseProjectRef(supabaseUrl),
   revenueCatIosApiKey,
   isSupabaseConfigured,
   isRevenueCatConfigured,

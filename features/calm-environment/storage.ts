@@ -1,5 +1,5 @@
 import { appSecureStore } from "../../lib/secure-store";
-import type { CalmDensityMode, CalmEnvironmentState } from "./types";
+import type { AppearancePreference, CalmDensityMode, CalmEnvironmentState } from "./types";
 
 const CALM_ENVIRONMENT_KEY = "livewithms.calm-environment";
 
@@ -8,14 +8,19 @@ export const DEFAULT_CALM_ENVIRONMENT_STATE: CalmEnvironmentState = {
   softerHaptics: true,
   nightCalm: true,
   density: "standard",
+  appearance: "light",
   updatedAt: null,
 };
 
 let cachedCalmEnvironmentState: CalmEnvironmentState | null = null;
 let cachedCalmEnvironmentSerialized: string | null = null;
 
-function sanitizeDensity(input: unknown): CalmDensityMode {
-  return input === "spacious" || input === "simplified" ? input : "standard";
+function sanitizeDensity(_input: unknown): CalmDensityMode {
+  return "standard";
+}
+
+function sanitizeAppearance(input: unknown): AppearancePreference {
+  return input === "dark" ? "dark" : "light";
 }
 
 function sanitizeCalmEnvironmentState(
@@ -35,6 +40,7 @@ function sanitizeCalmEnvironmentState(
         ? input.nightCalm
         : DEFAULT_CALM_ENVIRONMENT_STATE.nightCalm,
     density: sanitizeDensity(input?.density),
+    appearance: sanitizeAppearance(input?.appearance),
     updatedAt:
       typeof input?.updatedAt === "string"
         ? input.updatedAt

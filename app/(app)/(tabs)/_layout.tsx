@@ -96,6 +96,17 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="community/index"
+        options={{
+          title: "Community",
+          tabBarLabel: "Community",
+          href: "/community",
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "people" : "people-outline"} color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="health/index"
         options={{
           href: null,

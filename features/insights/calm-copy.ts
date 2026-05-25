@@ -1,5 +1,5 @@
 export function getInsightsFallbackSummary() {
-  return "More check-ins may help reveal clearer patterns over time.";
+  return "More check-ins may help reveal clearer patterns.";
 }
 
 export function getInsightDetailFallback() {
@@ -15,10 +15,10 @@ export function getWeeklyTrendIndicator(
   }
 
   if (higherIsBetter) {
-    return difference > 0 ? "A little steadier" : "A little lower";
+    return difference > 0 ? "Higher" : "Lower";
   }
 
-  return difference < 0 ? "A little lighter" : "A little heavier";
+  return difference < 0 ? "Lower" : "Higher";
 }
 
 export function formatTrendPointLabel(date: string) {

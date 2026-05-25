@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
@@ -16,9 +17,11 @@ import { trackEvent } from "../../lib/events";
 export default function PrioritiesScreen() {
   const router = useRouter();
   const { draft, setDraft, saveStep, isSavingStep } = useOnboarding();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const selectedPriorities = getSelectedOnboardingPriorities(draft);
 
   const handleSelect = (key: OnboardingPriorityKey) => {
+    setErrorMessage(null);
     const nextDraft = toggleOnboardingPriority(draft, key);
     const nextSelectedPriorities = getSelectedOnboardingPriorities(nextDraft);
     const isSelected = nextSelectedPriorities.includes(key);
@@ -41,10 +44,15 @@ export default function PrioritiesScreen() {
       ...current,
       goals,
     }));
-    await saveStep({
+    const ok = await saveStep({
       symptoms: draft.symptoms,
       goals,
     });
+    if (!ok) {
+      setErrorMessage("Could not save profile. Please try again.");
+      return;
+    }
+
     router.push("/plan");
   };
 
@@ -59,6 +67,7 @@ export default function PrioritiesScreen() {
       nextLabel="Continue"
       nextDisabled={!selectedPriorities.length || isSavingStep}
       loading={isSavingStep}
+      errorMessage={errorMessage}
     >
       <View style={styles.stack}>
         <View style={styles.chipGrid}>

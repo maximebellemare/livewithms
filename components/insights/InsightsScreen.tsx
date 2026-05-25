@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
 import { useAuth } from "../../features/auth/hooks";
 import { useCheckInHistory } from "../../features/checkins/hooks";
+import type { DailyCheckIn } from "../../features/checkins/types";
 import { useGrowthState } from "../../features/growth/hooks";
 import { useAiInsightsSummary, useInsightsDashboard, usePatternSummary } from "../../features/insights/hooks";
 import {
@@ -12,6 +13,7 @@ import {
   deriveWeeklyMeaning,
   deriveWhatChangedRecently as deriveRecentInsightChanges,
 } from "../../features/insights/actionable";
+import { buildTrackClaritySnapshot } from "../../features/track/clarity";
 import {
   canAccessPremiumReflectionSummaries,
   derivePremiumReflectionSummaries,
@@ -259,7 +261,6 @@ import { detectEmotionalDrift } from "../../lib/meta-orchestration/drift-prevent
 import { deriveSystemDependencies } from "../../lib/meta-orchestration/cognitive-mapping/deriveSystemDependencies";
 import { validateAdaptationChains } from "../../lib/meta-orchestration/cognitive-mapping/validateAdaptationChains";
 import { buildUncertaintySafetySnapshot } from "../../lib/uncertainty-safety/buildUncertaintySafetySnapshot";
-import { generateNormalizationLanguage } from "../../lib/uncertainty-safety/variability-normalization/generateNormalizationLanguage";
 import { reduceObsessivePatternSurfacing } from "../../lib/uncertainty-safety/tracking-deintensification/reduceObsessivePatternSurfacing";
 import { buildJourneySnapshot } from "../../lib/journey-design/buildJourneySnapshot";
 import { deriveSeasonalReflections } from "../../lib/life-journey/reflection-seasons/deriveSeasonalReflections";
@@ -277,9 +278,12 @@ import { reduceInterpretiveOverload } from "../../lib/life-journey/existential-s
 
 function getCutoffDate(days: number) {
   const now = new Date();
-  const cutoff = new Date(now);
-  cutoff.setDate(now.getDate() - (days - 1));
-  return cutoff.toISOString().slice(0, 10);
+  const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  cutoff.setDate(cutoff.getDate() - (days - 1));
+  const year = cutoff.getFullYear();
+  const month = String(cutoff.getMonth() + 1).padStart(2, "0");
+  const day = String(cutoff.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function shortenLowEnergyText(text: string, maxLength: number) {
@@ -301,7 +305,7 @@ function PremiumReflectionCard({ summary }: { summary: PremiumReflectionSummary 
   return (
     <View style={styles.premiumReflectionCard}>
       <AppText style={styles.premiumReflectionTitle}>
-        {summary.window === "weekly" ? "This week at a glance" : "This month at a glance"}
+        {summary.window === "weekly" ? "Weekly averages" : "Monthly averages"}
       </AppText>
       <AppText style={styles.weeklySummaryBody}>
         {summary.hasEnoughData ? summary.atAGlance : summary.fallbackMessage ?? summary.atAGlance}
@@ -395,7 +399,7 @@ function PremiumContinuityCard({ summary }: { summary: PremiumContinuitySummary 
             </View>
           </View>
           <View style={styles.premiumReflectionSection}>
-            <AppText style={styles.premiumReflectionKicker}>Life beyond symptoms</AppText>
+            <AppText style={styles.premiumReflectionKicker}>Daily activity patterns</AppText>
             <View style={styles.helpingSection}>
               {summary.lifeBeyondSymptoms.map((item) => (
                 <View key={item} style={styles.helpingRow}>
@@ -578,6 +582,353 @@ function PremiumMeaningfulLifeCard({ summary }: { summary: PremiumMeaningfulLife
       )}
     </View>
   );
+}
+
+function getPrimaryInsight(lines: string[], entryCount: number) {
+  if (lines.length > 0) {
+    return lines[0];
+  }
+
+  if (entryCount >= 4) {
+    return "Recent check-ins are ready for pattern review.";
+  }
+
+  return "Early signals are starting to appear.";
+}
+
+function formatScaleSignal(label: string, value: number | null) {
+  return typeof value === "number" ? `${label} ${value}/5` : null;
+}
+
+function compareMetric(label: string, current: number | null, previous: number | null, higherMeansMore = true) {
+  if (typeof current !== "number" || typeof previous !== "number") {
+    return null;
+  }
+
+  const difference = current - previous;
+  if (Math.abs(difference) < 0.5) {
+    return `${label} stayed about the same as the previous check-in.`;
+  }
+
+  const increased = difference > 0;
+  const direction = increased === higherMeansMore ? "higher" : "lower";
+  return `${label} was ${direction} than your previous check-in.`;
+}
+
+function buildEarlyInsightSections(entries: DailyCheckIn[]): {
+  summary: string;
+  changes: string[];
+  signals: string[];
+  next: string[];
+} {
+  const sorted = entries.slice().sort((left, right) => right.date.localeCompare(left.date));
+  const latest = sorted[0] ?? null;
+  const previous = sorted[1] ?? null;
+
+  if (!latest) {
+    return {
+      summary: "Insights will show trends and relationships once check-ins are available.",
+      changes: [],
+      signals: [],
+      next: ["Start with one check-in on Today."],
+    };
+  }
+
+  const latestSignals = [
+    formatScaleSignal("Fatigue", latest.fatigue),
+    formatScaleSignal("Mood", latest.mood),
+    formatScaleSignal("Stress", latest.stress),
+    typeof latest.sleep_hours === "number" ? `Sleep ${latest.sleep_hours}h` : null,
+    typeof latest.water_glasses === "number" ? `Hydration ${latest.water_glasses} glasses` : null,
+  ].filter((item): item is string => Boolean(item));
+
+  const changes = previous
+    ? [
+        compareMetric("Fatigue", latest.fatigue, previous.fatigue),
+        compareMetric("Stress", latest.stress, previous.stress),
+        compareMetric("Mood", latest.mood, previous.mood, false),
+        compareMetric("Sleep", latest.sleep_hours, previous.sleep_hours),
+      ].filter((item): item is string => Boolean(item))
+    : [];
+
+  const signals = [
+    ...latestSignals.slice(0, 4),
+    sorted.length >= 3 && averageMetric(sorted.slice(0, 3).map((entry) => entry.fatigue)) !== null
+      ? `Average fatigue across recent check-ins: ${averageMetric(sorted.slice(0, 3).map((entry) => entry.fatigue))?.toFixed(1)}/5`
+      : null,
+    sorted.length >= 3 && averageMetric(sorted.slice(0, 3).map((entry) => entry.stress)) !== null
+      ? `Average stress across recent check-ins: ${averageMetric(sorted.slice(0, 3).map((entry) => entry.stress))?.toFixed(1)}/5`
+      : null,
+  ].filter((item): item is string => Boolean(item));
+
+  const next = [
+    sorted.length === 1 ? "A second check-in will unlock simple comparisons." : null,
+    sorted.length > 1 && sorted.length < 4 ? "More check-ins help reveal clearer trends over time." : null,
+    latest.sleep_hours !== null && latest.fatigue !== null ? "Keep logging sleep and fatigue to compare them over time." : null,
+  ].filter((item): item is string => Boolean(item));
+
+  return {
+    summary: previous
+      ? changes[0] ?? "Your recent check-ins are ready for simple comparison."
+      : "Your first check-in is saved. Insights can now start building from it.",
+    changes,
+    signals,
+    next,
+  };
+}
+
+type InsightMetricKey = "fatigue" | "mood" | "stress" | "sleep";
+
+function getAverageForMetric(entries: DailyCheckIn[], metric: InsightMetricKey) {
+  if (metric === "sleep") {
+    return averageMetric(entries.map((entry) => entry.sleep_hours));
+  }
+
+  return averageMetric(entries.map((entry) => entry[metric]));
+}
+
+function getMetricDirection(metric: InsightMetricKey, current: number | null, previous: number | null) {
+  if (current === null || previous === null) {
+    return "Comparison builds with more entries.";
+  }
+
+  const difference = current - previous;
+  if (Math.abs(difference) < 0.35) {
+    return "Mostly stable recently.";
+  }
+
+  const direction = difference > 0 ? "Higher" : "Lower";
+  const label = metric === "sleep" ? "than previous range" : "than previous range";
+  return `${direction} ${label}.`;
+}
+
+function getMetricValueLabel(metric: InsightMetricKey, value: number | null, range: 7 | 30) {
+  const timeframe = range === 7 ? "this week" : "this month";
+
+  if (value === null) {
+    return `No average ${timeframe}`;
+  }
+
+  if (metric === "sleep") {
+    return `${Math.round(value * 10) / 10}h average ${timeframe}`;
+  }
+
+  return `${Math.round(value * 10) / 10} / 5 average ${timeframe}`;
+}
+
+function InsightMetricRow({
+  label,
+  metric,
+  currentEntries,
+  previousEntries,
+  range,
+}: {
+  label: string;
+  metric: InsightMetricKey;
+  currentEntries: DailyCheckIn[];
+  previousEntries: DailyCheckIn[];
+  range: 7 | 30;
+}) {
+  const currentAverage = getAverageForMetric(currentEntries, metric);
+  const previousAverage = getAverageForMetric(previousEntries, metric);
+
+  return (
+    <View style={styles.insightMetricRow}>
+      <View style={styles.insightMetricCopy}>
+        <AppText style={styles.insightMetricLabel}>{label}</AppText>
+        <AppText style={styles.insightMetricValue}>{getMetricValueLabel(metric, currentAverage, range)}</AppText>
+      </View>
+      <AppText style={styles.insightMetricDirection}>{getMetricDirection(metric, currentAverage, previousAverage)}</AppText>
+    </View>
+  );
+}
+
+function InsightListSection({
+  title,
+  helper,
+  items,
+  empty,
+}: {
+  title: string;
+  helper: string;
+  items: string[];
+  empty?: string;
+}) {
+  return (
+    <View style={styles.section}>
+      <AppText style={styles.sectionTitle}>{title}</AppText>
+      <AppText style={styles.sectionBody}>{helper}</AppText>
+      {items.length > 0 ? (
+        <View style={styles.helpingSection}>
+          {items.map((item) => (
+            <View key={item} style={styles.helpingRow}>
+              <AppText style={styles.helpingBullet}>•</AppText>
+              <AppText style={styles.helpingText}>{item}</AppText>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <View style={styles.emptyInlineCard}>
+          <AppText style={styles.emptyInlineText}>{empty ?? "Not enough data yet."}</AppText>
+        </View>
+      )}
+    </View>
+  );
+}
+
+type PremiumPatternSection = {
+  title: string;
+  helper: string;
+  items: string[];
+  empty: string;
+};
+
+function averageMetric(values: Array<number | null>) {
+  const valid = values.filter((value): value is number => typeof value === "number");
+
+  if (!valid.length) {
+    return null;
+  }
+
+  return valid.reduce((sum, value) => sum + value, 0) / valid.length;
+}
+
+function countFollowedBy(
+  entries: DailyCheckIn[],
+  currentDayMatches: (entry: DailyCheckIn) => boolean,
+  nextDayMatches: (entry: DailyCheckIn) => boolean,
+) {
+  const sorted = entries.slice().sort((left, right) => left.date.localeCompare(right.date));
+  let count = 0;
+
+  for (let index = 0; index < sorted.length - 1; index += 1) {
+    if (currentDayMatches(sorted[index]) && nextDayMatches(sorted[index + 1])) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+function countSameDayCluster(entries: DailyCheckIn[], matches: (entry: DailyCheckIn) => boolean) {
+  return entries.filter(matches).length;
+}
+
+function buildPremiumPatternSections(
+  entries: DailyCheckIn[],
+  baseLines: string[],
+  monthlyMetrics: string[],
+): PremiumPatternSection[] {
+  const sorted = entries.slice().sort((left, right) => right.date.localeCompare(left.date));
+  const recent = sorted.slice(0, 30);
+  const recentWeek = sorted.slice(0, 7);
+  const priorWeek = sorted.slice(7, 14);
+  const sections: PremiumPatternSection[] = [];
+
+  const recentStress = averageMetric(recentWeek.map((entry) => entry.stress));
+  const priorStress = averageMetric(priorWeek.map((entry) => entry.stress));
+  const recentFatigue = averageMetric(recentWeek.map((entry) => entry.fatigue));
+  const priorFatigue = averageMetric(priorWeek.map((entry) => entry.fatigue));
+
+  const recentChanges = [
+    ...baseLines.filter((line) => /previous week|higher|lower|stable|consistent|varied/i.test(line)),
+    recentStress !== null && priorStress !== null && Math.abs(recentStress - priorStress) >= 0.45
+      ? `Stress is ${recentStress > priorStress ? "higher" : "lower"} this week than last week.`
+      : null,
+    recentFatigue !== null && priorFatigue !== null && Math.abs(recentFatigue - priorFatigue) >= 0.45
+      ? `Fatigue is ${recentFatigue > priorFatigue ? "higher" : "lower"} this week than last week.`
+      : null,
+  ].filter((item): item is string => Boolean(item));
+
+  sections.push({
+    title: "Recent changes",
+    helper: "Week-over-week changes from logged check-ins.",
+    items: recentChanges.slice(0, 4),
+    empty: "No clear week-over-week change detected yet.",
+  });
+
+  const stressToFatigue = countFollowedBy(
+    recent,
+    (entry) => (entry.stress ?? 0) >= 4,
+    (entry) => (entry.fatigue ?? 0) >= 4,
+  );
+  const shortSleepToBrainFog = countFollowedBy(
+    recent,
+    (entry) => typeof entry.sleep_hours === "number" && entry.sleep_hours < 6.5,
+    (entry) => (entry.brain_fog ?? 0) >= 4,
+  );
+  const highStressLowMood = countSameDayCluster(
+    recent,
+    (entry) => (entry.stress ?? 0) >= 4 && typeof entry.mood === "number" && entry.mood <= 2,
+  );
+
+  sections.push({
+    title: "Symptom relationships",
+    helper: "Same-day and next-day relationships detected from recent entries.",
+    items: [
+      stressToFatigue >= 2 ? `Higher stress days were followed by higher fatigue ${stressToFatigue} times this month.` : null,
+      shortSleepToBrainFog >= 2 ? `Shorter sleep nights were followed by higher brain fog ${shortSleepToBrainFog} times this month.` : null,
+      highStressLowMood >= 2 ? `Higher stress and lower mood appeared together ${highStressLowMood} times this month.` : null,
+      ...baseLines.filter((line) => /line up|relationship|connected|sleep|fatigue|stress|mood|brain fog/i.test(line)),
+    ]
+      .filter((item): item is string => Boolean(item))
+      .filter((item, index, all) => all.indexOf(item) === index)
+      .slice(0, 5),
+    empty: "No clear symptom relationship detected yet.",
+  });
+
+  const symptomClusterCount = countSameDayCluster(
+    recent,
+    (entry) => (entry.fatigue ?? 0) >= 4 && (entry.stress ?? 0) >= 4 && (entry.brain_fog ?? 0) >= 4,
+  );
+  const painStressClusterCount = countSameDayCluster(
+    recent,
+    (entry) => (entry.pain ?? 0) >= 4 && (entry.stress ?? 0) >= 4,
+  );
+
+  sections.push({
+    title: "Symptom clusters",
+    helper: "Symptoms that increased together.",
+    items: [
+      symptomClusterCount >= 2
+        ? `Fatigue, stress, and brain fog increased together ${symptomClusterCount} times this month.`
+        : null,
+      painStressClusterCount >= 2 ? `Pain and stress were both higher ${painStressClusterCount} times this month.` : null,
+    ].filter((item): item is string => Boolean(item)),
+    empty: "No recurring symptom cluster detected yet.",
+  });
+
+  const lowerFatigueWithHydration = countSameDayCluster(
+    recent,
+    (entry) => (entry.water_glasses ?? 0) >= 6 && typeof entry.fatigue === "number" && entry.fatigue <= 2,
+  );
+  const restDayLowerFatigue = countSameDayCluster(
+    recent,
+    (entry) => (entry.triggers ?? []).includes("rest day") && typeof entry.fatigue === "number" && entry.fatigue <= 2,
+  );
+
+  sections.push({
+    title: "Recovery patterns",
+    helper: "Signals linked with lower symptom load.",
+    items: [
+      lowerFatigueWithHydration >= 2 ? `Higher hydration lined up with lower fatigue ${lowerFatigueWithHydration} times this month.` : null,
+      restDayLowerFatigue >= 2 ? `Rest days lined up with lower fatigue ${restDayLowerFatigue} times this month.` : null,
+      ...baseLines.filter((line) => /improved|lower symptom|lower fatigue|higher hydration|rest days/i.test(line)),
+    ]
+      .filter((item): item is string => Boolean(item))
+      .filter((item, index, all) => all.indexOf(item) === index)
+      .slice(0, 4),
+    empty: "No clear recovery pattern detected yet.",
+  });
+
+  sections.push({
+    title: "Longer-term comparison",
+    helper: "Monthly averages and stable signals.",
+    items: monthlyMetrics.slice(0, 6),
+    empty: "Longer-term comparisons need more check-ins.",
+  });
+
+  return sections;
 }
 
 function PremiumMeaningSupportCard({ summary }: { summary: PremiumMeaningSupportSummary }) {
@@ -1495,7 +1846,7 @@ function PremiumIdentityContinuityCard({ summary }: { summary: PremiumIdentityCo
             </View>
           </View>
           <View style={styles.premiumReflectionSection}>
-            <AppText style={styles.premiumReflectionKicker}>Ordinary-life continuity</AppText>
+            <AppText style={styles.premiumReflectionKicker}>Ordinary-life patterns</AppText>
             <View style={styles.helpingSection}>
               {summary.ordinaryLifeContinuitySupport.map((item) => (
                 <View key={item} style={styles.helpingRow}>
@@ -2060,7 +2411,7 @@ function PremiumIdentityRecoveryCard({ summary }: { summary: PremiumIdentityReco
             </View>
           </View>
           <View style={styles.premiumReflectionSection}>
-            <AppText style={styles.premiumReflectionKicker}>Identity continuity support</AppText>
+            <AppText style={styles.premiumReflectionKicker}>Identity patterns</AppText>
             <View style={styles.helpingSection}>
               {summary.identityContinuitySupport.map((item) => (
                 <View key={item} style={styles.helpingRow}>
@@ -2180,6 +2531,42 @@ export default function InsightsScreen() {
   const patternSummaryQuery = usePatternSummary(rangeEntries, range);
   const aiSummaryQuery = useAiInsightsSummary(rangeEntries, range);
   const dashboard = useInsightsDashboard(historyQuery.data ?? [], patternSummaryQuery.data, range);
+  const concreteSnapshot = useMemo(
+    () => buildTrackClaritySnapshot(rangeEntries),
+    [rangeEntries],
+  );
+  const concreteInsightLines = useMemo(
+    () =>
+      [
+        ...concreteSnapshot.recentChanges,
+        ...concreteSnapshot.correlations,
+        ...concreteSnapshot.whatSeemsToHelp,
+        ...(concreteSnapshot.fluctuationNote ? [concreteSnapshot.fluctuationNote] : []),
+      ].filter((line, index, lines) => lines.indexOf(line) === index),
+    [concreteSnapshot],
+  );
+  const primaryConcreteInsight = useMemo(
+    () => getPrimaryInsight(concreteInsightLines, rangeEntries.length),
+    [concreteInsightLines, rangeEntries.length],
+  );
+  const earlyInsights = useMemo(
+    () => buildEarlyInsightSections(rangeEntries),
+    [rangeEntries],
+  );
+  const previousRangeEntries = useMemo(() => {
+    const entries = historyQuery.data ?? [];
+    const sorted = entries.slice().sort((left, right) => right.date.localeCompare(left.date));
+    return sorted.slice(range, range * 2);
+  }, [historyQuery.data, range]);
+  const premiumPatternSections = useMemo(
+    () =>
+      buildPremiumPatternSections(
+        historyQuery.data ?? [],
+        concreteInsightLines,
+        concreteSnapshot.monthlySummary?.metrics ?? [],
+      ),
+    [concreteInsightLines, concreteSnapshot.monthlySummary?.metrics, historyQuery.data],
+  );
   useSlowScreenDiagnostics("insights", historyQuery.isLoading);
   const visibleCorrelations = dashboard.correlations
     .filter((correlation) => correlation.show)
@@ -3543,7 +3930,7 @@ export default function InsightsScreen() {
     }
 
     return {
-      title: seasonal?.title ?? resurfaced?.title ?? "A longer-view note",
+      title: seasonal?.title ?? resurfaced?.title ?? "Longer-term summary",
       body,
     };
   }, [existentialEmotionalLoad, journeySnapshot, range, reflectionCount]);
@@ -3637,7 +4024,7 @@ export default function InsightsScreen() {
         range,
         source: "premium_continuity_summary",
       });
-      setContinuityFeedback("Your continuity summary is ready to share.");
+      setContinuityFeedback("Your summary is ready to share.");
     } catch {
       setContinuityFeedback("Something may need another moment before sharing.");
     } finally {
@@ -3661,7 +4048,7 @@ export default function InsightsScreen() {
       });
       setContinuityFeedback(
         result.ok
-          ? "Your continuity summary is ready to share."
+          ? "Your summary is ready to share."
           : "Export wasn’t available on this device. Your insights are still saved in the app.",
       );
     } catch {
@@ -3690,6 +4077,199 @@ export default function InsightsScreen() {
       />
     );
   }
+
+  return (
+    <AppScreen
+      eyebrow="Pattern intelligence"
+      title="Insights"
+      subtitle="Concrete patterns, changes, and symptom relationships."
+    >
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          (lowEnergyMode.enabled || lowEnergyAssist.active) && styles.contentLowEnergy,
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.heroCard}>
+          <AppText style={styles.heroTitle}>Pattern summary</AppText>
+          <AppText style={styles.heroBody}>
+            {currentRangeEntryCount > 0 && currentRangeEntryCount < 4 ? earlyInsights.summary : primaryConcreteInsight}
+          </AppText>
+          <View style={styles.rangeToggle}>
+            {[7, 30].map((option) => (
+              <Pressable
+                key={option}
+                onPress={() => setRange(option as 7 | 30)}
+                style={({ pressed }) => [
+                  styles.rangeOption,
+                  range === option && styles.rangeOptionActive,
+                  pressed && styles.rangeOptionPressed,
+                ]}
+              >
+                <AppText style={[styles.rangeOptionText, range === option && styles.rangeOptionTextActive]}>
+                  {option} days
+                </AppText>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.progressCard}>
+          <AppText style={styles.sectionTitle}>Data in this range</AppText>
+          <View style={styles.progressGrid}>
+            <View style={styles.progressPill}>
+              <AppText style={styles.progressValue}>{rangeEntries.length}</AppText>
+              <AppText style={styles.progressLabel}>check-ins</AppText>
+            </View>
+            <View style={styles.progressPill}>
+              <AppText style={styles.progressValue}>{reflectionCount}</AppText>
+              <AppText style={styles.progressLabel}>notes</AppText>
+            </View>
+            <View style={styles.progressPill}>
+              <AppText style={styles.progressValue}>{consistencyRate}%</AppText>
+              <AppText style={styles.progressLabel}>range coverage</AppText>
+            </View>
+          </View>
+        </View>
+
+        {totalHistoryCount === 0 ? (
+          <View style={styles.emptyCard}>
+            <AppText style={styles.emptyTitle}>No insights yet</AppText>
+            <AppText style={styles.emptyBody}>Insights will show trends and relationships once check-ins are available.</AppText>
+            <AppButton label="Start first check-in" onPress={() => router.push("/today")} />
+          </View>
+        ) : currentRangeEntryCount === 0 ? (
+          <View style={styles.emptyCard}>
+            <AppText style={styles.emptyTitle}>No check-ins in this range</AppText>
+            <AppText style={styles.emptyBody}>Choose another range or add a check-in for this period.</AppText>
+            <AppButton label="Go to Today" onPress={() => router.push("/today")} />
+          </View>
+        ) : (
+          <>
+            <View style={styles.takeawayCard}>
+              <AppText style={styles.takeawayTitle}>{range === 7 ? "Weekly averages" : "Monthly averages"}</AppText>
+              <View style={styles.weeklySummaryMetrics}>
+                <InsightMetricRow
+                  label="Fatigue"
+                  metric="fatigue"
+                  currentEntries={rangeEntries}
+                  previousEntries={previousRangeEntries}
+                  range={range}
+                />
+                <InsightMetricRow
+                  label="Stress"
+                  metric="stress"
+                  currentEntries={rangeEntries}
+                  previousEntries={previousRangeEntries}
+                  range={range}
+                />
+                <InsightMetricRow
+                  label="Mood"
+                  metric="mood"
+                  currentEntries={rangeEntries}
+                  previousEntries={previousRangeEntries}
+                  range={range}
+                />
+                <InsightMetricRow
+                  label="Sleep"
+                  metric="sleep"
+                  currentEntries={rangeEntries}
+                  previousEntries={previousRangeEntries}
+                  range={range}
+                />
+              </View>
+            </View>
+
+            {currentRangeEntryCount < 4 ? (
+              <>
+                <InsightListSection
+                  title={currentRangeEntryCount === 1 ? "First check-in summary" : "Simple comparison"}
+                  helper={currentRangeEntryCount === 1 ? "What was logged in this range." : "Compared with your previous check-in."}
+                  items={currentRangeEntryCount === 1 ? earlyInsights.signals : earlyInsights.changes}
+                  empty="Your logged values will appear here."
+                />
+
+                <InsightListSection
+                  title="Early signals"
+                  helper="Useful signals from the first few entries."
+                  items={earlyInsights.signals}
+                  empty="More check-ins help reveal clearer trends over time."
+                />
+
+                <InsightListSection
+                  title="What to track next"
+                  helper="Small ways to make future insights more useful."
+                  items={earlyInsights.next}
+                  empty="Keep checking in when it is useful."
+                />
+              </>
+            ) : (
+              <>
+                <InsightListSection
+                  title="Recent change"
+                  helper="Compared with the previous range."
+                  items={concreteSnapshot.recentChanges}
+                  empty="No clear recent change detected yet."
+                />
+
+                <InsightListSection
+                  title="Symptom relationships"
+                  helper="Connections found across recent check-ins."
+                  items={concreteSnapshot.correlations.slice(0, lowEnergyMode.enabled ? 2 : 3)}
+                  empty="No clear symptom relationship detected yet."
+                />
+
+                <InsightListSection
+                  title="What improved"
+                  helper="Patterns linked with lower symptom load."
+                  items={concreteSnapshot.whatSeemsToHelp}
+                  empty="No clear improving pattern detected yet."
+                />
+
+                {concreteSnapshot.fluctuationNote ? (
+                  <View style={styles.takeawayCard}>
+                    <AppText style={styles.takeawayTitle}>Trend stability</AppText>
+                    <AppText style={styles.takeawayBody}>{concreteSnapshot.fluctuationNote}</AppText>
+                  </View>
+                ) : null}
+              </>
+            )}
+
+            {premium.hasPremiumAccess ? (
+              <View style={styles.aiCard}>
+                <AppText style={styles.takeawayTitle}>Premium pattern intelligence</AppText>
+                <AppText style={styles.sectionBody}>
+                  Deeper correlations, clusters, recovery patterns, and longer-term comparisons.
+                </AppText>
+                {premiumPatternSections.slice(0, lowEnergyMode.enabled ? 3 : premiumPatternSections.length).map((section) => (
+                  <InsightListSection
+                    key={section.title}
+                    title={section.title}
+                    helper={section.helper}
+                    items={section.items}
+                    empty={section.empty}
+                  />
+                ))}
+              </View>
+            ) : (
+              <View style={styles.premiumLockCard}>
+                <AppText style={styles.premiumLockTitle}>Premium pattern intelligence</AppText>
+                <AppText style={styles.premiumLockBody}>
+                  Premium adds deeper correlations, symptom clusters, recovery patterns, pacing observations, and longer-term comparisons.
+                </AppText>
+                <AppButton
+                  label="Explore Premium"
+                  onPress={() => router.push("/premium?source=insights")}
+                  variant="secondary"
+                />
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </AppScreen>
+  );
 
   return (
     <AppScreen
@@ -3763,7 +4343,7 @@ export default function InsightsScreen() {
         ) : null}
 
         <View style={styles.takeawayCard}>
-          <AppText style={styles.takeawayTitle}>{range === 7 ? "This week at a glance" : "This month at a glance"}</AppText>
+          <AppText style={styles.takeawayTitle}>{range === 7 ? "Weekly averages" : "Monthly averages"}</AppText>
           <AppText style={styles.takeawayBody}>{dashboard.keyTakeaway.body}</AppText>
         </View>
 
@@ -3816,15 +4396,6 @@ export default function InsightsScreen() {
           </View>
         ) : null}
 
-        {uncertaintySafety.variability.summary ? (
-          <View style={styles.retentionCard}>
-            <AppText style={styles.retentionText}>A note on variability</AppText>
-            <AppText style={styles.sectionBody}>
-              {generateNormalizationLanguage(uncertaintySafety.variability)}
-            </AppText>
-          </View>
-        ) : null}
-
         {totalHistoryCount === 0 ? (
           <View style={styles.emptyCard}>
             <AppText style={styles.emptyTitle}>No insights yet</AppText>
@@ -3847,8 +4418,8 @@ export default function InsightsScreen() {
           </View>
         ) : !dashboard.hasEnoughData ? (
           <View style={styles.emptyCard}>
-            <AppText style={styles.emptyTitle}>Not enough information yet</AppText>
-            <AppText style={styles.emptyBody}>There is not enough information yet to identify reliable patterns. A few more check-ins may help.</AppText>
+            <AppText style={styles.emptyTitle}>Early signals</AppText>
+            <AppText style={styles.emptyBody}>More check-ins help reveal clearer trends over time.</AppText>
             <AppButton label="Go to Today" onPress={() => router.push("/today")} />
           </View>
         ) : (
@@ -3860,7 +4431,7 @@ export default function InsightsScreen() {
               </AppText>
               <View style={styles.weeklySummaryCard}>
                 <AppText style={styles.weeklySummaryTitle}>
-                  {range === 7 ? "This week at a glance" : "This month at a glance"}
+                  {range === 7 ? "Weekly averages" : "Monthly averages"}
                 </AppText>
                 <AppText style={styles.weeklySummaryBody}>{dashboard.weeklySummary.summary}</AppText>
                 <View style={styles.weeklySummaryMetrics}>
@@ -3883,7 +4454,7 @@ export default function InsightsScreen() {
             <View style={styles.section}>
               <AppText style={styles.sectionTitle}>Patterns worth noticing</AppText>
               <AppText style={styles.sectionBody}>
-                These lighter comparisons can help you notice what may be connected without over-reading the data.
+                These comparisons show where signals may be connected.
               </AppText>
               {patternsWorthNoticing.length > 0 ? (
                 <View style={styles.helpingSection}>
@@ -3897,7 +4468,7 @@ export default function InsightsScreen() {
               ) : (
                 <View style={styles.emptyInlineCard}>
                   <AppText style={styles.emptyInlineText}>
-                    A little more history can make these patterns easier to read.
+                    There is not enough data yet to compare these patterns clearly.
                   </AppText>
                 </View>
               )}
@@ -3929,9 +4500,9 @@ export default function InsightsScreen() {
 
             <View style={styles.aiCard}>
               <View style={styles.expandHeaderCopy}>
-                <AppText style={styles.takeawayTitle}>Deeper reflection summaries</AppText>
+                <AppText style={styles.takeawayTitle}>Premium summaries</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes deeper weekly and monthly reflection summaries with a calmer longer-view read.
+                  Premium includes deeper weekly and monthly summaries.
                 </AppText>
               </View>
               {canShowPremiumReflections ? (
@@ -3944,7 +4515,7 @@ export default function InsightsScreen() {
                     <View style={styles.expandHeaderCopy}>
                       <AppText style={styles.helpingTitle}>Monthly reflection</AppText>
                       <AppText style={styles.sectionBody}>
-                        A quieter longer-view summary of how the last month has felt.
+                        A monthly summary of recent patterns and reflections.
                       </AppText>
                     </View>
                     <AppText style={styles.expandLabel}>
@@ -3972,18 +4543,18 @@ export default function InsightsScreen() {
 
             <View style={styles.aiCard}>
               <View style={styles.expandHeaderCopy}>
-                <AppText style={styles.takeawayTitle}>Gentle self-understanding</AppText>
+                <AppText style={styles.takeawayTitle}>Stress and mood</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes deeper calm reflection and gentle self-understanding support.
+                  Premium compares stress, mood, sleep, and symptom signals across time.
                 </AppText>
               </View>
               {canShowPremiumHumanClarity ? (
                 <PremiumHumanClarityCard summary={premiumHumanClarity} />
               ) : (
                 <View style={styles.premiumLockCard}>
-                  <AppText style={styles.premiumLockTitle}>Gentle self-understanding</AppText>
+                  <AppText style={styles.premiumLockTitle}>Stress and mood</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes deeper calm reflection and gentle self-understanding support. The core insights view stays complete without it.
+                    Premium compares stress, mood, sleep, and symptom signals across time.
                   </AppText>
                   <AppButton
                     label="Explore Premium"
@@ -3996,18 +4567,18 @@ export default function InsightsScreen() {
 
             <View style={styles.aiCard}>
               <View style={styles.expandHeaderCopy}>
-                <AppText style={styles.takeawayTitle}>Forward stability</AppText>
+                <AppText style={styles.takeawayTitle}>Recovery patterns</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer grounding and support during uncertain periods.
+                  Premium looks for lower-symptom days and what they have in common.
                 </AppText>
               </View>
               {canShowPremiumForwardStability ? (
                 <PremiumForwardStabilityCard summary={premiumForwardStability} />
               ) : (
                 <View style={styles.premiumLockCard}>
-                  <AppText style={styles.premiumLockTitle}>Forward stability</AppText>
+                  <AppText style={styles.premiumLockTitle}>Recovery patterns</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer grounding and support during uncertain periods. The core insights view stays complete without it.
+                    Premium looks for lower-symptom days and what they have in common.
                   </AppText>
                   <AppButton
                     label="Explore Premium"
@@ -4020,18 +4591,18 @@ export default function InsightsScreen() {
 
             <View style={styles.aiCard}>
               <View style={styles.expandHeaderCopy}>
-                <AppText style={styles.takeawayTitle}>Life beyond symptoms</AppText>
+                <AppText style={styles.takeawayTitle}>Pacing observations</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer reflection and support for life beyond symptoms.
+                  Premium compares activity, rest, symptoms, and lower-energy days.
                 </AppText>
               </View>
               {canShowPremiumMeaningfulLife ? (
                 <PremiumMeaningfulLifeCard summary={premiumMeaningfulLife} />
               ) : (
                 <View style={styles.premiumLockCard}>
-                  <AppText style={styles.premiumLockTitle}>Life beyond symptoms</AppText>
+                  <AppText style={styles.premiumLockTitle}>Pacing observations</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer reflection and support for life beyond symptoms. The core insights view stays complete without it.
+                    Premium compares activity, rest, symptoms, and lower-energy days.
                   </AppText>
                   <AppButton
                     label="Explore Premium"
@@ -4764,9 +5335,9 @@ export default function InsightsScreen() {
 
             <View style={styles.aiCard}>
               <View style={styles.expandHeaderCopy}>
-                <AppText style={styles.takeawayTitle}>Long-term continuity</AppText>
+                <AppText style={styles.takeawayTitle}>Longer-term summaries</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes deeper long-term reflection and continuity summaries with a calmer longer-view read.
+                  Premium includes monthly, seasonal, and yearly summaries.
                 </AppText>
               </View>
               {canShowPremiumContinuity ? (
@@ -4779,7 +5350,7 @@ export default function InsightsScreen() {
                     <View style={styles.expandHeaderCopy}>
                       <AppText style={styles.helpingTitle}>Seasonal reflection</AppText>
                       <AppText style={styles.sectionBody}>
-                        A quieter read across a longer stretch, including steadier periods and grounding routines.
+                        A seasonal summary across a longer stretch.
                       </AppText>
                     </View>
                     <AppText style={styles.expandLabel}>
@@ -4796,9 +5367,9 @@ export default function InsightsScreen() {
                         style={({ pressed }) => [styles.expandHeader, pressed && styles.rangeOptionPressed]}
                       >
                         <View style={styles.expandHeaderCopy}>
-                          <AppText style={styles.helpingTitle}>Yearly continuity summary</AppText>
+                          <AppText style={styles.helpingTitle}>Yearly summary</AppText>
                           <AppText style={styles.sectionBody}>
-                            A sparse longer-view summary for when a broader stretch feels helpful.
+                            A broader summary when enough history is available.
                           </AppText>
                         </View>
                         <AppText style={styles.expandLabel}>
@@ -4832,9 +5403,9 @@ export default function InsightsScreen() {
                 </>
               ) : (
                 <View style={styles.premiumLockCard}>
-                  <AppText style={styles.premiumLockTitle}>Long-term continuity summaries</AppText>
+                  <AppText style={styles.premiumLockTitle}>Longer-term summaries</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes deeper long-term reflection and continuity summaries. The core insights view stays complete without them.
+                    Premium includes deeper monthly, seasonal, and yearly summaries. The core insights view stays complete without them.
                   </AppText>
                   <AppButton
                     label="Explore Premium"
@@ -5182,6 +5753,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   contextNote: {
+    display: "none",
     color: "#8b6a4f",
     lineHeight: 20,
     fontSize: 13,
@@ -5298,8 +5870,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   weeklySummaryMetrics: {
-    flexDirection: "row",
-    flexWrap: "wrap",
     gap: 10,
   },
   weeklySummaryMetric: {
@@ -5310,6 +5880,35 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 11,
     paddingVertical: 8,
+  },
+  insightMetricRow: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  insightMetricCopy: {
+    gap: 2,
+  },
+  insightMetricLabel: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  insightMetricValue: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#4b5563",
+  },
+  insightMetricDirection: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#8b6a4f",
+    fontWeight: "700",
   },
   premiumReflectionCard: {
     backgroundColor: "#fffaf6",

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Animated, Easing, Linking, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
+import GentleExercisesSection from "../../../../components/exercises/GentleExercisesSection";
 import AppButton from "../../../../components/ui/AppButton";
 import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
@@ -64,12 +65,37 @@ import { deriveSoftProgression } from "../../../../lib/guided-programs/gentle-pr
 import { preventCompletionPressure } from "../../../../lib/guided-programs/gentle-progression/preventCompletionPressure";
 import { deriveRecoverySupport } from "../../../../lib/guided-programs/recovery-oriented-design/deriveRecoverySupport";
 import { deriveDifficultPeriodPrograms } from "../../../../lib/guided-programs/recovery-oriented-design/deriveDifficultPeriodPrograms";
+import { exportHealthSummary } from "../../../../lib/exportHealthSummary";
 
 function formatTime(secondsRemaining: number) {
   const minutes = Math.floor(secondsRemaining / 60);
   const seconds = secondsRemaining % 60;
 
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function deriveBreathingPhase(input: { secondsRemaining: number; totalSeconds: number }) {
+  const elapsedSeconds = Math.max(0, input.totalSeconds - input.secondsRemaining);
+  const phaseSecond = elapsedSeconds % 12;
+
+  if (phaseSecond < 4) {
+    return {
+      label: "Inhale",
+      instruction: "Inhale slowly for 4 seconds.",
+    };
+  }
+
+  if (phaseSecond < 6) {
+    return {
+      label: "Hold",
+      instruction: "Hold for 2 seconds.",
+    };
+  }
+
+  return {
+    label: "Exhale",
+    instruction: "Exhale slowly for 6 seconds.",
+  };
 }
 
 function deriveAdaptiveStatePrimary(input: {
@@ -86,8 +112,822 @@ function deriveAdaptiveStatePrimary(input: {
         : "STABLE";
 }
 
+const FREE_PROGRAM_TOOL_IDS = [
+  "plan-today",
+  "reduce-overwhelm",
+  "brain-fog-basics",
+  "breathing-reset",
+  "appointment-prep",
+] as const;
+
+const PREMIUM_PROGRAM_TOOL_IDS = [
+  "difficult-day-pacing-checklist",
+  "symptom-reflection",
+  "cognitive-decompression-reset",
+  "sleep-decompression-flow",
+  "everything-feels-too-hard",
+] as const;
+
+const PROGRAM_TOOL_OUTCOMES: Record<string, string> = {
+  "plan-today": "Create one realistic priority and reduce decisions.",
+  "reduce-overwhelm": "Sort competing pressure into one focus and one next step.",
+  "brain-fog-basics": "Narrow attention to one or two clear steps.",
+  "breathing-reset": "Use a short reset when stress feels high.",
+  "appointment-prep": "Turn concerns into a short care-team topic list.",
+  "difficult-day-pacing-checklist": "Protect energy during harder or lower-capacity days.",
+  "symptom-reflection": "Organize a symptom change for tracking or appointments.",
+  "cognitive-decompression-reset": "Move mental clutter out of working memory.",
+  "sleep-decompression-flow": "Reduce evening stimulation before rest.",
+  "everything-feels-too-hard": "Shrink the day when basic tasks feel difficult.",
+};
+
+const PROGRAM_TOOL_LABELS: Record<string, string> = {
+  "difficult-day-pacing-checklist": "Fatigue pacing planner",
+  "cognitive-decompression-reset": "Cognitive overload support",
+  "sleep-decompression-flow": "Sleep recovery support",
+  "everything-feels-too-hard": "Difficult day reset",
+};
+
+type ProgramWorkflowQuestion = {
+  id: string;
+  label: string;
+  placeholder?: string;
+  type: "text" | "choice" | "multiChoice";
+  options?: string[];
+  allowCustom?: boolean;
+};
+
+type ProgramWorkflow = {
+  title: string;
+  questions: ProgramWorkflowQuestion[];
+  summaryTitle: string;
+  summaryItems: Array<{
+    answerId: string;
+    label: string;
+  }>;
+  adaptiveQuestionIds?: (answers: Record<string, string>) => string[];
+};
+
+const CUSTOM_OPTION_LABEL = "+ Custom";
+const RESET_TOOL_OPTIONS = new Set(["60-second reset"]);
+
+const PROGRAM_TOOL_WORKFLOWS: Record<string, ProgramWorkflow> = {
+  "plan-today": {
+    title: "Plan today",
+    summaryTitle: "Today’s plan",
+    questions: [
+      {
+        id: "focus",
+        label: "What matters most today?",
+        type: "text",
+        placeholder: "One important thing",
+      },
+      {
+        id: "energy",
+        label: "How is your energy today?",
+        type: "choice",
+        options: ["Low", "Medium", "High"],
+      },
+      {
+        id: "drain",
+        label: "What feels most draining right now?",
+        type: "choice",
+        options: ["Decisions", "Physical fatigue", "Brain fog", "Stress", "Appointments", "Work/tasks", "Emotional overwhelm"],
+      },
+      {
+        id: "smaller",
+        label: "What can stay smaller today?",
+        type: "text",
+        placeholder: "One task, decision, or expectation",
+      },
+      {
+        id: "success",
+        label: "What would make today feel successful?",
+        type: "text",
+        placeholder: "A realistic enough outcome",
+      },
+    ],
+    summaryItems: [
+      { answerId: "focus", label: "Main focus" },
+      { answerId: "energy", label: "Energy level" },
+      { answerId: "drain", label: "Biggest drain" },
+      { answerId: "smaller", label: "Stays smaller" },
+      { answerId: "success", label: "Success today" },
+    ],
+  },
+  "reduce-overwhelm": {
+    title: "Reduce overwhelm",
+    summaryTitle: "Overwhelm reset",
+    questions: [
+      {
+        id: "pressure",
+        label: "What feels most overwhelming right now?",
+        type: "choice",
+        options: [
+          "Too many decisions",
+          "Mental exhaustion",
+          "Physical fatigue",
+          "Work/tasks",
+          "Emotional stress",
+          "Symptoms",
+          "Everything at once",
+        ],
+      },
+      {
+        id: "focus",
+        label: "What absolutely needs attention today?",
+        type: "text",
+        placeholder: "One necessary focus",
+      },
+      {
+        id: "wait",
+        label: "What can become smaller, slower, or later?",
+        type: "text",
+        placeholder: "One thing to reduce or delay",
+      },
+      {
+        id: "next",
+        label: "Choose one next step.",
+        type: "text",
+        placeholder: "One small action",
+      },
+    ],
+    summaryItems: [
+      { answerId: "pressure", label: "Main pressure" },
+      { answerId: "focus", label: "One focus" },
+      { answerId: "wait", label: "Can wait" },
+      { answerId: "next", label: "Next step" },
+    ],
+  },
+  "brain-fog-basics": {
+    title: "Brain fog support",
+    summaryTitle: "Cognitive simplification",
+    questions: [
+      {
+        id: "fogLevel",
+        label: "Fog level",
+        type: "choice",
+        options: ["Mild", "Moderate", "Heavy"],
+      },
+      {
+        id: "hardest",
+        label: "What feels hardest right now?",
+        type: "choice",
+        options: [
+          "Focusing",
+          "Remembering things",
+          "Starting tasks",
+          "Too many thoughts",
+          "Mental exhaustion",
+          "Making decisions",
+          "Finding words",
+          "Everything feels blurry",
+        ],
+      },
+      {
+        id: "focus",
+        label: "What is one thing you need to handle next?",
+        type: "text",
+        placeholder: "One task, message, decision, or need",
+      },
+      {
+        id: "smaller",
+        label: "Can it become smaller?",
+        type: "choice",
+        options: ["5 minutes only", "One step only", "Partial completion is enough", "Ask for help", "Postpone part of it"],
+      },
+      {
+        id: "adjustment",
+        label: "What would make this easier?",
+        type: "choice",
+        options: ["Less noise", "Fewer tabs/screens", "Break it into steps", "Water/snack", "Short break", "Write it down", "Remove one task"],
+      },
+    ],
+    summaryItems: [
+      { answerId: "focus", label: "Main focus" },
+      { answerId: "smaller", label: "Smaller version" },
+      { answerId: "adjustment", label: "Helpful adjustment" },
+      { answerId: "hardest", label: "Hardest part" },
+      { answerId: "fogLevel", label: "Fog level" },
+    ],
+    adaptiveQuestionIds: (answers) =>
+      answers.fogLevel === "Heavy"
+        ? ["fogLevel", "hardest", "focus", "smaller"]
+        : ["fogLevel", "hardest", "focus", "smaller", "adjustment"],
+  },
+  "breathing-reset": {
+    title: "60-second breathing reset",
+    summaryTitle: "Reset note",
+    questions: [
+      {
+        id: "useDuring",
+        label: "Use during",
+        type: "choice",
+        options: ["Stressful moments", "Racing thoughts", "Overstimulation", "Symptom anxiety", "Before appointments", "Before sleep"],
+      },
+      {
+        id: "reason",
+        label: "What are you resetting from?",
+        type: "text",
+        placeholder: "Optional note",
+      },
+    ],
+    summaryItems: [
+      { answerId: "useDuring", label: "Use during" },
+      { answerId: "reason", label: "Reset from" },
+    ],
+  },
+  "appointment-prep": {
+    title: "Appointment prep",
+    summaryTitle: "Appointment summary",
+    questions: [
+      {
+        id: "changes",
+        label: "What changed since your last appointment?",
+        type: "multiChoice",
+        options: [
+          "More fatigue",
+          "Worse sleep",
+          "New symptoms",
+          "Increased stress",
+          "Medication side effects",
+          "Mood changes",
+          "Mobility changes",
+          "Other",
+        ],
+      },
+      {
+        id: "symptoms",
+        label: "What symptoms matter most right now?",
+        type: "multiChoice",
+        options: ["Fatigue", "Brain fog", "Pain", "Sleep", "Mood", "Stress", "Mobility", "Numbness/tingling", "Vision", "Balance", "Bladder/bowel", "Other"],
+      },
+      {
+        id: "questions",
+        label: "What do you want to ask or discuss?",
+        type: "text",
+        placeholder: "Questions, concerns, or discussion topics",
+      },
+      {
+        id: "medications",
+        label: "Any medication or supplement changes?",
+        type: "text",
+        placeholder: "New, stopped, changed dose, side effects, or none",
+      },
+      {
+        id: "challenge",
+        label: "What feels most difficult lately?",
+        type: "text",
+        placeholder: "One practical challenge to mention",
+      },
+    ],
+    summaryItems: [
+      { answerId: "changes", label: "Recent changes" },
+      { answerId: "symptoms", label: "Symptoms to discuss" },
+      { answerId: "questions", label: "Questions to ask" },
+      { answerId: "medications", label: "Medication changes" },
+      { answerId: "challenge", label: "Biggest challenge" },
+    ],
+  },
+  "difficult-day-pacing-checklist": {
+    title: "Fatigue pacing planner",
+    summaryTitle: "Pacing summary",
+    questions: [
+      {
+        id: "energy",
+        label: "How is your energy today?",
+        type: "choice",
+        options: ["Very low", "Low", "Medium", "Higher than usual"],
+      },
+      {
+        id: "demands",
+        label: "What absolutely needs energy today?",
+        type: "multiChoice",
+        options: ["Work", "Appointment", "Cleaning", "Errands", "Parenting", "Social plans", "Care tasks", "Other"],
+      },
+      {
+        id: "drains",
+        label: "What tends to drain you fastest?",
+        type: "multiChoice",
+        options: [
+          "Too many decisions",
+          "Long conversations",
+          "Physical activity",
+          "Noise/stimulation",
+          "Multitasking",
+          "Stress",
+          "Driving/travel",
+          "Screen time",
+        ],
+      },
+      {
+        id: "smaller",
+        label: "What can become smaller today?",
+        type: "text",
+        placeholder: "Shorter version, postpone part, ask for help, slower pace",
+      },
+      {
+        id: "recovery",
+        label: "What recovery moments can you protect today?",
+        type: "multiChoice",
+        options: ["Quiet break", "Sitting down", "Lower stimulation", "Hydration", "Earlier evening", "Short rest"],
+      },
+    ],
+    summaryItems: [
+      { answerId: "energy", label: "Energy level" },
+      { answerId: "demands", label: "Main demands" },
+      { answerId: "drains", label: "Biggest drains" },
+      { answerId: "smaller", label: "Stays smaller" },
+      { answerId: "recovery", label: "Recovery protected" },
+    ],
+  },
+  "symptom-reflection": {
+    title: "Symptom reflection",
+    summaryTitle: "Symptom pattern note",
+    questions: [
+      {
+        id: "symptom",
+        label: "What symptom stands out most right now?",
+        type: "choice",
+        options: [
+          "Fatigue",
+          "Brain fog",
+          "Pain",
+          "Tingling/numbness",
+          "Stress",
+          "Mood",
+          "Sleep",
+          "Mobility",
+          "Vision",
+          "Balance",
+          "Other",
+        ],
+      },
+      {
+        id: "change",
+        label: "Has this changed recently?",
+        type: "choice",
+        options: ["Worse", "Slightly worse", "Similar", "Slightly better", "Better"],
+      },
+      {
+        id: "triggers",
+        label: "What seems connected to it lately?",
+        type: "multiChoice",
+        options: [
+          "Poor sleep",
+          "Stress",
+          "Heat",
+          "Overexertion",
+          "Busy days",
+          "Noise/stimulation",
+          "Workload",
+          "Unknown",
+        ],
+      },
+      {
+        id: "supports",
+        label: "What seems to help even slightly?",
+        type: "multiChoice",
+        options: [
+          "Rest",
+          "Quiet environment",
+          "Short breaks",
+          "Hydration",
+          "Lower stimulation",
+          "Sleep",
+          "Slower pace",
+          "Nothing noticeable yet",
+        ],
+      },
+      {
+        id: "monitoring",
+        label: "Is this worth mentioning later?",
+        type: "choice",
+        options: ["Save for appointment prep", "Add to care notes", "Monitor for now"],
+      },
+    ],
+    summaryItems: [
+      { answerId: "symptom", label: "Main symptom" },
+      { answerId: "change", label: "Recent change" },
+      { answerId: "triggers", label: "Possible triggers" },
+      { answerId: "supports", label: "Possible supports" },
+      { answerId: "monitoring", label: "Worth monitoring" },
+    ],
+  },
+  "cognitive-decompression-reset": {
+    title: "Cognitive overload support",
+    summaryTitle: "Cognitive reset summary",
+    questions: [
+      {
+        id: "level",
+        label: "Overload level",
+        type: "choice",
+        options: ["Low", "Moderate", "High", "Maxed out"],
+      },
+      {
+        id: "overload",
+        label: "What feels overloaded right now?",
+        type: "choice",
+        options: [
+          "Too many tasks",
+          "Too many decisions",
+          "Mental exhaustion",
+          "Too much stimulation",
+          "Emotional stress",
+          "Work/school",
+          "Conversations/social energy",
+          "Symptoms",
+          "Everything at once",
+        ],
+      },
+      {
+        id: "focus",
+        label: "What absolutely needs attention first?",
+        type: "text",
+        placeholder: "One thing only",
+      },
+      {
+        id: "smaller",
+        label: "What can become smaller, slower, later, shared, or ignored today?",
+        type: "text",
+        placeholder: "One demand to reduce",
+      },
+      {
+        id: "noise",
+        label: "What is adding the most mental noise?",
+        type: "choice",
+        options: [
+          "Notifications",
+          "Multiple tabs/screens",
+          "Conversations",
+          "Clutter",
+          "Time pressure",
+          "Noise",
+          "Uncertainty",
+          "Expectations",
+          "My own thoughts",
+        ],
+      },
+      {
+        id: "next",
+        label: "Choose one thing to focus on next.",
+        type: "text",
+        placeholder: "One next step",
+      },
+      {
+        id: "reset",
+        label: "Choose a quick support option",
+        type: "choice",
+        options: ["60-second reset"],
+        allowCustom: false,
+      },
+    ],
+    summaryItems: [
+      { answerId: "level", label: "Overload level" },
+      { answerId: "overload", label: "Main overload" },
+      { answerId: "focus", label: "Primary focus" },
+      { answerId: "smaller", label: "Becomes smaller" },
+      { answerId: "noise", label: "Biggest mental noise" },
+      { answerId: "next", label: "Next step" },
+      { answerId: "reset", label: "Reset first" },
+    ],
+    adaptiveQuestionIds: (answers) =>
+      answers.level === "Maxed out"
+        ? ["level", "overload", "focus", "smaller", "reset"]
+        : ["level", "overload", "focus", "smaller", "noise", "next", "reset"],
+  },
+  "sleep-decompression-flow": {
+    title: "Sleep recovery support",
+    summaryTitle: "Recovery summary",
+    questions: [
+      {
+        id: "activation",
+        label: "What feels most active right now?",
+        type: "choice",
+        options: [
+          "Racing thoughts",
+          "Stress",
+          "Physical tension",
+          "Symptoms",
+          "Screen overstimulation",
+          "Anxiety about tomorrow",
+          "Restlessness",
+          "Mental exhaustion",
+        ],
+      },
+      {
+        id: "adjustment",
+        label: "What would help the evening feel slightly easier?",
+        type: "choice",
+        options: [
+          "Lower light",
+          "Less stimulation",
+          "Quieter environment",
+          "Slower breathing",
+          "Fewer decisions",
+          "Put things away",
+          "Gentle audio",
+          "Earlier shutdown",
+        ],
+      },
+      {
+        id: "release",
+        label: "Choose one thing to let go of tonight.",
+        type: "text",
+        placeholder: "One task, thought, decision, or expectation",
+      },
+      {
+        id: "reset",
+        label: "Choose a quick recovery option",
+        type: "choice",
+        options: ["60-second reset"],
+        allowCustom: false,
+      },
+      {
+        id: "focus",
+        label: "What would make tonight feel successful?",
+        type: "choice",
+        options: ["More rest", "Less mental noise", "Gentler evening", "Earlier sleep"],
+      },
+    ],
+    summaryItems: [
+      { answerId: "activation", label: "Main activation" },
+      { answerId: "adjustment", label: "Helpful adjustment" },
+      { answerId: "release", label: "Release tonight" },
+      { answerId: "reset", label: "Reset first" },
+      { answerId: "focus", label: "Recovery focus" },
+    ],
+  },
+  "everything-feels-too-hard": {
+    title: "Difficult day reset",
+    summaryTitle: "Stabilization summary",
+    questions: [
+      {
+        id: "difficulty",
+        label: "What feels hardest right now?",
+        type: "choice",
+        options: [
+          "Physical fatigue",
+          "Mental overload",
+          "Symptoms",
+          "Stress",
+          "Emotional exhaustion",
+          "Too many demands",
+          "Feeling discouraged",
+          "Everything feels heavy",
+        ],
+      },
+      {
+        id: "focus",
+        label: "What absolutely needs attention today?",
+        type: "text",
+        placeholder: "One thing only",
+      },
+      {
+        id: "smaller",
+        label: "What can become smaller, slower, or later?",
+        type: "text",
+        placeholder: "One demand, task, decision, or expectation",
+      },
+      {
+        id: "adjustment",
+        label: "What would help the next few hours feel slightly easier?",
+        type: "choice",
+        options: [
+          "Less stimulation",
+          "Quieter environment",
+          "Rest",
+          "Water/food",
+          "Short break",
+          "Smaller task list",
+          "Slower pace",
+          "Ask for help",
+          "One simple task only",
+        ],
+      },
+      {
+        id: "reset",
+        label: "Choose a quick support option",
+        type: "choice",
+        options: ["60-second reset"],
+        allowCustom: false,
+      },
+      {
+        id: "enough",
+        label: "What counts as enough for today?",
+        type: "text",
+        placeholder: "A realistic stopping point",
+      },
+    ],
+    summaryItems: [
+      { answerId: "difficulty", label: "Main difficulty" },
+      { answerId: "focus", label: "One focus" },
+      { answerId: "smaller", label: "Becomes smaller" },
+      { answerId: "adjustment", label: "Helpful adjustment" },
+      { answerId: "reset", label: "Recovery support" },
+      { answerId: "enough", label: "Enough today" },
+    ],
+  },
+};
+
+function getProgramWorkflow(tool: ProgramTool): ProgramWorkflow {
+  return PROGRAM_TOOL_WORKFLOWS[tool.id] ?? {
+    title: PROGRAM_TOOL_LABELS[tool.id] ?? tool.title,
+    summaryTitle: "Tool summary",
+    questions: [
+      {
+        id: "need",
+        label: "What do you want this tool to help with?",
+        type: "text",
+        placeholder: "Name the situation",
+      },
+      {
+        id: "next",
+        label: "What is one useful next step?",
+        type: "text",
+        placeholder: "One small action",
+      },
+    ],
+    summaryItems: [
+      { answerId: "need", label: "Use for" },
+      { answerId: "next", label: "Next step" },
+    ],
+  };
+}
+
+function toggleListValue(currentValue: string | undefined, option: string) {
+  const values = (currentValue ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const nextValues = values.includes(option)
+    ? values.filter((value) => value !== option)
+    : [...values, option];
+
+  return nextValues.join(", ");
+}
+
+function getSelectedListValues(value: string | undefined) {
+  return (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getCustomWorkflowValue(question: ProgramWorkflowQuestion, value: string | undefined) {
+  if (question.type === "choice") {
+    const selectedValue = value?.trim() ?? "";
+    return selectedValue && !(question.options ?? []).includes(selectedValue) ? selectedValue : "";
+  }
+
+  if (question.type === "multiChoice") {
+    return getSelectedListValues(value)
+      .filter((item) => !(question.options ?? []).includes(item))
+      .join(", ");
+  }
+
+  return "";
+}
+
+function buildWorkflowSummaryText(input: {
+  title: string;
+  workflow: ProgramWorkflow;
+  answers: Record<string, string>;
+}) {
+  const lines = input.workflow.summaryItems
+    .map((item) => {
+      const value = input.answers[item.answerId]?.trim();
+      return value ? `- ${item.label}: ${value}` : null;
+    })
+    .filter((line): line is string => Boolean(line));
+
+  return [input.title, "", ...lines].join("\n");
+}
+
+function buildWorkflowExportSections(workflow: ProgramWorkflow, answers: Record<string, string>) {
+  return workflow.summaryItems
+    .map((item) => {
+      const value = answers[item.answerId]?.trim();
+
+      return value
+        ? {
+            title: item.label,
+            lines: value.split(",").map((line) => line.trim()).filter(Boolean),
+          }
+        : null;
+    })
+    .filter((section): section is { title: string; lines: string[] } => Boolean(section));
+}
+
+function countListItems(value: string | undefined) {
+  return (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean).length;
+}
+
+function deriveEnergyBudget(answers: Record<string, string>) {
+  const demandCount = countListItems(answers.demands);
+  const drainCount = countListItems(answers.drains);
+  const recoveryCount = countListItems(answers.recovery);
+  const lowEnergy = answers.energy === "Very low" || answers.energy === "Low";
+  const overloadScore = demandCount + drainCount + (lowEnergy ? 2 : 0) - recoveryCount;
+  const overloadRisk = overloadScore >= 5 ? "Higher" : overloadScore >= 3 ? "Moderate" : "Lower";
+
+  return {
+    requiredEnergy: Math.min(5, demandCount + (lowEnergy ? 1 : 0)),
+    recoveryProtected: Math.min(5, recoveryCount),
+    overloadRisk,
+  };
+}
+
+function deriveSymptomPatternCue(answers: Record<string, string>) {
+  const symptom = answers.symptom?.trim();
+  const change = answers.change?.trim();
+  const triggers = answers.triggers?.trim();
+  const supports = answers.supports?.trim();
+
+  if (!symptom) {
+    return null;
+  }
+
+  const changeText = change && change !== "Similar" ? `${symptom} is marked as ${change.toLowerCase()}.` : `${symptom} is worth watching over time.`;
+  const triggerText = triggers ? `Possible connection: ${triggers}.` : "Possible connection: not clear yet.";
+  const supportText = supports ? `Support to compare later: ${supports}.` : "Support to compare later: not clear yet.";
+
+  return {
+    changeText,
+    triggerText,
+    supportText,
+  };
+}
+
+function deriveCognitiveLoadCue(answers: Record<string, string>) {
+  const level = answers.level?.trim();
+  const focus = answers.focus?.trim();
+  const smaller = answers.smaller?.trim();
+  const noise = answers.noise?.trim();
+  const reset = answers.reset?.trim();
+
+  if (!level && !focus && !smaller) {
+    return null;
+  }
+
+  return {
+    loadText: level ? `Current load: ${level}.` : "Current load: not marked.",
+    focusText: focus ? `Keep visible: ${focus}.` : "Keep visible: one next focus.",
+    reductionText: smaller ? `Reduce: ${smaller}.` : "Reduce: one demand, decision, or expectation.",
+    noiseText: noise ? `Lower noise from: ${noise}.` : reset ? `Start with: ${reset}.` : "Lower noise where possible.",
+  };
+}
+
+function deriveSleepRecoveryCue(answers: Record<string, string>) {
+  const activation = answers.activation?.trim();
+  const adjustment = answers.adjustment?.trim();
+  const release = answers.release?.trim();
+  const focus = answers.focus?.trim();
+
+  if (!activation && !adjustment && !release) {
+    return null;
+  }
+
+  return {
+    activationText: activation ? `Lower activation from: ${activation}.` : "Lower activation where possible.",
+    adjustmentText: adjustment ? `Start with: ${adjustment}.` : "Start with one lower-stimulation adjustment.",
+    releaseText: release ? `Leave aside tonight: ${release}.` : "Leave one demand aside tonight.",
+    focusText: focus ? `Recovery focus: ${focus}.` : "Recovery focus: less pressure.",
+  };
+}
+
+function deriveDifficultDayCue(answers: Record<string, string>) {
+  const difficulty = answers.difficulty?.trim();
+  const focus = answers.focus?.trim();
+  const smaller = answers.smaller?.trim();
+  const adjustment = answers.adjustment?.trim();
+  const enough = answers.enough?.trim();
+
+  if (!difficulty && !focus && !smaller) {
+    return null;
+  }
+
+  return {
+    difficultyText: difficulty ? `Main difficulty: ${difficulty}.` : "Main difficulty: not marked.",
+    focusText: focus ? `Keep visible: ${focus}.` : "Keep visible: one necessary focus.",
+    smallerText: smaller ? `Make smaller: ${smaller}.` : "Make one demand smaller.",
+    supportText: adjustment ? `Next few hours: ${adjustment}.` : "Next few hours: lower the pressure where possible.",
+    enoughText: enough ? `Enough today: ${enough}.` : "Enough today: a realistic stopping point.",
+  };
+}
+
 export default function ProgramsScreen() {
   const scrollRef = useRef<ScrollView>(null);
+  const detailCardYRef = useRef(0);
+  const timerCardYRef = useRef(0);
+  const exerciseSectionYRef = useRef(0);
+  const shouldScrollToDetailRef = useRef(false);
+  const shouldScrollToTimerRef = useRef(false);
+  const breathingScale = useRef(new Animated.Value(0)).current;
+  const lastBreathingPhaseRef = useRef<string | null>(null);
   const { user } = useAuth();
   const overviewQuery = useCheckInOverview(user?.id);
   const historyQuery = useCheckInHistory(user?.id, 14);
@@ -103,6 +943,11 @@ export default function ProgramsScreen() {
   const [completedToolId, setCompletedToolId] = useState<string | null>(null);
   const [showSelectedToolDetails, setShowSelectedToolDetails] = useState(false);
   const [audioSessionState, setAudioSessionState] = useState<CalmAudioSessionProgress | null>(null);
+  const [workflowAnswers, setWorkflowAnswers] = useState<Record<string, Record<string, string>>>({});
+  const [savedWorkflowByToolId, setSavedWorkflowByToolId] = useState<Record<string, Record<string, string>>>({});
+  const [customWorkflowFields, setCustomWorkflowFields] = useState<Record<string, Record<string, boolean>>>({});
+  const [exportingAppointmentSummary, setExportingAppointmentSummary] = useState(false);
+  const [appointmentExportMessage, setAppointmentExportMessage] = useState<string | null>(null);
 
   const selectedTool = useMemo(
     () => getProgramToolById(selectedToolId),
@@ -116,7 +961,7 @@ export default function ProgramsScreen() {
     () => getProgramModuleById(selectedTool?.moduleId),
     [selectedTool?.moduleId],
   );
-  const overviewEntries = overviewQuery.data ?? [];
+  const overviewEntries = useMemo(() => overviewQuery.data ?? [], [overviewQuery.data]);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const weeklyCheckIns = useMemo(
     () => getCheckInsInLastDays(overviewEntries, today, 7),
@@ -206,6 +1051,13 @@ export default function ProgramsScreen() {
     () => getProgramToolById(activeTimerId),
     [activeTimerId],
   );
+  const activeTimerTotalSeconds = activeTool?.durationSeconds ?? 60;
+  const activeBreathingPhase = activeTool?.id === "breathing-reset" && secondsRemaining !== null
+    ? deriveBreathingPhase({
+        secondsRemaining,
+        totalSeconds: activeTimerTotalSeconds,
+      })
+    : null;
   const adaptiveStatePrimary = useMemo(
     () =>
       deriveAdaptiveStatePrimary({
@@ -252,6 +1104,36 @@ export default function ProgramsScreen() {
         .filter((tool): tool is ProgramTool => Boolean(tool)),
     [emotionalToolkit.surfacedToolIds],
   );
+  const freeProgramTools = useMemo(
+    () =>
+      FREE_PROGRAM_TOOL_IDS
+        .map((toolId) => getProgramToolById(toolId))
+        .filter((tool): tool is ProgramTool => Boolean(tool)),
+    [],
+  );
+  const premiumProgramTools = useMemo(
+    () =>
+      PREMIUM_PROGRAM_TOOL_IDS
+        .map((toolId) => getProgramToolById(toolId))
+        .filter((tool): tool is ProgramTool => Boolean(tool)),
+    [],
+  );
+
+  const openTool = (toolId: string | null | undefined) => {
+    const tool = getProgramToolById(toolId);
+
+    if (!tool) {
+      if (__DEV__) {
+        console.warn("This tool could not open right now.", { toolId });
+      }
+      Alert.alert("This tool could not open right now.");
+      return;
+    }
+
+    shouldScrollToDetailRef.current = true;
+    setSelectedToolId(tool.id);
+    void programProgress.markOpened(tool.id);
+  };
   const sleepRecoverySupport = useMemo(
     () =>
       deriveSleepRecoverySupport({
@@ -490,7 +1372,53 @@ export default function ProgramsScreen() {
     }, 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [activeTimerId, secondsRemaining]);
+  }, [activeTimerId, programProgress, secondsRemaining]);
+
+  useEffect(() => {
+    if (activeTool?.id !== "breathing-reset" || secondsRemaining === null) {
+      breathingScale.stopAnimation();
+      breathingScale.setValue(0);
+      lastBreathingPhaseRef.current = null;
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breathingScale, {
+          toValue: 1,
+          duration: 4000,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.delay(2000),
+        Animated.timing(breathingScale, {
+          toValue: 0,
+          duration: 6000,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
+  }, [activeTool?.id, breathingScale, secondsRemaining]);
+
+  useEffect(() => {
+    if (!activeBreathingPhase) {
+      return;
+    }
+
+    if (lastBreathingPhaseRef.current === activeBreathingPhase.label) {
+      return;
+    }
+
+    lastBreathingPhaseRef.current = activeBreathingPhase.label;
+    void Haptics.selectionAsync().catch(() => undefined);
+  }, [activeBreathingPhase]);
 
   useEffect(() => {
     if (!audioSessionState?.isPlaying || !selectedAudioSession || audioSessionState.sessionId !== selectedAudioSession.id) {
@@ -563,11 +1491,20 @@ export default function ProgramsScreen() {
 
   useEffect(() => {
     if (!selectedToolId) {
+      shouldScrollToDetailRef.current = false;
       return;
     }
 
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
-  }, [selectedToolId]);
+    if (!selectedTool) {
+      if (__DEV__) {
+        console.warn("This tool could not open right now.", { selectedToolId });
+      }
+      Alert.alert("This tool could not open right now.");
+      setSelectedToolId(null);
+      shouldScrollToDetailRef.current = false;
+      return;
+    }
+  }, [selectedTool, selectedToolId]);
 
   useEffect(() => {
     if (!programProgress.progress.audioSession) {
@@ -629,6 +1566,7 @@ export default function ProgramsScreen() {
     void programProgress.markStarted(tool.id);
 
     if (tool.durationSeconds) {
+      shouldScrollToTimerRef.current = true;
       setActiveTimerId(tool.id);
       setSecondsRemaining(tool.durationSeconds);
     } else {
@@ -734,6 +1672,12 @@ export default function ProgramsScreen() {
       toolId: tool.id,
     });
     void growth.maybePromptForReview();
+  };
+
+  const resetCompletedToolState = (toolId: string) => {
+    if (completedToolId === toolId) {
+      setCompletedToolId(null);
+    }
   };
 
   const stopTimer = () => {
@@ -984,6 +1928,28 @@ export default function ProgramsScreen() {
   const visibleToolSteps = selectedTool
     ? selectedTool.steps.slice(0, Math.min(visibleStepCount, lowEnergyAssist.cognitiveLoad.maxVisibleSteps))
     : [];
+  const selectedWorkflow = useMemo(
+    () => (selectedTool ? getProgramWorkflow(selectedTool) : null),
+    [selectedTool],
+  );
+  const selectedWorkflowAnswers = useMemo(
+    () => (selectedTool ? workflowAnswers[selectedTool.id] ?? {} : {}),
+    [selectedTool, workflowAnswers],
+  );
+  const selectedWorkflowSummary = selectedTool ? savedWorkflowByToolId[selectedTool.id] ?? null : null;
+  const selectedWorkflowHasInput = Object.values(selectedWorkflowAnswers).some((value) => value.trim().length > 0);
+  const selectedWorkflowQuestions = useMemo(() => {
+    if (!selectedWorkflow) {
+      return [];
+    }
+
+    const visibleQuestionIds = selectedWorkflow.adaptiveQuestionIds?.(selectedWorkflowAnswers);
+    if (!visibleQuestionIds) {
+      return selectedWorkflow.questions;
+    }
+
+    return selectedWorkflow.questions.filter((question) => visibleQuestionIds.includes(question.id));
+  }, [selectedWorkflow, selectedWorkflowAnswers]);
 
   const getModuleProgressSummary = (module: ProgramModule) => {
     const tools = getProgramToolsByModuleId(module.id);
@@ -999,6 +1965,143 @@ export default function ProgramsScreen() {
     setShowSelectedToolDetails(false);
   }, [selectedToolId]);
 
+  const updateWorkflowAnswer = (toolId: string, questionId: string, value: string) => {
+    resetCompletedToolState(toolId);
+    setWorkflowAnswers((current) => ({
+      ...current,
+      [toolId]: {
+        ...(current[toolId] ?? {}),
+        [questionId]: value,
+      },
+    }));
+  };
+
+  const setCustomWorkflowFieldVisible = (toolId: string, questionId: string, visible: boolean) => {
+    setCustomWorkflowFields((current) => ({
+      ...current,
+      [toolId]: {
+        ...(current[toolId] ?? {}),
+        [questionId]: visible,
+      },
+    }));
+  };
+
+  const updateCustomWorkflowAnswer = (toolId: string, question: ProgramWorkflowQuestion, customValue: string) => {
+    const currentValue = workflowAnswers[toolId]?.[question.id];
+
+    if (question.type === "multiChoice") {
+      const selectedPredefinedValues = getSelectedListValues(currentValue).filter((value) =>
+        (question.options ?? []).includes(value),
+      );
+      const customValues = customValue
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      updateWorkflowAnswer(toolId, question.id, [...selectedPredefinedValues, ...customValues].join(", "));
+      return;
+    }
+
+    updateWorkflowAnswer(toolId, question.id, customValue);
+  };
+
+  const triggerResetToolFromOption = (option: string) => {
+    if (!RESET_TOOL_OPTIONS.has(option)) {
+      return;
+    }
+
+    const resetTool = getProgramToolById("breathing-reset");
+    if (resetTool) {
+      shouldScrollToDetailRef.current = false;
+      setSelectedToolId(resetTool.id);
+      startTool(resetTool);
+    }
+  };
+
+  const saveWorkflow = (tool: ProgramTool) => {
+    const answers = workflowAnswers[tool.id] ?? {};
+    const normalizedAnswers = Object.fromEntries(
+      Object.entries(answers).map(([key, value]) => [key, value.trim()]),
+    );
+
+    setSavedWorkflowByToolId((current) => ({
+      ...current,
+      [tool.id]: normalizedAnswers,
+    }));
+    completeTool(tool);
+  };
+
+  const clearWorkflow = (tool: ProgramTool) => {
+    setWorkflowAnswers((current) => ({
+      ...current,
+      [tool.id]: {},
+    }));
+    setCustomWorkflowFields((current) => ({
+      ...current,
+      [tool.id]: {},
+    }));
+    setSavedWorkflowByToolId((current) => {
+      const next = { ...current };
+      delete next[tool.id];
+      return next;
+    });
+    resetCompletedToolState(tool.id);
+  };
+
+  const shareAppointmentSummary = async (mode: "share" | "pdf" | "email") => {
+    const appointmentWorkflow = PROGRAM_TOOL_WORKFLOWS["appointment-prep"];
+    const answers = savedWorkflowByToolId["appointment-prep"] ?? workflowAnswers["appointment-prep"] ?? {};
+    const summaryText = buildWorkflowSummaryText({
+      title: "Appointment summary",
+      workflow: appointmentWorkflow,
+      answers,
+    });
+
+    setAppointmentExportMessage(null);
+
+    if (!Object.values(answers).some((value) => value.trim())) {
+      setAppointmentExportMessage("Add at least one appointment detail first.");
+      return;
+    }
+
+    try {
+      if (mode === "share") {
+        await Share.share({
+          title: "Appointment summary",
+          message: summaryText,
+        });
+        return;
+      }
+
+      if (mode === "email") {
+        const url = `mailto:?subject=${encodeURIComponent("Appointment summary")}&body=${encodeURIComponent(summaryText)}`;
+        const supported = await Linking.canOpenURL(url);
+        if (!supported) {
+          setAppointmentExportMessage("Email is not available on this device.");
+          return;
+        }
+        await Linking.openURL(url);
+        return;
+      }
+
+      setExportingAppointmentSummary(true);
+      const result = await exportHealthSummary({
+        title: "Appointment summary",
+        subtitle: "Prepared in LiveWithMS",
+        text: summaryText,
+        sections: buildWorkflowExportSections(appointmentWorkflow, answers),
+      });
+
+      if (!result.ok) {
+        setAppointmentExportMessage("Export was not available on this device. You can still share the summary text.");
+      }
+    } catch {
+      setAppointmentExportMessage("Summary sharing was not available right now.");
+    } finally {
+      setExportingAppointmentSummary(false);
+    }
+  };
+
   if ((overviewQuery.isLoading && !overviewQuery.data) || (historyQuery.isLoading && !historyQuery.data)) {
     return <LoadingState message="Programs are settling in..." />;
   }
@@ -1011,11 +2114,56 @@ export default function ProgramsScreen() {
     return <ErrorState message="Programs may need another moment." onRetry={() => void historyQuery.refetch()} />;
   }
 
+  const renderToolCard = (tool: ProgramTool, options: { premium?: boolean } = {}) => {
+    const title = PROGRAM_TOOL_LABELS[tool.id] ?? tool.title;
+    const outcome = PROGRAM_TOOL_OUTCOMES[tool.id] ?? tool.description;
+    const isLocked = Boolean(options.premium && !hasGuidedPrograms);
+    const isSelected = selectedToolId === tool.id;
+    const progressEntry = programProgress.progress.toolProgress[tool.id];
+    const hasSavedSummary = Boolean(savedWorkflowByToolId[tool.id]);
+
+    return (
+      <Pressable
+        key={tool.id}
+        onPress={() => {
+          if (isLocked) {
+            router.push("/premium?source=programs");
+            return;
+          }
+
+          openTool(tool.id);
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={isLocked ? title + ". Premium tool. View Premium." : "Open " + title}
+        style={({ pressed }) => [
+          styles.operationalToolCard,
+          isSelected && styles.operationalToolCardSelected,
+          isLocked && styles.operationalToolCardLocked,
+          pressed && styles.toolCardPressed,
+        ]}
+      >
+        <View style={styles.toolTopRow}>
+          <AppText style={styles.toolTitle}>{title}</AppText>
+          <View style={styles.toolMetaLine}>
+            <AppText style={styles.toolDuration}>{tool.durationLabel}</AppText>
+            {options.premium ? <AppText style={styles.toolPremiumLabel}>Premium</AppText> : null}
+            {hasSavedSummary && !isLocked ? <AppText style={styles.toolUsedLabel}>Saved</AppText> : null}
+          </View>
+        </View>
+        <AppText style={styles.toolWhenToUse}>{tool.whenToUse}</AppText>
+        <AppText style={styles.toolOutcome}>{outcome}</AppText>
+        <View style={styles.toolFooter}>
+          <AppText style={styles.toolOpenLabel}>{isLocked ? "View Premium" : isSelected ? "Open below" : "Open tool"}</AppText>
+        </View>
+      </Pressable>
+    );
+  };
+
   return (
     <AppScreen
-      eyebrow="Structured support"
+      eyebrow="Programs"
       title="Support tools"
-      subtitle="Short support tools for overwhelm, low energy, and steadier pacing."
+      subtitle="Choose a tool for what you need right now."
     >
       <ScrollView
         ref={scrollRef}
@@ -1025,834 +2173,130 @@ export default function ProgramsScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>A calm library for harder days</AppText>
-          <AppText style={styles.heroBody}>
-            {preventMotivationalPressure(`Pick one small tool that matches the moment. ${recoveryPath.body}`)}
-          </AppText>
+        <View style={styles.section}>
+          <View style={styles.sectionList}>{freeProgramTools.map((tool) => renderToolCard(tool))}</View>
         </View>
 
-        <View style={styles.premiumLibraryCard}>
-          <AppText style={styles.premiumLibraryLabel}>{hasGuidedPrograms ? "Premium library" : "Deeper library"}</AppText>
-          <AppText style={styles.premiumLibraryTitle}>{premiumProgramsCopy.title}</AppText>
-          <AppText style={styles.premiumLibraryBody}>{premiumProgramsCopy.body}</AppText>
-          <View style={styles.categoryChipRow}>
-            {PROGRAM_LIBRARY_CATEGORIES.slice(0, lowEnergyAssist.active ? 4 : 7).map((category) => (
-              <View key={category} style={styles.categoryChip}>
-                <AppText style={styles.categoryChipText}>{deriveProgramCategoryLabel(category)}</AppText>
-              </View>
-            ))}
+        <View onLayout={(event) => {
+          exerciseSectionYRef.current = event.nativeEvent.layout.y;
+        }}>
+          <GentleExercisesSection
+            hasPremiumAccess={premium.hasPremiumAccess}
+            lowEnergyMode={adaptiveProfile.lowEnergyMode || lowEnergyAssist.active}
+            onActiveExerciseLayout={(relativeY) => {
+              scrollRef.current?.scrollTo({
+                y: Math.max(exerciseSectionYRef.current + relativeY - 20, 0),
+                animated: true,
+              });
+            }}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionHeaderText}>
+              <AppText style={styles.sectionTitle}>Premium tools</AppText>
+              <AppText style={styles.sectionSubtitle}>Additional support for fatigue, planning, sleep, and cognitive overload.</AppText>
+            </View>
+          </View>
+          <View style={styles.sectionList}>
+            {premiumProgramTools.map((tool) => renderToolCard(tool, { premium: true }))}
           </View>
           {!hasGuidedPrograms ? (
-            <>
-              <View style={styles.previewList}>
-                {premiumLibraryPreview.slice(0, lowEnergyAssist.active ? 2 : 3).map((module) => (
-                  <View key={module.id} style={styles.previewRow}>
-                    <AppText style={styles.previewBullet}>•</AppText>
-                    <AppText style={styles.previewText}>{module.title}</AppText>
-                  </View>
-                ))}
-              </View>
-              <AppButton
-                label="Explore Premium"
-                onPress={() => router.push("/premium?source=programs")}
-                variant="secondary"
-              />
-            </>
-          ) : null}
-        </View>
-
-        <View style={styles.toolkitCard}>
-          <AppText style={styles.toolkitLabel}>{hasGuidedPrograms ? "Emotional resilience toolkit" : "Calmer support toolkit"}</AppText>
-          <AppText style={styles.toolkitTitle}>{emotionalToolkit.title}</AppText>
-          <AppText style={styles.toolkitBody}>{emotionalToolkit.body}</AppText>
-          <View style={styles.categoryChipRow}>
-            {emotionalToolkit.categoryLabels.map((category) => (
-              <View key={category} style={styles.toolkitChip}>
-                <AppText style={styles.toolkitChipText}>{deriveProgramCategoryLabel(category)}</AppText>
-              </View>
-            ))}
-          </View>
-          <View style={styles.toolkitList}>
-            {emotionalToolkitTools.map((tool) => (
-              <View key={tool.id} style={styles.toolkitRow}>
-                <View style={styles.toolkitRowText}>
-                  <AppText style={styles.toolkitRowTitle}>{tool.title}</AppText>
-                  <AppText style={styles.toolkitRowBody}>{tool.whenToUse}</AppText>
-                </View>
-                <View style={styles.toolkitMetaWrap}>
-                  <AppText style={styles.toolkitMetaText}>{tool.durationLabel}</AppText>
-                </View>
-              </View>
-            ))}
-          </View>
-          {hasGuidedPrograms ? (
-            <View style={styles.toolkitActions}>
-              {emotionalToolkitTools.slice(0, lowEnergyAssist.active ? 2 : 3).map((tool) => (
-                <AppButton
-                  key={tool.id}
-                  label={`Open ${tool.title}`}
-                  onPress={() => {
-                    setSelectedToolId(tool.id);
-                    void programProgress.markOpened(tool.id);
-                  }}
-                  variant="secondary"
-                />
-              ))}
-            </View>
-          ) : (
-            <>
-              <AppText style={styles.toolkitLockedBody}>
-                Premium includes calmer nervous-system support and grounding tools that stay short, low-pressure, and easier to use on difficult days.
-              </AppText>
-              <AppButton
-                label="Explore Premium"
-                onPress={() => router.push("/premium?source=programs")}
-                variant="secondary"
-              />
-            </>
-          )}
-        </View>
-
-        <View style={[styles.toolkitCard, emotionalReset.simplifyFurther && styles.difficultDayCardHeavy]}>
-          <AppText style={styles.toolkitLabel}>
-            {hasGuidedPrograms ? "Emotional reset rituals" : "Calmer reset support"}
-          </AppText>
-          <AppText style={styles.toolkitTitle}>{emotionalReset.title}</AppText>
-          <AppText style={styles.toolkitBody}>{emotionalReset.body}</AppText>
-          {emotionalReset.continuityLine ? (
-            <AppText style={styles.difficultDayContinuity}>{emotionalReset.continuityLine}</AppText>
-          ) : null}
-          <View style={styles.difficultDayLineList}>
-            {emotionalReset.resetLines.slice(0, emotionalReset.simplifyFurther ? 2 : 3).map((line) => (
-              <View key={line} style={styles.difficultDayLineRow}>
-                <AppText style={styles.difficultDayLineBullet}>•</AppText>
-                <AppText style={styles.difficultDayLineText}>{line}</AppText>
-              </View>
-            ))}
-          </View>
-          <View style={styles.toolkitList}>
-            {emotionalResetTools.map((tool) => (
-              <View key={tool.id} style={styles.toolkitRow}>
-                <View style={styles.toolkitRowText}>
-                  <AppText style={styles.toolkitRowTitle}>{tool.title}</AppText>
-                  <AppText style={styles.toolkitRowBody}>{tool.whenToUse}</AppText>
-                </View>
-                <View style={styles.toolkitMetaWrap}>
-                  <AppText style={styles.toolkitMetaText}>{tool.durationLabel}</AppText>
-                </View>
-              </View>
-            ))}
-          </View>
-          {hasGuidedPrograms ? (
-            <View style={styles.toolkitActions}>
-              {emotionalResetTools.slice(0, emotionalReset.simplifyFurther ? 2 : 3).map((tool) => (
-                <AppButton
-                  key={tool.id}
-                  label={`Open ${tool.title}`}
-                  onPress={() => {
-                    setSelectedToolId(tool.id);
-                    void programProgress.markOpened(tool.id);
-                  }}
-                  variant="secondary"
-                />
-              ))}
-            </View>
-          ) : (
-            <>
-              <AppText style={styles.toolkitLockedBody}>
-                Premium includes calmer emotional reset and nervous-system recovery support during overwhelming periods.
-              </AppText>
-              <AppButton
-                label="Explore Premium"
-                onPress={() => router.push("/premium?source=programs")}
-                variant="secondary"
-              />
-            </>
-          )}
-        </View>
-
-        <View style={[styles.recoveryRhythmCard, recoveryRhythm.simplifyFurther && styles.recoveryRhythmCardHeavy]}>
-          <AppText style={styles.recoveryRhythmLabel}>Recovery rhythm</AppText>
-          <AppText style={styles.recoveryRhythmTitle}>{recoveryRhythm.title}</AppText>
-          <AppText style={styles.recoveryRhythmBody}>{recoveryRhythm.body}</AppText>
-          <View style={styles.recoveryRhythmList}>
-            {recoveryRhythm.observations.map((line) => (
-              <View key={line} style={styles.recoveryRhythmRow}>
-                <AppText style={styles.recoveryRhythmBullet}>•</AppText>
-                <AppText style={styles.recoveryRhythmText}>{line}</AppText>
-              </View>
-            ))}
-          </View>
-          <View style={styles.recoveryRhythmSuggestionList}>
-            {recoveryRhythm.suggestions.map((line) => (
-              <View key={line} style={styles.recoveryRhythmSuggestionPill}>
-                <AppText style={styles.recoveryRhythmSuggestionText}>{line}</AppText>
-              </View>
-            ))}
-          </View>
-          {!hasGuidedPrograms ? (
-            <>
-              <AppText style={styles.toolkitLockedBody}>
-                Premium includes calmer pacing and recovery support during difficult periods.
-              </AppText>
-              <AppButton
-                label="Explore Premium"
-                onPress={() => router.push("/premium?source=programs")}
-                variant="secondary"
-              />
-            </>
-          ) : null}
-        </View>
-
-        <View style={[styles.cognitiveSupportCard, mentalExhaustion.simplifyFurther && styles.cognitiveSupportCardHeavy]}>
-          <AppText style={styles.cognitiveSupportLabel}>Mental exhaustion recovery</AppText>
-          <AppText style={styles.cognitiveSupportTitle}>{mentalExhaustion.title}</AppText>
-          <AppText style={styles.cognitiveSupportBody}>{mentalExhaustion.body}</AppText>
-          {mentalExhaustion.continuityLine ? (
-            <AppText style={styles.cognitiveSupportContinuity}>{mentalExhaustion.continuityLine}</AppText>
-          ) : null}
-          <View style={styles.difficultDayLineList}>
-            {mentalExhaustion.recoveryLines.slice(0, mentalExhaustion.simplifyFurther ? 2 : 3).map((line) => (
-              <View key={line} style={styles.difficultDayLineRow}>
-                <AppText style={styles.difficultDayLineBullet}>•</AppText>
-                <AppText style={styles.difficultDayLineText}>{line}</AppText>
-              </View>
-            ))}
-          </View>
-          <View style={styles.toolkitList}>
-            {mentalExhaustionTools.map((tool) => (
-              <View key={tool.id} style={styles.toolkitRow}>
-                <View style={styles.toolkitRowText}>
-                  <AppText style={styles.toolkitRowTitle}>{tool.title}</AppText>
-                  <AppText style={styles.toolkitRowBody}>{tool.whenToUse}</AppText>
-                </View>
-                <View style={styles.toolkitMetaWrap}>
-                  <AppText style={styles.toolkitMetaText}>{tool.durationLabel}</AppText>
-                </View>
-              </View>
-            ))}
-          </View>
-          {hasGuidedPrograms ? (
-            <View style={styles.toolkitActions}>
-              {mentalExhaustionTools.slice(0, mentalExhaustion.simplifyFurther ? 2 : 3).map((tool) => (
-                <AppButton
-                  key={tool.id}
-                  label={`Open ${tool.title}`}
-                  onPress={() => {
-                    setSelectedToolId(tool.id);
-                    void programProgress.markOpened(tool.id);
-                  }}
-                  variant="secondary"
-                />
-              ))}
-            </View>
-          ) : (
-            <>
-              <AppText style={styles.toolkitLockedBody}>
-                Premium includes calmer support for recovering after mentally exhausting periods.
-              </AppText>
-              <AppButton
-                label="Explore Premium"
-                onPress={() => router.push("/premium?source=programs")}
-                variant="secondary"
-              />
-            </>
-          )}
-        </View>
-
-        <View style={[styles.guidanceCard, transitionSupport.simplifyFurther && styles.guidanceCardHeavy]}>
-          <AppText style={styles.guidanceLabel}>Travel and transitions</AppText>
-          <AppText style={styles.guidanceTitle}>{transitionSupport.title}</AppText>
-          <AppText style={styles.guidanceBody}>{transitionSupport.body}</AppText>
-          {transitionSupport.continuityLine ? (
-            <AppText style={styles.guidanceContinuity}>{transitionSupport.continuityLine}</AppText>
-          ) : null}
-          <View style={styles.guidancePromptList}>
-            {transitionSupport.summaries.map((line) => (
-              <View key={line} style={styles.guidancePromptRow}>
-                <AppText style={styles.guidancePromptBullet}>•</AppText>
-                <AppText style={styles.guidancePromptText}>{line}</AppText>
-              </View>
-            ))}
-          </View>
-          <View style={styles.toolkitList}>
-            {transitionSupportTools.map((tool) => (
-              <View key={tool.id} style={styles.toolkitRow}>
-                <View style={styles.toolkitRowText}>
-                  <AppText style={styles.toolkitRowTitle}>{tool.title}</AppText>
-                  <AppText style={styles.toolkitRowBody}>{tool.whenToUse}</AppText>
-                </View>
-                <View style={styles.toolkitMetaWrap}>
-                  <AppText style={styles.toolkitMetaText}>{tool.durationLabel}</AppText>
-                </View>
-              </View>
-            ))}
-          </View>
-          {hasGuidedPrograms ? (
-            <View style={styles.toolkitActions}>
-              {transitionSupportTools.slice(0, transitionSupport.simplifyFurther ? 2 : 3).map((tool) => (
-                <AppButton
-                  key={tool.id}
-                  label={`Open ${tool.title}`}
-                  onPress={() => {
-                    setSelectedToolId(tool.id);
-                    void programProgress.markOpened(tool.id);
-                  }}
-                  variant="secondary"
-                />
-              ))}
-            </View>
-          ) : (
-            <>
-              <AppText style={styles.toolkitLockedBody}>
-                Premium includes calmer support during travel, disrupted routines, and difficult transitions.
-              </AppText>
-              <AppButton
-                label="Explore Premium"
-                onPress={() => router.push("/premium?source=programs")}
-                variant="secondary"
-              />
-            </>
-          )}
-        </View>
-
-        <View style={[styles.difficultDayCard, setbackRecovery.simplifyFurther && styles.difficultDayCardHeavy]}>
-          <AppText style={styles.difficultDayLabel}>Quiet recovery after setbacks</AppText>
-          <AppText style={styles.difficultDayTitle}>{setbackRecovery.title}</AppText>
-          <AppText style={styles.difficultDayBody}>{setbackRecovery.body}</AppText>
-          {setbackRecovery.continuityLine ? (
-            <AppText style={styles.difficultDayContinuity}>{setbackRecovery.continuityLine}</AppText>
-          ) : null}
-          <View style={styles.difficultDayLineList}>
-            {setbackRecovery.supportLines.map((line) => (
-              <View key={line} style={styles.difficultDayLineRow}>
-                <AppText style={styles.difficultDayLineBullet}>•</AppText>
-                <AppText style={styles.difficultDayLineText}>{line}</AppText>
-              </View>
-            ))}
-          </View>
-          <View style={styles.toolkitList}>
-            {setbackRecoveryTools.map((tool) => (
-              <View key={tool.id} style={styles.toolkitRow}>
-                <View style={styles.toolkitRowText}>
-                  <AppText style={styles.toolkitRowTitle}>{tool.title}</AppText>
-                  <AppText style={styles.toolkitRowBody}>{tool.whenToUse}</AppText>
-                </View>
-                <View style={styles.toolkitMetaWrap}>
-                  <AppText style={styles.toolkitMetaText}>{tool.durationLabel}</AppText>
-                </View>
-              </View>
-            ))}
-          </View>
-          {hasGuidedPrograms ? (
-            <View style={styles.toolkitActions}>
-              {setbackRecoveryTools.slice(0, setbackRecovery.simplifyFurther ? 2 : 3).map((tool) => (
-                <AppButton
-                  key={tool.id}
-                  label={`Open ${tool.title}`}
-                  onPress={() => {
-                    setSelectedToolId(tool.id);
-                    void programProgress.markOpened(tool.id);
-                  }}
-                  variant="secondary"
-                />
-              ))}
-            </View>
-          ) : (
-            <>
-              <AppText style={styles.toolkitLockedBody}>
-                Premium includes calmer support for restarting gently after difficult periods.
-              </AppText>
-              <AppButton
-                label="Explore Premium"
-                onPress={() => router.push("/premium?source=programs")}
-                variant="secondary"
-              />
-            </>
-          )}
-        </View>
-
-        <View style={[styles.guidanceCard, futureStability.simplifyFurther && styles.guidanceCardHeavy]}>
-          <AppText style={styles.guidanceLabel}>Future stability</AppText>
-          <AppText style={styles.guidanceTitle}>{futureStability.title}</AppText>
-          <AppText style={styles.guidanceBody}>{futureStability.body}</AppText>
-          {futureStability.continuityLine ? (
-            <AppText style={styles.guidanceContinuity}>{futureStability.continuityLine}</AppText>
-          ) : null}
-          <View style={styles.guidancePromptList}>
-            {futureStability.planningLines.map((line) => (
-              <View key={line} style={styles.guidancePromptRow}>
-                <AppText style={styles.guidancePromptBullet}>•</AppText>
-                <AppText style={styles.guidancePromptText}>{line}</AppText>
-              </View>
-            ))}
-          </View>
-          <View style={styles.toolkitList}>
-            {futureStabilityTools.map((tool) => (
-              <View key={tool.id} style={styles.toolkitRow}>
-                <View style={styles.toolkitRowText}>
-                  <AppText style={styles.toolkitRowTitle}>{tool.title}</AppText>
-                  <AppText style={styles.toolkitRowBody}>{tool.whenToUse}</AppText>
-                </View>
-                <View style={styles.toolkitMetaWrap}>
-                  <AppText style={styles.toolkitMetaText}>{tool.durationLabel}</AppText>
-                </View>
-              </View>
-            ))}
-          </View>
-          {hasGuidedPrograms ? (
-            <View style={styles.toolkitActions}>
-              {futureStabilityTools.slice(0, futureStability.simplifyFurther ? 2 : 3).map((tool) => (
-                <AppButton
-                  key={tool.id}
-                  label={`Open ${tool.title}`}
-                  onPress={() => {
-                    setSelectedToolId(tool.id);
-                    void programProgress.markOpened(tool.id);
-                  }}
-                  variant="secondary"
-                />
-              ))}
-            </View>
-          ) : (
-            <>
-              <AppText style={styles.toolkitLockedBody}>
-                Premium includes calmer planning and low-pressure future support during unpredictable periods.
-              </AppText>
-              <AppButton
-                label="Explore Premium"
-                onPress={() => router.push("/premium?source=programs")}
-                variant="secondary"
-              />
-            </>
-          )}
-        </View>
-
-        <View style={[styles.communicationCard, communicationSupport.simplifyFurther && styles.communicationCardHeavy]}>
-          <AppText style={styles.communicationLabel}>Communication support</AppText>
-          <AppText style={styles.communicationTitle}>{communicationSupport.title}</AppText>
-          <AppText style={styles.communicationBody}>{communicationSupport.body}</AppText>
-          {communicationSupport.continuityLine ? (
-            <AppText style={styles.communicationContinuity}>{communicationSupport.continuityLine}</AppText>
-          ) : null}
-          <View style={styles.communicationPhraseList}>
-            {communicationSupport.phrases.slice(0, communicationSupport.simplifyFurther ? 2 : 3).map((phrase) => (
-              <View key={phrase} style={styles.communicationPhrasePill}>
-                <AppText style={styles.communicationPhraseText}>{phrase}</AppText>
-              </View>
-            ))}
-          </View>
-          <View style={styles.toolkitList}>
-            {communicationSupportTools.map((tool) => (
-              <View key={tool.id} style={styles.toolkitRow}>
-                <View style={styles.toolkitRowText}>
-                  <AppText style={styles.toolkitRowTitle}>{tool.title}</AppText>
-                  <AppText style={styles.toolkitRowBody}>{tool.whenToUse}</AppText>
-                </View>
-                <View style={styles.toolkitMetaWrap}>
-                  <AppText style={styles.toolkitMetaText}>{tool.durationLabel}</AppText>
-                </View>
-              </View>
-            ))}
-          </View>
-          {hasGuidedPrograms ? (
-            <View style={styles.toolkitActions}>
-              {communicationSupportTools.slice(0, communicationSupport.simplifyFurther ? 2 : 3).map((tool) => (
-                <AppButton
-                  key={tool.id}
-                  label={`Open ${tool.title}`}
-                  onPress={() => {
-                    setSelectedToolId(tool.id);
-                    void programProgress.markOpened(tool.id);
-                  }}
-                  variant="secondary"
-                />
-              ))}
-            </View>
-          ) : (
-            <>
-              <AppText style={styles.toolkitLockedBody}>
-                Premium includes calmer communication and relationship support during difficult periods.
-              </AppText>
-              <AppButton
-                label="Explore Premium"
-                onPress={() => router.push("/premium?source=programs")}
-                variant="secondary"
-              />
-            </>
-          )}
-        </View>
-
-        <View style={[styles.guidanceCard, calmGuidance.simplifyFurther && styles.guidanceCardHeavy]}>
-          <AppText style={styles.guidanceLabel}>Calm guidance</AppText>
-          <AppText style={styles.guidanceTitle}>{calmGuidance.title}</AppText>
-          <AppText style={styles.guidanceBody}>{calmGuidance.body}</AppText>
-          {calmGuidance.continuityLine ? (
-            <AppText style={styles.guidanceContinuity}>{calmGuidance.continuityLine}</AppText>
-          ) : null}
-          <View style={styles.guidancePromptList}>
-            {calmGuidance.prompts.slice(0, calmGuidance.simplifyFurther ? 2 : 3).map((prompt) => (
-              <View key={prompt} style={styles.guidancePromptRow}>
-                <AppText style={styles.guidancePromptBullet}>•</AppText>
-                <AppText style={styles.guidancePromptText}>{prompt}</AppText>
-              </View>
-            ))}
-          </View>
-          <View style={styles.toolkitList}>
-            {calmGuidanceTools.map((tool) => (
-              <View key={tool.id} style={styles.toolkitRow}>
-                <View style={styles.toolkitRowText}>
-                  <AppText style={styles.toolkitRowTitle}>{tool.title}</AppText>
-                  <AppText style={styles.toolkitRowBody}>{tool.whenToUse}</AppText>
-                </View>
-                <View style={styles.toolkitMetaWrap}>
-                  <AppText style={styles.toolkitMetaText}>{tool.durationLabel}</AppText>
-                </View>
-              </View>
-            ))}
-          </View>
-          {hasGuidedPrograms ? (
-            <View style={styles.toolkitActions}>
-              {calmGuidanceTools.slice(0, calmGuidance.simplifyFurther ? 2 : 3).map((tool) => (
-                <AppButton
-                  key={tool.id}
-                  label={`Open ${tool.title}`}
-                  onPress={() => {
-                    setSelectedToolId(tool.id);
-                    void programProgress.markOpened(tool.id);
-                  }}
-                  variant="secondary"
-                />
-              ))}
-            </View>
-          ) : (
-            <>
-              <AppText style={styles.toolkitLockedBody}>
-                Premium includes calmer daily guidance and low-pressure pacing support.
-              </AppText>
-              <AppButton
-                label="Explore Premium"
-                onPress={() => router.push("/premium?source=programs")}
-                variant="secondary"
-              />
-            </>
-          )}
-        </View>
-
-        <View style={[styles.difficultDayCard, difficultDaySupport.simplifyFurther && styles.difficultDayCardHeavy]}>
-          <AppText style={styles.difficultDayLabel}>Difficult-day support</AppText>
-          <AppText style={styles.difficultDayTitle}>{difficultDaySupport.title}</AppText>
-          <AppText style={styles.difficultDayBody}>{difficultDaySupport.body}</AppText>
-          {difficultDaySupport.continuityLine ? (
-            <AppText style={styles.difficultDayContinuity}>{difficultDaySupport.continuityLine}</AppText>
-          ) : null}
-          <View style={styles.difficultDayLineList}>
-            {difficultDaySupport.groundingLines.slice(0, difficultDaySupport.simplifyFurther ? 2 : 3).map((line) => (
-              <View key={line} style={styles.difficultDayLineRow}>
-                <AppText style={styles.difficultDayLineBullet}>•</AppText>
-                <AppText style={styles.difficultDayLineText}>{line}</AppText>
-              </View>
-            ))}
-          </View>
-          <View style={styles.toolkitList}>
-            {difficultDayTools.map((tool) => (
-              <View key={tool.id} style={styles.toolkitRow}>
-                <View style={styles.toolkitRowText}>
-                  <AppText style={styles.toolkitRowTitle}>{tool.title}</AppText>
-                  <AppText style={styles.toolkitRowBody}>{tool.whenToUse}</AppText>
-                </View>
-                <View style={styles.toolkitMetaWrap}>
-                  <AppText style={styles.toolkitMetaText}>{tool.durationLabel}</AppText>
-                </View>
-              </View>
-            ))}
-          </View>
-          {hasGuidedPrograms ? (
-            <View style={styles.toolkitActions}>
-              {difficultDayTools.slice(0, difficultDaySupport.simplifyFurther ? 2 : 3).map((tool) => (
-                <AppButton
-                  key={tool.id}
-                  label={`Open ${tool.title}`}
-                  onPress={() => {
-                    setSelectedToolId(tool.id);
-                    void programProgress.markOpened(tool.id);
-                  }}
-                  variant="secondary"
-                />
-              ))}
-            </View>
-          ) : (
-            <>
-              <AppText style={styles.toolkitLockedBody}>
-                Premium includes calmer support for heavier and lower-energy days.
-              </AppText>
-              <AppButton
-                label="Explore Premium"
-                onPress={() => router.push("/premium?source=programs")}
-                variant="secondary"
-              />
-            </>
-          )}
-        </View>
-
-        <View style={[styles.cognitiveSupportCard, cognitiveSupport.simplifyFurther && styles.cognitiveSupportCardHeavy]}>
-          <AppText style={styles.cognitiveSupportLabel}>Brain fog support</AppText>
-          <AppText style={styles.cognitiveSupportTitle}>{cognitiveSupport.title}</AppText>
-          <AppText style={styles.cognitiveSupportBody}>{cognitiveSupport.body}</AppText>
-          {cognitiveSupport.continuityLine ? (
-            <AppText style={styles.cognitiveSupportContinuity}>{cognitiveSupport.continuityLine}</AppText>
-          ) : null}
-          <View style={styles.toolkitList}>
-            {cognitiveSupportTools.map((tool) => (
-              <View key={tool.id} style={styles.toolkitRow}>
-                <View style={styles.toolkitRowText}>
-                  <AppText style={styles.toolkitRowTitle}>{tool.title}</AppText>
-                  <AppText style={styles.toolkitRowBody}>{tool.whenToUse}</AppText>
-                </View>
-                <View style={styles.toolkitMetaWrap}>
-                  <AppText style={styles.toolkitMetaText}>{tool.durationLabel}</AppText>
-                </View>
-              </View>
-            ))}
-          </View>
-          {hasGuidedPrograms ? (
-            <View style={styles.toolkitActions}>
-              {cognitiveSupportTools.slice(0, cognitiveSupport.simplifyFurther ? 2 : 3).map((tool) => (
-                <AppButton
-                  key={tool.id}
-                  label={`Open ${tool.title}`}
-                  onPress={() => {
-                    setSelectedToolId(tool.id);
-                    void programProgress.markOpened(tool.id);
-                  }}
-                  variant="secondary"
-                />
-              ))}
-            </View>
-          ) : (
-            <>
-              <AppText style={styles.toolkitLockedBody}>
-                Premium includes calmer cognitive support and brain-fog-friendly tools.
-              </AppText>
-              <AppButton
-                label="Explore Premium"
-                onPress={() => router.push("/premium?source=programs")}
-                variant="secondary"
-              />
-            </>
-          )}
-        </View>
-
-        <View style={[styles.sleepSupportCard, sleepRecoverySupport.useCalmerNightVisuals && styles.sleepSupportCardEvening]}>
-          <AppText style={[styles.sleepSupportLabel, sleepRecoverySupport.useCalmerNightVisuals && styles.sleepEveningLabel]}>
-            Evening support
-          </AppText>
-          <AppText style={[styles.sleepSupportTitle, sleepRecoverySupport.useCalmerNightVisuals && styles.sleepEveningText]}>
-            {sleepRecoverySupport.title}
-          </AppText>
-          <AppText style={[styles.sleepSupportBody, sleepRecoverySupport.useCalmerNightVisuals && styles.sleepEveningBody]}>
-            {sleepRecoverySupport.body}
-          </AppText>
-          <View style={styles.sleepPromptList}>
-            {sleepRecoverySupport.reflectionPrompts.slice(0, lowEnergyAssist.active ? 2 : 3).map((prompt) => (
-              <View key={prompt} style={styles.sleepPromptRow}>
-                <AppText style={[styles.sleepPromptBullet, sleepRecoverySupport.useCalmerNightVisuals && styles.sleepEveningLabel]}>•</AppText>
-                <AppText style={[styles.sleepPromptText, sleepRecoverySupport.useCalmerNightVisuals && styles.sleepEveningBody]}>
-                  {prompt}
-                </AppText>
-              </View>
-            ))}
-          </View>
-          <View style={styles.toolkitList}>
-            {sleepSupportTools.map((tool) => (
-              <View key={tool.id} style={styles.toolkitRow}>
-                <View style={styles.toolkitRowText}>
-                  <AppText style={[styles.toolkitRowTitle, sleepRecoverySupport.useCalmerNightVisuals && styles.sleepEveningText]}>
-                    {tool.title}
-                  </AppText>
-                  <AppText style={[styles.toolkitRowBody, sleepRecoverySupport.useCalmerNightVisuals && styles.sleepEveningBody]}>
-                    {tool.whenToUse}
-                  </AppText>
-                </View>
-                <View style={[styles.toolkitMetaWrap, sleepRecoverySupport.useCalmerNightVisuals && styles.sleepMetaWrapEvening]}>
-                  <AppText style={[styles.toolkitMetaText, sleepRecoverySupport.useCalmerNightVisuals && styles.sleepEveningMetaText]}>
-                    {tool.durationLabel}
-                  </AppText>
-                </View>
-              </View>
-            ))}
-          </View>
-          {hasGuidedPrograms ? (
-            <View style={styles.toolkitActions}>
-              {sleepSupportTools.slice(0, lowEnergyAssist.active ? 2 : 3).map((tool) => (
-                <AppButton
-                  key={tool.id}
-                  label={`Open ${tool.title}`}
-                  onPress={() => {
-                    setSelectedToolId(tool.id);
-                    void programProgress.markOpened(tool.id);
-                  }}
-                  variant="secondary"
-                />
-              ))}
-            </View>
-          ) : (
-            <>
-              <AppText style={[styles.toolkitLockedBody, sleepRecoverySupport.useCalmerNightVisuals && styles.sleepEveningBody]}>
-                Premium includes calmer evening support and nervous-system-friendly wind-down tools.
-              </AppText>
-              <AppButton
-                label="Explore Premium"
-                onPress={() => router.push("/premium?source=programs")}
-                variant="secondary"
-              />
-            </>
-          )}
-        </View>
-
-        <View style={styles.audioLibraryCard}>
-          <AppText style={styles.audioLibraryLabel}>{hasCalmAudioSupport ? "Calm audio support" : "Audio support"}</AppText>
-          <AppText style={styles.audioLibraryTitle}>Short resets for overwhelm, evenings, and lower-energy stretches</AppText>
-          <AppText style={styles.audioLibraryBody}>
-            Premium includes calming audio support and nervous-system-friendly resets. These sessions stay brief, offline-ready, and easy to leave when needed.
-          </AppText>
-          <View style={styles.audioMetaRow}>
-            <View style={styles.audioMetaPill}>
-              <AppText style={styles.audioMetaText}>1-5 minutes</AppText>
-            </View>
-            <View style={styles.audioMetaPill}>
-              <AppText style={styles.audioMetaText}>Offline ready</AppText>
-            </View>
-            <View style={styles.audioMetaPill}>
-              <AppText style={styles.audioMetaText}>Optional haptics</AppText>
-            </View>
-          </View>
-          {!hasCalmAudioSupport ? (
             <AppButton
-              label="Explore Premium"
+              label="View Premium"
               onPress={() => router.push("/premium?source=programs")}
               variant="secondary"
             />
           ) : null}
         </View>
-
-        {adaptiveProfile.lowEnergyMode || lowEnergyAssist.active ? (
-          <View style={styles.suggestionCard}>
-            <AppText style={styles.suggestionLabel}>Low-energy support</AppText>
-            <AppText style={styles.suggestionTitle}>{adaptiveProfile.simplificationTitle}</AppText>
-            <AppText style={styles.suggestionBody}>
-              {preventMotivationalPressure(
-                `${adaptiveProfile.simplificationBody} ${
-                  hasLowEnergyAssist && lowEnergyAssist.active
-                    ? "Low Energy Assist is keeping this space lighter right now."
-                    : recoverySupport
-                }`,
-              )}
-            </AppText>
-          </View>
-        ) : null}
-
-        {suggestedTool && suggestedModule && canUseSuggestedTool ? (
-          <View style={styles.suggestionCard}>
-            <AppText style={styles.suggestionLabel}>{recommendedProgramCopy?.label ?? "Worth considering today"}</AppText>
-            <AppText style={styles.suggestionTitle}>{suggestedTool.title}</AppText>
-            <AppText style={styles.suggestionBody}>
-              {preventMotivationalPressure(
-                `${recommendedProgramCopy?.body ?? suggestedModule.whyItHelps} ${
-                  guidedSupportPrograms.primaryModuleIds.includes(suggestedModule.id)
-                    ? "It can stay gentle and brief."
-                    : ""
-                }`,
-              )}
-            </AppText>
-            <AppButton
-              label={programIntensity === "very-gentle" ? `Open ${suggestedTool.title}` : `Open ${suggestedTool.title}`}
-              onPress={() => {
-                setSelectedToolId(suggestedTool.id);
-                void programProgress.markOpened(suggestedTool.id);
-              }}
-              variant="secondary"
-            />
-          </View>
-        ) : null}
-
-        {suggestedTool && suggestedModule && !canUseSuggestedTool ? (
-          <View style={styles.premiumPromptCard}>
-            <AppText style={styles.suggestionLabel}>Worth considering today</AppText>
-            <AppText style={styles.suggestionTitle}>{suggestedTool.title}</AppText>
-            <AppText style={styles.suggestionBody}>
-              Premium includes this quieter support tool, along with a deeper library for overwhelm, sleep, brain fog, and lower-energy days.
-            </AppText>
-            <AppButton
-              label="Explore Premium"
-              onPress={() => router.push("/premium?source=programs")}
-              variant="secondary"
-            />
-          </View>
-        ) : null}
 
         {activeContinuationTool && resumableProgramFlow ? (
           <View style={styles.navCard}>
-            <AppText style={styles.cardTitle}>
-              {pauseResumeState.shorterResumeCopy ? "Pick up gently" : resumableProgramFlow.title}
-            </AppText>
-            <AppText style={styles.resumeCopy}>
-              {preventMotivationalPressure(
-                `${resumableProgramFlow.body} ${interruptionNormalization ?? ""}`.trim(),
-              )}
-            </AppText>
-            <AppText style={styles.resumeNote}>Continue later if it still helps. This step will stay here.</AppText>
+            <AppText style={styles.cardTitle}>Continue recent tool</AppText>
+            <AppText style={styles.resumeCopy}>{activeContinuationTool.title}</AppText>
             <AppButton
-              label={pauseResumeState.shorterResumeCopy ? "Resume gently" : resumableProgramFlow.ctaLabel}
-              onPress={() => {
-                setSelectedToolId(activeContinuationTool.id);
-                void programProgress.markOpened(activeContinuationTool.id);
-              }}
+              label="Open tool"
+              onPress={() => openTool(activeContinuationTool.id)}
               variant="secondary"
             />
           </View>
         ) : null}
 
-        <View style={styles.navCard}>
-          <AppText style={styles.cardTitle}>Quick links</AppText>
-          <AppText style={styles.resumeCopy}>Move between support spaces without losing your place here.</AppText>
-          <View style={styles.navButtons}>
-            <AppButton label="Coach" onPress={() => router.push("/coach")} variant="secondary" />
-            {!adaptiveProfile.lowEnergyMode && !lowEnergyAssist.active ? (
-              <AppButton label="Today" onPress={() => router.push("/today")} variant="secondary" />
-            ) : null}
-          </View>
-        </View>
-
         {activeTool && secondsRemaining !== null ? (
-          <View style={styles.timerCard}>
+          <View
+            style={[styles.timerCard, styles.timerCardActive, activeTool.id === "breathing-reset" && styles.breathingTimerCard]}
+            onLayout={(event) => {
+              timerCardYRef.current = event.nativeEvent.layout.y;
+              if (shouldScrollToTimerRef.current) {
+                scrollRef.current?.scrollTo({
+                  y: Math.max(timerCardYRef.current - 20, 0),
+                  animated: true,
+                });
+                shouldScrollToTimerRef.current = false;
+              }
+            }}
+          >
             <AppText style={styles.timerKicker}>In progress</AppText>
-            <AppText style={styles.timerTitle}>{activeTool.title}</AppText>
+            <AppText style={styles.timerTitle}>{PROGRAM_TOOL_LABELS[activeTool.id] ?? activeTool.title}</AppText>
+            {activeTool.id === "breathing-reset" && activeBreathingPhase ? (
+              <View style={styles.breathingGuide}>
+                <Animated.View
+                  style={[
+                    styles.breathingCircle,
+                    {
+                      transform: [
+                        {
+                          scale: breathingScale.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.78, 1.12],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  <AppText style={styles.breathingPhase}>{activeBreathingPhase.label}</AppText>
+                </Animated.View>
+                <AppText style={styles.breathingInstruction}>{activeBreathingPhase.instruction}</AppText>
+              </View>
+            ) : null}
             <AppText style={styles.timerValue}>{formatTime(secondsRemaining)}</AppText>
-            <AppText style={styles.timerBody}>
-              {preventMotivationalPressure(groundingSupport)}
-            </AppText>
-            <AppButton label={pauseResumeState.shouldOfferPause ? "Pause for now" : "Stop timer"} onPress={stopTimer} variant="secondary" />
+            <AppButton label="Stop timer" onPress={stopTimer} variant="secondary" />
           </View>
         ) : null}
 
         {selectedTool && completedToolId === selectedTool.id ? (
           <View style={styles.completionCard}>
-            <AppText style={styles.completionTitle}>That can be enough for today.</AppText>
-            <AppText style={styles.completionBody}>
-              {preventCompletionPressure(selectedTool.completionMessage)}
+            <AppText style={styles.completionTitle}>
+              {selectedTool.id === "breathing-reset" ? "Reset complete." : "Tool saved."}
             </AppText>
-            <AppText style={styles.resumeNote}>You can return to this anytime.</AppText>
+            <AppText style={styles.completionBody}>
+              {selectedTool.id === "breathing-reset"
+                ? "Notice whether your body or thoughts feel even slightly steadier."
+                : preventCompletionPressure(selectedTool.completionMessage)}
+            </AppText>
           </View>
         ) : null}
 
         {selectedTool && canUseSelectedTool ? (
-          <View style={styles.detailCard}>
+          <View
+            style={styles.detailCard}
+            onLayout={(event) => {
+              detailCardYRef.current = event.nativeEvent.layout.y;
+              if (shouldScrollToDetailRef.current) {
+                scrollRef.current?.scrollTo({
+                  y: Math.max(detailCardYRef.current - 20, 0),
+                  animated: true,
+                });
+                shouldScrollToDetailRef.current = false;
+              }
+            }}
+          >
             <View style={styles.detailHeader}>
               <View style={styles.detailHeaderText}>
-                <AppText style={styles.detailSectionLabel}>{selectedTool.section}</AppText>
-                <AppText style={styles.detailTitle}>{selectedTool.title}</AppText>
+                <AppText style={styles.detailSectionLabel}>{deriveProgramSectionLabel(selectedTool.section)}</AppText>
+                <AppText style={styles.detailTitle}>{PROGRAM_TOOL_LABELS[selectedTool.id] ?? selectedTool.title}</AppText>
               </View>
               <Pressable
                 onPress={() => setSelectedToolId(null)}
@@ -1867,339 +2311,303 @@ export default function ProgramsScreen() {
                 <AppText style={styles.metaPillText}>{selectedTool.durationLabel}</AppText>
               </View>
               <View style={styles.metaPill}>
-                <AppText style={styles.metaPillText}>When to use it</AppText>
+                <AppText style={styles.metaPillText}>{deriveProgramCategoryLabel(selectedTool.category)}</AppText>
               </View>
-              {selectedModule ? (
-                <View style={styles.metaPill}>
-                  <AppText style={styles.metaPillText}>
-                    {deriveProgramCategoryLabel(selectedModule.category) || deriveProgramSectionLabel(selectedModule.section)}
-                  </AppText>
-                </View>
-              ) : null}
             </View>
 
             <AppText style={styles.whenToUse}>{selectedTool.whenToUse}</AppText>
-            <AppText style={styles.detailBody}>
-              {preventMotivationalPressure(`${selectedTool.description} ${groundingSupport}`)}
-            </AppText>
-            {selectedAudioSession ? (
-              canUseSelectedAudioSession ? (
-                <View style={styles.audioSessionCard}>
-                  <AppText style={styles.audioSessionLabel}>Calm audio support</AppText>
-                  <AppText style={styles.audioSessionTitle}>{selectedAudioSession.title}</AppText>
-                  <AppText style={styles.audioSessionBody}>{selectedAudioSession.description}</AppText>
-                  <View style={styles.audioMetaRow}>
-                    <View style={styles.audioMetaPill}>
-                      <AppText style={styles.audioMetaText}>{selectedAudioSession.durationLabel}</AppText>
-                    </View>
-                    <View style={styles.audioMetaPill}>
-                      <AppText style={styles.audioMetaText}>Works offline</AppText>
-                    </View>
-                    <View style={styles.audioMetaPill}>
-                      <AppText style={styles.audioMetaText}>Pause any time</AppText>
-                    </View>
-                  </View>
-                  <AppText style={styles.audioSupportNote}>
-                    {selectedAudioSession.recommendation} {selectedAudioSession.lowStimulationNote}
+            <AppText style={styles.detailBody}>{PROGRAM_TOOL_OUTCOMES[selectedTool.id] ?? selectedTool.description}</AppText>
+
+            {selectedWorkflow ? (
+              <View style={styles.workflowCard}>
+                <View style={styles.workflowHeader}>
+                  <AppText style={styles.workflowTitle}>{selectedWorkflow.title}</AppText>
+                  <AppText style={styles.workflowProgress}>
+                    {Object.values(selectedWorkflowAnswers).filter((value) => value.trim()).length}/{selectedWorkflowQuestions.length}
                   </AppText>
-                  {isSelectedAudioActive ? (
-                    <>
-                      <View style={styles.audioNowPlayingCard}>
-                        <AppText style={styles.audioPhaseLabel}>
-                          {selectedAudioSession.phases[audioSessionState?.phaseIndex ?? 0]?.label ?? "In progress"}
-                        </AppText>
-                        <AppText style={styles.audioTimerValue}>
-                          {formatTime(audioSessionState?.totalSecondsRemaining ?? selectedAudioSession.totalSeconds)}
-                        </AppText>
-                        <AppText style={styles.audioPromptText}>
-                          {selectedAudioSession.phases[audioSessionState?.phaseIndex ?? 0]?.prompt}
-                        </AppText>
-                        {selectedAudioSession.phases[audioSessionState?.phaseIndex ?? 0]?.breathCue ? (
-                          <AppText style={styles.audioBreathNote}>
-                            Inhale {selectedAudioSession.phases[audioSessionState?.phaseIndex ?? 0]?.breathCue?.inhaleSeconds ?? 0}
-                            {" · "}
-                            Exhale {selectedAudioSession.phases[audioSessionState?.phaseIndex ?? 0]?.breathCue?.exhaleSeconds ?? 0}
-                          </AppText>
+                </View>
+                {selectedWorkflowQuestions.map((question, index) => (
+                  <View key={question.id} style={styles.workflowQuestion}>
+                    <View style={styles.workflowQuestionHeader}>
+                      <View style={styles.stepBadge}>
+                        <AppText style={styles.stepBadgeText}>{index + 1}</AppText>
+                      </View>
+                      <AppText style={styles.workflowQuestionLabel}>{question.label}</AppText>
+                    </View>
+                    {question.type === "choice" || question.type === "multiChoice" ? (
+                      <View style={styles.choiceGroup}>
+                        <View style={styles.choiceRow}>
+                          {(question.options ?? []).map((option) => {
+                            const selected = question.type === "multiChoice"
+                              ? getSelectedListValues(selectedWorkflowAnswers[question.id]).includes(option)
+                              : selectedWorkflowAnswers[question.id] === option;
+
+                            return (
+                              <Pressable
+                                key={option}
+                                onPress={() => {
+                                  updateWorkflowAnswer(
+                                    selectedTool.id,
+                                    question.id,
+                                    question.type === "multiChoice"
+                                      ? toggleListValue(selectedWorkflowAnswers[question.id], option)
+                                      : option,
+                                  );
+                                  triggerResetToolFromOption(option);
+                                }}
+                                style={({ pressed }) => [
+                                  styles.choiceChip,
+                                  selected && styles.choiceChipSelected,
+                                  pressed && styles.toolCardPressed,
+                                ]}
+                              >
+                                <AppText style={[styles.choiceChipText, selected && styles.choiceChipTextSelected]}>
+                                  {option}
+                                </AppText>
+                              </Pressable>
+                            );
+                          })}
+                          {question.allowCustom === false ? null : (
+                            <Pressable
+                              onPress={() =>
+                                setCustomWorkflowFieldVisible(
+                                  selectedTool.id,
+                                  question.id,
+                                  !(customWorkflowFields[selectedTool.id]?.[question.id] ||
+                                    Boolean(getCustomWorkflowValue(question, selectedWorkflowAnswers[question.id]))),
+                                )
+                              }
+                              style={({ pressed }) => [
+                                styles.choiceChip,
+                                (customWorkflowFields[selectedTool.id]?.[question.id] ||
+                                  Boolean(getCustomWorkflowValue(question, selectedWorkflowAnswers[question.id]))) &&
+                                  styles.choiceChipSelected,
+                                pressed && styles.toolCardPressed,
+                              ]}
+                            >
+                              <AppText
+                                style={[
+                                  styles.choiceChipText,
+                                  (customWorkflowFields[selectedTool.id]?.[question.id] ||
+                                    Boolean(getCustomWorkflowValue(question, selectedWorkflowAnswers[question.id]))) &&
+                                    styles.choiceChipTextSelected,
+                                ]}
+                              >
+                                {CUSTOM_OPTION_LABEL}
+                              </AppText>
+                            </Pressable>
+                          )}
+                        </View>
+                        {question.allowCustom !== false &&
+                        (customWorkflowFields[selectedTool.id]?.[question.id] ||
+                          getCustomWorkflowValue(question, selectedWorkflowAnswers[question.id])) ? (
+                          <TextInput
+                            value={getCustomWorkflowValue(question, selectedWorkflowAnswers[question.id])}
+                            onChangeText={(value) => updateCustomWorkflowAnswer(selectedTool.id, question, value)}
+                            placeholder="Add your own answer"
+                            placeholderTextColor="#9ca3af"
+                            multiline
+                            textAlignVertical="top"
+                            style={styles.workflowInput}
+                          />
                         ) : null}
                       </View>
-                      <View style={styles.audioControls}>
-                        <AppButton
-                          label={audioSessionState?.isPlaying ? "Pause audio support" : "Resume audio support"}
-                          onPress={() => (audioSessionState?.isPlaying ? pauseAudioSession() : resumeAudioSession())}
-                        />
-                        <AppButton
-                          label={audioSessionState?.hapticsEnabled ? "Haptic pacing on" : "Haptic pacing off"}
-                          onPress={toggleAudioHaptics}
-                          variant="secondary"
-                          disabled={!selectedAudioSession.supportsHaptics}
-                        />
-                        <AppButton
-                          label="Stop for now"
-                          onPress={stopAudioSession}
-                          variant="secondary"
-                        />
-                      </View>
-                    </>
-                  ) : (
-                    <View style={styles.audioControls}>
-                      <AppButton
-                        label="Start audio support"
-                        onPress={() => startAudioSession(selectedTool)}
+                    ) : (
+                      <TextInput
+                        value={selectedWorkflowAnswers[question.id] ?? ""}
+                        onChangeText={(value) => updateWorkflowAnswer(selectedTool.id, question.id, value)}
+                        placeholder={question.placeholder}
+                        placeholderTextColor="#9ca3af"
+                        multiline
+                        textAlignVertical="top"
+                        style={styles.workflowInput}
                       />
-                      <AppButton
-                        label="Keep to text only"
-                        onPress={() => setShowSelectedToolDetails((current) => !current)}
-                        variant="secondary"
-                      />
-                    </View>
-                  )}
-                </View>
-              ) : (
-                <View style={styles.audioLockedCard}>
-                  <AppText style={styles.audioSessionLabel}>Calm audio support</AppText>
-                  <AppText style={styles.audioSessionTitle}>{selectedAudioSession.title}</AppText>
-                  <AppText style={styles.audioSessionBody}>
-                    Premium includes calming audio support and nervous-system-friendly resets for difficult moments.
-                  </AppText>
-                  <AppButton
-                    label="Explore Premium"
-                    onPress={() => router.push("/premium?source=programs")}
-                    variant="secondary"
-                  />
-                </View>
-              )
-            ) : null}
-            {shouldSimplifyPrograms ? (
-              <View style={styles.lowEnergySupportCard}>
-                <AppText style={styles.lowEnergySupportTitle}>Short version</AppText>
-                <AppText style={styles.lowEnergySupportBody}>
-                  Keep this brief. The first step or two may be enough for now.
-                </AppText>
-              </View>
-            ) : null}
-
-            {selectedModule && !shouldSimplifyPrograms ? (
-              <View style={styles.contextCard}>
-                <AppText style={styles.contextTitle}>Why this may help</AppText>
-                <AppText style={styles.contextBody}>
-                  {preventMotivationalPressure(`${selectedModule.whyItHelps} ${recoverySupport}`)}
-                </AppText>
-                <View style={styles.moduleProgressCard}>
-                  <AppText style={styles.moduleProgressTitle}>
-                    {programIntensity === "very-gentle" ? "Move through this slowly" : "Move through this gently"}
-                  </AppText>
-                  <AppText style={styles.moduleProgressNote}>You can pause between tools and come back later without losing your place.</AppText>
-                  {getProgramToolsByModuleId(selectedModule.id).map((tool) => {
-                    const isCompleted = programProgress.progress.completedToolIds.includes(tool.id);
-                    const isCurrent = tool.id === selectedTool.id;
-
-                    return (
-                      <Pressable
-                        key={tool.id}
-                        onPress={() => {
-                          setSelectedToolId(tool.id);
-                          void programProgress.markOpened(tool.id);
-                        }}
-                        style={({ pressed }) => [
-                          styles.moduleStepRow,
-                          isCurrent && styles.moduleStepRowCurrent,
-                          pressed && styles.moduleStepRowPressed,
-                        ]}
-                      >
-                        <View style={[styles.moduleStepBadge, isCompleted && styles.moduleStepBadgeCompleted]}>
-                          <AppText style={[styles.moduleStepBadgeText, isCompleted && styles.moduleStepBadgeTextCompleted]}>
-                            {isCompleted ? "Used recently" : "Available"}
-                          </AppText>
-                        </View>
-                        <View style={styles.moduleStepTextWrap}>
-                          <AppText style={styles.moduleStepTitle}>{tool.title}</AppText>
-                          <AppText style={styles.moduleStepBody}>{tool.whenToUse}</AppText>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                {selectedModule.content.map((item) => (
-                  <View key={item.id} style={styles.contextNote}>
-                    <AppText style={styles.contextNoteTitle}>{item.title}</AppText>
-                    <AppText style={styles.contextNoteBody}>{preventMotivationalPressure(item.body)}</AppText>
+                    )}
                   </View>
                 ))}
               </View>
             ) : null}
-            {selectedModule && shouldSimplifyPrograms ? (
-              <Pressable
-                onPress={() => setShowSelectedToolDetails((current) => !current)}
-                style={({ pressed }) => [styles.contextToggle, pressed && styles.toolCardPressed]}
-              >
-                <AppText style={styles.contextToggleText}>
-                  {showSelectedToolDetails ? "Hide extra context" : "Show a little more context"}
-                </AppText>
-              </Pressable>
-            ) : null}
-            {selectedModule && shouldSimplifyPrograms && showSelectedToolDetails ? (
-              <View style={styles.contextCard}>
-                <AppText style={styles.contextTitle}>Why this may help</AppText>
-                <AppText style={styles.contextBody}>
-                  {preventMotivationalPressure(`${selectedModule.whyItHelps} ${recoverySupport}`)}
-                </AppText>
-              </View>
-            ) : null}
 
-            <View style={styles.stepsList}>
-              {visibleToolSteps.map((step, index) => (
-                <View key={`${selectedTool.id}-${index}`} style={styles.stepRow}>
-                  <View style={styles.stepBadge}>
-                    <AppText style={styles.stepBadgeText}>{index + 1}</AppText>
-                  </View>
-                  <AppText style={styles.stepText}>{preventMotivationalPressure(step)}</AppText>
-                </View>
-              ))}
-            </View>
-            {selectedTool.steps.length > visibleToolSteps.length ? (
-              <Pressable
-                onPress={() => setShowSelectedToolDetails((current) => !current)}
-                style={({ pressed }) => [styles.contextToggle, pressed && styles.toolCardPressed]}
-              >
-                <AppText style={styles.contextToggleText}>
-                  {showSelectedToolDetails ? "Hide later steps" : "Show later steps"}
-                </AppText>
-              </Pressable>
-            ) : null}
-            {selectedTool.steps.length > visibleToolSteps.length && showSelectedToolDetails ? (
-              <View style={styles.stepsList}>
-                {selectedTool.steps.slice(visibleToolSteps.length).map((step, index) => (
-                  <View key={`${selectedTool.id}-later-${index}`} style={styles.stepRow}>
-                    <View style={styles.stepBadge}>
-                      <AppText style={styles.stepBadgeText}>{visibleToolSteps.length + index + 1}</AppText>
+            {selectedWorkflow && selectedWorkflowSummary ? (
+              <View style={styles.workflowSummaryCard}>
+                <AppText style={styles.workflowSummaryTitle}>{selectedWorkflow.summaryTitle}</AppText>
+                {selectedWorkflow.summaryItems.map((item) => {
+                  const value = selectedWorkflowSummary[item.answerId]?.trim();
+
+                  return value ? (
+                    <View key={item.answerId} style={styles.workflowSummaryRow}>
+                      <AppText style={styles.workflowSummaryLabel}>{item.label}</AppText>
+                      <AppText style={styles.workflowSummaryText}>{value}</AppText>
                     </View>
-                    <AppText style={styles.stepText}>{preventMotivationalPressure(step)}</AppText>
+                  ) : null;
+                })}
+                {selectedTool.id === "difficult-day-pacing-checklist" ? (
+                  <View style={styles.energyBudgetCard}>
+                    <AppText style={styles.energyBudgetTitle}>Energy budget</AppText>
+                    {(() => {
+                      const budget = deriveEnergyBudget(selectedWorkflowSummary);
+
+                      return (
+                        <>
+                          <View style={styles.energyBudgetRow}>
+                            <AppText style={styles.energyBudgetLabel}>Required energy</AppText>
+                            <View style={styles.energyDots}>
+                              {[1, 2, 3, 4, 5].map((value) => (
+                                <View
+                                  key={`required-${value}`}
+                                  style={[
+                                    styles.energyDot,
+                                    value <= budget.requiredEnergy && styles.energyDotActive,
+                                  ]}
+                                />
+                              ))}
+                            </View>
+                          </View>
+                          <View style={styles.energyBudgetRow}>
+                            <AppText style={styles.energyBudgetLabel}>Recovery protected</AppText>
+                            <View style={styles.energyDots}>
+                              {[1, 2, 3, 4, 5].map((value) => (
+                                <View
+                                  key={`recovery-${value}`}
+                                  style={[
+                                    styles.energyDot,
+                                    value <= budget.recoveryProtected && styles.energyDotRecovery,
+                                  ]}
+                                />
+                              ))}
+                            </View>
+                          </View>
+                          <View style={styles.energyBudgetRow}>
+                            <AppText style={styles.energyBudgetLabel}>Overload risk</AppText>
+                            <AppText style={styles.energyBudgetValue}>{budget.overloadRisk}</AppText>
+                          </View>
+                        </>
+                      );
+                    })()}
                   </View>
-                ))}
+                ) : null}
+                {selectedTool.id === "symptom-reflection" ? (
+                  <View style={styles.energyBudgetCard}>
+                    <AppText style={styles.energyBudgetTitle}>Pattern focus</AppText>
+                    {(() => {
+                      const cue = deriveSymptomPatternCue(selectedWorkflowSummary);
+
+                      return cue ? (
+                        <>
+                          <AppText style={styles.workflowSummaryText}>{cue.changeText}</AppText>
+                          <AppText style={styles.workflowSummaryText}>{cue.triggerText}</AppText>
+                          <AppText style={styles.workflowSummaryText}>{cue.supportText}</AppText>
+                        </>
+                      ) : null;
+                    })()}
+                  </View>
+                ) : null}
+                {selectedTool.id === "cognitive-decompression-reset" ? (
+                  <View style={styles.energyBudgetCard}>
+                    <AppText style={styles.energyBudgetTitle}>Load reduction</AppText>
+                    {(() => {
+                      const cue = deriveCognitiveLoadCue(selectedWorkflowSummary);
+
+                      return cue ? (
+                        <>
+                          <AppText style={styles.workflowSummaryText}>{cue.loadText}</AppText>
+                          <AppText style={styles.workflowSummaryText}>{cue.focusText}</AppText>
+                          <AppText style={styles.workflowSummaryText}>{cue.reductionText}</AppText>
+                          <AppText style={styles.workflowSummaryText}>{cue.noiseText}</AppText>
+                        </>
+                      ) : null;
+                    })()}
+                  </View>
+                ) : null}
+                {selectedTool.id === "sleep-decompression-flow" ? (
+                  <View style={styles.energyBudgetCard}>
+                    <AppText style={styles.energyBudgetTitle}>Wind-down focus</AppText>
+                    {(() => {
+                      const cue = deriveSleepRecoveryCue(selectedWorkflowSummary);
+
+                      return cue ? (
+                        <>
+                          <AppText style={styles.workflowSummaryText}>{cue.activationText}</AppText>
+                          <AppText style={styles.workflowSummaryText}>{cue.adjustmentText}</AppText>
+                          <AppText style={styles.workflowSummaryText}>{cue.releaseText}</AppText>
+                          <AppText style={styles.workflowSummaryText}>{cue.focusText}</AppText>
+                        </>
+                      ) : null;
+                    })()}
+                  </View>
+                ) : null}
+                {selectedTool.id === "everything-feels-too-hard" ? (
+                  <View style={styles.energyBudgetCard}>
+                    <AppText style={styles.energyBudgetTitle}>Today’s smaller shape</AppText>
+                    {(() => {
+                      const cue = deriveDifficultDayCue(selectedWorkflowSummary);
+
+                      return cue ? (
+                        <>
+                          <AppText style={styles.workflowSummaryText}>{cue.difficultyText}</AppText>
+                          <AppText style={styles.workflowSummaryText}>{cue.focusText}</AppText>
+                          <AppText style={styles.workflowSummaryText}>{cue.smallerText}</AppText>
+                          <AppText style={styles.workflowSummaryText}>{cue.supportText}</AppText>
+                          <AppText style={styles.workflowSummaryText}>{cue.enoughText}</AppText>
+                        </>
+                      ) : null;
+                    })()}
+                  </View>
+                ) : null}
+                {selectedTool.id === "appointment-prep" ? (
+                  <View style={styles.appointmentExportActions}>
+                    <AppButton
+                      label="Share summary"
+                      onPress={() => void shareAppointmentSummary("share")}
+                      variant="secondary"
+                    />
+                    <AppButton
+                      label={exportingAppointmentSummary ? "Preparing PDF..." : "Export PDF"}
+                      onPress={() => void shareAppointmentSummary("pdf")}
+                      variant="secondary"
+                      disabled={exportingAppointmentSummary}
+                    />
+                    <AppButton
+                      label="Email summary"
+                      onPress={() => void shareAppointmentSummary("email")}
+                      variant="secondary"
+                    />
+                    {appointmentExportMessage ? (
+                      <AppText style={styles.appointmentExportMessage}>{appointmentExportMessage}</AppText>
+                    ) : null}
+                  </View>
+                ) : null}
               </View>
             ) : null}
 
             <View style={styles.detailActions}>
               <AppButton
                 label={
-                  isSelectedToolCompleted
-                    ? "Used recently"
+                  selectedWorkflowSummary
+                    ? "Save changes"
+                    : selectedTool.id === "reduce-overwhelm"
+                      ? "Reduce overwhelm"
+                    : selectedTool.id === "breathing-reset"
+                      ? "Start 60-second reset"
                     : selectedTool.durationSeconds
-                      ? selectedToolMode?.shortenCtas
-                        ? "Start gently"
-                        : "Start"
-                      : selectedToolMode?.shortenCtas
-                        ? "Done for now"
-                        : "Save this step"
+                      ? "Begin reset"
+                      : "Save summary"
                 }
                 onPress={() =>
-                  isSelectedToolCompleted
-                    ? null
-                    : selectedTool.durationSeconds
+                  selectedTool.durationSeconds
                       ? startTool(selectedTool)
-                      : completeTool(selectedTool)
+                      : saveWorkflow(selectedTool)
                 }
-                disabled={isSelectedToolCompleted}
+                disabled={!selectedTool.durationSeconds && !selectedWorkflowHasInput}
               />
               <AppButton
-                label={isSelectedToolCompleted ? "Used recently" : selectedToolMode?.shortenCtas ? "Pause here" : "Pause for now"}
-                onPress={() => (isSelectedToolCompleted ? null : completeTool(selectedTool))}
+                label={selectedWorkflowSummary ? "Clear saved summary" : "Save without summary"}
+                onPress={() => (selectedWorkflowSummary ? clearWorkflow(selectedTool) : completeTool(selectedTool))}
                 variant="secondary"
-                disabled={isSelectedToolCompleted}
               />
             </View>
-            <AppText style={styles.resumeNote}>Nothing here needs to be finished in one go.</AppText>
           </View>
         ) : null}
-
-        {groupedTools.map(({ section, items, lockedCount }) => (
-          <View key={section} style={styles.section}>
-            <AppText style={styles.sectionTitle}>{deriveProgramSectionLabel(section)}</AppText>
-            <AppText style={styles.sectionSubtitle}>{deriveProgramSectionSubtitle(section)}</AppText>
-            <View style={styles.sectionList}>
-              {items.map((module) => {
-                const moduleTools = getProgramToolsByModuleId(module.id);
-                const leadTool = moduleTools[0] ?? null;
-                const progressSummary = getModuleProgressSummary(module);
-
-                return (
-                <Pressable
-                  key={module.id}
-                  onPress={() => {
-                    if (!leadTool) {
-                      return;
-                    }
-
-                    setSelectedToolId(leadTool.id);
-                    void programProgress.markOpened(leadTool.id);
-                  }}
-                  style={({ pressed }) => [styles.toolCard, pressed && styles.toolCardPressed]}
-                >
-                  <View style={styles.toolTopRow}>
-                    <AppText style={styles.toolTitle}>{module.title}</AppText>
-                    <AppText style={styles.toolDuration}>{module.estimatedPace}</AppText>
-                  </View>
-                  <AppText style={styles.toolWhenToUse}>{module.description}</AppText>
-                  <AppText style={styles.toolDescription}>
-                    {preventMotivationalPressure(
-                      `${module.whyItHelps} ${
-                        difficultPeriodPrograms.includes(leadTool?.id ?? "")
-                          ? "This can be especially gentle for harder periods."
-                          : ""
-                      }`,
-                    )}
-                  </AppText>
-                  <View style={styles.moduleMetaRow}>
-                    <View style={styles.moduleMetaPill}>
-                      <AppText style={styles.moduleMetaText}>
-                        {preventCompletionPressure(
-                          deriveSoftProgression({
-                            completedCount: progressSummary.completedCount,
-                            totalCount: progressSummary.totalCount,
-                            intensity: programIntensity,
-                          }),
-                        )}
-                      </AppText>
-                    </View>
-                    {adaptiveProfile.lowEnergyMode && module.id === suggestedModule?.id ? (
-                      <View style={styles.moduleMetaPill}>
-                        <AppText style={styles.moduleMetaText}>Lower-energy fit</AppText>
-                      </View>
-                    ) : null}
-                    {!adaptiveProfile.lowEnergyMode ? (
-                      <View style={styles.moduleMetaPill}>
-                        <AppText style={styles.moduleMetaText}>
-                          {deriveProgramCategoryLabel(module.category) || module.track.replace("-", " ")}
-                        </AppText>
-                      </View>
-                    ) : null}
-                  </View>
-                  <View style={styles.toolFooter}>
-                    <AppText style={styles.toolOpenLabel}>
-                      {progressSummary.isCompleted ? "Return gently" : "Open module"}
-                    </AppText>
-                  </View>
-                </Pressable>
-                );
-              })}
-            </View>
-            {lockedCount > 0 ? (
-              <View style={styles.lockedSectionCard}>
-                <AppText style={styles.lockedSectionTitle}>
-                  {lockedCount} more {lockedCount === 1 ? "program" : "programs"} in this section
-                </AppText>
-                <AppText style={styles.lockedSectionBody}>
-                  Premium includes a deeper library of calming programs and low-energy support, while keeping the flow short and interruption-safe.
-                </AppText>
-                <AppButton
-                  label="Explore Premium"
-                  onPress={() => router.push("/premium?source=programs")}
-                  variant="secondary"
-                />
-              </View>
-            ) : null}
-          </View>
-        ))}
       </ScrollView>
     </AppScreen>
   );
@@ -2749,6 +3157,17 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 12,
   },
+  timerCardActive: {
+    borderColor: "#9bc8ad",
+    shadowColor: "#166534",
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
+  },
+  breathingTimerCard: {
+    alignItems: "center",
+  },
   timerKicker: {
     fontSize: 13,
     fontWeight: "700",
@@ -2765,6 +3184,32 @@ const styles = StyleSheet.create({
     lineHeight: 46,
     fontWeight: "800",
     color: "#166534",
+  },
+  breathingGuide: {
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+  },
+  breathingCircle: {
+    width: 156,
+    height: 156,
+    borderRadius: 999,
+    backgroundColor: "#dff1e8",
+    borderWidth: 1,
+    borderColor: "#b8dac9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  breathingPhase: {
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: "800",
+    color: "#166534",
+  },
+  breathingInstruction: {
+    color: "#3f5f46",
+    fontWeight: "700",
+    lineHeight: 21,
   },
   timerBody: {
     color: "#4b5563",
@@ -2973,6 +3418,168 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     lineHeight: 20,
   },
+  workflowCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    padding: 14,
+    gap: 14,
+  },
+  workflowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  workflowTitle: {
+    flex: 1,
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  workflowProgress: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#8b6a4f",
+  },
+  workflowQuestion: {
+    gap: 10,
+  },
+  workflowQuestionHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  workflowQuestionLabel: {
+    flex: 1,
+    color: "#374151",
+    fontWeight: "700",
+    lineHeight: 21,
+  },
+  workflowInput: {
+    minHeight: 84,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#ead9cb",
+    backgroundColor: "#ffffff",
+    color: "#1f2937",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  choiceRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  choiceGroup: {
+    gap: 10,
+  },
+  choiceChip: {
+    minHeight: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#ead9cb",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    justifyContent: "center",
+  },
+  choiceChipSelected: {
+    borderColor: "#c25d10",
+    backgroundColor: "#fff4ec",
+  },
+  choiceChipText: {
+    color: "#6b7280",
+    fontWeight: "700",
+  },
+  choiceChipTextSelected: {
+    color: "#9a4b0c",
+  },
+  workflowSummaryCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#d7ead7",
+    backgroundColor: "#f7fbf7",
+    padding: 14,
+    gap: 10,
+  },
+  workflowSummaryTitle: {
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: "700",
+    color: "#166534",
+  },
+  workflowSummaryRow: {
+    gap: 3,
+  },
+  workflowSummaryLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4d7c58",
+    textTransform: "uppercase",
+  },
+  workflowSummaryText: {
+    color: "#374151",
+    lineHeight: 21,
+  },
+  appointmentExportActions: {
+    gap: 10,
+    paddingTop: 4,
+  },
+  appointmentExportMessage: {
+    color: "#6b7280",
+    lineHeight: 20,
+  },
+  energyBudgetCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#d7ead7",
+    backgroundColor: "#ffffff",
+    padding: 12,
+    gap: 10,
+  },
+  energyBudgetTitle: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "700",
+    color: "#166534",
+  },
+  energyBudgetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  energyBudgetLabel: {
+    flex: 1,
+    color: "#4b5563",
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  energyBudgetValue: {
+    color: "#166534",
+    fontWeight: "800",
+  },
+  energyDots: {
+    flexDirection: "row",
+    gap: 5,
+  },
+  energyDot: {
+    width: 11,
+    height: 11,
+    borderRadius: 999,
+    backgroundColor: "#e5e7eb",
+  },
+  energyDotActive: {
+    backgroundColor: "#d97706",
+  },
+  energyDotRecovery: {
+    backgroundColor: "#16a34a",
+  },
   contextToggle: {
     borderRadius: 14,
     borderWidth: 1,
@@ -3102,6 +3709,16 @@ const styles = StyleSheet.create({
   section: {
     gap: 10,
   },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  sectionHeaderText: {
+    flex: 1,
+    gap: 4,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "700",
@@ -3125,6 +3742,21 @@ const styles = StyleSheet.create({
   toolCardPressed: {
     opacity: 0.84,
   },
+  operationalToolCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f1e1d4",
+    padding: 16,
+    gap: 10,
+  },
+  operationalToolCardSelected: {
+    borderColor: "#d98a4d",
+    backgroundColor: "#fff8f2",
+  },
+  operationalToolCardLocked: {
+    backgroundColor: "#fffaf6",
+  },
   toolTopRow: {
     gap: 4,
   },
@@ -3138,10 +3770,30 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#c25d10",
   },
+  toolMetaLine: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+  },
+  toolPremiumLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#8b6a4f",
+  },
+  toolUsedLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#166534",
+  },
   toolWhenToUse: {
     color: "#4b5563",
     lineHeight: 21,
     fontWeight: "600",
+  },
+  toolOutcome: {
+    color: "#6b7280",
+    lineHeight: 21,
   },
   toolDescription: {
     color: "#6b7280",

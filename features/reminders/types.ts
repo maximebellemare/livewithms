@@ -6,6 +6,11 @@ export type ReminderSettings = {
   minute: number;
   permissionStatus: ReminderPermissionStatus;
   notificationId: string | null;
+  medicationRemindersEnabled: boolean;
+  appointmentRemindersEnabled: boolean;
+  appointmentReminderOneDay: boolean;
+  appointmentReminderOneHour: boolean;
+  quietReminders: boolean;
 };
 
 export type ReminderTimeOption = {

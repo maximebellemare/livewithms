@@ -58,7 +58,7 @@ function reduceGenericWellnessLanguage(text: string) {
   return normalizeWhitespace(
     text
       .replace(/unlock clearer insights/gi, "make this view clearer")
-      .replace(/clearer picture/gi, "steadier picture")
+      .replace(/clearer picture/gi, "clearer pattern")
       .replace(/connect the dots/gi, "show a pattern")
       .replace(/keep checking in/gi, "more check-ins may")
       .replace(/check in consistently/gi, "a little more history can")
@@ -93,7 +93,7 @@ function buildFallbackAiInsights(entries: DailyCheckIn[]): AiInsightsSummary {
     return {
       summary: moderateShortInsight("Fatigue looked heavier alongside lighter sleep in this stretch."),
       helping: sanitizeInsightList(["Sleep has been on the lighter side lately."]),
-      suggestions: sanitizeInsightList(["If tonight allows for it, a quieter stop may help."]),
+      suggestions: sanitizeInsightList(["A simpler evening routine may help if sleep has been short."]),
       disclaimer: deriveIncompleteContextAwareness("insight-summary"),
       source: "fallback",
     };
@@ -103,7 +103,7 @@ function buildFallbackAiInsights(entries: DailyCheckIn[]): AiInsightsSummary {
     return {
       summary: moderateShortInsight("Stress has been one of the stronger signals lately."),
       helping: sanitizeInsightList(["The more demanding days may be shaping the rest of the picture."]),
-      suggestions: sanitizeInsightList(["If today feels full, pick one next step and leave the rest."]),
+      suggestions: sanitizeInsightList(["If today feels full, pick one next step."]),
       disclaimer: deriveIncompleteContextAwareness("insight-summary"),
       source: "fallback",
     };
@@ -111,9 +111,9 @@ function buildFallbackAiInsights(entries: DailyCheckIn[]): AiInsightsSummary {
 
   if (averageMood !== null && averageMood <= 2) {
     return {
-      summary: moderateShortInsight("Mood has looked a little lower in this stretch."),
-      helping: sanitizeInsightList(["The harder days may be carrying more weight right now."]),
-      suggestions: sanitizeInsightList(["Keep the next step small and concrete if that helps."]),
+      summary: moderateShortInsight("Mood is lower across recent check-ins."),
+      helping: sanitizeInsightList(["Lower-mood days are more common in this range."]),
+      suggestions: sanitizeInsightList(["Look for what changed on lower-mood days."]),
       disclaimer: deriveIncompleteContextAwareness("insight-summary"),
       source: "fallback",
     };
@@ -121,18 +121,18 @@ function buildFallbackAiInsights(entries: DailyCheckIn[]): AiInsightsSummary {
 
   if (averageFatigue !== null && averageFatigue <= 2 && averageStress !== null && averageStress <= 2) {
     return {
-      summary: moderateShortInsight("This stretch looks fairly steady overall."),
-      helping: sanitizeInsightList(["Energy and stress have both looked a little lighter lately."]),
-      suggestions: sanitizeInsightList(["Notice anything simple that has been helping."]),
+      summary: moderateShortInsight("Fatigue and stress are both lower in this range."),
+      helping: sanitizeInsightList(["Energy and stress have both been lower recently."]),
+      suggestions: sanitizeInsightList(["Compare these days with higher-fatigue periods."]),
       disclaimer: deriveIncompleteContextAwareness("insight-summary"),
       source: "fallback",
     };
   }
 
   return {
-    summary: moderateShortInsight("A few small patterns are starting to show up in this stretch."),
-    helping: sanitizeInsightList(["A little more history can help this view feel steadier."]),
-    suggestions: sanitizeInsightList(["Future check-ins can stay short and simple if that helps."]),
+    summary: moderateShortInsight("This pattern is still early."),
+    helping: sanitizeInsightList(["There is not enough information yet to identify a reliable pattern."]),
+    suggestions: sanitizeInsightList(["A few more check-ins may help reveal clearer patterns."]),
     disclaimer: deriveIncompleteContextAwareness("insight-summary"),
     source: "fallback",
   };
@@ -180,7 +180,7 @@ function buildFallbackInsight(entries: DailyCheckIn[]): PatternSummary {
     return {
       source: "fallback",
       insight: moderateInsightCopy(
-        "Fatigue has been one of the stronger signals in your recent check-ins. Shorter to-do lists and steadier rest breaks may help keep your days more manageable.",
+        "Fatigue is higher across recent check-ins. Lower-decision days may reduce extra load during higher-fatigue periods.",
       ),
     };
   }
@@ -189,7 +189,7 @@ function buildFallbackInsight(entries: DailyCheckIn[]): PatternSummary {
     return {
       source: "fallback",
       insight: moderateInsightCopy(
-        "Stress has been showing up more often in your recent check-ins. A short reset, slower pacing, or a quiet moment to breathe may help you settle back into the day.",
+        "Stress has been showing up more often in your recent check-ins. A shorter plan or a slower pace may help on fuller days.",
       ),
     };
   }
@@ -198,7 +198,7 @@ function buildFallbackInsight(entries: DailyCheckIn[]): PatternSummary {
     return {
       source: "fallback",
       insight: moderateInsightCopy(
-        "Sleep has looked a little lighter this week. A calmer wind-down routine and a more consistent bedtime may help support steadier energy.",
+        "Sleep has been lower this week. A more consistent wind-down or bedtime may help support energy.",
       ),
     };
   }
@@ -207,7 +207,7 @@ function buildFallbackInsight(entries: DailyCheckIn[]): PatternSummary {
     return {
       source: "fallback",
       insight: moderateInsightCopy(
-        "Hydration looks a bit lower than usual this week. Keeping water nearby and aiming for a few more glasses may help support how you feel day to day.",
+        "Hydration is lower across recent check-ins. Track whether lower-hydration days line up with higher fatigue.",
       ),
     };
   }
@@ -216,7 +216,7 @@ function buildFallbackInsight(entries: DailyCheckIn[]): PatternSummary {
     return {
       source: "fallback",
       insight: moderateInsightCopy(
-        "Your recent check-ins suggest a steadier stretch overall. Noticing what helps on the better days may make the harder ones easier to carry.",
+        "Mood is higher across recent check-ins. Compare these days with lower-mood periods to spot possible differences.",
       ),
     };
   }
@@ -224,7 +224,7 @@ function buildFallbackInsight(entries: DailyCheckIn[]): PatternSummary {
   return {
     source: "fallback",
     insight: moderateInsightCopy(
-      "Your recent check-ins are building a clearer picture of how you feel across the week. Keep logging mood, fatigue, stress, sleep, and habits so patterns become easier to spot.",
+      "Your recent check-ins are starting to show how this week has been going. A few more check-ins may help reveal clearer patterns.",
     ),
   };
 }
@@ -235,7 +235,7 @@ export const insightsApi = {
       return {
         source: "fallback",
         insight: moderateInsightCopy(
-          "Start checking in regularly to unlock a clearer picture of your symptom patterns, routines, and recovery rhythms.",
+          "Start checking in to build a clearer picture of symptoms, routines, and recovery patterns.",
         ),
       };
     }
@@ -289,9 +289,9 @@ export const insightsApi = {
     if (entries.length < 3) {
       return {
         ...buildFallbackAiInsights(entries),
-        summary: moderateShortInsight("A little more history can help this view feel steadier."),
+        summary: moderateShortInsight("There is not enough information yet to identify a reliable pattern."),
         helping: [],
-        suggestions: sanitizeInsightList(["A short check-in now and then is enough."]),
+        suggestions: sanitizeInsightList(["A few more check-ins may help reveal clearer patterns."]),
       };
     }
 

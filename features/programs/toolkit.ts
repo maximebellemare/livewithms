@@ -46,12 +46,16 @@ function deriveCategoryLabels(toolIds: string[]) {
   return categories.filter((category, index) => categories.indexOf(category) === index).slice(0, 4);
 }
 
+function dedupeToolIds(toolIds: string[]) {
+  return toolIds.filter((toolId, index) => toolIds.indexOf(toolId) === index);
+}
+
 export function deriveEmotionalRegulationToolkit(input: ToolkitInput): EmotionalToolkitState {
   const ecosystem = deriveProgramsEcosystemState({
     ...input,
     brainFog: input.brainFog ?? null,
   });
-  const surfacedToolIds = ecosystem.recommendedToolIds.slice(0, 3);
+  const surfacedToolIds = dedupeToolIds(ecosystem.recommendedToolIds).slice(0, 3);
   const categoryLabels = ecosystem.categoryLabels.length > 0 ? ecosystem.categoryLabels : deriveCategoryLabels(surfacedToolIds);
 
   if (input.lowEnergyMode || input.lowEnergyAssistActive || input.fatigueTrend === "high") {

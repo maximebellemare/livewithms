@@ -19,7 +19,7 @@ export default function WelcomeScreen() {
 
   return (
     <OnboardingScaffold
-      title="Support for living with MS, gently."
+      title="Support for living with MS."
       subtitle={positioning.onboardingSubtitle}
       step={1}
       totalSteps={ONBOARDING_STEPS.length}
@@ -28,16 +28,16 @@ export default function WelcomeScreen() {
     >
       <View style={styles.stack}>
         <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>A calmer place to carry difficult days.</AppText>
+          <AppText style={styles.heroTitle}>Support for difficult days.</AppText>
           <AppText style={styles.heroBody}>
-            LiveWithMS helps you check in, notice patterns, and feel a little more supported during difficult periods.
+            LiveWithMS helps you check in, notice patterns, and stay oriented during difficult periods.
           </AppText>
         </View>
 
         <View style={styles.infoCard}>
           <AppText style={styles.infoTitle}>Simple, low-pressure support</AppText>
           <AppText style={styles.infoBody}>
-            This is not just a symptom tracker. It is a calmer support environment for check-ins, reflection, care, and steadier continuity over time.
+            This is more than a symptom tracker. It brings together check-ins, reflection, care tools, and longer-term patterns in one place.
           </AppText>
           <AppText style={styles.infoBody}>{positioning.onboardingPrivacyLine}</AppText>
         </View>

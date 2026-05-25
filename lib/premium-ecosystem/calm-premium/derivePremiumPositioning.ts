@@ -60,43 +60,43 @@ export type PremiumPositioning = {
 
 export function derivePremiumPositioning(): PremiumPositioning {
   return {
-    heroTitle: "Deeper support for the days that ask more of you",
+    heroTitle: "Additional support for difficult days",
     heroSubtitle:
-      "Premium adds a calmer layer of guidance, continuity, and low-energy support when life already feels heavy enough.",
+      "Premium adds deeper guidance, clearer summaries, and low-energy tools.",
     heroBody:
-      "It is designed to reduce mental load, add steadier structure, and make the app feel a little easier to lean on during difficult periods.",
+      "It is designed to reduce mental load and make the app easier to use when energy is limited.",
     screenSubtitle:
-      "An optional layer of calmer support, while the core app stays free and fully usable.",
+      "Optional additional support. The core app stays free and fully usable.",
     freeTierTitle: "What stays free",
     freeTierBody:
       "Daily check-ins, core tracking, reminders, Programs, Care, and your essential insights stay part of the free app.",
     primaryTitle: "More personalized support",
     primaryLines: [
-      "Guidance that reflects your patterns in a calmer, more personal way",
-      "Gentler daily structure when things already feel like a lot",
-      "Steadier continuity across difficult stretches, not just isolated moments",
+      "Guidance that reflects your patterns more directly",
+      "Daily structure that is easier to follow on difficult days",
+      "Longer-term support across difficult stretches",
     ],
     primarySummary:
-      "Premium is meant to lower mental load, soften overwhelm, and make support feel steadier without asking you to do more.",
+      "Premium is designed to reduce mental load and make support easier to use without adding more work.",
     secondaryTitle: "Tools for low-energy days",
     secondaryLines: [
-      "Easier navigation and calmer pacing when energy is limited",
+      "Easier navigation when energy is limited",
       "Deeper summaries that help you notice patterns without digging through everything yourself",
-      "Supportive reflections and guidance that stay calm, bounded, and practical",
-      "Adaptive support that simplifies more gently on harder days",
+      "Reflections and guidance that stay practical and bounded",
+      "Adaptive support that simplifies on harder days",
     ],
     secondarySummary:
-      "The goal is not to add more features to keep up with. It is to make the support you already want feel easier to reach.",
+      "The goal is to make useful support easier to reach.",
     tertiaryTitle: "Deeper insight into your patterns",
     tertiaryBody:
-      "Premium also adds richer reflections, longer-view summaries, and calmer exports so patterns feel clearer over time with less effort from you.",
+      "Premium also adds richer reflections, longer-term summaries, and exports so patterns are easier to review.",
     softValueTitle: "Why Premium exists",
     softValueBody:
-      "Premium helps sustain the calmer parts of LiveWithMS: adaptive guidance, deeper insight systems, emotional support tools, and accessibility-focused improvements.",
+      "Premium helps support deeper guidance, insight tools, and accessibility improvements in LiveWithMS.",
     softValueLines: [
-      "Supportive, not overwhelming",
+      "Lower cognitive load",
       "Designed for real-life energy limitations",
-      "Built to stay calm as the app keeps improving",
+      "Built to stay clear as the app grows",
     ],
     supportPrinciplesTitle: "What stays true with Premium",
     supportPrinciplesLines: [
@@ -108,23 +108,23 @@ export function derivePremiumPositioning(): PremiumPositioning {
     ],
     monthly: {
       title: "Monthly plan",
-      subtitle: "More flexible if you want to keep things month to month.",
-      detail: "A simpler starting point if you want to see how Premium fits without thinking too far ahead.",
+      subtitle: "Flexible month-to-month support.",
+      detail: "A simpler option if you want to keep support on a monthly renewal.",
     },
     yearly: {
       title: "Yearly plan",
-      subtitle: "Simpler if you would rather keep support in place across the year.",
-      detail: "Usually a little lighter month to month overall, with less to think about as the year moves along.",
+      subtitle: "Lower overall yearly cost with fewer renewals.",
+      detail: "A simpler long-term option for ongoing support across the year.",
       badge: "Simpler over time",
     },
     plansTitle: "Choose the pace that fits",
     plansBody:
-      "Monthly keeps things flexible. Yearly keeps support in place more simply and steadily over time.",
+      "Monthly keeps support flexible. Yearly lowers the overall yearly cost and reduces renewal frequency.",
     trustTitle: "Billing and trust",
     trustLines: [
       "Billing is handled securely through Apple with localized App Store pricing.",
       "You can restore purchases anytime, and manage or cancel in your App Store settings.",
-      "Your check-ins and personal data stay yours. Premium changes access, not your control over the app.",
+      "Your check-ins and personal data stay yours.",
     ],
     purchaseCta: "Continue with Premium",
     purchaseLoadingLabel: "Preparing Premium...",
@@ -134,10 +134,10 @@ export function derivePremiumPositioning(): PremiumPositioning {
     retryLabel: "Try again",
     loadingPricingTitle: "Bringing in current pricing",
     loadingPricingBody:
-      "This can take a moment while the App Store refreshes quietly in the background.",
+      "This can take a moment while the App Store refreshes pricing.",
     errorPricingTitle: "Premium details are taking a moment",
     errorPricingBody:
-      "If pricing is still settling in, try again later. The rest of the app still works normally in the meantime.",
+      "If pricing is still loading, try again later. The rest of the app still works normally.",
     expoGoPricingNote:
       "Purchases are unavailable in Expo Go. Use a development build or TestFlight to test subscriptions.",
     activeTitle: "Premium is active",
@@ -151,12 +151,12 @@ export function derivePremiumPositioning(): PremiumPositioning {
     restoreSuccessBody: "Your Premium access has been refreshed.",
     restorePendingTitle: "Restore needs a moment",
     inactiveProfileBody:
-      "The free core experience stays intact. Premium adds deeper support, steadier continuity, and calmer low-energy help if you ever want more of that later.",
+      "The free core experience stays intact. Premium adds deeper support, longer-term summaries, and more low-energy help.",
     activeProfileBody:
-      "Premium is active, including deeper support for difficult periods, and your plan is managed securely through Apple.",
+      "Premium is active, and your plan is managed securely through Apple.",
     profileNote:
-      "Premium is meant to feel supportive, steady, and optional, not like something you have to keep up with.",
+      "Premium is optional and meant to reduce friction.",
     onboardingBody:
-      "If you ever choose Premium later, it adds deeper support, calmer summaries, and more low-energy help while your core tracking stays free.",
+      "If you choose Premium later, it adds deeper support, clearer summaries, and more low-energy help while core tracking stays free.",
   };
 }

@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { subDays } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import type { DailyCheckIn } from "../checkins/types";
 import { deriveCollaborativeTone } from "../../lib/self-trust/agency-language/deriveCollaborativeTone";
@@ -86,7 +85,13 @@ function roundToOneDecimal(value: number | null) {
 }
 
 function getCutoffDate(days: number) {
-  return subDays(new Date(), days - 1).toISOString().slice(0, 10);
+  const now = new Date();
+  const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  cutoff.setDate(cutoff.getDate() - (days - 1));
+  const year = cutoff.getFullYear();
+  const month = String(cutoff.getMonth() + 1).padStart(2, "0");
+  const day = String(cutoff.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function filterEntriesByDays(entries: DailyCheckIn[], days: number) {
@@ -588,7 +593,7 @@ function buildBestWorstDayInsight(entries30: DailyCheckIn[]): BestWorstDayInsigh
       bestDay: null,
       worstDay: null,
       sentence: getInsightDetailFallback(),
-      recommendation: "A few steadier conditions may be worth noticing over time.",
+      recommendation: "A few more check-ins may make these comparisons clearer.",
     };
   }
 
@@ -602,7 +607,7 @@ function buildBestWorstDayInsight(entries30: DailyCheckIn[]): BestWorstDayInsigh
       bestDay: null,
       worstDay: null,
       sentence: getInsightDetailFallback(),
-      recommendation: "A few steadier conditions may be worth noticing over time.",
+      recommendation: "A few more check-ins may make these comparisons clearer.",
     };
   }
 
@@ -649,7 +654,7 @@ function buildBestWorstDayInsight(entries30: DailyCheckIn[]): BestWorstDayInsigh
   const sentence =
     clues.length > 0
       ? `Your steadier days often include ${clues.join(" and ")}.`
-      : "Some steadier days show a gentler balance of energy and mood.";
+      : "Some steadier days show a more stable balance of energy and mood.";
 
   return {
     show: true,
@@ -809,8 +814,8 @@ export function useInsightsDashboard(
       entryCount: entriesCurrent.length,
       subtitle:
         range === 7
-          ? "A simple look at what your last week has felt like."
-          : "A broader view of how your recent month has been going.",
+          ? "A simple look at your last week."
+          : "A simple look at your last month.",
       keyTakeaway,
       weeklyProgressOverview,
       weeklySummary,

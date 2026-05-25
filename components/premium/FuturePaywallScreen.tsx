@@ -14,22 +14,17 @@ import { trackEvent, trackRetryTriggered } from "../../lib/events";
 import { derivePremiumPositioning } from "../../lib/premium-ecosystem/calm-premium/derivePremiumPositioning";
 import { derivePremiumValue } from "../../lib/premium-ecosystem/calm-premium/derivePremiumValue";
 import { preserveFreeUserDignity } from "../../lib/premium-ecosystem/calm-premium/preserveFreeUserDignity";
-import { deriveAccessibilityPrograms } from "../../lib/premium-ecosystem/financial-accessibility/deriveAccessibilityPrograms";
-import { deriveRegionalSensitivity } from "../../lib/premium-ecosystem/financial-accessibility/deriveRegionalSensitivity";
 import { preventEmotionalConversion } from "../../lib/premium-ecosystem/ethical-monetization/preventEmotionalConversion";
 import { validateMonetizationEthics } from "../../lib/premium-ecosystem/ethical-monetization/validateMonetizationEthics";
 import { deriveUpgradeTiming } from "../../lib/premium-ecosystem/low-pressure-upgrades/deriveUpgradeTiming";
 import { preventConversionPressure } from "../../lib/premium-ecosystem/low-pressure-upgrades/preventConversionPressure";
 import { deriveBillingTransparency } from "../../lib/premium-ecosystem/subscription-calmness/deriveBillingTransparency";
 import { preserveGracefulDowngrades } from "../../lib/premium-ecosystem/subscription-calmness/preserveGracefulDowngrades";
-import { deriveLongTermPremiumValue } from "../../lib/premium-ecosystem/sustainable-value/deriveLongTermPremiumValue";
 import { preventArtificialScarcity } from "../../lib/premium-ecosystem/sustainable-value/preventArtificialScarcity";
-import { ENABLE_RC_DEBUG_PANEL } from "../../lib/revenuecat/debug";
 import { isExpoGo } from "../../lib/revenueCatEnvironment";
 
 const PRIVACY_POLICY_URL = "https://www.livewithms.com/policies/privacy-policy";
 const TERMS_OF_USE_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
-const RC_DEBUG_UNLOCK_TAP_COUNT = 7;
 
 type FuturePaywallScreenProps = {
   onClose: () => void;
@@ -37,10 +32,8 @@ type FuturePaywallScreenProps = {
 
 export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProps) {
   const premium = usePremium();
-  const { refreshRevenueCatDiagnostics } = premium;
   const lowEnergyMode = useLowEnergyMode();
   const [selectedPlan, setSelectedPlan] = useState<PremiumPlan>("yearly");
-  const [debugTapCount, setDebugTapCount] = useState(0);
   const positioning = derivePremiumPositioning();
   const premiumValue = derivePremiumValue();
   const upgradeTiming = deriveUpgradeTiming({
@@ -50,8 +43,6 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
   });
   const safeMonetization = validateMonetizationEthics([
     premiumValue.summary,
-    deriveLongTermPremiumValue(),
-    deriveAccessibilityPrograms(),
   ]).valid;
 
   useEffect(() => {
@@ -59,10 +50,6 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
       source: "premium-screen",
     });
   }, []);
-
-  useEffect(() => {
-    void refreshRevenueCatDiagnostics();
-  }, [refreshRevenueCatDiagnostics]);
 
   const openPrivacyPolicy = () => {
     void Linking.openURL(PRIVACY_POLICY_URL);
@@ -142,17 +129,6 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
     });
   };
 
-  const debugPanelVisible = __DEV__ || (ENABLE_RC_DEBUG_PANEL && debugTapCount >= RC_DEBUG_UNLOCK_TAP_COUNT);
-  const debugSnapshot = premium.revenueCatDebugSnapshot;
-
-  const handleVersionTap = () => {
-    if (!ENABLE_RC_DEBUG_PANEL && !__DEV__) {
-      return;
-    }
-
-    setDebugTapCount((current) => Math.min(RC_DEBUG_UNLOCK_TAP_COUNT, current + 1));
-  };
-
   return (
     <AppScreen title="LiveWithMS Premium" subtitle={positioning.screenSubtitle}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -170,7 +146,7 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
         <View style={styles.valueCard}>
           <AppText style={styles.valueTitle}>{premiumValue.title}</AppText>
           <View style={styles.bulletList}>
-            {(lowEnergyMode.enabled ? positioning.primaryLines.slice(0, 2) : positioning.primaryLines).map((line) => (
+            {(lowEnergyMode.enabled ? premiumValue.lines.slice(0, 3) : premiumValue.lines.slice(0, 4)).map((line) => (
               <AppText key={line} style={styles.bulletText}>• {preventEmotionalConversion(line)}</AppText>
             ))}
           </View>
@@ -179,36 +155,9 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
           </AppText>
           <AppText style={styles.valueBody}>
             {safeMonetization
-              ? "Premium is meant to be an optional enhancement, not something you need to use the core app well."
-              : "Premium remains optional, and the free app should still feel supportive."}
+              ? "Premium is optional. The free app still supports core check-ins, tracking, and care tools."
+              : "Premium remains optional, and the free app still supports the essentials."}
           </AppText>
-          <AppText style={styles.valueBody}>{deriveLongTermPremiumValue()}</AppText>
-        </View>
-
-        <View style={styles.valueCard}>
-          <AppText style={styles.valueTitle}>{positioning.secondaryTitle}</AppText>
-          <View style={styles.bulletList}>
-            {(lowEnergyMode.enabled ? positioning.secondaryLines.slice(0, 2) : positioning.secondaryLines).map((line) => (
-              <AppText key={line} style={styles.bulletText}>• {preventEmotionalConversion(line)}</AppText>
-            ))}
-          </View>
-          <AppText style={styles.valueBody}>
-            {preventEmotionalConversion(positioning.secondarySummary)}
-          </AppText>
-        </View>
-
-        <View style={styles.valueCard}>
-          <AppText style={styles.valueTitle}>{positioning.tertiaryTitle}</AppText>
-          <AppText style={styles.valueBody}>
-            {preventEmotionalConversion(positioning.tertiaryBody)}
-          </AppText>
-          <AppText style={styles.valueTitle}>{positioning.softValueTitle}</AppText>
-          <AppText style={styles.valueBody}>{positioning.softValueBody}</AppText>
-          <View style={styles.bulletList}>
-            {positioning.softValueLines.map((line) => (
-              <AppText key={line} style={styles.bulletText}>• {line}</AppText>
-            ))}
-          </View>
         </View>
 
         {premium.hasPremiumAccess ? (
@@ -271,9 +220,9 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
               <AppText style={styles.comparisonTitle}>{positioning.plansTitle}</AppText>
               <AppText style={styles.comparisonBody}>
                 {upgradeTiming === "defer"
-                    ? "You do not need to decide right away. Pricing can wait until it feels clearer."
+                    ? "You do not need to decide right away."
                     : lowEnergyMode.enabled
-                    ? "Monthly stays flexible. Yearly keeps support steadier and simpler over time."
+                    ? "Monthly keeps support flexible. Yearly lowers the overall yearly cost and reduces renewal frequency."
                     : positioning.plansBody}
               </AppText>
               <View style={styles.pricingSnapshot}>
@@ -299,20 +248,12 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
               </View>
               <AppText style={styles.pricingSupportText}>{positioning.monthly.subtitle}</AppText>
               <AppText style={styles.pricingSupportText}>{positioning.yearly.subtitle}</AppText>
-              <AppText style={styles.comparisonTitle}>{positioning.supportPrinciplesTitle}</AppText>
-              {positioning.supportPrinciplesLines.map((line) => (
-                <AppText key={line} style={styles.comparisonBody}>
-                  {line}
-                </AppText>
-              ))}
               <AppText style={styles.comparisonTitle}>{positioning.trustTitle}</AppText>
-              {positioning.trustLines.map((line) => (
+              {positioning.trustLines.slice(0, 2).map((line) => (
                 <AppText key={line} style={styles.comparisonBody}>
                   {line}
                 </AppText>
               ))}
-              <AppText style={styles.comparisonBody}>{deriveAccessibilityPrograms()}</AppText>
-              <AppText style={styles.comparisonBody}>{deriveRegionalSensitivity()}</AppText>
             </View>
 
             <PlanOptionCard
@@ -352,6 +293,7 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
             {preserveGracefulDowngrades()}
           </AppText>
           <AppText style={styles.disclosureText}>{positioning.profileNote}</AppText>
+          <AppText style={styles.disclosureText}>{positioning.softValueBody}</AppText>
         </View>
 
         <View style={styles.actions}>
@@ -377,72 +319,6 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
             <AppText style={styles.legalText}>Terms of Use</AppText>
           </Pressable>
         </View>
-
-        <Pressable style={styles.debugVersionTapTarget} onPress={handleVersionTap}>
-          <AppText style={styles.debugVersionText}>
-            App {debugSnapshot.appVersion} ({debugSnapshot.buildNumber})
-          </AppText>
-        </Pressable>
-
-        {debugPanelVisible ? (
-          <View style={styles.debugCard}>
-            {/* TODO: Remove or disable RevenueCat debug panel after subscription issue is resolved. */}
-            <AppText style={styles.debugTitle}>RevenueCat debug snapshot</AppText>
-            <AppText style={styles.debugLine}>SDK key: {debugSnapshot.maskedSdkKey}</AppText>
-            <AppText style={styles.debugLine}>Bundle ID: {debugSnapshot.bundleIdentifier}</AppText>
-            <AppText style={styles.debugLine}>Requested offering: {debugSnapshot.requestedOfferingIdentifier}</AppText>
-            <AppText style={styles.debugLine}>
-              Current offering: {debugSnapshot.currentOfferingIdentifier ?? "none"}
-            </AppText>
-            <AppText style={styles.debugLine}>
-              Selected offering: {debugSnapshot.selectedOfferingIdentifier ?? "none"}
-            </AppText>
-            <AppText style={styles.debugLine}>
-              All offerings: {debugSnapshot.allOfferingIdentifiers.join(", ") || "none"}
-            </AppText>
-            <AppText style={styles.debugLine}>
-              Packages: {debugSnapshot.availablePackageIdentifiers.join(", ") || "none"}
-            </AppText>
-            <AppText style={styles.debugLine}>
-              Products: {debugSnapshot.productIdentifiers.join(", ") || "none"}
-            </AppText>
-            <AppText style={styles.debugLine}>
-              Active entitlements: {debugSnapshot.activeEntitlementIdentifiers.join(", ") || "none"}
-            </AppText>
-            <AppText style={styles.debugLine}>
-              Last error: {debugSnapshot.lastErrorCode ?? "none"} {debugSnapshot.lastErrorMessage ?? ""}
-            </AppText>
-            <AppText style={styles.debugLine}>
-              Last fetch: {debugSnapshot.timestamp}
-            </AppText>
-
-            <View style={styles.debugProducts}>
-              {debugSnapshot.products.length ? (
-                debugSnapshot.products.map((product) => (
-                    <View key={`${product.packageIdentifier}:${product.productIdentifier}`} style={styles.debugProductRow}>
-                      <AppText style={styles.debugProductTitle}>
-                        {product.packageIdentifier} {"->"} {product.productIdentifier}
-                      </AppText>
-                    <AppText style={styles.debugLine}>{product.title ?? "title missing"}</AppText>
-                    <AppText style={styles.debugLine}>
-                      {product.priceString ?? "priceString missing"}
-                      {product.currencyCode ? ` (${product.currencyCode})` : ""}
-                    </AppText>
-                  </View>
-                ))
-              ) : (
-                <AppText style={styles.debugLine}>No products in the selected offering.</AppText>
-              )}
-            </View>
-
-            <AppButton
-              label={premium.isLoading ? "Refreshing diagnostics..." : "Refresh RevenueCat Diagnostics"}
-              onPress={() => void premium.refreshRevenueCatDiagnostics()}
-              variant="secondary"
-              disabled={premium.isLoading}
-            />
-          </View>
-        ) : null}
       </ScrollView>
     </AppScreen>
   );
@@ -450,26 +326,10 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: 24,
+    paddingTop: 20,
     paddingHorizontal: 20,
-    paddingBottom: 120,
-    gap: 20,
-  },
-  planCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#f1e1d4",
-    padding: 18,
-    gap: 8,
-  },
-  planTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1f2937",
-  },
-  planBody: {
-    color: "#6b7280",
+    paddingBottom: 104,
+    gap: 16,
   },
   valueCard: {
     backgroundColor: "#fffaf6",
@@ -535,7 +395,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 16,
-    gap: 12,
+    gap: 10,
   },
   comparisonTitle: {
     color: "#1f2937",
@@ -660,47 +520,5 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     fontSize: 13,
     textDecorationLine: "underline",
-  },
-  debugVersionTapTarget: {
-    alignItems: "center",
-    paddingVertical: 6,
-  },
-  debugVersionText: {
-    color: "#9ca3af",
-    fontSize: 11,
-  },
-  debugCard: {
-    backgroundColor: "#f8fafc",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#d8dee8",
-    padding: 16,
-    gap: 8,
-  },
-  debugTitle: {
-    color: "#111827",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  debugLine: {
-    color: "#475569",
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  debugProducts: {
-    gap: 8,
-  },
-  debugProductRow: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    padding: 10,
-    gap: 4,
-  },
-  debugProductTitle: {
-    color: "#1f2937",
-    fontSize: 12,
-    fontWeight: "700",
   },
 });

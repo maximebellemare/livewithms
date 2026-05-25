@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { deriveCalmEnvironment } from "../../lib/calm-environment";
 import { useLowEnergyMode } from "../low-energy-mode/hooks";
 import { DEFAULT_CALM_ENVIRONMENT_STATE, loadCalmEnvironmentState, saveCalmEnvironmentState } from "./storage";
-import type { CalmDensityMode, CalmEnvironmentState } from "./types";
+import type { AppearancePreference, CalmDensityMode, CalmEnvironmentState } from "./types";
 
 type Listener = (state: CalmEnvironmentState) => void;
 
@@ -72,6 +72,14 @@ export async function setCalmEnvironmentDensity(density: CalmDensityMode) {
   });
 }
 
+export async function setCalmEnvironmentAppearance(appearance: AppearancePreference) {
+  return saveState({
+    ...currentCalmEnvironmentState,
+    appearance,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
 export function useCalmEnvironment() {
   const [state, setState] = useState<CalmEnvironmentState>(currentCalmEnvironmentState);
   const [isLoading, setIsLoading] = useState(!hasHydratedCalmEnvironmentState);
@@ -100,6 +108,7 @@ export function useCalmEnvironment() {
       setSofterHaptics: setCalmEnvironmentSofterHaptics,
       setNightCalm: setCalmEnvironmentNightCalm,
       setDensity: setCalmEnvironmentDensity,
+      setAppearance: setCalmEnvironmentAppearance,
     }),
     [isLoading, state],
   );

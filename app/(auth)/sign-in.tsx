@@ -1,8 +1,18 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import AuthForm from "../../components/auth/AuthForm";
-import AppButton from "../../components/ui/AppButton";
+import {
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import AuthTextField from "../../components/auth/AuthTextField";
 import AppText from "../../components/ui/AppText";
+import { colors, radii, shadows, spacing } from "../../components/ui/design";
 import { useAuth } from "../../features/auth/hooks";
 import { getAuthErrorMessage } from "../../lib/auth-errors";
 
@@ -18,7 +28,7 @@ export default function SignInScreen() {
     setErrorMessage(null);
 
     if (!email.trim() || !password) {
-      setErrorMessage("Please enter your email and password.");
+      setErrorMessage("Enter your email and password.");
       return;
     }
 
@@ -31,39 +41,397 @@ export default function SignInScreen() {
   };
 
   return (
-    <AuthForm
-      title="Sign In"
-      subtitle="Sign in with your email and password"
-      email={email}
-      password={password}
-      setEmail={setEmail}
-      setPassword={setPassword}
-      submitLabel="Sign In"
-      onSubmit={handleSubmit}
-      loading={loading}
-      errorMessage={errorMessage}
-      showPassword
-      footer={
-        <>
-          <AppButton label="Sign up" onPress={() => router.push("/sign-up")} />
-          <AppButton label="Forgot password" onPress={() => router.push("/forgot-password")} />
-        </>
-      }
-    >
-      {isMockMode ? (
-        <>
-          <AppText style={{ fontWeight: "700", color: "#b45309" }}>
-            Dev-only mock auth mode is active.
-          </AppText>
-          <AppText>Current mock state: {devMockState}</AppText>
-          <AppButton label="Simulate signed-out" onPress={() => setDevMockState("signed-out")} />
-          <AppButton label="Simulate signed-in onboarded" onPress={() => setDevMockState("signed-in-onboarded")} />
-          <AppButton
-            label="Simulate signed-in not onboarded"
-            onPress={() => setDevMockState("signed-in-not-onboarded")}
-          />
-        </>
-      ) : null}
-    </AuthForm>
+    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <View pointerEvents="none" style={styles.background}>
+        <View style={styles.glowTop} />
+        <View style={styles.glowBottom} />
+      </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.keyboardArea}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.heroBlock}>
+            <View style={styles.brandLockup}>
+              <Image
+                accessibilityIgnoresInvertColors
+                source={require("../../assets/icon.png")}
+                style={styles.brandIcon}
+              />
+              <View style={styles.brandTextBlock}>
+                <AppText style={styles.brandName}>LiveWithMS</AppText>
+                <AppText style={styles.brandSupportLine}>Calm support for living with MS.</AppText>
+              </View>
+            </View>
+            <AppText style={styles.subtitle}>
+              Track patterns, organize care, and reduce overwhelm with tools designed for
+              lower-energy moments.
+            </AppText>
+          </View>
+
+          <View style={styles.signInCard}>
+            <View style={styles.cardHeader}>
+              <AppText style={styles.cardEyebrow}>Sign in</AppText>
+              <AppText style={styles.cardTitle}>Continue with your account</AppText>
+              <AppText style={styles.cardSubtitle}>
+                Use your email and password to open your check-ins, care details, and support
+                tools.
+              </AppText>
+            </View>
+
+            <View style={styles.form}>
+              <AuthTextField
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@example.com"
+                keyboardType="email-address"
+              />
+              <AuthTextField
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Password"
+                secureTextEntry
+              />
+
+              {errorMessage ? <AppText style={styles.errorText}>{errorMessage}</AppText> : null}
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={loading ? "Signing in" : "Continue with Email"}
+                accessibilityState={{ disabled: loading }}
+                onPress={() => void handleSubmit()}
+                disabled={loading}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  pressed && !loading && styles.primaryButtonPressed,
+                  loading && styles.primaryButtonDisabled,
+                ]}
+              >
+                <AppText style={styles.primaryButtonText}>
+                  {loading ? "Signing in..." : "Continue with Email"}
+                </AppText>
+              </Pressable>
+
+              <View style={styles.secondaryActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push("/sign-up")}
+                  style={({ pressed }) => [
+                    styles.secondaryButton,
+                    pressed && styles.secondaryButtonPressed,
+                  ]}
+                >
+                  <AppText style={styles.secondaryButtonText}>Create Account</AppText>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push("/forgot-password")}
+                  style={({ pressed }) => [styles.textAction, pressed && styles.textActionPressed]}
+                >
+                  <AppText style={styles.textActionText}>Forgot Password</AppText>
+                </Pressable>
+              </View>
+            </View>
+
+            <AppText style={styles.trustText}>Your information stays private and secure.</AppText>
+          </View>
+
+          {isMockMode ? (
+            <View style={styles.devCard}>
+              <AppText style={styles.devTitle}>Dev-only mock auth mode is active.</AppText>
+              <AppText style={styles.devBody}>Current mock state: {devMockState}</AppText>
+              <View style={styles.devActions}>
+                <Pressable
+                  onPress={() => setDevMockState("signed-out")}
+                  style={({ pressed }) => [styles.devButton, pressed && styles.secondaryButtonPressed]}
+                >
+                  <AppText style={styles.secondaryButtonText}>Simulate signed-out</AppText>
+                </Pressable>
+                <Pressable
+                  onPress={() => setDevMockState("signed-in-onboarded")}
+                  style={({ pressed }) => [styles.devButton, pressed && styles.secondaryButtonPressed]}
+                >
+                  <AppText style={styles.secondaryButtonText}>Simulate signed-in onboarded</AppText>
+                </Pressable>
+                <Pressable
+                  onPress={() => setDevMockState("signed-in-not-onboarded")}
+                  style={({ pressed }) => [styles.devButton, pressed && styles.secondaryButtonPressed]}
+                >
+                  <AppText style={styles.secondaryButtonText}>Simulate signed-in not onboarded</AppText>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
+          <View style={styles.legalSection}>
+            <View style={styles.legalLinks}>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => router.push("/terms")}
+                style={({ pressed }) => [styles.legalLink, pressed && styles.legalLinkPressed]}
+              >
+                <AppText style={styles.legalLinkText}>Terms</AppText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => router.push("/privacy")}
+                style={({ pressed }) => [styles.legalLink, pressed && styles.legalLinkPressed]}
+              >
+                <AppText style={styles.legalLinkText}>Privacy Policy</AppText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => router.push("/medical-disclaimer")}
+                style={({ pressed }) => [styles.legalLink, pressed && styles.legalLinkPressed]}
+              >
+                <AppText style={styles.legalLinkText}>Medical Disclaimer</AppText>
+              </Pressable>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.page,
+  },
+  keyboardArea: {
+    flex: 1,
+  },
+  background: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.page,
+  },
+  glowTop: {
+    position: "absolute",
+    top: -110,
+    right: -70,
+    width: 280,
+    height: 280,
+    borderRadius: 999,
+    backgroundColor: "#ffe6d3",
+    opacity: 0.75,
+  },
+  glowBottom: {
+    position: "absolute",
+    left: -90,
+    bottom: 80,
+    width: 240,
+    height: 240,
+    borderRadius: 999,
+    backgroundColor: "#fff0e2",
+    opacity: 0.8,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.screenX,
+    paddingTop: spacing.screenTop,
+    paddingBottom: 32,
+    gap: 22,
+  },
+  heroBlock: {
+    gap: 14,
+    paddingTop: 16,
+  },
+  brandLockup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  brandIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+  },
+  brandTextBlock: {
+    gap: 2,
+    flex: 1,
+  },
+  brandName: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  brandSupportLine: {
+    fontSize: 15,
+    lineHeight: 21,
+    color: colors.textWarm,
+  },
+  subtitle: {
+    color: colors.textBody,
+    lineHeight: 24,
+    maxWidth: 360,
+  },
+  signInCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.cardLarge,
+    padding: spacing.cardPadding,
+    gap: 20,
+    ...shadows.soft,
+  },
+  cardHeader: {
+    gap: 6,
+  },
+  cardEyebrow: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    color: colors.textWarm,
+  },
+  cardTitle: {
+    fontSize: 27,
+    lineHeight: 34,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  cardSubtitle: {
+    color: colors.textMuted,
+    lineHeight: 22,
+  },
+  form: {
+    gap: 14,
+  },
+  secondaryActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  trustText: {
+    color: colors.textWarm,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  primaryButton: {
+    minHeight: 56,
+    borderRadius: 18,
+    backgroundColor: colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    ...shadows.soft,
+  },
+  primaryButtonPressed: {
+    backgroundColor: "#d96915",
+  },
+  primaryButtonDisabled: {
+    opacity: 0.62,
+  },
+  primaryButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "700",
+  },
+  secondaryButton: {
+    minHeight: 48,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: "#fbf6f0",
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  secondaryButtonPressed: {
+    opacity: 0.78,
+  },
+  secondaryButtonText: {
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+  textAction: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingVertical: 8,
+  },
+  textActionPressed: {
+    opacity: 0.72,
+  },
+  textActionText: {
+    color: colors.textMuted,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+  errorText: {
+    color: colors.errorText,
+    lineHeight: 21,
+  },
+  devCard: {
+    backgroundColor: colors.surfaceWarm,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radii.card,
+    padding: spacing.compactCardPadding,
+    gap: 12,
+  },
+  devTitle: {
+    fontWeight: "700",
+    color: "#b45309",
+  },
+  devBody: {
+    color: colors.textBody,
+  },
+  devActions: {
+    gap: 10,
+  },
+  devButton: {
+    minHeight: 48,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  legalSection: {
+    gap: 8,
+    paddingTop: 2,
+    paddingBottom: 8,
+  },
+  legalLinks: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 4,
+  },
+  legalLink: {
+    minHeight: 34,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    justifyContent: "center",
+    borderRadius: 10,
+  },
+  legalLinkPressed: {
+    opacity: 0.75,
+  },
+  legalLinkText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+});
