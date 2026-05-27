@@ -432,7 +432,37 @@ export default function ProfileScreen() {
                   RevenueCat app user id: {premium.revenueCatDebugSnapshot.loggedInAppUserId ?? "none"}
                 </AppText>
                 <AppText style={styles.devPremiumNote}>
+                  Original app user id: {premium.revenueCatDebugSnapshot.originalAppUserId ?? "none"}
+                </AppText>
+                <AppText style={styles.devPremiumNote}>
                   Entitlement active: {premium.revenueCatEntitlementActive ? "true" : "false"}
+                </AppText>
+                <AppText style={styles.devPremiumNote}>
+                  Active entitlement keys: {premium.revenueCatDebugSnapshot.activeEntitlementIdentifiers.join(", ") || "none"}
+                </AppText>
+                <AppText style={styles.devPremiumNote}>
+                  Latest expiration: {premium.revenueCatDebugSnapshot.latestExpirationDate ?? "none"}
+                </AppText>
+                <AppText style={styles.devPremiumNote}>
+                  Last restore result: {premium.revenueCatDebugSnapshot.lastRestoreResult ?? "none"}
+                </AppText>
+                <AppText style={styles.devPremiumNote}>
+                  Last restore error: {premium.revenueCatDebugSnapshot.lastRestoreErrorMessage ?? "none"}
+                </AppText>
+                <AppText style={styles.devPremiumNote}>
+                  Offerings loaded: {premium.revenueCatDebugSnapshot.selectedOfferingIdentifier ? "true" : "false"}
+                </AppText>
+                <AppText style={styles.devPremiumNote}>
+                  Products loaded: {premium.revenueCatDebugSnapshot.productIdentifiers.length > 0 ? "true" : "false"}
+                </AppText>
+                <AppText style={styles.devPremiumNote}>
+                  Products: {premium.revenueCatDebugSnapshot.productIdentifiers.join(", ") || "none"}
+                </AppText>
+                <AppText style={styles.devPremiumNote}>
+                  Last purchase error: {premium.revenueCatDebugSnapshot.lastPurchaseErrorMessage ?? "none"}
+                </AppText>
+                <AppText style={styles.devPremiumNote}>
+                  Last RevenueCat error: {premium.revenueCatDebugSnapshot.lastErrorMessage ?? "none"}
                 </AppText>
                 <AppText style={styles.devPremiumNote}>
                   Tester override active: {premium.testerPremiumOverrideActive ? "true" : "false"}

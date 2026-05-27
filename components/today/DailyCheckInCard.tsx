@@ -1,15 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import AppButton from "../ui/AppButton";
 import type { DailyCheckInInput } from "../../features/checkins/types";
 import AppText from "../ui/AppText";
 import SymptomSliderCard from "./SymptomSliderCard";
 import { deriveEmotionallySafeErrors } from "../../lib/operational-excellence/calm-error-states/deriveEmotionallySafeErrors";
-import {
-  deriveReflectionSupport,
-  type ReflectionMode,
-  type ReflectionModeId,
-} from "../../features/today/reflection-regulation";
+import { deriveReflectionSupport } from "../../features/today/reflection-regulation";
 
 const SLEEP_PRESETS = ["5", "6", "7", "8"];
 const WATER_PRESETS = ["4", "6", "8"];
@@ -131,29 +127,8 @@ export default function DailyCheckInCard({
       supportMode,
     ],
   );
-  const [selectedReflectionMode, setSelectedReflectionMode] = useState<ReflectionModeId>(
-    reflectionSupport.defaultMode,
-  );
-
-  useEffect(() => {
-    setSelectedReflectionMode((current) =>
-      reflectionSupport.modes.some((mode) => mode.id === current)
-        ? current
-        : reflectionSupport.defaultMode,
-    );
-  }, [reflectionSupport.defaultMode, reflectionSupport.modes]);
-
-  const activeReflectionMode =
-    reflectionSupport.modes.find((mode) => mode.id === selectedReflectionMode) ??
-    reflectionSupport.modes[0];
-  const visibleNoteStarters = activeReflectionMode.prompts.slice(0, reflectionSupport.starterLimit);
+  const activeReflectionPrompt = reflectionSupport.prompt;
   const hydrationNote = getHydrationNote(draft.water_glasses);
-
-  const addNoteStarter = (starter: string) => {
-    const prefix = draft.notes.trim().length ? `${draft.notes.trim()}\n` : "";
-    onChange({ ...draft, notes: `${prefix}${starter}\n` });
-    setShowNotes(true);
-  };
 
   return (
     <View style={styles.container}>
@@ -325,67 +300,23 @@ export default function DailyCheckInCard({
           style={({ pressed }) => [styles.sectionToggle, pressed && styles.sectionTogglePressed]}
         >
           <View style={styles.sectionToggleHeader}>
-            <AppText style={styles.sectionTitle}>Reflection</AppText>
-            <AppText style={styles.sectionHelper}>
-              {activeReflectionMode?.helper ??
-                (reduced
-                  ? "Add a note only if it helps to remember today."
-                  : "A short note can be enough if you want to remember today later.")}
-            </AppText>
+            <AppText style={styles.sectionTitle}>Today's reflection</AppText>
+            <AppText style={styles.sectionHelper}>{reflectionSupport.helper}</AppText>
           </View>
           <AppText style={styles.sectionToggleText}>{showNotes ? "Hide" : "Add"}</AppText>
         </Pressable>
 
         {showNotes ? (
           <View style={styles.sectionContent}>
-            <View style={styles.reflectionSupportCard}>
-              <AppText style={styles.reflectionSupportText}>
-                {activeReflectionMode?.groundingMoment ?? "You do not need to solve everything right now."}
-              </AppText>
-            </View>
-            <View style={styles.reflectionModeList}>
-              {reflectionSupport.modes.map((mode) => (
-                <Pressable
-                  key={mode.id}
-                  onPress={() => setSelectedReflectionMode(mode.id)}
-                  style={({ pressed }) => [
-                    styles.reflectionModeChip,
-                    selectedReflectionMode === mode.id && styles.reflectionModeChipActive,
-                    pressed && styles.quickChoicePressed,
-                  ]}
-                >
-                  <AppText
-                    style={[
-                      styles.reflectionModeText,
-                      selectedReflectionMode === mode.id && styles.reflectionModeTextActive,
-                    ]}
-                  >
-                    {mode.label}
-                  </AppText>
-                </Pressable>
-              ))}
-            </View>
-            <View style={styles.noteStarterList}>
-              {visibleNoteStarters.map((starter) => (
-                <Pressable
-                  key={starter}
-                  onPress={() => addNoteStarter(starter)}
-                  style={({ pressed }) => [styles.noteStarterChip, pressed && styles.quickChoicePressed]}
-                >
-                  <AppText style={styles.noteStarterText}>{starter}</AppText>
-                </Pressable>
-              ))}
+            <View style={styles.reflectionPromptCard}>
+              <AppText style={styles.reflectionPromptLabel}>Today's question</AppText>
+              <AppText style={styles.reflectionPromptText}>{activeReflectionPrompt.question}</AppText>
             </View>
             <View style={styles.fieldGroup}>
-              <AppText style={styles.fieldLabel}>
-                {activeReflectionMode?.label ? `${activeReflectionMode.label} notes` : "Reflection"}
-              </AppText>
+              <AppText style={styles.fieldLabel}>Your note</AppText>
               <TextInput
                 multiline
-                placeholder={
-                  activeReflectionMode?.placeholder ??
-                  (reduced ? "A few words, if helpful." : "Anything you want to remember about today?")
-                }
+                placeholder={activeReflectionPrompt.placeholder}
                 placeholderTextColor="#9ca3af"
                 value={draft.notes}
                 onChangeText={(notes) => onChange({ ...draft, notes })}
@@ -570,63 +501,28 @@ const styles = StyleSheet.create({
   sectionContent: {
     gap: 12,
   },
-  noteStarterList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  reflectionSupportCard: {
+  reflectionPromptCard: {
     borderRadius: 14,
     backgroundColor: "#fff6ee",
     borderWidth: 1,
     borderColor: "#f4dfcb",
     paddingHorizontal: 12,
     paddingVertical: 11,
+    gap: 5,
   },
-  reflectionSupportText: {
+  reflectionPromptLabel: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: "#9a6a43",
+    fontWeight: "700",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  reflectionPromptText: {
+    color: "#7c5a40",
     fontSize: 13,
     lineHeight: 19,
-    color: "#7c5a40",
-  },
-  reflectionModeList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  reflectionModeChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#ead9cb",
-    backgroundColor: "#fffaf6",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  reflectionModeChipActive: {
-    borderColor: "#e8751a",
-    backgroundColor: "#fff0e2",
-  },
-  reflectionModeText: {
-    color: "#8b6a4f",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600",
-  },
-  reflectionModeTextActive: {
-    color: "#9a4a11",
-  },
-  noteStarterChip: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#f3dfd1",
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  noteStarterText: {
-    color: "#8b6a4f",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   successRow: {
     flexDirection: "row",

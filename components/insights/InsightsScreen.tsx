@@ -19,6 +19,7 @@ import {
   derivePremiumReflectionSummaries,
 } from "../../features/insights/premium-reflections";
 import type { PremiumReflectionSummary } from "../../features/insights/premium-reflections";
+import { buildPatternIntelligence } from "../../features/insights/pattern-intelligence";
 import {
   buildPremiumContinuityExportContent,
   canAccessPremiumContinuity,
@@ -192,6 +193,7 @@ import {
 import type { PremiumImperfectDaysSummary } from "../../features/insights/premium-imperfect-days";
 import { applyLowEnergyModeOverride, useLowEnergyMode } from "../../features/low-energy-mode/hooks";
 import { buildAdaptiveProfile } from "../../features/adaptive/logic";
+import { derivePacingRecoveryIntelligence } from "../../features/recovery/pacing-intelligence";
 import { canAccessPremiumFeature } from "../../features/premium/entitlements";
 import { usePremium } from "../../features/premium/hooks";
 import { derivePremiumAdaptiveSupport } from "../../features/premium/adaptive-support";
@@ -324,7 +326,7 @@ function PremiumReflectionCard({ summary }: { summary: PremiumReflectionSummary 
             </View>
           </View>
           <View style={styles.premiumReflectionSection}>
-            <AppText style={styles.premiumReflectionKicker}>Things that seemed steadier</AppText>
+            <AppText style={styles.premiumReflectionKicker}>More consistent patterns</AppText>
             <View style={styles.helpingSection}>
               {summary.thingsThatSeemedSteadier.map((item) => (
                 <View key={item} style={styles.helpingRow}>
@@ -452,7 +454,7 @@ function PremiumHumanClarityCard({ summary }: { summary: PremiumHumanClaritySumm
             </View>
           </View>
           <View style={styles.premiumReflectionSection}>
-            <AppText style={styles.premiumReflectionKicker}>What appears steadier</AppText>
+            <AppText style={styles.premiumReflectionKicker}>More consistent patterns</AppText>
             <View style={styles.helpingSection}>
               {summary.whatAppearsSteadier.map((item) => (
                 <View key={item} style={styles.helpingRow}>
@@ -584,99 +586,6 @@ function PremiumMeaningfulLifeCard({ summary }: { summary: PremiumMeaningfulLife
   );
 }
 
-function getPrimaryInsight(lines: string[], entryCount: number) {
-  if (lines.length > 0) {
-    return lines[0];
-  }
-
-  if (entryCount >= 4) {
-    return "Recent check-ins are ready for pattern review.";
-  }
-
-  return "Early signals are starting to appear.";
-}
-
-function formatScaleSignal(label: string, value: number | null) {
-  return typeof value === "number" ? `${label} ${value}/5` : null;
-}
-
-function compareMetric(label: string, current: number | null, previous: number | null, higherMeansMore = true) {
-  if (typeof current !== "number" || typeof previous !== "number") {
-    return null;
-  }
-
-  const difference = current - previous;
-  if (Math.abs(difference) < 0.5) {
-    return `${label} stayed about the same as the previous check-in.`;
-  }
-
-  const increased = difference > 0;
-  const direction = increased === higherMeansMore ? "higher" : "lower";
-  return `${label} was ${direction} than your previous check-in.`;
-}
-
-function buildEarlyInsightSections(entries: DailyCheckIn[]): {
-  summary: string;
-  changes: string[];
-  signals: string[];
-  next: string[];
-} {
-  const sorted = entries.slice().sort((left, right) => right.date.localeCompare(left.date));
-  const latest = sorted[0] ?? null;
-  const previous = sorted[1] ?? null;
-
-  if (!latest) {
-    return {
-      summary: "Insights will show trends and relationships once check-ins are available.",
-      changes: [],
-      signals: [],
-      next: ["Start with one check-in on Today."],
-    };
-  }
-
-  const latestSignals = [
-    formatScaleSignal("Fatigue", latest.fatigue),
-    formatScaleSignal("Mood", latest.mood),
-    formatScaleSignal("Stress", latest.stress),
-    typeof latest.sleep_hours === "number" ? `Sleep ${latest.sleep_hours}h` : null,
-    typeof latest.water_glasses === "number" ? `Hydration ${latest.water_glasses} glasses` : null,
-  ].filter((item): item is string => Boolean(item));
-
-  const changes = previous
-    ? [
-        compareMetric("Fatigue", latest.fatigue, previous.fatigue),
-        compareMetric("Stress", latest.stress, previous.stress),
-        compareMetric("Mood", latest.mood, previous.mood, false),
-        compareMetric("Sleep", latest.sleep_hours, previous.sleep_hours),
-      ].filter((item): item is string => Boolean(item))
-    : [];
-
-  const signals = [
-    ...latestSignals.slice(0, 4),
-    sorted.length >= 3 && averageMetric(sorted.slice(0, 3).map((entry) => entry.fatigue)) !== null
-      ? `Average fatigue across recent check-ins: ${averageMetric(sorted.slice(0, 3).map((entry) => entry.fatigue))?.toFixed(1)}/5`
-      : null,
-    sorted.length >= 3 && averageMetric(sorted.slice(0, 3).map((entry) => entry.stress)) !== null
-      ? `Average stress across recent check-ins: ${averageMetric(sorted.slice(0, 3).map((entry) => entry.stress))?.toFixed(1)}/5`
-      : null,
-  ].filter((item): item is string => Boolean(item));
-
-  const next = [
-    sorted.length === 1 ? "A second check-in will unlock simple comparisons." : null,
-    sorted.length > 1 && sorted.length < 4 ? "More check-ins help reveal clearer trends over time." : null,
-    latest.sleep_hours !== null && latest.fatigue !== null ? "Keep logging sleep and fatigue to compare them over time." : null,
-  ].filter((item): item is string => Boolean(item));
-
-  return {
-    summary: previous
-      ? changes[0] ?? "Your recent check-ins are ready for simple comparison."
-      : "Your first check-in is saved. Insights can now start building from it.",
-    changes,
-    signals,
-    next,
-  };
-}
-
 type InsightMetricKey = "fatigue" | "mood" | "stress" | "sleep";
 
 function getAverageForMetric(entries: DailyCheckIn[], metric: InsightMetricKey) {
@@ -769,7 +678,7 @@ function InsightListSection({
         </View>
       ) : (
         <View style={styles.emptyInlineCard}>
-          <AppText style={styles.emptyInlineText}>{empty ?? "Not enough data yet."}</AppText>
+          <AppText style={styles.emptyInlineText}>{empty ?? "More check-ins will make this clearer."}</AppText>
         </View>
       )}
     </View>
@@ -868,7 +777,7 @@ function buildPremiumPatternSections(
     items: [
       stressToFatigue >= 2 ? `Higher stress days were followed by higher fatigue ${stressToFatigue} times this month.` : null,
       shortSleepToBrainFog >= 2 ? `Shorter sleep nights were followed by higher brain fog ${shortSleepToBrainFog} times this month.` : null,
-      highStressLowMood >= 2 ? `Higher stress and lower mood appeared together ${highStressLowMood} times this month.` : null,
+      highStressLowMood >= 2 ? `Higher stress and lower mood were logged together ${highStressLowMood} times this month.` : null,
       ...baseLines.filter((line) => /line up|relationship|connected|sleep|fatigue|stress|mood|brain fog/i.test(line)),
     ]
       .filter((item): item is string => Boolean(item))
@@ -923,7 +832,7 @@ function buildPremiumPatternSections(
 
   sections.push({
     title: "Longer-term comparison",
-    helper: "Monthly averages and stable signals.",
+    helper: "Monthly averages and longer-term patterns.",
     items: monthlyMetrics.slice(0, 6),
     empty: "Longer-term comparisons need more check-ins.",
   });
@@ -2309,7 +2218,7 @@ function PremiumSetbackStabilityCard({ summary }: { summary: PremiumSetbackStabi
             </View>
           </View>
           <View style={styles.premiumReflectionSection}>
-            <AppText style={styles.premiumReflectionKicker}>Steadier perspective</AppText>
+            <AppText style={styles.premiumReflectionKicker}>Practical perspective</AppText>
             <View style={styles.helpingSection}>
               {summary.steadierPerspectiveSupport.map((item) => (
                 <View key={item} style={styles.helpingRow}>
@@ -2545,13 +2454,17 @@ export default function InsightsScreen() {
       ].filter((line, index, lines) => lines.indexOf(line) === index),
     [concreteSnapshot],
   );
-  const primaryConcreteInsight = useMemo(
-    () => getPrimaryInsight(concreteInsightLines, rangeEntries.length),
-    [concreteInsightLines, rangeEntries.length],
+  const patternIntelligence = useMemo(
+    () => buildPatternIntelligence(rangeEntries, range),
+    [rangeEntries, range],
   );
-  const earlyInsights = useMemo(
-    () => buildEarlyInsightSections(rangeEntries),
-    [rangeEntries],
+  const pacingRecoveryIntelligence = useMemo(
+    () =>
+      derivePacingRecoveryIntelligence({
+        entries: historyQuery.data ?? [],
+        hasPremiumAccess: premium.hasPremiumAccess,
+      }),
+    [historyQuery.data, premium.hasPremiumAccess],
   );
   const previousRangeEntries = useMemo(() => {
     const entries = historyQuery.data ?? [];
@@ -3270,7 +3183,7 @@ export default function InsightsScreen() {
     }
 
     if (adaptiveProfile.sleepTrend === "low") {
-      return "Sleep may be shaping more of this stretch than it first appears.";
+      return "Shorter sleep may be affecting fatigue or brain fog in this stretch.";
     }
 
     if (adaptiveProfile.brainFogTrend === "high") {
@@ -4093,9 +4006,9 @@ export default function InsightsScreen() {
       >
         <View style={styles.heroCard}>
           <AppText style={styles.heroTitle}>Pattern summary</AppText>
-          <AppText style={styles.heroBody}>
-            {currentRangeEntryCount > 0 && currentRangeEntryCount < 4 ? earlyInsights.summary : primaryConcreteInsight}
-          </AppText>
+          <AppText style={styles.heroStage}>{patternIntelligence.stageLabel}</AppText>
+          <AppText style={styles.heroBody}>{patternIntelligence.summary}</AppText>
+          <AppText style={styles.heroNote}>{patternIntelligence.progressionMessage}</AppText>
           <View style={styles.rangeToggle}>
             {[7, 30].map((option) => (
               <Pressable
@@ -4147,6 +4060,88 @@ export default function InsightsScreen() {
           </View>
         ) : (
           <>
+            {patternIntelligence.sections
+              .slice(0, lowEnergyMode.enabled ? 3 : patternIntelligence.sections.length)
+              .map((section) => (
+                <InsightListSection
+                  key={section.title}
+                  title={section.title}
+                  helper={section.helper}
+                  items={section.items}
+                  empty={section.empty}
+                />
+              ))}
+
+            <View style={styles.takeawayCard}>
+              <AppText style={styles.takeawayTitle}>Energy and recovery</AppText>
+              <AppText style={styles.takeawayBody}>{pacingRecoveryIntelligence.dailyState.message}</AppText>
+
+              {pacingRecoveryIntelligence.recoveryProtection.length > 0 ? (
+                <View style={styles.helpingSection}>
+                  <AppText style={styles.helpingTitle}>Recovery protection</AppText>
+                  {pacingRecoveryIntelligence.recoveryProtection.map((item) => (
+                    <View key={item} style={styles.helpingRow}>
+                      <AppText style={styles.helpingBullet}>•</AppText>
+                      <AppText style={styles.helpingText}>{item}</AppText>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              {pacingRecoveryIntelligence.triggerPatterns.length > 0 ? (
+                <View style={styles.helpingSection}>
+                  <AppText style={styles.helpingTitle}>Trigger patterns</AppText>
+                  {pacingRecoveryIntelligence.triggerPatterns.map((item) => (
+                    <View key={item} style={styles.helpingRow}>
+                      <AppText style={styles.helpingBullet}>•</AppText>
+                      <AppText style={styles.helpingText}>{item}</AppText>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              {pacingRecoveryIntelligence.whatTendsToHelp.length > 0 || pacingRecoveryIntelligence.suggestedSupport.length > 0 ? (
+                <View style={styles.helpingSection}>
+                  <AppText style={styles.helpingTitle}>Suggested support</AppText>
+                  {pacingRecoveryIntelligence.whatTendsToHelp.map((item) => (
+                    <View key={item} style={styles.helpingRow}>
+                      <AppText style={styles.helpingBullet}>•</AppText>
+                      <AppText style={styles.helpingText}>{item}</AppText>
+                    </View>
+                  ))}
+                  <View style={styles.guidanceActions}>
+                    {pacingRecoveryIntelligence.suggestedSupport.map((recommendation) => (
+                      <Pressable
+                        key={recommendation.toolId}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/(app)/(tabs)/programs",
+                            params: { tool: recommendation.toolId },
+                          })
+                        }
+                        style={({ pressed }) => [styles.guidanceAction, pressed && styles.rangeOptionPressed]}
+                      >
+                        <AppText style={styles.guidanceActionText}>{recommendation.title}</AppText>
+                        <AppText style={styles.guidanceActionBody}>{recommendation.body}</AppText>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
+              {pacingRecoveryIntelligence.weeklySummary.length > 0 ? (
+                <View style={styles.helpingSection}>
+                  <AppText style={styles.helpingTitle}>This week</AppText>
+                  {pacingRecoveryIntelligence.weeklySummary.map((item) => (
+                    <View key={item} style={styles.helpingRow}>
+                      <AppText style={styles.helpingBullet}>•</AppText>
+                      <AppText style={styles.helpingText}>{item}</AppText>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+
             <View style={styles.takeawayCard}>
               <AppText style={styles.takeawayTitle}>{range === 7 ? "Weekly averages" : "Monthly averages"}</AppText>
               <View style={styles.weeklySummaryMetrics}>
@@ -4181,61 +4176,6 @@ export default function InsightsScreen() {
               </View>
             </View>
 
-            {currentRangeEntryCount < 4 ? (
-              <>
-                <InsightListSection
-                  title={currentRangeEntryCount === 1 ? "First check-in summary" : "Simple comparison"}
-                  helper={currentRangeEntryCount === 1 ? "What was logged in this range." : "Compared with your previous check-in."}
-                  items={currentRangeEntryCount === 1 ? earlyInsights.signals : earlyInsights.changes}
-                  empty="Your logged values will appear here."
-                />
-
-                <InsightListSection
-                  title="Early signals"
-                  helper="Useful signals from the first few entries."
-                  items={earlyInsights.signals}
-                  empty="More check-ins help reveal clearer trends over time."
-                />
-
-                <InsightListSection
-                  title="What to track next"
-                  helper="Small ways to make future insights more useful."
-                  items={earlyInsights.next}
-                  empty="Keep checking in when it is useful."
-                />
-              </>
-            ) : (
-              <>
-                <InsightListSection
-                  title="Recent change"
-                  helper="Compared with the previous range."
-                  items={concreteSnapshot.recentChanges}
-                  empty="No clear recent change detected yet."
-                />
-
-                <InsightListSection
-                  title="Symptom relationships"
-                  helper="Connections found across recent check-ins."
-                  items={concreteSnapshot.correlations.slice(0, lowEnergyMode.enabled ? 2 : 3)}
-                  empty="No clear symptom relationship detected yet."
-                />
-
-                <InsightListSection
-                  title="What improved"
-                  helper="Patterns linked with lower symptom load."
-                  items={concreteSnapshot.whatSeemsToHelp}
-                  empty="No clear improving pattern detected yet."
-                />
-
-                {concreteSnapshot.fluctuationNote ? (
-                  <View style={styles.takeawayCard}>
-                    <AppText style={styles.takeawayTitle}>Trend stability</AppText>
-                    <AppText style={styles.takeawayBody}>{concreteSnapshot.fluctuationNote}</AppText>
-                  </View>
-                ) : null}
-              </>
-            )}
-
             {premium.hasPremiumAccess ? (
               <View style={styles.aiCard}>
                 <AppText style={styles.takeawayTitle}>Premium pattern intelligence</AppText>
@@ -4256,7 +4196,7 @@ export default function InsightsScreen() {
               <View style={styles.premiumLockCard}>
                 <AppText style={styles.premiumLockTitle}>Premium pattern intelligence</AppText>
                 <AppText style={styles.premiumLockBody}>
-                  Premium adds deeper correlations, symptom clusters, recovery patterns, pacing observations, and longer-term comparisons.
+                  Premium adds deeper correlations, symptom clusters, recovery patterns, energy observations, and longer-term comparisons.
                 </AppText>
                 <AppButton
                   label="Explore Premium"
@@ -4391,7 +4331,7 @@ export default function InsightsScreen() {
         {adaptiveProfile.lowEnergyMode ? (
           <View style={styles.retentionCard}>
             <AppText style={styles.retentionText}>
-              On lower-energy stretches, look for steadier patterns rather than perfect consistency.
+              On lower-energy stretches, look for more consistent patterns rather than perfect consistency.
             </AppText>
           </View>
         ) : null}
@@ -4418,7 +4358,7 @@ export default function InsightsScreen() {
           </View>
         ) : !dashboard.hasEnoughData ? (
           <View style={styles.emptyCard}>
-            <AppText style={styles.emptyTitle}>Early signals</AppText>
+            <AppText style={styles.emptyTitle}>Early patterns</AppText>
             <AppText style={styles.emptyBody}>More check-ins help reveal clearer trends over time.</AppText>
             <AppButton label="Go to Today" onPress={() => router.push("/today")} />
           </View>
@@ -4454,7 +4394,7 @@ export default function InsightsScreen() {
             <View style={styles.section}>
               <AppText style={styles.sectionTitle}>Patterns worth noticing</AppText>
               <AppText style={styles.sectionBody}>
-                These comparisons show where signals may be connected.
+                These comparisons show where stress, sleep, fatigue, or mood may be connected.
               </AppText>
               {patternsWorthNoticing.length > 0 ? (
                 <View style={styles.helpingSection}>
@@ -4468,7 +4408,7 @@ export default function InsightsScreen() {
               ) : (
                 <View style={styles.emptyInlineCard}>
                   <AppText style={styles.emptyInlineText}>
-                    There is not enough data yet to compare these patterns clearly.
+                    Early comparisons will sharpen as more check-ins are added.
                   </AppText>
                 </View>
               )}
@@ -4545,7 +4485,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Stress and mood</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium compares stress, mood, sleep, and symptom signals across time.
+                  Premium compares logged stress, mood, sleep, and symptoms across time.
                 </AppText>
               </View>
               {canShowPremiumHumanClarity ? (
@@ -4554,7 +4494,7 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Stress and mood</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium compares stress, mood, sleep, and symptom signals across time.
+                    Premium compares logged stress, mood, sleep, and symptoms across time.
                   </AppText>
                   <AppButton
                     label="Explore Premium"
@@ -5624,6 +5564,19 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1f2937",
   },
+  heroStage: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#ead9cb",
+    color: "#a35414",
+    fontSize: 13,
+    fontWeight: "700",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
   heroBody: {
     color: "#4b5563",
     lineHeight: 22,
@@ -5751,6 +5704,30 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "#6b7280",
     lineHeight: 21,
+  },
+  guidanceActions: {
+    gap: 10,
+    marginTop: 2,
+  },
+  guidanceAction: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  guidanceActionText: {
+    color: "#1f2937",
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "700",
+  },
+  guidanceActionBody: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 18,
   },
   contextNote: {
     display: "none",

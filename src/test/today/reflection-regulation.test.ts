@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deriveReflectionSupport } from "../../../features/today/reflection-regulation";
 
 describe("deriveReflectionSupport", () => {
-  it("defaults to a low-energy reflection path when fatigue is high", () => {
+  it("uses practical energy prompts when fatigue is high", () => {
     const result = deriveReflectionSupport({
       fatigue: 5,
       stress: 2,
@@ -12,14 +12,15 @@ describe("deriveReflectionSupport", () => {
       compressionMode: "standard",
       hasExistingNotes: false,
       noteStarterLimit: 3,
+      date: new Date("2026-05-26T12:00:00Z"),
     });
 
-    expect(result.defaultMode).toBe("low-energy");
-    expect(result.modes[0]?.id).toBe("low-energy");
-    expect(result.starterLimit).toBeLessThanOrEqual(2);
+    expect(["energy", "pacing", "recovery", "symptoms"]).toContain(result.prompt.theme);
+    expect(result.prompt.question).toMatch(/\?$/);
+    expect(result.helper).toContain("energy");
   });
 
-  it("prefers grounding when stress is high without making introspection dense", () => {
+  it("uses practical load-reduction prompts when stress is high", () => {
     const result = deriveReflectionSupport({
       fatigue: 2,
       stress: 5,
@@ -29,14 +30,15 @@ describe("deriveReflectionSupport", () => {
       compressionMode: "reduced",
       hasExistingNotes: true,
       noteStarterLimit: 3,
+      date: new Date("2026-05-26T12:00:00Z"),
     });
 
-    expect(result.defaultMode).toBe("grounding");
-    expect(result.modes.some((mode) => mode.id === "difficult-day")).toBe(true);
-    expect(result.starterLimit).toBe(1);
+    expect(["stress", "what-helped", "tomorrow", "recovery"]).toContain(result.prompt.theme);
+    expect(result.prompt.question).not.toMatch(/anchoring|uncertainty/i);
+    expect(result.helper).toContain("short");
   });
 
-  it("keeps a lighter anchoring path for steadier days", () => {
+  it("keeps steadier-day prompts concrete and useful", () => {
     const result = deriveReflectionSupport({
       fatigue: 1,
       stress: 1,
@@ -46,9 +48,11 @@ describe("deriveReflectionSupport", () => {
       compressionMode: "standard",
       hasExistingNotes: false,
       noteStarterLimit: 2,
+      date: new Date("2026-05-26T12:00:00Z"),
     });
 
-    expect(result.modes[0]?.id).toBe("anchoring");
-    expect(result.modes.map((mode) => mode.label)).not.toContain("Low energy");
+    expect(["what-helped", "tomorrow", "pacing", "symptoms"]).toContain(result.prompt.theme);
+    expect(result.prompt.question).toMatch(/\?$/);
+    expect(result.helper).toContain("useful");
   });
 });

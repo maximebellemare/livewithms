@@ -1,7 +1,12 @@
 import type { OnboardingDraft } from "./types";
 import type { ComplexityTolerance, PreferredDensity, SupportStyle } from "../../lib/personalization/types";
 
-export type OnboardingFocusKey = "stress-support" | "energy-support" | "care-organization" | "reflection-support";
+export type OnboardingFocusKey =
+  | "energy-support"
+  | "stress-support"
+  | "brain-fog-support"
+  | "care-organization"
+  | "recovery-support";
 export type OnboardingPriorityKey =
   | "fatigue"
   | "mood"
@@ -29,28 +34,34 @@ export const ONBOARDING_FOCUS_OPTIONS: Array<{
   goalValue: string;
 }> = [
   {
-    key: "stress-support",
-    title: "Reduce overwhelm",
-    body: "Use short resets and steadier support on heavier days.",
-    goalValue: "Stress Support",
-  },
-  {
     key: "energy-support",
-    title: "Protect my energy",
-    body: "Keep the day manageable when fatigue is high.",
+    title: "Energy support",
+    body: "Track fatigue and use pacing tools on lower-energy days.",
     goalValue: "Energy Support",
   },
   {
+    key: "stress-support",
+    title: "Stress support",
+    body: "Use practical tools for overwhelm, planning, and difficult days.",
+    goalValue: "Stress Support",
+  },
+  {
+    key: "brain-fog-support",
+    title: "Brain fog support",
+    body: "Use cognitive tools and short exercises when thinking feels harder.",
+    goalValue: "Brain Fog Support",
+  },
+  {
     key: "care-organization",
-    title: "Stay more organized",
-    body: "Keep appointments, medications, and notes easier to track.",
+    title: "Care organization",
+    body: "Keep medications, appointments, notes, and summaries in one place.",
     goalValue: "Care Organization",
   },
   {
-    key: "reflection-support",
-    title: "Understand how I’m doing",
-    body: "Use reflection and patterns to make harder stretches easier to understand.",
-    goalValue: "Reflection Support",
+    key: "recovery-support",
+    title: "Recovery support",
+    body: "Notice what helps recovery and keep difficult days simpler.",
+    goalValue: "Recovery Support",
   },
 ];
 
@@ -101,14 +112,14 @@ export const ONBOARDING_PRIORITY_OPTIONS: Array<{
     symptomValue: "Care Organization",
   },
   {
+    key: "low-energy-days",
+    title: "Recovery support",
+    symptomValue: "Low-Energy Days",
+  },
+  {
     key: "emotional-overwhelm",
     title: "Emotional overwhelm",
     symptomValue: "Emotional Overwhelm",
-  },
-  {
-    key: "low-energy-days",
-    title: "Low-energy days",
-    symptomValue: "Low-Energy Days",
   },
 ];
 
@@ -119,23 +130,13 @@ export const ONBOARDING_SUPPORT_STYLE_OPTIONS: Array<{
 }> = [
   {
     key: "short-simple",
-    title: "Short and simple",
-    body: "Keep screens brief, clear, and easy to scan.",
-  },
-  {
-    key: "gentle-reflective",
-    title: "Gentle and reflective",
-    body: "Leave more room for reflection and less for structure.",
-  },
-  {
-    key: "practical-structured",
-    title: "Practical and structured",
-    body: "Focus on clear next steps without making things feel crowded.",
+    title: "Standard layout",
+    body: "Use the regular app layout and all available sections.",
   },
   {
     key: "low-energy",
     title: "Low-energy mode",
-    body: "Start with a simpler, lower-pressure version of the app.",
+    body: "Start with fewer prompts, simpler screens, and reduced suggestions.",
   },
 ];
 
@@ -190,11 +191,16 @@ export function deriveGoalsFromPriorities(symptoms: string[]) {
     goals.push("Care Organization");
   }
 
+  if (normalized.includes("brain fog")) {
+    goals.push("Brain Fog Support");
+  }
+
   if (
     normalized.includes("pain") ||
-    normalized.includes("mobility")
+    normalized.includes("mobility") ||
+    normalized.includes("low-energy days")
   ) {
-    goals.push("Reflection Support");
+    goals.push("Recovery Support");
   }
 
   return uniqueValues(goals);
@@ -217,8 +223,8 @@ export function deriveOnboardingSupportPreference(
       };
     case "gentle-reflective":
       return {
-        supportStyle: "reflective",
-        preferredDensity: "reflective",
+        supportStyle: "steady",
+        preferredDensity: "standard",
         complexityTolerance: "balanced",
         lowEnergyMode: false,
       };
@@ -327,8 +333,8 @@ export function getPersonalizedOnboardingGuidance(draft: OnboardingDraft) {
 
   if (hasPriority("care-organization")) {
     return {
-      title: "Start by keeping details in one place",
-      body: "A check-in helps the app become more useful, and Care keeps appointments, notes, and medications together.",
+      title: "Start with one place for care details",
+      body: "Care keeps medications, appointments, notes, and summaries easier to find.",
       nextPrimary: "Start with Today",
       nextSecondary: "Use Care when you want one place for details",
     };
@@ -336,8 +342,8 @@ export function getPersonalizedOnboardingGuidance(draft: OnboardingDraft) {
 
   if (supportStyle === "gentle-reflective") {
     return {
-      title: "Start with one honest check-in",
-      body: "A simple check-in now gives reflection more context later without asking you to write much today.",
+      title: "Start with one useful check-in",
+      body: "A simple check-in gives Insights and support tools better context over time.",
       nextPrimary: "Start with Today",
       nextSecondary: "Keep the first check-in brief",
     };

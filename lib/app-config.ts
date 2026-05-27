@@ -22,7 +22,7 @@ export const APP_CONFIG = {
   },
   onboarding: {
     variant: "default",
-    steps: ["welcome", "symptoms", "goals", "plan", "trust", "reminders", "complete"] as const,
+    steps: ["welcome", "symptoms", "goals", "exercises", "community-intro", "care-intro", "plan", "complete"] as const,
   },
   lifecycle: {
     firstWeekDays: 7,

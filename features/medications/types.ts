@@ -4,6 +4,7 @@ export type Medication = {
   name: string;
   dosage: string | null;
   frequency: string;
+  reminder_time?: string | null;
   notes: string | null;
   active: boolean;
   created_at: string;

@@ -56,6 +56,10 @@ export type CoachContext = {
   engagement_rhythm?: "light" | "steady" | "sporadic";
   recovery_rhythm?: RecoveryRhythm;
   low_energy_mode?: boolean;
+  continuity_observations?: string[];
+  what_helped_before?: string[];
+  care_context?: string[];
+  suggested_support_actions?: string[];
 };
 
 export type SendCoachMessageInput = {

@@ -11,7 +11,7 @@ import { shouldUseRevenueCatNativeStore } from "../../lib/revenueCatEnvironment"
 import { loadPremiumDebugOverride, savePremiumDebugOverride } from "./debug";
 import { ENABLE_PREMIUM_DEBUG_TOOLS, isPremiumEnabled, PREMIUM_FEATURE_FLAGS } from "./config";
 import { isDevPremiumOverrideAvailable } from "./devPremium";
-import { getPremiumStatusFromCustomerInfo, hasPremiumAccess as getHasPremiumAccess } from "./entitlements";
+import { getPremiumStatusFromCustomerInfo } from "./entitlements";
 import {
   getActiveTesterPremiumOverrideSafely,
   normalizePremiumOverrideEmail,
@@ -51,6 +51,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [offeringsErrorMessage, setOfferingsErrorMessage] = useState<string | null>(null);
+  const [revenueCatEntitlementActive, setRevenueCatEntitlementActive] = useState(false);
   const [revenueCatDebugSnapshot, setRevenueCatDebugSnapshot] = useState<RevenueCatDebugSnapshot>(
     revenueCatClient.getDebugSnapshot(),
   );
@@ -184,6 +185,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
 
     if (!subscriptionsEnabled) {
       setStatus("free");
+      setRevenueCatEntitlementActive(false);
       setCurrentOffering(null);
       setOfferingsErrorMessage(null);
       setIsLoading(false);
@@ -192,6 +194,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
 
     if (!user?.id) {
       setStatus("free");
+      setRevenueCatEntitlementActive(false);
       setCurrentOffering(null);
       setOfferingsErrorMessage(null);
       setIsLoading(false);
@@ -200,6 +203,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
 
     if (!shouldUseRevenueCatNativeStore()) {
       setStatus("free");
+      setRevenueCatEntitlementActive(false);
       setCurrentOffering(null);
       setOfferingsErrorMessage("Premium pricing and purchases are not available in this testing environment.");
       setRevenueCatDebugSnapshot(revenueCatClient.getDebugSnapshot());
@@ -221,6 +225,8 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       setCurrentOffering(offering);
       setRevenueCatDebugSnapshot(revenueCatClient.getDebugSnapshot());
       const remoteStatus = getPremiumStatusFromCustomerInfo(customerInfo);
+      const remoteEntitlementActive = remoteStatus === "active";
+      setRevenueCatEntitlementActive(remoteEntitlementActive);
       const resolvedStatus = debugPremiumOverrideActive
         ? "active"
         : reconcileEntitlements({
@@ -292,7 +298,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     });
     refreshPromiseRef.current = promise;
     return promise;
-  }, [debugPremiumOverrideActive, status, subscriptionsEnabled, user?.email, user?.id]);
+  }, [debugPremiumOverrideActive, status, subscriptionsEnabled, user?.id]);
 
   useEffect(() => {
     void refreshTesterPremiumOverride();
@@ -355,8 +361,11 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     try {
       const result = await revenueCatClient.purchasePlan(user.id, plan);
       const nextStatus = getPremiumStatusFromCustomerInfo(result.customerInfo);
+      setRevenueCatEntitlementActive(nextStatus === "active");
+      setRevenueCatDebugSnapshot(revenueCatClient.getDebugSnapshot());
       setStatus(nextStatus);
       await preserveCachedPremiumState(nextStatus);
+      await refreshPremiumStatus({ force: true });
       return { success: !result.cancelled, cancelled: result.cancelled };
     } catch (error) {
       const normalizedError = normalizeError(error);
@@ -370,7 +379,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     } finally {
       setIsPurchasing(false);
     }
-  }, [debugPremiumOverrideActive, subscriptionsEnabled, user?.id]);
+  }, [refreshPremiumStatus, subscriptionsEnabled, user?.id]);
 
   const restorePurchases = useCallback<PremiumContextValue["restorePurchases"]>(async () => {
     if (!subscriptionsEnabled || !user?.id) {
@@ -386,10 +395,20 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     try {
       const customerInfo = await revenueCatClient.restorePurchases(user.id);
       const nextStatus = getPremiumStatusFromCustomerInfo(customerInfo);
+      const restoredEntitlementActive = nextStatus === "active";
+      setRevenueCatEntitlementActive(restoredEntitlementActive);
+      setRevenueCatDebugSnapshot(revenueCatClient.getDebugSnapshot());
       setStatus(nextStatus);
       await preserveCachedPremiumState(nextStatus);
+      if (!restoredEntitlementActive) {
+        return {
+          success: false,
+          message: "No active Premium subscription was found for this Apple ID.",
+        };
+      }
+
       await refreshPremiumStatus({ force: true });
-      return { success: true };
+      return { success: true, message: "Premium restored." };
     } catch (error) {
       const normalizedError = normalizeError(error);
       await trackDiagnosticEvent("restore_failed", {
@@ -398,13 +417,13 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       logger.warn("Premium restore failed", {
         message: normalizedError.message,
       });
-      return { success: false, message: deriveFriendlyFailureMessage(error) };
+      return { success: false, message: "Restore failed. Please try again." };
     } finally {
       setIsRestoring(false);
     }
-  }, [debugPremiumOverrideActive, subscriptionsEnabled, user?.id]);
+  }, [refreshPremiumStatus, subscriptionsEnabled, user?.id]);
 
-  const hasRevenueCatAccess = getHasPremiumAccess(status);
+  const hasRevenueCatAccess = revenueCatEntitlementActive;
   const hasPremiumAccess =
     debugPremiumOverrideActive || hasRevenueCatAccess || testerPremiumOverrideActive;
   const premiumAccessSource: PremiumAccessSource = hasRevenueCatAccess
@@ -468,6 +487,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       isRestoring,
       offeringsErrorMessage,
       revenueCatDebugSnapshot,
+      revenueCatEntitlementActive,
       debugPremiumOverrideActive,
       testerPremiumOverrideActive,
       purchasePlan,
@@ -488,6 +508,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       isRestoring,
       offeringsErrorMessage,
       revenueCatDebugSnapshot,
+      revenueCatEntitlementActive,
       debugPremiumOverrideActive,
       testerPremiumOverrideActive,
       purchasePlan,

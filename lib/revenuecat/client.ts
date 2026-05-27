@@ -163,13 +163,14 @@ export const revenueCatClient = {
 
       if (shouldConfigure) {
         await Purchases.setLogLevel(LOG_LEVEL.WARN);
-        await Purchases.configure({ apiKey: env.revenueCatIosApiKey });
+        await Purchases.configure({ apiKey: env.revenueCatIosApiKey, appUserID: userId });
         configuredApiKey = env.revenueCatIosApiKey;
-        loggedInUserId = null;
+        loggedInUserId = userId;
         updateDebugSnapshot((snapshot) => ({
           ...snapshot,
           timestamp: new Date().toISOString(),
           configured: true,
+          loggedInAppUserId: userId,
         }));
       }
 
@@ -304,7 +305,11 @@ export const revenueCatClient = {
 
     try {
       const { customerInfo } = await Purchases.purchasePackage(pkg);
-      updateDebugSnapshot((snapshot) => withRevenueCatCustomerInfo(snapshot, customerInfo as RevenueCatCustomerInfo));
+      updateDebugSnapshot((snapshot) => ({
+        ...withRevenueCatCustomerInfo(snapshot, customerInfo as RevenueCatCustomerInfo),
+        lastPurchaseErrorCode: null,
+        lastPurchaseErrorMessage: null,
+      }));
       return {
         cancelled: false,
         customerInfo: customerInfo as RevenueCatCustomerInfo,
@@ -320,6 +325,11 @@ export const revenueCatClient = {
 
       updateDebugSnapshot((snapshot) => withRevenueCatError(snapshot, error));
       const details = extractRevenueCatErrorDetails(error);
+      updateDebugSnapshot((snapshot) => ({
+        ...snapshot,
+        lastPurchaseErrorCode: details.code,
+        lastPurchaseErrorMessage: details.message,
+      }));
       logRevenueCatDebug("[LIVEWITHMS_RC_ERROR]", "purchase failed", details);
       throw error;
     }
@@ -335,17 +345,33 @@ export const revenueCatClient = {
     try {
       await Purchases.restorePurchases();
       const customerInfo = (await Purchases.getCustomerInfo()) as RevenueCatCustomerInfo;
-      updateDebugSnapshot((snapshot) => withRevenueCatCustomerInfo(snapshot, customerInfo));
+      const restoredSnapshot = withRevenueCatCustomerInfo(debugSnapshot, customerInfo);
+      const restoreEntitlementActive = restoredSnapshot.activeEntitlementIdentifiers.includes("premium");
+      updateDebugSnapshot(() => ({
+        ...restoredSnapshot,
+        lastRestoreResult: restoreEntitlementActive ? "active_entitlement" : "no_active_entitlement",
+        lastRestoreErrorCode: null,
+        lastRestoreErrorMessage: null,
+      }));
       logRevenueCatDebug("[LIVEWITHMS_RC_DEBUG]", "restore completed", {
         customerInfoLoaded: true,
-        activeEntitlementIdentifiers: debugSnapshot.activeEntitlementIdentifiers,
-        activeSubscriptionProductIdentifiers: debugSnapshot.activeSubscriptionProductIdentifiers,
-        hasOriginalAppUserId: debugSnapshot.hasOriginalAppUserId,
+        activeEntitlementIdentifiers: restoredSnapshot.activeEntitlementIdentifiers,
+        activeSubscriptionProductIdentifiers: restoredSnapshot.activeSubscriptionProductIdentifiers,
+        hasOriginalAppUserId: restoredSnapshot.hasOriginalAppUserId,
+        originalAppUserId: restoredSnapshot.originalAppUserId,
+        latestExpirationDate: restoredSnapshot.latestExpirationDate,
+        entitlementActive: restoreEntitlementActive,
       });
       return customerInfo;
     } catch (error) {
       updateDebugSnapshot((snapshot) => withRevenueCatError(snapshot, error));
       const details = extractRevenueCatErrorDetails(error);
+      updateDebugSnapshot((snapshot) => ({
+        ...snapshot,
+        lastRestoreResult: "failed",
+        lastRestoreErrorCode: details.code,
+        lastRestoreErrorMessage: details.message,
+      }));
       logRevenueCatDebug("[LIVEWITHMS_RC_ERROR]", "restore failed", details);
       throw error;
     }

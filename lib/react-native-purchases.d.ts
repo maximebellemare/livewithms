@@ -47,7 +47,7 @@ declare module "react-native-purchases" {
 
   const Purchases: {
     setLogLevel(level: string): Promise<void>;
-    configure(config: { apiKey: string }): void | Promise<void>;
+    configure(config: { apiKey: string; appUserID?: string }): void | Promise<void>;
     logIn(appUserID: string): Promise<{ customerInfo: CustomerInfo; created: boolean }>;
     logOut?(): Promise<CustomerInfo>;
     getOfferings(): Promise<PurchasesOfferings>;

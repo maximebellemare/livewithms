@@ -35,7 +35,7 @@ export default function SupportStyleScreen() {
 
     try {
       await persistOnboardingSupportStyle(selectedStyle);
-      router.push("/trust");
+      router.push("/complete");
     } finally {
       setIsSaving(false);
     }
@@ -43,9 +43,9 @@ export default function SupportStyleScreen() {
 
   return (
     <OnboardingScaffold
-      title="What kind of support feels best right now?"
-      subtitle="This helps the app begin in a way that feels more usable, not more personal than you want."
-      step={4}
+      title="Choose your starting layout."
+      subtitle="Low-Energy Mode visibly simplifies the app. You can change this later in Profile."
+      step={7}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
       onNext={handleNext}
@@ -76,6 +76,13 @@ export default function SupportStyleScreen() {
                 </View>
               </View>
               <AppText style={styles.optionBody}>{option.body}</AppText>
+              {option.key === "low-energy" ? (
+                <View style={styles.impactList}>
+                  <AppText style={styles.impactText}>Reduces visible suggestions</AppText>
+                  <AppText style={styles.impactText}>Shows fewer insight and exercise cards</AppText>
+                  <AppText style={styles.impactText}>Uses simplified layouts on heavier screens</AppText>
+                </View>
+              ) : null}
             </Pressable>
           );
         })}
@@ -119,6 +126,15 @@ const styles = StyleSheet.create({
   optionBody: {
     color: "#4b5563",
     lineHeight: 22,
+  },
+  impactList: {
+    gap: 4,
+    marginTop: 4,
+  },
+  impactText: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 18,
   },
   selectionBadge: {
     alignSelf: "flex-start",

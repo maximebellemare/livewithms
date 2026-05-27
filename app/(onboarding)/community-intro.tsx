@@ -4,35 +4,35 @@ import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
 import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
 
-const TRACKING_POINTS = [
-  "Energy, fatigue, mood, and stress",
-  "Sleep, hydration, symptoms, and recovery",
-  "Daily notes that can support clearer patterns",
+const COMMUNITY_POINTS = [
+  "Practical questions and shared experiences",
+  "Categories for symptoms, care, work, and daily life",
+  "Reporting and moderation for safer discussions",
 ];
 
-export default function TrackingIntroScreen() {
+export default function CommunityIntroScreen() {
   const router = useRouter();
 
   return (
     <OnboardingScaffold
-      title="Understand your patterns over time."
-      subtitle="Track energy, mood, stress, sleep, symptoms, and recovery."
-      step={2}
+      title="Learn from shared experiences."
+      subtitle="Read practical discussions and connect with others living with MS."
+      step={5}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
-      onNext={() => router.push("/goals")}
+      onNext={() => router.push("/care-intro")}
       nextLabel="Continue"
     >
       <View style={styles.stack}>
         <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>A short check-in is enough to begin.</AppText>
+          <AppText style={styles.heroTitle}>Community stays structured.</AppText>
           <AppText style={styles.heroBody}>
-            Insights become more useful as simple daily entries build context.
+            It is designed for practical support, not endless scrolling.
           </AppText>
         </View>
 
         <View style={styles.listCard}>
-          {TRACKING_POINTS.map((point) => (
+          {COMMUNITY_POINTS.map((point) => (
             <View key={point} style={styles.listRow}>
               <View style={styles.dot} />
               <AppText style={styles.listText}>{point}</AppText>

@@ -6,16 +6,12 @@ import AppText from "../../components/ui/AppText";
 import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
 import { useOnboarding } from "../../features/onboarding/hooks";
 import { getPersonalizedOnboardingGuidance } from "../../features/onboarding/personalization";
-import { deriveCategoryDefiningPositioning } from "../../lib/product-identity/deriveCategoryDefiningPositioning";
-import { derivePremiumPositioning } from "../../lib/premium-ecosystem/calm-premium/derivePremiumPositioning";
 
 export default function CompleteScreen() {
   const router = useRouter();
   const { completeOnboarding, draft, isCompleting } = useOnboarding();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const guidance = getPersonalizedOnboardingGuidance(draft);
-  const positioning = deriveCategoryDefiningPositioning();
-  const premiumPositioning = derivePremiumPositioning();
 
   const handleNext = async () => {
     if (isCompleting) return;
@@ -32,9 +28,9 @@ export default function CompleteScreen() {
 
   return (
     <OnboardingScaffold
-      title="Start with today."
-      subtitle="A simple check-in helps the app start building useful patterns."
-      step={7}
+      title="Ready to begin?"
+      subtitle="Start with one short check-in. You can explore the rest when it helps."
+      step={8}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
       onNext={handleNext}
@@ -53,11 +49,8 @@ export default function CompleteScreen() {
         <View style={styles.infoCard}>
           <AppText style={styles.infoTitle}>What happens next</AppText>
           <AppText style={styles.infoBody}>You’ll land in Today for your first check-in.</AppText>
-          <AppText style={styles.infoBody}>{guidance.nextSecondary}</AppText>
-          <AppText style={styles.infoBody}>The first few check-ins help Insights start showing clearer patterns.</AppText>
-          <AppText style={styles.infoBody}>{positioning.onboardingCompletionLine}</AppText>
-          <AppText style={styles.infoBody}>AI support stays optional and is meant for reflection, not diagnosis, treatment, or emergency care.</AppText>
-          <AppText style={styles.infoBody}>{premiumPositioning.onboardingBody}</AppText>
+          <AppText style={styles.infoBody}>Insights, tools, exercises, Care, Community, and Coach stay available from the tabs.</AppText>
+          <AppText style={styles.infoBody}>AI Coach is optional and does not replace professional care.</AppText>
         </View>
       </View>
     </OnboardingScaffold>

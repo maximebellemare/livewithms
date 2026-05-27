@@ -1,6 +1,6 @@
 import type { CheckInOverviewEntry } from "./types";
 
-const MILESTONES = [1, 3, 7, 14, 30] as const;
+const MILESTONES = [1, 3, 7, 14, 30, 60, 100] as const;
 
 function getPreviousDateString(date: string) {
   const [year, month, day] = date.split("-").map(Number);
@@ -16,13 +16,14 @@ function getPreviousDateString(date: string) {
 
 export function getCurrentCheckInStreak(entries: CheckInOverviewEntry[], today: string) {
   const loggedDates = new Set(entries.map((entry) => entry.date));
+  const yesterday = getPreviousDateString(today);
 
-  if (!loggedDates.has(today)) {
+  if (!loggedDates.has(today) && !loggedDates.has(yesterday)) {
     return 0;
   }
 
   let streak = 0;
-  let currentDate = today;
+  let currentDate = loggedDates.has(today) ? today : yesterday;
 
   while (loggedDates.has(currentDate)) {
     streak += 1;
@@ -82,9 +83,23 @@ export function getMilestoneMessage(totalCheckIns: number) {
     };
   }
 
+  if (milestone === 30) {
+    return {
+      title: "A month of check-ins",
+      body: "You’ve built a strong base for patterns, reflection, and support.",
+    };
+  }
+
+  if (milestone === 60) {
+    return {
+      title: "Sixty check-ins",
+      body: "Your check-ins are building a clearer long-term view.",
+    };
+  }
+
   return {
-    title: "A month of check-ins",
-    body: "You’ve built a strong base for patterns, reflection, and support.",
+    title: "One hundred check-ins",
+    body: "That is a meaningful base of personal context to draw from.",
   };
 }
 
@@ -114,6 +129,14 @@ export function getCareWins(entries: CheckInOverviewEntry[]) {
 
   if (totalCheckIns >= 30) {
     wins.push("Checked in 30 times");
+  }
+
+  if (totalCheckIns >= 60) {
+    wins.push("Checked in 60 times");
+  }
+
+  if (totalCheckIns >= 100) {
+    wins.push("Checked in 100 times");
   }
 
   return wins;

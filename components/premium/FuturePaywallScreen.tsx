@@ -110,14 +110,14 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
       await trackEvent("restore_completed", {
         status: "success",
       });
-      Alert.alert(positioning.restoreSuccessTitle, positioning.restoreSuccessBody, [
+      Alert.alert("Premium restored.", result.message ?? positioning.restoreSuccessBody, [
         { text: "Continue", onPress: onClose },
       ]);
       return;
     }
 
     if (result.message) {
-      Alert.alert(positioning.restorePendingTitle, result.message);
+      Alert.alert(result.message.startsWith("Restore failed") ? "Restore failed" : positioning.restorePendingTitle, result.message);
     }
   };
 

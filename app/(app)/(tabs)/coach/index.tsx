@@ -41,10 +41,13 @@ import { deriveLowEnergyAssist } from "../../../../features/premium/low-energy-a
 import { incrementAiCoachUsage, loadAiCoachUsage } from "../../../../features/premium/usage";
 import { getProgramToolById } from "../../../../features/programs/catalog";
 import { useProgramProgress } from "../../../../features/programs/hooks";
+import type { ProgramTool } from "../../../../features/programs/types";
 import { useAuth } from "../../../../features/auth/hooks";
 import { useCheckInHistory, useSaveDailyCheckIn, useTodaysCheckIn } from "../../../../features/checkins/hooks";
 import type { DailyCheckIn, DailyCheckInInput } from "../../../../features/checkins/types";
 import { getCheckInsInLastDays, getCurrentCheckInStreak } from "../../../../features/checkins/consistency";
+import { useAppointments } from "../../../../features/appointments/hooks";
+import { useMedications } from "../../../../features/medications/hooks";
 import { useMyProfile } from "../../../../features/profile/hooks";
 import { useReminderSettings } from "../../../../features/reminders/hooks";
 import { getErrorMessage } from "../../../../lib/errors";
@@ -61,8 +64,67 @@ import {
 import { generateCalmWaitingCopy } from "../../../../lib/operational-calm/latency-softening/generateCalmWaitingCopy";
 import { useLowEnergyMode } from "../../../../features/low-energy-mode/hooks";
 import { startCoachVoiceInput, stopCoachVoiceInput } from "../../../../features/coach/voice-input";
+import { deriveCoachOperationalMemory } from "../../../../features/coach/operational-memory";
+import { loadRecentTodayPlans, type TodayPlan } from "../../../../features/today-plan/storage";
 
 const COACH_RETRY_COOLDOWN_MS = 8000;
+const RELATED_SUPPORT_COPY: Record<string, { title?: string; description: string }> = {
+  "one-priority-planner": {
+    description: "Simplify today’s focus and reduce overload.",
+  },
+  "reduce-overwhelm": {
+    description: "Sort competing pressure into one focus and one next step.",
+  },
+  "brain-fog-basics": {
+    description: "Narrow mental load into one clear next action.",
+  },
+  "difficult-day-pacing-checklist": {
+    title: "Fatigue pacing planner",
+    description: "Protect energy and make today’s demands smaller.",
+  },
+  "low-energy-checklist": {
+    description: "Make a lower-energy day easier to move through.",
+  },
+  "breathing-reset": {
+    description: "Use a short reset when stress feels high.",
+  },
+  "hard-moment-reflection": {
+    description: "Capture what matters without turning it into a long reflection.",
+  },
+};
+
+function getRelatedSupportRecommendation(input: {
+  stress: number | null;
+  fatigue: number | null;
+  brainFog: number | null;
+  adaptiveStressTrend: "elevated" | "steady" | "lighter" | "unknown";
+  adaptiveFatigueTrend: "high" | "steady" | "lighter" | "unknown";
+  adaptiveBrainFogTrend: "high" | "steady" | "lighter" | "unknown";
+  fallbackTool: ProgramTool | null;
+}) {
+  const recommendedToolId =
+    (input.stress ?? 0) >= 4 || input.adaptiveStressTrend === "elevated"
+      ? "reduce-overwhelm"
+      : (input.fatigue ?? 0) >= 4 || input.adaptiveFatigueTrend === "high"
+        ? "difficult-day-pacing-checklist"
+        : (input.brainFog ?? 0) >= 4 || input.adaptiveBrainFogTrend === "high"
+          ? "brain-fog-basics"
+          : input.fallbackTool?.id ?? "one-priority-planner";
+  const tool = getProgramToolById(recommendedToolId) ?? input.fallbackTool ?? getProgramToolById("one-priority-planner");
+
+  if (!tool) {
+    return null;
+  }
+
+  const copy = RELATED_SUPPORT_COPY[tool.id];
+
+  return {
+    tool,
+    title: copy?.title ?? tool.title,
+    description: copy?.description ?? tool.description,
+  };
+}
+
 const COACH_QUICK_STARTS: Array<{
   id: string;
   title: string;
@@ -182,6 +244,17 @@ function average(values: Array<number | null>) {
   return Math.round((valid.reduce((sum, value) => sum + value, 0) / valid.length) * 10) / 10;
 }
 
+function sortUpcomingAppointments<T extends { appointment_date: string; appointment_time: string | null }>(items: T[]) {
+  return items.slice().sort((left, right) => {
+    const dateCompare = left.appointment_date.localeCompare(right.appointment_date);
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    return (left.appointment_time ?? "").localeCompare(right.appointment_time ?? "");
+  });
+}
+
 export default function CoachScreen() {
   const { user } = useAuth();
   const today = getDateString();
@@ -189,6 +262,8 @@ export default function CoachScreen() {
   const profileQuery = useMyProfile(user?.id);
   const todayEntryQuery = useTodaysCheckIn(user?.id, today);
   const recentEntriesQuery = useCheckInHistory(user?.id, 14);
+  const appointmentsQuery = useAppointments(user?.id);
+  const medicationsQuery = useMedications(user?.id);
   const tomorrowPlanQuery = useCoachPlan(user?.id, tomorrow);
   const coachMessagesQuery = useCoachMessages(user?.id);
   const saveCheckIn = useSaveDailyCheckIn();
@@ -224,6 +299,7 @@ export default function CoachScreen() {
   const [priority, setPriority] = useState("");
   const [avoid, setAvoid] = useState("");
   const [supportAction, setSupportAction] = useState("");
+  const [recentTodayPlans, setRecentTodayPlans] = useState<TodayPlan[]>([]);
   const [dailyCoachUsage, setDailyCoachUsage] = useState(0);
   const [isLoadingDailyCoachUsage, setIsLoadingDailyCoachUsage] = useState(true);
   const [retryCooldownUntil, setRetryCooldownUntil] = useState<number | null>(null);
@@ -231,6 +307,8 @@ export default function CoachScreen() {
   const [pendingToolScroll, setPendingToolScroll] = useState<GuidedPlanToolKey | null>(null);
   const screenScrollRef = useRef<ScrollView>(null);
   const chatScrollRef = useRef<ScrollView>(null);
+  const messageLayoutYRef = useRef<Record<string, number>>({});
+  const pendingCoachMessageYRef = useRef<number | null>(null);
   const toolLayoutYRef = useRef<Partial<Record<GuidedPlanToolKey, number>>>({});
   const draftInputRef = useRef("");
   const voiceBaseInputRef = useRef("");
@@ -245,8 +323,32 @@ export default function CoachScreen() {
   const todayEntry = todayEntryQuery.data ?? null;
   const latestEntry = recentEntriesQuery.data?.[0] ?? null;
   const coachEntry = todayEntry ?? latestEntry ?? null;
-  const coachMessages = coachMessagesQuery.data ?? [];
-  const recentEntries = recentEntriesQuery.data ?? [];
+  const coachMessages = useMemo(() => coachMessagesQuery.data ?? [], [coachMessagesQuery.data]);
+  const latestAssistantIndex = useMemo(
+    () => {
+      for (let index = coachMessages.length - 1; index >= 0; index -= 1) {
+        if (coachMessages[index]?.role === "assistant") {
+          return index;
+        }
+      }
+
+      return -1;
+    },
+    [coachMessages],
+  );
+  const latestAssistantMessageId = latestAssistantIndex >= 0 ? coachMessages[latestAssistantIndex]?.id ?? null : null;
+  const recentEntries = useMemo(() => recentEntriesQuery.data ?? [], [recentEntriesQuery.data]);
+  const activeMedications = useMemo(
+    () => (medicationsQuery.data ?? []).filter((medication) => medication.active),
+    [medicationsQuery.data],
+  );
+  const nextAppointment = useMemo(
+    () =>
+      sortUpcomingAppointments(
+        (appointmentsQuery.data ?? []).filter((appointment) => appointment.appointment_date >= today),
+      )[0] ?? null,
+    [appointmentsQuery.data, today],
+  );
   const isInitialLoading =
     (todayEntryQuery.isLoading && !todayEntryQuery.data) ||
     (recentEntriesQuery.isLoading && !recentEntriesQuery.data) ||
@@ -294,7 +396,12 @@ export default function CoachScreen() {
     setSupportAction(tomorrowPlanQuery.data?.support_action ?? "");
     setPlanState("idle");
     setPlanError(null);
-  }, [tomorrowPlanQuery.data?.updated_at]);
+  }, [
+    tomorrowPlanQuery.data?.avoid,
+    tomorrowPlanQuery.data?.priority,
+    tomorrowPlanQuery.data?.support_action,
+    tomorrowPlanQuery.data?.updated_at,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -332,17 +439,81 @@ export default function CoachScreen() {
     return () => clearTimeout(timeout);
   }, [resetRunning, resetSecondsLeft]);
 
+  const scrollChatToMessageY = useCallback((messageY: number | null | undefined, delay = 80) => {
+    if (typeof messageY !== "number") {
+      if (__DEV__) {
+        console.log("[coach-scroll]", {
+          latestAssistantIndex,
+          latestAssistantId: latestAssistantMessageId,
+          targetY: null,
+          usingRef: "chatScrollView",
+        });
+      }
+
+      return undefined;
+    }
+
+    const timeout = setTimeout(() => {
+      const targetY = Math.max(0, messageY - 16);
+
+      if (__DEV__) {
+        console.log("[coach-scroll]", {
+          latestAssistantIndex,
+          latestAssistantId: latestAssistantMessageId,
+          targetY,
+          usingRef: "chatScrollView",
+        });
+      }
+
+      chatScrollRef.current?.scrollTo({
+        y: targetY,
+        animated: true,
+      });
+    }, delay);
+
+    return () => clearTimeout(timeout);
+  }, [latestAssistantIndex, latestAssistantMessageId]);
+
+  const scrollToLatestAssistantMessage = useCallback((delay = 80) => {
+    if (!latestAssistantMessageId) {
+      return undefined;
+    }
+
+    return scrollChatToMessageY(messageLayoutYRef.current[latestAssistantMessageId], delay);
+  }, [latestAssistantMessageId, scrollChatToMessageY]);
+
+  const scrollToPendingCoachMessage = useCallback((delay = 80) => {
+    return scrollChatToMessageY(pendingCoachMessageYRef.current, delay);
+  }, [scrollChatToMessageY]);
+
+  const handleMessageLayout = useCallback((messageId: string, y: number) => {
+    messageLayoutYRef.current[messageId] = y;
+  }, []);
+
+  const handlePendingMessageLayout = useCallback((y: number) => {
+    pendingCoachMessageYRef.current = y;
+    if (sendCoachMessage.isPending) {
+      scrollChatToMessageY(y, 40);
+    }
+  }, [scrollChatToMessageY, sendCoachMessage.isPending]);
+
   useEffect(() => {
     if (!coachMessages.length && !sendCoachMessage.isPending) {
       return;
     }
 
-    const timeout = setTimeout(() => {
-      chatScrollRef.current?.scrollToEnd({ animated: true });
-    }, 50);
+    if (sendCoachMessage.isPending) {
+      return scrollToPendingCoachMessage(80);
+    }
 
-    return () => clearTimeout(timeout);
-  }, [coachMessages.length, sendCoachMessage.isPending]);
+    return scrollToLatestAssistantMessage(100);
+  }, [
+    coachMessages.length,
+    latestAssistantMessageId,
+    scrollToLatestAssistantMessage,
+    scrollToPendingCoachMessage,
+    sendCoachMessage.isPending,
+  ]);
 
   useEffect(() => {
     if (!retryCooldownUntil) {
@@ -410,6 +581,39 @@ export default function CoachScreen() {
   const adaptiveProfile = useMemo(
     () => buildAdaptiveProfile(recentEntries, weeklyCheckIns, personalizationMemory.memory),
     [personalizationMemory.memory, recentEntries, weeklyCheckIns],
+  );
+  useEffect(() => {
+    if (!user?.id) {
+      setRecentTodayPlans([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const plans = await loadRecentTodayPlans(user.id, today, 14);
+
+      if (!cancelled) {
+        setRecentTodayPlans(plans);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [today, user?.id]);
+  const operationalMemory = useMemo(
+    () =>
+      deriveCoachOperationalMemory({
+        recentEntries,
+        latestEntry: coachEntry,
+        adaptiveProfile,
+        programProgress: programProgress.progress,
+        activeMedications,
+        nextAppointment,
+        recentRecoveryStrategies: recentTodayPlans.map((plan) => plan.whatHelped),
+      }),
+    [activeMedications, adaptiveProfile, coachEntry, nextAppointment, programProgress.progress, recentEntries, recentTodayPlans],
   );
   const lifecycleProfile = useMemo(
     () =>
@@ -555,7 +759,7 @@ export default function CoachScreen() {
       case "practical":
         return "Keeping it simple...";
       case "encouragement":
-        return "Finding a steadier angle...";
+        return "Finding a practical next step...";
       case "reflect":
       default:
         return calmCopy;
@@ -601,6 +805,38 @@ export default function CoachScreen() {
     () => getProgramToolById(adaptiveProfile.suggestedProgram),
     [adaptiveProfile.suggestedProgram],
   );
+  const relatedSupportRecommendation = useMemo(
+    () =>
+      getRelatedSupportRecommendation({
+        stress: coachEntry?.stress ?? recentAverages.stress,
+        fatigue: coachEntry?.fatigue ?? recentAverages.fatigue,
+        brainFog: coachEntry?.brain_fog ?? null,
+        adaptiveStressTrend: adaptiveProfile.stressTrend,
+        adaptiveFatigueTrend: adaptiveProfile.fatigueTrend,
+        adaptiveBrainFogTrend: adaptiveProfile.brainFogTrend,
+        fallbackTool: suggestedProgramTool,
+      }),
+    [
+      adaptiveProfile.brainFogTrend,
+      adaptiveProfile.fatigueTrend,
+      adaptiveProfile.stressTrend,
+      coachEntry?.brain_fog,
+      coachEntry?.fatigue,
+      coachEntry?.stress,
+      recentAverages.fatigue,
+      recentAverages.stress,
+      suggestedProgramTool,
+    ],
+  );
+  const visibleOperationalContext = useMemo(
+    () =>
+      [
+        ...operationalMemory.continuityObservations,
+        ...operationalMemory.whatHelpedBefore,
+        ...operationalMemory.careContext,
+      ].slice(0, effectiveLowEnergyConversationMode ? 2 : 4),
+    [effectiveLowEnergyConversationMode, operationalMemory.careContext, operationalMemory.continuityObservations, operationalMemory.whatHelpedBefore],
+  );
 
   const coachContext = useMemo(
     () => ({
@@ -638,6 +874,10 @@ export default function CoachScreen() {
       recovery_rhythm: personalizationMemory.memory.recoveryRhythm,
       brain_fog: todayEntry?.brain_fog ?? null,
       low_energy_mode: effectiveLowEnergyConversationMode,
+      continuity_observations: operationalMemory.continuityObservations,
+      what_helped_before: operationalMemory.whatHelpedBefore,
+      care_context: operationalMemory.careContext,
+      suggested_support_actions: operationalMemory.suggestedSupportActions,
     }),
     [
       effectiveLowEnergyConversationMode,
@@ -645,6 +885,10 @@ export default function CoachScreen() {
       latestEntry?.notes,
       lifecycleProfile.previousActiveGapDays,
       lifecycleProfile.stage,
+      operationalMemory.careContext,
+      operationalMemory.continuityObservations,
+      operationalMemory.suggestedSupportActions,
+      operationalMemory.whatHelpedBefore,
       personalizationMemory.memory.coachTonePreference,
       personalizationMemory.memory.complexityTolerance,
       personalizationMemory.memory.engagementRhythm,
@@ -775,6 +1019,7 @@ export default function CoachScreen() {
     const startedAt = Date.now();
     const isRetry = options?.isRetry === true;
     coachRequestInFlightRef.current = true;
+    scrollToPendingCoachMessage(40);
 
     if (isRetry) {
       await trackRetryTriggered("ai-coach-send", {
@@ -815,6 +1060,7 @@ export default function CoachScreen() {
       hasTrackedAbandonRef.current = false;
       lastTrackedAbandonedDraftRef.current = null;
       setRetryCooldownUntil(null);
+      scrollToLatestAssistantMessage(100);
     } catch (error) {
       await growth.recordEvent("ai_coach_response_failed", {
         mode: selectedMode,
@@ -839,6 +1085,8 @@ export default function CoachScreen() {
     hasReachedFreeCoachLimit,
     hasUnlimitedAiCoach,
     retryCooldownSeconds,
+    scrollToLatestAssistantMessage,
+    scrollToPendingCoachMessage,
     sendCoachMessage,
     user?.id,
   ]);
@@ -900,8 +1148,7 @@ export default function CoachScreen() {
     setChatInput(prompt);
     setChatError(null);
     setTimeout(() => {
-      screenScrollRef.current?.scrollTo({ y: 260, animated: true });
-      chatScrollRef.current?.scrollToEnd({ animated: true });
+      scrollToPendingCoachMessage(40);
     }, 80);
 
     try {
@@ -909,7 +1156,7 @@ export default function CoachScreen() {
     } finally {
       setActiveQuickActionId(null);
     }
-  }, [handleSendCoachMessage, retryCooldownSeconds, sendCoachMessage.isPending]);
+  }, [handleSendCoachMessage, retryCooldownSeconds, scrollToPendingCoachMessage, sendCoachMessage.isPending]);
 
   const scrollToGuidedTool = useCallback((tool: GuidedPlanToolKey) => {
     const y = toolLayoutYRef.current[tool];
@@ -1201,7 +1448,7 @@ export default function CoachScreen() {
                   }}
                 />
               </View>
-            ) : coachMessages.length ? (
+            ) : coachMessages.length || sendCoachMessage.isPending ? (
               <View style={styles.chatShell}>
                 <ScrollView
                   ref={chatScrollRef}
@@ -1211,13 +1458,23 @@ export default function CoachScreen() {
                   keyboardShouldPersistTaps="handled"
                   nestedScrollEnabled
                   onContentSizeChange={() => {
-                    chatScrollRef.current?.scrollToEnd({ animated: true });
+                    if (sendCoachMessage.isPending) {
+                      scrollToPendingCoachMessage(40);
+                    } else {
+                      scrollToLatestAssistantMessage(60);
+                    }
                   }}
                 >
                   <View style={styles.messageList}>
                     {coachMessages.map((message) => (
                       <View
                         key={message.id}
+                        onLayout={(event) => {
+                          handleMessageLayout(message.id, event.nativeEvent.layout.y);
+                          if (message.id === latestAssistantMessageId) {
+                            scrollChatToMessageY(event.nativeEvent.layout.y, 60);
+                          }
+                        }}
                         style={[
                           styles.messageBubble,
                           message.role === "assistant" ? styles.coachBubble : styles.userBubble,
@@ -1235,7 +1492,12 @@ export default function CoachScreen() {
                       </View>
                     ))}
                     {sendCoachMessage.isPending ? (
-                      <View style={[styles.messageBubble, styles.coachBubble]}>
+                      <View
+                        onLayout={(event) => {
+                          handlePendingMessageLayout(event.nativeEvent.layout.y);
+                        }}
+                        style={[styles.messageBubble, styles.coachBubble]}
+                      >
                         <AppText style={[styles.messageRole, styles.coachRole]}>Coach</AppText>
                         <AppText style={styles.messageText}>{chatLoadingLabel}</AppText>
                       </View>
@@ -1292,7 +1554,11 @@ export default function CoachScreen() {
                     }
                   }}
                   onFocus={() => {
-                    chatScrollRef.current?.scrollToEnd({ animated: true });
+                    if (sendCoachMessage.isPending) {
+                      scrollToPendingCoachMessage(40);
+                    } else {
+                      scrollToLatestAssistantMessage(60);
+                    }
                   }}
                   placeholder={
                     effectiveLowEnergyConversationMode
@@ -1385,14 +1651,38 @@ export default function CoachScreen() {
             ) : null}
           </View>
 
-          {suggestedProgramTool ? (
+          {visibleOperationalContext.length > 0 ? (
             <View style={styles.card}>
-              <AppText style={styles.title}>Related support in Programs</AppText>
-              <AppText style={styles.body}>
-                {suggestedProgramTool.title} may fit what this week has looked like.
-              </AppText>
-              <AppButton label="Open in Programs" variant="secondary" onPress={() => router.push("/programs")} />
+              <AppText style={styles.contextLabel}>Context Coach can use</AppText>
+              <AppText style={styles.title}>Useful context</AppText>
+              <View style={styles.contextMemoryList}>
+                {visibleOperationalContext.map((line) => (
+                  <View key={line} style={styles.contextMemoryRow}>
+                    <View style={styles.contextMemoryDot} />
+                    <AppText style={styles.contextMemoryText}>{line}</AppText>
+                  </View>
+                ))}
+              </View>
             </View>
+          ) : null}
+
+          {relatedSupportRecommendation ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${relatedSupportRecommendation.title}`}
+              onPress={() =>
+                router.push({
+                  pathname: "/(app)/(tabs)/programs",
+                  params: { tool: relatedSupportRecommendation.tool.id },
+                })
+              }
+              style={({ pressed }) => [styles.card, styles.relatedSupportCard, pressed && styles.actionCardPressed]}
+            >
+              <AppText style={styles.title}>Related support</AppText>
+              <AppText style={styles.relatedToolTitle}>{relatedSupportRecommendation.title}</AppText>
+              <AppText style={styles.body}>{relatedSupportRecommendation.description}</AppText>
+              <AppText style={styles.relatedOpenLabel}>Open tool</AppText>
+            </Pressable>
           ) : null}
 
           <View style={styles.card}>
@@ -1733,6 +2023,30 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 14,
   },
+  relatedSupportCard: {
+    borderColor: "#edd1bb",
+    backgroundColor: "#fffaf6",
+  },
+  contextMemoryList: {
+    gap: 10,
+  },
+  contextMemoryRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  contextMemoryDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+    backgroundColor: "#d98641",
+    marginTop: 8,
+  },
+  contextMemoryText: {
+    flex: 1,
+    color: "#4b5563",
+    lineHeight: 21,
+  },
   sourcesCard: {
     backgroundColor: "#ffffff",
     borderRadius: 20,
@@ -1797,6 +2111,17 @@ const styles = StyleSheet.create({
   body: {
     color: "#4b5563",
     lineHeight: 23,
+  },
+  relatedToolTitle: {
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  relatedOpenLabel: {
+    alignSelf: "flex-start",
+    color: "#c25d10",
+    fontWeight: "700",
   },
   messageList: {
     gap: 12,

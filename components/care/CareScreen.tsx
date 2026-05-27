@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { router } from "expo-router";
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
@@ -28,6 +28,7 @@ import {
   useMedications,
   useUpdateMedication,
 } from "../../features/medications/hooks";
+import { medicationsApi } from "../../features/medications/api";
 import type { Medication, MedicationInput } from "../../features/medications/types";
 import { getErrorMessage } from "../../lib/errors";
 import { logger } from "../../lib/logger";
@@ -198,6 +199,60 @@ function formatTakenTime(isoDate: string) {
   });
 }
 
+function formatMedicationReminderTime(reminderTime: string | null | undefined) {
+  if (!reminderTime) {
+    return null;
+  }
+
+  const [hour, minute] = reminderTime.split(":");
+  if (!hour || !minute) {
+    return reminderTime;
+  }
+
+  const date = new Date();
+  date.setHours(Number(hour), Number(minute), 0, 0);
+
+  if (Number.isNaN(date.getTime())) {
+    return reminderTime;
+  }
+
+  return date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function getMedicationDueTimeLabel(medication: Medication) {
+  const reminderTime = formatMedicationReminderTime(medication.reminder_time);
+  if (reminderTime) {
+    return reminderTime;
+  }
+
+  const frequency = medication.frequency;
+  const normalized = frequency.toLowerCase();
+
+  if (normalized.includes("as needed") || normalized.includes("prn")) {
+    return null;
+  }
+
+  const hour = normalized.includes("evening") ? 19 : 9;
+  const date = new Date();
+  date.setHours(hour, 0, 0, 0);
+
+  return date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatMedicationTakenSummary(takenCount: number, totalCount: number) {
+  if (totalCount === 0) {
+    return "No medications scheduled today.";
+  }
+
+  return `${takenCount} of ${totalCount} taken today`;
+}
+
 export default function CareScreen() {
   const { user } = useAuth();
   const appointmentsQuery = useAppointments(user?.id);
@@ -242,6 +297,7 @@ export default function CareScreen() {
   const [medicationErrorMessage, setMedicationErrorMessage] = useState<string | null>(null);
   const [careNoteErrorMessage, setCareNoteErrorMessage] = useState<string | null>(null);
   const [medicationsTakenToday, setMedicationsTakenToday] = useState<Record<string, string>>({});
+  const today = getTodayDateString();
   const isInitialLoading =
     (appointmentsQuery.isLoading && !appointmentsQuery.data) ||
     (medicationsQuery.isLoading && !medicationsQuery.data) ||
@@ -250,42 +306,15 @@ export default function CareScreen() {
   const [showInactiveMedications, setShowInactiveMedications] = useState(false);
   const lowEnergyMode = useLowEnergyMode();
 
-  useEffect(() => {
-    return addCareNotificationResponseListener((action) => {
-      if (action.type === "medication-taken") {
-        setMedicationsTakenToday((current) => ({
-          ...current,
-          [action.medicationId]: new Date().toISOString(),
-        }));
-        setMedicationMessage("Medication marked taken today.");
-        return;
-      }
-
-      if (action.type === "medication-skipped") {
-        setMedicationMessage("Medication reminder skipped.");
-        return;
-      }
-
-      if (action.type === "medication-later") {
-        setMedicationMessage("Medication reminder moved later.");
-        return;
-      }
-
-      router.push("/health-summary");
-    });
-  }, []);
-
   const upcomingAppointments = useMemo(() => {
-    const today = getTodayDateString();
     const items = (appointmentsQuery.data ?? []).filter((item) => item.appointment_date >= today);
     return sortAppointmentsByDateTime(items, true);
-  }, [appointmentsQuery.data]);
+  }, [appointmentsQuery.data, today]);
 
   const pastAppointments = useMemo(() => {
-    const today = getTodayDateString();
     const items = (appointmentsQuery.data ?? []).filter((item) => item.appointment_date < today);
     return sortAppointmentsByDateTime(items, false);
-  }, [appointmentsQuery.data]);
+  }, [appointmentsQuery.data, today]);
 
   const medications = useMemo(() => medicationsQuery.data ?? [], [medicationsQuery.data]);
   const activeMedications = useMemo(
@@ -302,19 +331,123 @@ export default function CareScreen() {
     () => activeMedications.filter((medication) => medicationsTakenToday[medication.id]).length,
     [activeMedications, medicationsTakenToday],
   );
+  const nextDueMedication = useMemo(
+    () =>
+      activeMedications.find((medication) => {
+        const dueTime = getMedicationDueTimeLabel(medication);
+        return dueTime && !medicationsTakenToday[medication.id];
+      }) ?? null,
+    [activeMedications, medicationsTakenToday],
+  );
+  const nextDueMedicationTime = nextDueMedication ? getMedicationDueTimeLabel(nextDueMedication) : null;
+
+  const persistMedicationTakenToday = useCallback((medicationId: string, takenAt: string | null) => {
+    if (!user?.id) {
+      return;
+    }
+
+    const sync = takenAt
+      ? medicationsApi.markTakenToday(user.id, medicationId, today, takenAt)
+      : medicationsApi.unmarkTakenToday(user.id, medicationId, today);
+
+    void sync.catch((error) => {
+      logger.warn("Medication taken state could not sync.", {
+        error: getErrorMessage(error),
+      });
+    });
+  }, [today, user?.id]);
+
+  useEffect(() => {
+    return addCareNotificationResponseListener((action) => {
+      if (action.type === "medication-taken") {
+        setMedicationsTakenToday((current) => {
+          const takenAt = new Date().toISOString();
+          const next = {
+            ...current,
+            [action.medicationId]: takenAt,
+          };
+          persistMedicationTakenToday(action.medicationId, takenAt);
+          return next;
+        });
+        setMedicationMessage("Medication marked taken today.");
+        return;
+      }
+
+      if (action.type === "medication-skipped") {
+        setMedicationMessage("Medication reminder skipped.");
+        return;
+      }
+
+      if (action.type === "medication-later") {
+        setMedicationMessage("Medication reminder moved later.");
+        return;
+      }
+
+      router.push("/health-summary");
+    });
+  }, [persistMedicationTakenToday]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!user?.id) {
+      setMedicationsTakenToday({});
+      return;
+    }
+
+    void (async () => {
+      try {
+        const taken = await medicationsApi.listTakenToday(user.id, today);
+
+        if (!cancelled) {
+          setMedicationsTakenToday(taken);
+        }
+      } catch (error) {
+        logger.warn("Medication taken state could not load.", {
+          error: getErrorMessage(error),
+        });
+
+        if (!cancelled) {
+          setMedicationsTakenToday({});
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [today, user?.id]);
+
+  useEffect(() => {
+    logger.info("Care medications state", {
+      today,
+      medications: medications.map((medication) => ({
+        id: medication.id,
+        name: medication.name,
+        active: medication.active,
+        frequency: medication.frequency,
+        reminder_time: medication.reminder_time ?? null,
+      })),
+      takenMedicationIds: Object.keys(medicationsTakenToday),
+    });
+  }, [medications, medicationsTakenToday, today]);
 
   const toggleMedicationTakenToday = (medicationId: string) => {
     setMedicationsTakenToday((current) => {
       if (current[medicationId]) {
         const next = { ...current };
         delete next[medicationId];
+        persistMedicationTakenToday(medicationId, null);
         return next;
       }
 
-      return {
+      const takenAt = new Date().toISOString();
+      const next = {
         ...current,
-        [medicationId]: new Date().toISOString(),
+        [medicationId]: takenAt,
       };
+      persistMedicationTakenToday(medicationId, takenAt);
+      return next;
     });
   };
 
@@ -843,13 +976,48 @@ export default function CareScreen() {
           </View>
 
           <View style={styles.summaryCard}>
-            <AppText style={styles.summaryLabel}>Active medications</AppText>
-            <AppText style={styles.summaryCount}>{activeMedications.length}</AppText>
+            <AppText style={styles.summaryLabel}>Today’s medications</AppText>
             <AppText style={styles.summaryBody}>
-              {activeMedications.length === 0
-                ? "No medications listed yet."
-                : `${takenMedicationCount}/${activeMedications.length} marked taken today`}
+              {formatMedicationTakenSummary(takenMedicationCount, activeMedications.length)}
             </AppText>
+            {activeMedications.length === 0 ? (
+              <AppText style={styles.summaryHint}>Add a medication to track today’s schedule.</AppText>
+            ) : (
+              <View style={styles.todayMedicationList}>
+                {activeMedications.map((medication) => {
+                  const takenAt = medicationsTakenToday[medication.id];
+                  const dueTime = getMedicationDueTimeLabel(medication);
+
+                  return (
+                    <View key={medication.id} style={styles.todayMedicationRow}>
+                      <View style={styles.todayMedicationCopy}>
+                        <AppText style={styles.todayMedicationName}>{medication.name}</AppText>
+                        {medication.dosage ? (
+                          <AppText style={styles.todayMedicationDosage}>{medication.dosage}</AppText>
+                        ) : null}
+                        <AppText style={[styles.todayMedicationStatus, takenAt && styles.todayMedicationStatusTaken]}>
+                          {takenAt ? "✓ Taken today" : dueTime ? `Due at ${dueTime}` : "Due today"}
+                        </AppText>
+                      </View>
+                      {takenAt ? null : (
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => toggleMedicationTakenToday(medication.id)}
+                          style={({ pressed }) => [styles.todayMedicationButton, pressed && styles.takenButtonPressed]}
+                        >
+                          <AppText style={styles.todayMedicationButtonText}>Mark as taken</AppText>
+                        </Pressable>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+            {nextDueMedication && nextDueMedicationTime ? (
+              <AppText style={styles.summaryHint}>
+                Next due: {nextDueMedication.name} • {nextDueMedicationTime}
+              </AppText>
+            ) : null}
           </View>
 
           <View style={styles.summaryCard}>
@@ -1079,8 +1247,8 @@ export default function CareScreen() {
         <View style={styles.card}>
             <View style={styles.formHeader}>
               <View style={styles.formHeaderCopy}>
-                <AppText style={styles.title}>Medications</AppText>
-              <AppText style={styles.body}>Track current medications and mark what has been taken today.</AppText>
+                <AppText style={styles.title}>Today’s medications</AppText>
+              <AppText style={styles.body}>{formatMedicationTakenSummary(takenMedicationCount, activeMedications.length)}</AppText>
               </View>
             <AppButton
               label={showMedicationForm ? "Hide form" : "Add medication"}
@@ -1182,16 +1350,17 @@ export default function CareScreen() {
 
           {medicationMessage ? <AppText style={styles.successText}>{medicationMessage}</AppText> : null}
 
-          <AppText style={styles.sectionLabel}>Active medications</AppText>
+          <AppText style={styles.sectionLabel}>Medication list</AppText>
           {activeMedications.length === 0 ? (
             <View style={styles.emptyState}>
-              <AppText style={styles.body}>No active medications saved yet.</AppText>
+              <AppText style={styles.body}>No medications scheduled today.</AppText>
               <AppText style={styles.emptyHint}>Add a medication to track dosage, schedule, and today’s taken status.</AppText>
             </View>
           ) : (
             <View style={styles.list}>
               {activeMedications.map((medication) => {
                 const takenAt = medicationsTakenToday[medication.id];
+                const dueTime = getMedicationDueTimeLabel(medication);
 
                 return (
                 <View key={medication.id} style={[styles.itemCard, takenAt && styles.medicationTakenCard]}>
@@ -1208,12 +1377,17 @@ export default function CareScreen() {
                     </AppText>
                   </View>
                   {medication.notes ? <AppText style={styles.itemNotes}>{medication.notes}</AppText> : null}
+                  <View style={styles.medicationStatusRow}>
+                    <AppText style={[styles.medicationStatusText, takenAt && styles.medicationStatusTextTaken]}>
+                      {takenAt ? "✓ Taken today" : dueTime ? `Due at ${dueTime}` : "Take as needed"}
+                    </AppText>
+                  </View>
                   <View style={styles.adherenceRow}>
                     <View style={styles.itemHeaderCopy}>
                       <AppText style={styles.adherenceTitle}>
-                        {takenAt ? `Taken at ${formatTakenTime(takenAt)}` : "Not marked taken today"}
+                        {takenAt ? `Taken at ${formatTakenTime(takenAt)}` : dueTime ? `Next due: ${dueTime}` : "No fixed time"}
                       </AppText>
-                      <AppText style={styles.adherenceBody}>Today only. Edit the medication for schedule changes.</AppText>
+                      <AppText style={styles.adherenceBody}>Today only. Edit medication details for schedule changes.</AppText>
                     </View>
                     <Pressable
                       accessibilityRole="button"
@@ -1226,7 +1400,7 @@ export default function CareScreen() {
                       ]}
                     >
                       <AppText style={[styles.takenButtonText, takenAt && styles.takenButtonTextActive]}>
-                        {takenAt ? "Taken ✓" : "Taken"}
+                        {takenAt ? "Taken ✓" : "Mark as taken"}
                       </AppText>
                     </Pressable>
                   </View>
@@ -1564,6 +1738,55 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     lineHeight: 20,
   },
+  todayMedicationList: {
+    gap: 10,
+  },
+  todayMedicationRow: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    padding: 12,
+    gap: 10,
+  },
+  todayMedicationCopy: {
+    gap: 3,
+  },
+  todayMedicationName: {
+    color: "#1f2937",
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: "700",
+  },
+  todayMedicationDosage: {
+    color: "#4b5563",
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  todayMedicationStatus: {
+    color: "#9a4f14",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
+  },
+  todayMedicationStatusTaken: {
+    color: "#166534",
+  },
+  todayMedicationButton: {
+    alignSelf: "flex-start",
+    minHeight: 42,
+    justifyContent: "center",
+    borderRadius: 999,
+    backgroundColor: "#e8751a",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  todayMedicationButtonText: {
+    color: "#ffffff",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
+  },
   summaryEmptyTitle: {
     fontSize: 16,
     fontWeight: "700",
@@ -1869,6 +2092,21 @@ const styles = StyleSheet.create({
     color: "#4b5563",
     lineHeight: 21,
   },
+  medicationStatusRow: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    backgroundColor: "#fff7ed",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  medicationStatusText: {
+    color: "#9a4f14",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  medicationStatusTextTaken: {
+    color: "#166534",
+  },
   adherenceRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1897,7 +2135,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f7fbf7",
     paddingHorizontal: 14,
     paddingVertical: 10,
-    minWidth: 82,
+    minWidth: 118,
     alignItems: "center",
   },
   takenButtonActive: {

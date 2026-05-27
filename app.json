@@ -7,9 +7,10 @@
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.livewithms.app",
-      "buildNumber": "61",
+      "buildNumber": "62",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "LiveWithMS uses voice input so you can speak instead of typing.",
+        "NSPhotoLibraryUsageDescription": "LiveWithMS may access your photo library only when you choose to attach or upload an image.",
         "NSSpeechRecognitionUsageDescription": "LiveWithMS uses voice input so you can speak instead of typing."
       }
     },

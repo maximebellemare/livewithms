@@ -1157,7 +1157,7 @@ export default function GentleExercisesSection({
       <View style={styles.header}>
         <View style={styles.headerText}>
           <AppText style={styles.sectionTitle}>Exercises</AppText>
-          <AppText style={styles.sectionSubtitle}>Short cognitive and dexterity exercises.</AppText>
+          <AppText style={styles.sectionSubtitle}>Short cognitive and focus exercises.</AppText>
         </View>
         <AppText style={styles.usagePill}>{getUsageCopy(usage, hasPremiumAccess)}</AppText>
       </View>

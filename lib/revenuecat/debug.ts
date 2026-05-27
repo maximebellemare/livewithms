@@ -30,11 +30,18 @@ export type RevenueCatDebugSnapshot = {
   products: RevenueCatDebugProduct[];
   lastErrorCode: string | null;
   lastErrorMessage: string | null;
+  lastPurchaseErrorCode: string | null;
+  lastPurchaseErrorMessage: string | null;
+  lastRestoreResult: "active_entitlement" | "no_active_entitlement" | "failed" | null;
+  lastRestoreErrorCode: string | null;
+  lastRestoreErrorMessage: string | null;
   lastUnderlyingErrorMessage: string | null;
   customerInfoLoaded: boolean;
   activeEntitlementIdentifiers: string[];
   activeSubscriptionProductIdentifiers: string[];
   hasOriginalAppUserId: boolean;
+  originalAppUserId: string | null;
+  latestExpirationDate: string | null;
 };
 
 type RevenueCatDebugPackageLike = {
@@ -55,7 +62,7 @@ type RevenueCatDebugOfferingsLike = {
 
 type RevenueCatDebugCustomerInfoLike = {
   entitlements?: {
-    active?: Record<string, { identifier?: string | null }>;
+    active?: Record<string, { identifier?: string | null; expirationDate?: string | null }>;
   };
   activeSubscriptions?: string[] | null;
   originalAppUserId?: string | null;
@@ -96,11 +103,18 @@ export function createBaseRevenueCatDebugSnapshot(input: {
     products: [],
     lastErrorCode: null,
     lastErrorMessage: null,
+    lastPurchaseErrorCode: null,
+    lastPurchaseErrorMessage: null,
+    lastRestoreResult: null,
+    lastRestoreErrorCode: null,
+    lastRestoreErrorMessage: null,
     lastUnderlyingErrorMessage: null,
     customerInfoLoaded: false,
     activeEntitlementIdentifiers: [],
     activeSubscriptionProductIdentifiers: [],
     hasOriginalAppUserId: false,
+    originalAppUserId: null,
+    latestExpirationDate: null,
   };
 }
 
@@ -141,9 +155,14 @@ export function withRevenueCatCustomerInfo(
   snapshot: RevenueCatDebugSnapshot,
   customerInfo: RevenueCatDebugCustomerInfoLike | null,
 ) {
-  const activeEntitlements = Object.entries(customerInfo?.entitlements?.active ?? {}).map(
-    ([identifier, value]) => value?.identifier ?? identifier,
-  );
+  const activeEntitlementEntries = Object.entries(customerInfo?.entitlements?.active ?? {});
+  const activeEntitlements = activeEntitlementEntries.map(([identifier, value]) => value?.identifier ?? identifier);
+  const expirationTimes = activeEntitlementEntries
+    .map(([, value]) => value?.expirationDate ?? null)
+    .filter((value): value is string => Boolean(value))
+    .map((value) => ({ value, time: new Date(value).getTime() }))
+    .filter((entry) => Number.isFinite(entry.time))
+    .sort((a, b) => b.time - a.time);
 
   return {
     ...snapshot,
@@ -152,6 +171,8 @@ export function withRevenueCatCustomerInfo(
     activeEntitlementIdentifiers: activeEntitlements,
     activeSubscriptionProductIdentifiers: customerInfo?.activeSubscriptions ?? [],
     hasOriginalAppUserId: Boolean(customerInfo?.originalAppUserId),
+    originalAppUserId: customerInfo?.originalAppUserId ?? null,
+    latestExpirationDate: expirationTimes[0]?.value ?? null,
   };
 }
 

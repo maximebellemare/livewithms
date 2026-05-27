@@ -55,6 +55,10 @@ type CoachContext = {
   engagement_rhythm?: "light" | "steady" | "sporadic";
   recovery_rhythm?: "quick-reset" | "gradual-return" | "quiet-reentry";
   low_energy_mode?: boolean;
+  continuity_observations?: string[];
+  what_helped_before?: string[];
+  care_context?: string[];
+  suggested_support_actions?: string[];
 };
 
 type CoachMode = "reflect" | "calm" | "practical" | "encouragement";
@@ -88,6 +92,7 @@ Your role:
 - Sound calm, grounded, practical, emotionally safe, and easy to understand during cognitive fatigue.
 - Keep replies specific and useful. Prefer clear observations and actions over reflective prose.
 - Use recent patterns only when they genuinely make the reply more specific.
+- Use operational memory when helpful: recurring symptoms, what helped before, care context, and useful support tools.
 - Avoid generic wellness clichés, empty encouragement, repetitive reassurance, or ambient emotional commentary.
 
 Default response structure:
@@ -115,6 +120,7 @@ Safety boundaries:
 - Do not say you are always here, that you will stay with the user, or that you understand them deeply.
 - Do not mirror emotion at length or repeat reassurance in loops.
 - Do not over-reference conversation history or say "last time you said" unless it is truly necessary.
+- Do not imply deep emotional knowledge of the user. Frame memory as practical context: "recently," "has shown up," or "may fit today."
 
 Tone:
 - Calm
@@ -286,6 +292,30 @@ function normalizeContext(context?: Partial<CoachContext>): CoachContext {
         ? context.recovery_rhythm
         : "quiet-reentry",
     low_energy_mode: Boolean(context?.low_energy_mode),
+    continuity_observations: Array.isArray(context?.continuity_observations)
+      ? context.continuity_observations
+          .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+          .map((item) => truncateContent(item, 160))
+          .slice(0, 4)
+      : [],
+    what_helped_before: Array.isArray(context?.what_helped_before)
+      ? context.what_helped_before
+          .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+          .map((item) => truncateContent(item, 160))
+          .slice(0, 4)
+      : [],
+    care_context: Array.isArray(context?.care_context)
+      ? context.care_context
+          .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+          .map((item) => truncateContent(item, 160))
+          .slice(0, 3)
+      : [],
+    suggested_support_actions: Array.isArray(context?.suggested_support_actions)
+      ? context.suggested_support_actions
+          .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+          .map((item) => truncateContent(item, 120))
+          .slice(0, 4)
+      : [],
   };
 }
 
@@ -536,6 +566,28 @@ function buildPreferenceLine(context: CoachContext) {
   return parts.length ? `Personalization preferences: ${parts.join(". ")}.` : "";
 }
 
+function buildOperationalMemoryLine(context: CoachContext) {
+  const parts: string[] = [];
+
+  if (context.continuity_observations?.length) {
+    parts.push(`continuity observations: ${context.continuity_observations.join(" | ")}`);
+  }
+
+  if (context.what_helped_before?.length) {
+    parts.push(`what helped before: ${context.what_helped_before.join(" | ")}`);
+  }
+
+  if (context.care_context?.length) {
+    parts.push(`care context: ${context.care_context.join(" | ")}`);
+  }
+
+  if (context.suggested_support_actions?.length) {
+    parts.push(`support actions to consider: ${context.suggested_support_actions.join(" | ")}`);
+  }
+
+  return parts.length ? `Operational memory: ${parts.join(". ")}.` : "";
+}
+
 function buildResponseConstraintLine(context: CoachContext, message: string) {
   const lowEnergy = detectCoachLowEnergyMode({
     lowEnergyMode: context.low_energy_mode,
@@ -695,6 +747,7 @@ Deno.serve(async (req) => {
           buildAdaptiveLine(context),
           buildOnboardingProfileLine(context),
           buildPreferenceLine(context),
+          buildOperationalMemoryLine(context),
           buildResponseConstraintLine(context, message),
           buildRecentReflectionsLine(context),
         ])

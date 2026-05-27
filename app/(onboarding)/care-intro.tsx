@@ -1,40 +1,43 @@
 import { useRouter } from "expo-router";
-import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
-import { trackEvent } from "../../lib/events";
 import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
 
-export default function WelcomeScreen() {
-  const router = useRouter();
+const CARE_POINTS = [
+  "Medications and taken-today tracking",
+  "Appointments and preparation notes",
+  "Health summaries for care conversations",
+];
 
-  useEffect(() => {
-    void trackEvent("onboarding_started", {
-      step: "welcome",
-    });
-  }, []);
+export default function CareIntroScreen() {
+  const router = useRouter();
 
   return (
     <OnboardingScaffold
-      title="Support for daily life with MS."
-      subtitle="Track symptoms, understand patterns, and access practical daily support."
-      step={1}
+      title="Keep care information in one place."
+      subtitle="Track medications, appointments, and health summaries."
+      step={6}
       totalSteps={ONBOARDING_STEPS.length}
-      onNext={() => router.push("/symptoms")}
+      onBack={() => router.back()}
+      onNext={() => router.push("/plan")}
       nextLabel="Continue"
     >
       <View style={styles.stack}>
         <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>One place for tracking, support, care, and community.</AppText>
+          <AppText style={styles.heroTitle}>Less to hold in your head.</AppText>
           <AppText style={styles.heroBody}>
-            LiveWithMS is built to stay useful without asking you to manage everything at once.
+            Care tools keep practical health details easier to find when you need them.
           </AppText>
         </View>
 
-        <View style={styles.infoCard}>
-          <AppText style={styles.infoTitle}>Built for low-friction use</AppText>
-          <AppText style={styles.infoBody}>Start with a check-in. Add tools, care details, or community when they help.</AppText>
+        <View style={styles.listCard}>
+          {CARE_POINTS.map((point) => (
+            <View key={point} style={styles.listRow}>
+              <View style={styles.dot} />
+              <AppText style={styles.listText}>{point}</AppText>
+            </View>
+          ))}
         </View>
       </View>
     </OnboardingScaffold>
@@ -63,21 +66,29 @@ const styles = StyleSheet.create({
     color: "#4b5563",
     lineHeight: 22,
   },
-  infoCard: {
+  listCard: {
     backgroundColor: "#ffffff",
     borderRadius: 22,
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 6,
+    gap: 12,
   },
-  infoTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1f2937",
+  listRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
   },
-  infoBody: {
-    color: "#6b7280",
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    marginTop: 8,
+    backgroundColor: "#d98641",
+  },
+  listText: {
+    flex: 1,
+    color: "#4b5563",
     lineHeight: 22,
   },
 });

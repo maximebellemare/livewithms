@@ -147,8 +147,8 @@ export function derivePremiumPositioning(): PremiumPositioning {
     purchasePendingTitle: "Purchase needs a moment",
     restoreTitle: "Restore and billing",
     restoreButtonLabel: "Restore purchases",
-    restoreSuccessTitle: "Premium access is back in place",
-    restoreSuccessBody: "Your Premium access has been refreshed.",
+    restoreSuccessTitle: "Premium restored.",
+    restoreSuccessBody: "Premium restored.",
     restorePendingTitle: "Restore needs a moment",
     inactiveProfileBody:
       "The free core experience stays intact. Premium adds deeper support, longer-term summaries, and more low-energy help.",

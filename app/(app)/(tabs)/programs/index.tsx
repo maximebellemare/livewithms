@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { router } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Alert, Animated, Easing, Linking, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import GentleExercisesSection from "../../../../components/exercises/GentleExercisesSection";
@@ -147,6 +147,27 @@ const PROGRAM_TOOL_LABELS: Record<string, string> = {
   "sleep-decompression-flow": "Sleep recovery support",
   "everything-feels-too-hard": "Difficult day reset",
 };
+
+const TOOL_ID_ALIASES: Record<string, string> = {
+  "one-priority-planner": "one-priority-planner",
+  "one-priority": "one-priority-planner",
+  "priority-planner": "one-priority-planner",
+  "reduce-overwhelm": "reduce-overwhelm",
+  "brain-fog-support": "brain-fog-basics",
+  "brain-fog-basics": "brain-fog-basics",
+  "sleep-recovery-support": "sleep-decompression-flow",
+  "sleep-decompression-flow": "sleep-decompression-flow",
+  "fatigue-pacing-planner": "difficult-day-pacing-checklist",
+  "difficult-day-pacing-checklist": "difficult-day-pacing-checklist",
+};
+
+function resolveProgramToolId(toolId: string | null | undefined) {
+  if (!toolId) {
+    return null;
+  }
+
+  return TOOL_ID_ALIASES[toolId] ?? toolId;
+}
 
 type ProgramWorkflowQuestion = {
   id: string;
@@ -920,12 +941,18 @@ function deriveDifficultDayCue(answers: Record<string, string>) {
 }
 
 export default function ProgramsScreen() {
+  const params = useLocalSearchParams<{ section?: string; tool?: string }>();
+  const sectionParam = Array.isArray(params.section) ? params.section[0] : params.section;
+  const toolParam = Array.isArray(params.tool) ? params.tool[0] : params.tool;
+  const deepLinkKey = `${sectionParam ?? ""}:${toolParam ?? ""}`;
   const scrollRef = useRef<ScrollView>(null);
   const detailCardYRef = useRef(0);
+  const toolCardPositionsRef = useRef<Record<string, number>>({});
   const timerCardYRef = useRef(0);
   const exerciseSectionYRef = useRef(0);
   const shouldScrollToDetailRef = useRef(false);
   const shouldScrollToTimerRef = useRef(false);
+  const handledDeepLinkRef = useRef<string | null>(null);
   const breathingScale = useRef(new Animated.Value(0)).current;
   const lastBreathingPhaseRef = useRef<string | null>(null);
   const { user } = useAuth();
@@ -937,6 +964,7 @@ export default function ProgramsScreen() {
   const lowEnergyMode = useLowEnergyMode();
   const premium = usePremium();
   const programProgress = useProgramProgress();
+  const markOpenedRef = useRef(programProgress.markOpened);
   const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
   const [activeTimerId, setActiveTimerId] = useState<string | null>(null);
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
@@ -961,6 +989,10 @@ export default function ProgramsScreen() {
     () => getProgramModuleById(selectedTool?.moduleId),
     [selectedTool?.moduleId],
   );
+
+  useEffect(() => {
+    markOpenedRef.current = programProgress.markOpened;
+  }, [programProgress.markOpened]);
   const overviewEntries = useMemo(() => overviewQuery.data ?? [], [overviewQuery.data]);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const weeklyCheckIns = useMemo(
@@ -1120,7 +1152,8 @@ export default function ProgramsScreen() {
   );
 
   const openTool = (toolId: string | null | undefined) => {
-    const tool = getProgramToolById(toolId);
+    const resolvedToolId = resolveProgramToolId(toolId);
+    const tool = getProgramToolById(resolvedToolId);
 
     if (!tool) {
       if (__DEV__) {
@@ -1134,6 +1167,50 @@ export default function ProgramsScreen() {
     setSelectedToolId(tool.id);
     void programProgress.markOpened(tool.id);
   };
+
+  const scrollToSelectedToolDetail = useCallback(() => {
+    const scrollToDetail = (retry = true) => {
+      const targetY = detailCardYRef.current;
+
+      if (targetY > 0) {
+        scrollRef.current?.scrollTo({
+          y: Math.max(targetY - 20, 0),
+          animated: true,
+        });
+        return;
+      }
+
+      if (retry) {
+        setTimeout(() => scrollToDetail(false), 250);
+      }
+    };
+
+    requestAnimationFrame(() => {
+      setTimeout(scrollToDetail, 80);
+    });
+  }, []);
+
+  const scrollToToolCard = useCallback((toolId: string) => {
+    const scrollToCard = (retry = true) => {
+      const targetY = toolCardPositionsRef.current[toolId];
+
+      if (typeof targetY === "number") {
+        scrollRef.current?.scrollTo({
+          y: Math.max(targetY - 16, 0),
+          animated: true,
+        });
+        return;
+      }
+
+      if (retry) {
+        setTimeout(() => scrollToCard(false), 250);
+      }
+    };
+
+    requestAnimationFrame(() => {
+      setTimeout(scrollToCard, 80);
+    });
+  }, []);
   const sleepRecoverySupport = useMemo(
     () =>
       deriveSleepRecoverySupport({
@@ -1353,6 +1430,55 @@ export default function ProgramsScreen() {
       lowEnergyAssist.active,
     ],
   );
+
+  useEffect(() => {
+    if (__DEV__) {
+      console.log("[programs-deeplink]", { sectionParam, toolParam });
+    }
+
+    if (sectionParam !== "exercises") {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      scrollRef.current?.scrollTo({
+        y: Math.max(exerciseSectionYRef.current - 20, 0),
+        animated: true,
+      });
+    }, 350);
+
+    return () => clearTimeout(timeoutId);
+  }, [sectionParam, toolParam]);
+
+  useEffect(() => {
+    const resolvedToolId = resolveProgramToolId(toolParam);
+
+    if (!resolvedToolId) {
+      handledDeepLinkRef.current = null;
+      return;
+    }
+
+    const tool = getProgramToolById(resolvedToolId);
+    if (!tool) {
+      if (__DEV__) {
+        console.warn("This tool could not open right now.", { toolId: toolParam, resolvedToolId });
+      }
+      return;
+    }
+
+    if (handledDeepLinkRef.current === deepLinkKey && selectedToolId === tool.id) {
+      return;
+    }
+
+    shouldScrollToDetailRef.current = true;
+    handledDeepLinkRef.current = deepLinkKey;
+    if (selectedToolId !== tool.id) {
+      setSelectedToolId(tool.id);
+    }
+    scrollToToolCard(tool.id);
+    scrollToSelectedToolDetail();
+    void markOpenedRef.current(tool.id);
+  }, [deepLinkKey, scrollToSelectedToolDetail, scrollToToolCard, selectedToolId, toolParam]);
 
   useEffect(() => {
     if (!activeTimerId || secondsRemaining === null) {
@@ -2125,6 +2251,9 @@ export default function ProgramsScreen() {
     return (
       <Pressable
         key={tool.id}
+        onLayout={(event) => {
+          toolCardPositionsRef.current[tool.id] = event.nativeEvent.layout.y;
+        }}
         onPress={() => {
           if (isLocked) {
             router.push("/premium?source=programs");
@@ -2174,12 +2303,18 @@ export default function ProgramsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.section}>
+          <View style={styles.sectionHeaderText}>
+            <AppText style={styles.sectionTitle}>Support tools</AppText>
+          </View>
           <View style={styles.sectionList}>{freeProgramTools.map((tool) => renderToolCard(tool))}</View>
         </View>
 
-        <View onLayout={(event) => {
-          exerciseSectionYRef.current = event.nativeEvent.layout.y;
-        }}>
+        <View
+          style={styles.sectionBreak}
+          onLayout={(event) => {
+            exerciseSectionYRef.current = event.nativeEvent.layout.y;
+          }}
+        >
           <GentleExercisesSection
             hasPremiumAccess={premium.hasPremiumAccess}
             lowEnergyMode={adaptiveProfile.lowEnergyMode || lowEnergyAssist.active}
@@ -3707,7 +3842,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   section: {
-    gap: 10,
+    gap: 14,
+  },
+  sectionBreak: {
+    marginTop: 8,
   },
   sectionHeaderRow: {
     flexDirection: "row",
