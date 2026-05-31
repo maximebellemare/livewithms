@@ -10,10 +10,14 @@ export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
   minute: APP_CONFIG.reminders.defaultMinute,
   permissionStatus: "unknown",
   notificationId: null,
+  dailyCheckInRemindersEnabled: true,
   medicationRemindersEnabled: true,
   appointmentRemindersEnabled: true,
   appointmentReminderOneDay: true,
   appointmentReminderOneHour: true,
+  communityReplyNotificationsEnabled: true,
+  communityReactionNotificationsEnabled: true,
+  communityRecentActivityNotificationsEnabled: false,
   quietReminders: true,
 };
 

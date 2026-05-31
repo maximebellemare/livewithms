@@ -19,7 +19,7 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.8</string>
+    <string>1.1.0</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
@@ -33,7 +33,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>62</string>
+    <string>66</string>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>
@@ -45,10 +45,12 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSCameraUsageDescription</key>
+    <string>LiveWithMS uses the camera when you choose to take a food photo for nutrition analysis.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>LiveWithMS uses voice input so you can speak instead of typing.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>LiveWithMS may access your photo library only when you choose to attach or upload an image.</string>
+    <string>LiveWithMS accesses your photo library only when you choose to upload a food image.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>LiveWithMS uses voice input so you can speak instead of typing.</string>
     <key>UILaunchStoryboardName</key>

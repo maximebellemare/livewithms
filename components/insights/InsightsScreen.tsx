@@ -199,6 +199,7 @@ import { usePremium } from "../../features/premium/hooks";
 import { derivePremiumAdaptiveSupport } from "../../features/premium/adaptive-support";
 import { deriveLowEnergyAssist } from "../../features/premium/low-energy-assist";
 import BestWorstDayInsightCard from "./BestWorstDayInsightCard";
+import MiniTrendChart from "./MiniTrendChart";
 import { getErrorMessage } from "../../lib/errors";
 import CorrelationCard from "./CorrelationCard";
 import TrendSummaryCard from "./TrendSummaryCard";
@@ -210,6 +211,7 @@ import LoadingState from "../ui/LoadingState";
 import { exportHealthSummary } from "../../lib/exportHealthSummary";
 import { trackInsightFeedback } from "../../lib/events";
 import { trackRetryTriggered } from "../../lib/events";
+import type { TrendPoint } from "../../features/insights/types";
 import { useSlowScreenDiagnostics } from "../../lib/observability";
 import { deriveCognitiveBurden } from "../../lib/cognitive-simplification/cognitive-load/deriveCognitiveBurden";
 import { deriveDecisionLoad } from "../../lib/cognitive-simplification/cognitive-load/deriveDecisionLoad";
@@ -611,8 +613,8 @@ function getMetricDirection(metric: InsightMetricKey, current: number | null, pr
   return `${direction} ${label}.`;
 }
 
-function getMetricValueLabel(metric: InsightMetricKey, value: number | null, range: 7 | 30) {
-  const timeframe = range === 7 ? "this week" : "this month";
+function getMetricValueLabel(metric: InsightMetricKey, value: number | null, range: 7 | 30 | 90) {
+  const timeframe = range === 7 ? "this week" : range === 30 ? "this month" : "this period";
 
   if (value === null) {
     return `No average ${timeframe}`;
@@ -623,6 +625,18 @@ function getMetricValueLabel(metric: InsightMetricKey, value: number | null, ran
   }
 
   return `${Math.round(value * 10) / 10} / 5 average ${timeframe}`;
+}
+
+function getRangeAverageTitle(range: 7 | 30 | 90) {
+  if (range === 7) {
+    return "Weekly averages";
+  }
+
+  if (range === 30) {
+    return "Monthly averages";
+  }
+
+  return "90-day averages";
 }
 
 function InsightMetricRow({
@@ -636,7 +650,7 @@ function InsightMetricRow({
   metric: InsightMetricKey;
   currentEntries: DailyCheckIn[];
   previousEntries: DailyCheckIn[];
-  range: 7 | 30;
+  range: 7 | 30 | 90;
 }) {
   const currentAverage = getAverageForMetric(currentEntries, metric);
   const previousAverage = getAverageForMetric(previousEntries, metric);
@@ -700,6 +714,512 @@ function averageMetric(values: Array<number | null>) {
   }
 
   return valid.reduce((sum, value) => sum + value, 0) / valid.length;
+}
+
+type VisualInsightCard = {
+  key: string;
+  title: string;
+  subtitle: string;
+  points: TrendPoint[];
+  maxValue: number;
+  color: string;
+  interpretation: string;
+  lowDataMessage?: string;
+  summary: {
+    primaryLabel: string;
+    primaryValue: string;
+    secondaryLabel: string;
+    secondaryValue: string;
+    trendLabel: string;
+    trendDirection: "up" | "down" | "flat" | "none";
+  };
+};
+
+type VisualInsightGroup = {
+  title: string;
+  helper: string;
+  cards: VisualInsightCard[];
+};
+
+function formatVisualPointLabel(date: string) {
+  const [, month, day] = date.split("-");
+  return `${Number(month)}/${Number(day)}`;
+}
+
+function getTodayDateString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function roundToOneDecimal(value: number | null) {
+  if (value === null) {
+    return null;
+  }
+
+  return Math.round(value * 10) / 10;
+}
+
+function getRecentEntries(entries: DailyCheckIn[], count: number) {
+  return entries
+    .slice()
+    .sort((left, right) => right.date.localeCompare(left.date))
+    .slice(0, count);
+}
+
+function getPreviousEntries(entries: DailyCheckIn[], count: number) {
+  return entries
+    .slice()
+    .sort((left, right) => right.date.localeCompare(left.date))
+    .slice(count, count * 2);
+}
+
+function getLatestNumericEntry(entries: DailyCheckIn[], getValue: (entry: DailyCheckIn) => number | null) {
+  return entries
+    .slice()
+    .sort((left, right) => right.date.localeCompare(left.date))
+    .find((entry) => typeof getValue(entry) === "number") ?? null;
+}
+
+function getTrendSummary(current: number | null, previous: number | null, threshold: number) {
+  if (current === null || previous === null) {
+    return {
+      label: "More check-ins will make this trend clearer.",
+      direction: "none" as const,
+    };
+  }
+
+  const difference = current - previous;
+  if (Math.abs(difference) < threshold) {
+    return {
+      label: "→ similar to last week",
+      direction: "flat" as const,
+    };
+  }
+
+  return difference > 0
+    ? {
+        label: "↑ higher than last week",
+        direction: "up" as const,
+      }
+    : {
+        label: "↓ lower than last week",
+        direction: "down" as const,
+      };
+}
+
+function formatNumericSummaryValue(key: string, value: number | null, maxValue: number) {
+  if (value === null) {
+    return "—";
+  }
+
+  const rounded = roundToOneDecimal(value);
+  if (key === "sleep") {
+    return `${rounded} hours`;
+  }
+
+  if (key === "water") {
+    return `${rounded} glasses`;
+  }
+
+  return `${rounded} / ${maxValue}`;
+}
+
+function formatFrequencySummaryValue(count: number, total: number) {
+  if (total <= 0) {
+    return "—";
+  }
+
+  return `${count} of ${total} days`;
+}
+
+function sampleTrendPoints(entries: DailyCheckIn[], range: 7 | 30 | 90, getValue: (entry: DailyCheckIn) => number | null) {
+  const sorted = entries.slice().sort((left, right) => left.date.localeCompare(right.date));
+  const maxPoints = range === 7 ? 7 : 12;
+  const stride = Math.max(1, Math.ceil(sorted.length / maxPoints));
+
+  return sorted
+    .filter((_, index) => index % stride === 0 || index === sorted.length - 1)
+    .slice(-maxPoints)
+    .map((entry) => ({
+      label: formatVisualPointLabel(entry.date),
+      value: getValue(entry),
+    }));
+}
+
+function hasAnySymptom(entry: DailyCheckIn) {
+  return Boolean(
+    (entry.symptom_tags?.length ?? 0) > 0 ||
+      (entry.pain ?? 0) >= 3 ||
+      (entry.brain_fog ?? 0) >= 3 ||
+      (entry.mobility ?? 0) >= 3 ||
+      (entry.spasticity ?? 0) >= 3,
+  );
+}
+
+function hasLoggedArray(value: string[] | null | undefined) {
+  return Array.isArray(value) && value.length > 0;
+}
+
+function countLoggedValues(entries: DailyCheckIn[], getValue: (entry: DailyCheckIn) => number | null) {
+  return entries.filter((entry) => typeof getValue(entry) === "number").length;
+}
+
+function hasEnoughVisualData(entries: DailyCheckIn[], getValue: (entry: DailyCheckIn) => number | null) {
+  return countLoggedValues(entries, getValue) >= 2;
+}
+
+function getLowDataMessage(entries: DailyCheckIn[], getValue: (entry: DailyCheckIn) => number | null) {
+  return hasEnoughVisualData(entries, getValue) ? undefined : "More entries will make this pattern clearer.";
+}
+
+function getVisualInsightLines(entries: DailyCheckIn[]) {
+  const averageStress = averageMetric(entries.map((entry) => entry.stress));
+  const averageFatigue = averageMetric(entries.map((entry) => entry.fatigue));
+  const averageSleep = averageMetric(entries.map((entry) => entry.sleep_hours));
+  const brainFogDays = entries.filter((entry) => (entry.brain_fog ?? 0) >= 3).length;
+  const symptomDays = entries.filter(hasAnySymptom).length;
+  const lines: string[] = [];
+
+  if (averageStress !== null && averageFatigue !== null && averageStress >= 3.6 && averageFatigue >= 3.4) {
+    lines.push("Stress and fatigue have both been higher in this range. Smaller plans may help reduce recovery strain.");
+  }
+
+  if (averageSleep !== null && averageFatigue !== null && averageSleep < 6.5 && averageFatigue >= 3.2) {
+    lines.push("Shorter sleep has overlapped with higher fatigue. Protecting rest tonight may help tomorrow.");
+  }
+
+  if (brainFogDays >= Math.max(2, Math.ceil(entries.length * 0.3))) {
+    lines.push("Brain fog showed up on several check-ins. Reducing decisions may help thinking feel less effortful.");
+  }
+
+  if (symptomDays >= Math.max(2, Math.ceil(entries.length * 0.45))) {
+    lines.push("Symptoms appeared on many tracked days. Keeping workload flexible may help protect recovery.");
+  }
+
+  if (!lines.length) {
+    lines.push("These charts are a starting point. More check-ins make the patterns more personal over time.");
+  }
+
+  return lines.slice(0, 2);
+}
+
+function buildNumericVisualCard(input: {
+  entries: DailyCheckIn[];
+  previousEntries: DailyCheckIn[];
+  range: 7 | 30 | 90;
+  key: string;
+  title: string;
+  subtitle: string;
+  maxValue: number;
+  color: string;
+  interpretation: string;
+  getValue: (entry: DailyCheckIn) => number | null;
+}): VisualInsightCard {
+  const recentSeven = getRecentEntries(input.entries, 7);
+  const previousSeven = getPreviousEntries(input.entries, 7);
+  const latestEntry = getLatestNumericEntry(input.entries, input.getValue);
+  const latestValue = latestEntry ? input.getValue(latestEntry) : null;
+  const currentAverage = averageMetric(recentSeven.map((entry) => input.getValue(entry)));
+  const previousAverage = averageMetric(
+    (previousSeven.length > 0 ? previousSeven : input.previousEntries.slice(0, 7)).map((entry) => input.getValue(entry)),
+  );
+  const trend = getTrendSummary(currentAverage, previousAverage, input.key === "sleep" ? 0.4 : 0.25);
+  const primaryLabel =
+    input.key === "sleep"
+      ? latestEntry?.date === getTodayDateString()
+        ? "Last night"
+        : "Latest"
+      : latestEntry?.date === getTodayDateString()
+        ? "Today"
+        : "Latest";
+
+  return {
+    key: input.key,
+    title: input.title,
+    subtitle: input.subtitle,
+    points: sampleTrendPoints(input.entries, input.range, input.getValue),
+    maxValue: input.maxValue,
+    color: input.color,
+    interpretation: input.interpretation,
+    lowDataMessage: getLowDataMessage(input.entries, input.getValue),
+    summary: {
+      primaryLabel,
+      primaryValue: formatNumericSummaryValue(input.key, latestValue, input.maxValue),
+      secondaryLabel: "7-day average",
+      secondaryValue: formatNumericSummaryValue(input.key, currentAverage, input.maxValue),
+      trendLabel: trend.label,
+      trendDirection: trend.direction,
+    },
+  };
+}
+
+function buildFrequencyVisualCard(input: {
+  entries: DailyCheckIn[];
+  previousEntries: DailyCheckIn[];
+  range: 7 | 30 | 90;
+  key: string;
+  title: string;
+  subtitle: string;
+  color: string;
+  interpretation: string;
+  isPresent: (entry: DailyCheckIn) => boolean;
+}): VisualInsightCard {
+  const getValue = (entry: DailyCheckIn) => (input.isPresent(entry) ? 1 : 0);
+  const presentCount = input.entries.filter(input.isPresent).length;
+  const recentSeven = getRecentEntries(input.entries, 7);
+  const previousSeven = getPreviousEntries(input.entries, 7);
+  const currentCount = recentSeven.filter(input.isPresent).length;
+  const previousCount = (previousSeven.length > 0 ? previousSeven : input.previousEntries.slice(0, 7)).filter(input.isPresent).length;
+  const trend = getTrendSummary(
+    recentSeven.length > 0 ? currentCount / recentSeven.length : null,
+    previousSeven.length > 0 || input.previousEntries.length > 0
+      ? previousCount / Math.max((previousSeven.length > 0 ? previousSeven : input.previousEntries.slice(0, 7)).length, 1)
+      : null,
+    0.1,
+  );
+
+  return {
+    key: input.key,
+    title: input.title,
+    subtitle: input.subtitle,
+    points: sampleTrendPoints(input.entries, input.range, getValue),
+    maxValue: 1,
+    color: input.color,
+    interpretation: input.interpretation,
+    lowDataMessage: input.entries.length >= 2 && presentCount > 0 ? undefined : "More entries will make this pattern clearer.",
+    summary: {
+      primaryLabel: "Days logged",
+      primaryValue: formatFrequencySummaryValue(currentCount, recentSeven.length),
+      secondaryLabel: "Previous 7 days",
+      secondaryValue: formatFrequencySummaryValue(previousCount, (previousSeven.length > 0 ? previousSeven : input.previousEntries.slice(0, 7)).length),
+      trendLabel: trend.label,
+      trendDirection: trend.direction,
+    },
+  };
+}
+
+function getSymptomTagCards(entries: DailyCheckIn[], previousEntries: DailyCheckIn[], range: 7 | 30 | 90) {
+  const trackedTags = ["numbness", "vision", "balance", "bladder"] as const;
+
+  return trackedTags.map((tag) =>
+    buildFrequencyVisualCard({
+      entries,
+      previousEntries,
+      range,
+      key: `symptom-${tag}`,
+      title: `${tag.charAt(0).toUpperCase()}${tag.slice(1)} frequency`,
+      subtitle: "Selected symptom days",
+      color: "#92400e",
+      interpretation: `${tag.charAt(0).toUpperCase()}${tag.slice(1)} entries can help show when this signal is more noticeable.`,
+      isPresent: (entry) => (entry.symptom_tags ?? []).some((symptom) => symptom.toLowerCase().includes(tag)),
+    }),
+  );
+}
+
+function buildVisualInsightGroups(entries: DailyCheckIn[], previousEntries: DailyCheckIn[], range: 7 | 30 | 90): VisualInsightGroup[] {
+  return [
+    {
+      title: "Energy & mood",
+      helper: "Core check-in signals from the daily basics.",
+      cards: [
+        buildNumericVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "fatigue",
+          title: "Fatigue trend",
+          subtitle: "Energy load",
+          maxValue: 5,
+          color: "#d97706",
+          interpretation: "If fatigue rises, lighter plans and recovery spacing may help.",
+          getValue: (entry) => entry.fatigue,
+        }),
+        buildNumericVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "mood",
+          title: "Mood trend",
+          subtitle: "Daily mood",
+          maxValue: 5,
+          color: "#16a34a",
+          interpretation: "Mood shifts can add useful context to stress and recovery.",
+          getValue: (entry) => entry.mood,
+        }),
+        buildNumericVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "stress",
+          title: "Stress trend",
+          subtitle: "Pressure level",
+          maxValue: 5,
+          color: "#ef7d32",
+          interpretation: "Higher stress can make fatigue and sleep patterns worth watching.",
+          getValue: (entry) => entry.stress,
+        }),
+        buildNumericVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "sleep",
+          title: "Sleep consistency",
+          subtitle: "Hours logged",
+          maxValue: 10,
+          color: "#2563eb",
+          interpretation: "Less consistent sleep can make recovery feel harder to predict.",
+          getValue: (entry) => entry.sleep_hours,
+        }),
+      ],
+    },
+    {
+      title: "Body signals",
+      helper: "Optional body details from expanded check-ins.",
+      cards: [
+        buildNumericVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "pain",
+          title: "Pain trend",
+          subtitle: "Body discomfort",
+          maxValue: 5,
+          color: "#dc2626",
+          interpretation: "Pain changes can help explain energy and stress shifts.",
+          getValue: (entry) => entry.pain,
+        }),
+        buildNumericVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "brain-fog",
+          title: "Brain fog trend",
+          subtitle: "Thinking clarity",
+          maxValue: 5,
+          color: "#7c3aed",
+          interpretation: "Higher brain fog can be a cue to simplify decisions.",
+          getValue: (entry) => entry.brain_fog,
+        }),
+        buildNumericVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "mobility",
+          title: "Mobility trend",
+          subtitle: "Movement difficulty",
+          maxValue: 5,
+          color: "#0f766e",
+          interpretation: "Mobility changes can help guide workload and recovery expectations.",
+          getValue: (entry) => entry.mobility,
+        }),
+        buildNumericVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "spasticity",
+          title: "Spasticity trend",
+          subtitle: "Muscle tightness",
+          maxValue: 5,
+          color: "#be123c",
+          interpretation: "Spasticity patterns can add context to sleep, stress, and movement days.",
+          getValue: (entry) => entry.spasticity ?? null,
+        }),
+        buildFrequencyVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "symptoms",
+          title: "Symptom frequency",
+          subtitle: "Tracked symptom days",
+          color: "#b45309",
+          interpretation: "More symptom days may call for flexible expectations.",
+          isPresent: hasAnySymptom,
+        }),
+        ...getSymptomTagCards(entries, previousEntries, range),
+      ],
+    },
+    {
+      title: "Habits & notes",
+      helper: "Supportive context around hydration, notes, and logged tags.",
+      cards: [
+        buildNumericVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "water",
+          title: "Water intake",
+          subtitle: "Glasses logged",
+          maxValue: 10,
+          color: "#0284c7",
+          interpretation: "Hydration context can help compare fatigue and recovery days.",
+          getValue: (entry) => entry.water_glasses,
+        }),
+        buildFrequencyVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "reflection-notes",
+          title: "Reflection notes",
+          subtitle: "Days with notes",
+          color: "#a16207",
+          interpretation: "Notes add context that can make future patterns easier to understand.",
+          isPresent: (entry) => typeof entry.notes === "string" && entry.notes.trim().length > 0,
+        }),
+        buildFrequencyVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "mood-tags",
+          title: "Mood tags",
+          subtitle: "Days with mood tags",
+          color: "#65a30d",
+          interpretation: "Mood tags can explain why mood changed beyond the number alone.",
+          isPresent: (entry) => hasLoggedArray(entry.mood_tags),
+        }),
+        buildFrequencyVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "trigger-tags",
+          title: "Triggers logged",
+          subtitle: "Days with triggers",
+          color: "#c2410c",
+          interpretation: "Trigger notes can help connect stress, symptoms, and workload.",
+          isPresent: (entry) => hasLoggedArray(entry.triggers),
+        }),
+        buildFrequencyVisualCard({
+          entries,
+          previousEntries,
+          range,
+          key: "wins",
+          title: "Wins logged",
+          subtitle: "Days with useful notes",
+          color: "#15803d",
+          interpretation: "Wins can help show what supports easier days.",
+          isPresent: (entry) => hasLoggedArray(entry.wins),
+        }),
+      ],
+    },
+  ];
+}
+
+function getDefaultVisualCards(groups: VisualInsightGroup[]) {
+  return groups
+    .flatMap((group) => group.cards)
+    .filter((card) => ["fatigue", "stress", "sleep"].includes(card.key));
+}
+
+function getVisibleVisualGroups(groups: VisualInsightGroup[], showAll: boolean) {
+  if (!showAll) {
+    return [
+      {
+        title: "Quick view",
+        helper: "The clearest starting points for today.",
+        cards: getDefaultVisualCards(groups),
+      },
+    ];
+  }
+
+  return groups;
 }
 
 function countFollowedBy(
@@ -2394,7 +2914,7 @@ export default function InsightsScreen() {
   const { user } = useAuth();
   const lowEnergyMode = useLowEnergyMode();
   const premium = usePremium();
-  const [range, setRange] = useState<7 | 30>(7);
+  const [range, setRange] = useState<7 | 30 | 90>(7);
   const [showVisualDetails, setShowVisualDetails] = useState(false);
   const [showAiDetails, setShowAiDetails] = useState(false);
   const [showMonthlyReflection, setShowMonthlyReflection] = useState(false);
@@ -2403,7 +2923,7 @@ export default function InsightsScreen() {
   const [isSharingContinuitySummary, setIsSharingContinuitySummary] = useState(false);
   const [isExportingContinuityPdf, setIsExportingContinuityPdf] = useState(false);
   const [continuityFeedback, setContinuityFeedback] = useState<string | null>(null);
-  const historyQuery = useCheckInHistory(user?.id, 60);
+  const historyQuery = useCheckInHistory(user?.id, 90);
   const growth = useGrowthState({
     totalCheckIns: historyQuery.data?.length ?? 0,
   });
@@ -2437,9 +2957,10 @@ export default function InsightsScreen() {
     [historyQuery.data],
   );
 
+  const insightRange = range === 90 ? 30 : range;
   const patternSummaryQuery = usePatternSummary(rangeEntries, range);
-  const aiSummaryQuery = useAiInsightsSummary(rangeEntries, range);
-  const dashboard = useInsightsDashboard(historyQuery.data ?? [], patternSummaryQuery.data, range);
+  const aiSummaryQuery = useAiInsightsSummary(rangeEntries, insightRange);
+  const dashboard = useInsightsDashboard(historyQuery.data ?? [], patternSummaryQuery.data, insightRange);
   const concreteSnapshot = useMemo(
     () => buildTrackClaritySnapshot(rangeEntries),
     [rangeEntries],
@@ -2458,6 +2979,23 @@ export default function InsightsScreen() {
     () => buildPatternIntelligence(rangeEntries, range),
     [rangeEntries, range],
   );
+  const previousRangeEntries = useMemo(() => {
+    const entries = historyQuery.data ?? [];
+    const sorted = entries.slice().sort((left, right) => right.date.localeCompare(left.date));
+    return sorted.slice(range, range * 2);
+  }, [historyQuery.data, range]);
+  const visualInsightGroups = useMemo(
+    () => buildVisualInsightGroups(rangeEntries, previousRangeEntries, range),
+    [previousRangeEntries, range, rangeEntries],
+  );
+  const visibleVisualInsightGroups = useMemo(
+    () => getVisibleVisualGroups(visualInsightGroups, showVisualDetails),
+    [showVisualDetails, visualInsightGroups],
+  );
+  const visualInsightLines = useMemo(
+    () => getVisualInsightLines(rangeEntries),
+    [rangeEntries],
+  );
   const pacingRecoveryIntelligence = useMemo(
     () =>
       derivePacingRecoveryIntelligence({
@@ -2466,11 +3004,6 @@ export default function InsightsScreen() {
       }),
     [historyQuery.data, premium.hasPremiumAccess],
   );
-  const previousRangeEntries = useMemo(() => {
-    const entries = historyQuery.data ?? [];
-    const sorted = entries.slice().sort((left, right) => right.date.localeCompare(left.date));
-    return sorted.slice(range, range * 2);
-  }, [historyQuery.data, range]);
   const premiumPatternSections = useMemo(
     () =>
       buildPremiumPatternSections(
@@ -4010,10 +4543,10 @@ export default function InsightsScreen() {
           <AppText style={styles.heroBody}>{patternIntelligence.summary}</AppText>
           <AppText style={styles.heroNote}>{patternIntelligence.progressionMessage}</AppText>
           <View style={styles.rangeToggle}>
-            {[7, 30].map((option) => (
+            {[7, 30, 90].map((option) => (
               <Pressable
                 key={option}
-                onPress={() => setRange(option as 7 | 30)}
+                onPress={() => setRange(option as 7 | 30 | 90)}
                 style={({ pressed }) => [
                   styles.rangeOption,
                   range === option && styles.rangeOptionActive,
@@ -4060,6 +4593,82 @@ export default function InsightsScreen() {
           </View>
         ) : (
           <>
+            <View style={styles.visualPatternsCard}>
+              <View style={styles.visualPatternsHeader}>
+                <View style={styles.expandHeaderCopy}>
+                  <AppText style={styles.takeawayTitle}>Visual patterns</AppText>
+                  <AppText style={styles.sectionBody}>Simple trends for every tracked check-in field.</AppText>
+                </View>
+                <Pressable
+                  onPress={() => setShowVisualDetails((current) => !current)}
+                  style={({ pressed }) => [styles.visualDetailsButton, pressed && styles.rangeOptionPressed]}
+                >
+                  <AppText style={styles.expandLabel}>{showVisualDetails ? "Show less" : "Show all"}</AppText>
+                </Pressable>
+              </View>
+
+              <View style={styles.whatThisMeansCard}>
+                <AppText style={styles.helpingTitle}>What this may mean</AppText>
+                {visualInsightLines.map((line) => (
+                  <View key={line} style={styles.helpingRow}>
+                    <AppText style={styles.helpingBullet}>•</AppText>
+                    <AppText style={styles.helpingText}>{line}</AppText>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.visualGroupList}>
+                {visibleVisualInsightGroups.map((group) => (
+                  <View key={group.title} style={styles.visualGroup}>
+                    <View style={styles.visualGroupHeader}>
+                      <AppText style={styles.visualGroupTitle}>{group.title}</AppText>
+                      <AppText style={styles.visualGroupHelper}>{group.helper}</AppText>
+                    </View>
+                    <View style={styles.visualTrendGrid}>
+                      {group.cards.map((card) => (
+                        <View key={card.key} style={styles.visualTrendCard}>
+                          <View style={styles.visualTrendHeader}>
+                            <View style={styles.expandHeaderCopy}>
+                              <AppText style={styles.visualTrendTitle}>{card.title}</AppText>
+                              <AppText style={styles.visualTrendSubtitle}>{card.subtitle}</AppText>
+                            </View>
+                          </View>
+                          <View style={styles.visualMetricSummaryCard}>
+                            <View style={styles.visualMetricSummaryRow}>
+                              <View style={styles.visualMetricSummaryItem}>
+                                <AppText style={styles.visualMetricSummaryLabel}>{card.summary.primaryLabel}</AppText>
+                                <AppText style={styles.visualMetricSummaryValue}>{card.summary.primaryValue}</AppText>
+                              </View>
+                              <View style={styles.visualMetricSummaryItem}>
+                                <AppText style={styles.visualMetricSummaryLabel}>{card.summary.secondaryLabel}</AppText>
+                                <AppText style={styles.visualMetricSummaryValue}>{card.summary.secondaryValue}</AppText>
+                              </View>
+                            </View>
+                            <AppText
+                              style={[
+                                styles.visualMetricTrend,
+                                card.summary.trendDirection === "up"
+                                  ? styles.visualMetricTrendUp
+                                  : card.summary.trendDirection === "down"
+                                    ? styles.visualMetricTrendDown
+                                    : styles.visualMetricTrendFlat,
+                              ]}
+                            >
+                              {card.summary.trendLabel}
+                            </AppText>
+                          </View>
+                          <MiniTrendChart points={card.points} color={card.color} maxValue={card.maxValue} />
+                          <AppText style={styles.visualTrendInterpretation}>
+                            {card.lowDataMessage ?? card.interpretation}
+                          </AppText>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+
             {patternIntelligence.sections
               .slice(0, lowEnergyMode.enabled ? 3 : patternIntelligence.sections.length)
               .map((section) => (
@@ -4143,7 +4752,7 @@ export default function InsightsScreen() {
             </View>
 
             <View style={styles.takeawayCard}>
-              <AppText style={styles.takeawayTitle}>{range === 7 ? "Weekly averages" : "Monthly averages"}</AppText>
+              <AppText style={styles.takeawayTitle}>{getRangeAverageTitle(range)}</AppText>
               <View style={styles.weeklySummaryMetrics}>
                 <InsightMetricRow
                   label="Fatigue"
@@ -4234,10 +4843,10 @@ export default function InsightsScreen() {
           </AppText>
 
           <View style={styles.rangeToggle}>
-            {[7, 30].map((option) => (
+            {[7, 30, 90].map((option) => (
               <Pressable
                 key={option}
-                onPress={() => setRange(option as 7 | 30)}
+                onPress={() => setRange(option as 7 | 30 | 90)}
                 style={({ pressed }) => [
                   styles.rangeOption,
                   range === option && styles.rangeOptionActive,
@@ -4283,7 +4892,7 @@ export default function InsightsScreen() {
         ) : null}
 
         <View style={styles.takeawayCard}>
-          <AppText style={styles.takeawayTitle}>{range === 7 ? "Weekly averages" : "Monthly averages"}</AppText>
+              <AppText style={styles.takeawayTitle}>{getRangeAverageTitle(range)}</AppText>
           <AppText style={styles.takeawayBody}>{dashboard.keyTakeaway.body}</AppText>
         </View>
 
@@ -4367,11 +4976,11 @@ export default function InsightsScreen() {
             <View style={styles.section}>
               <AppText style={styles.sectionTitle}>Recent observations</AppText>
               <AppText style={styles.sectionBody}>
-                A short read from this {range === 7 ? "week" : "month"}.
+                A short read from this {range === 7 ? "week" : range === 30 ? "month" : "90-day period"}.
               </AppText>
               <View style={styles.weeklySummaryCard}>
                 <AppText style={styles.weeklySummaryTitle}>
-                  {range === 7 ? "Weekly averages" : "Monthly averages"}
+                  {getRangeAverageTitle(range)}
                 </AppText>
                 <AppText style={styles.weeklySummaryBody}>{dashboard.weeklySummary.summary}</AppText>
                 <View style={styles.weeklySummaryMetrics}>
@@ -5630,6 +6239,136 @@ const styles = StyleSheet.create({
     borderColor: "#f1e1d4",
     padding: 18,
     gap: 8,
+  },
+  visualPatternsCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f1e1d4",
+    padding: 18,
+    gap: 14,
+  },
+  visualPatternsHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  visualDetailsButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#ead9cb",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  whatThisMeansCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  visualGroupList: {
+    gap: 16,
+  },
+  visualGroup: {
+    gap: 10,
+  },
+  visualGroupHeader: {
+    gap: 3,
+  },
+  visualGroupTitle: {
+    color: "#1f2937",
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "700",
+  },
+  visualGroupHelper: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  visualTrendGrid: {
+    gap: 12,
+  },
+  visualTrendCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 10,
+  },
+  visualTrendHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  visualTrendTitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  visualTrendSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#8b6a4f",
+  },
+  visualMetricSummaryCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  visualMetricSummaryRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  visualMetricSummaryItem: {
+    flex: 1,
+    minWidth: 120,
+    gap: 3,
+  },
+  visualMetricSummaryLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#8b6a4f",
+    fontWeight: "600",
+  },
+  visualMetricSummaryValue: {
+    fontSize: 16,
+    lineHeight: 22,
+    color: "#1f2937",
+    fontWeight: "700",
+  },
+  visualMetricTrend: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "600",
+  },
+  visualMetricTrendUp: {
+    color: "#b45309",
+  },
+  visualMetricTrendDown: {
+    color: "#2563eb",
+  },
+  visualMetricTrendFlat: {
+    color: "#6b7280",
+  },
+  visualTrendInterpretation: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 19,
   },
   progressCard: {
     backgroundColor: "#ffffff",

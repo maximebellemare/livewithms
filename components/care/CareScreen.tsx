@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { router } from "expo-router";
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Alert, Clipboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import * as ImagePicker from "expo-image-picker";
 import AppButton from "../ui/AppButton";
 import AppScreen from "../ui/AppScreen";
 import AppText from "../ui/AppText";
@@ -33,8 +34,21 @@ import type { Medication, MedicationInput } from "../../features/medications/typ
 import { getErrorMessage } from "../../lib/errors";
 import { logger } from "../../lib/logger";
 import { trackRetryTriggered } from "../../lib/events";
+import { useGrowthState } from "../../features/growth/hooks";
 import { useSlowScreenDiagnostics } from "../../lib/observability";
 import { useLowEnergyMode } from "../../features/low-energy-mode/hooks";
+import { usePremium } from "../../features/premium/hooks";
+import {
+  incrementFoodAnalysisUsage,
+  loadFoodAnalysisUsage,
+  loadNutritionPreferences,
+  loadSavedNutritionMeals,
+  removeSavedNutritionMeal,
+  saveNutritionMeal,
+  saveNutritionPreferences,
+  type SavedNutritionMeal,
+  type NutritionPreferences,
+} from "../../features/nutrition/storage";
 import {
   addCareNotificationResponseListener,
   cancelCareReminders,
@@ -60,6 +74,338 @@ const CARE_NOTE_CATEGORIES = [
   "Important changes",
   "Things helping",
 ] as const;
+
+const NUTRITION_FILTERS = [
+  "No preference",
+  "Vegetarian",
+  "Pescatarian",
+  "Dairy-free",
+  "Gluten-free",
+  "High-protein",
+  "Low-prep",
+  "No-cook options",
+  "Freezer-friendly",
+  "Family-friendly",
+  "Budget-friendly",
+] as const;
+
+const NUTRITION_BASICS = [
+  {
+    title: "Mediterranean-style eating",
+    body: "Vegetables, beans, whole grains, fish, olive oil, nuts, and fruit.",
+  },
+  {
+    title: "Anti-inflammatory-style foods",
+    body: "Colorful plants, fiber-rich foods, unsaturated fats, herbs, and minimally processed meals.",
+  },
+  {
+    title: "Vitamin D food sources",
+    body: "Salmon, sardines, egg yolks, fortified milk alternatives, and fortified cereals.",
+  },
+  {
+    title: "Omega-3 food sources",
+    body: "Fatty fish, chia, flax, walnuts, hemp seeds, and fortified options.",
+  },
+  {
+    title: "Hydration",
+    body: "Water, herbal tea, broths, fruit, and electrolyte drinks when useful.",
+  },
+  {
+    title: "Fiber and gut support",
+    body: "Beans, oats, lentils, berries, vegetables, seeds, and whole grains.",
+  },
+  {
+    title: "Low-energy meal prep",
+    body: "Use freezer staples, pre-washed produce, batch proteins, and repeatable easy meals.",
+  },
+] as const;
+
+const DIET_APPROACHES = [
+  {
+    title: "Mediterranean-style",
+    emphasizes: "Plants, fish, olive oil, beans, whole grains, nuts, and simple meals.",
+    difficult: "Fish, produce, and cooking time can be barriers.",
+    useful: "People who want a flexible, evidence-informed general wellness pattern.",
+  },
+  {
+    title: "Overcoming MS-style",
+    emphasizes: "Plant-forward meals, seafood, low saturated fat, and vitamin D awareness.",
+    difficult: "Can feel restrictive and may require planning, label reading, and dietitian support.",
+    useful: "People who prefer a structured framework and can make changes gradually.",
+  },
+  {
+    title: "Wahls-style",
+    emphasizes: "High vegetable intake, nutrient-dense foods, and fewer processed foods.",
+    difficult: "Can be demanding, restrictive, and difficult during fatigue or limited prep capacity.",
+    useful: "People who want a structured food template and have support for meal prep.",
+  },
+  {
+    title: "Plant-forward",
+    emphasizes: "More vegetables, beans, lentils, grains, nuts, seeds, and fruit.",
+    difficult: "Protein, B12, iron, and easy meal planning may need attention.",
+    useful: "People who want more plant meals without following a strict diet.",
+  },
+  {
+    title: "Gluten-free/dairy-free considerations",
+    emphasizes: "Removing gluten or dairy only when it clearly helps or is medically needed.",
+    difficult: "Can add cost, reduce convenience, and make eating harder if not necessary.",
+    useful: "People with diagnosed intolerance, allergy, celiac disease, or clinician guidance.",
+  },
+] as const;
+
+const LOW_ENERGY_MEALS = [
+  {
+    id: "tuna-bean-bowl",
+    title: "Tuna and white bean bowl",
+    category: "No-cook",
+    tags: ["Pescatarian", "High-protein", "Low-prep", "Budget-friendly"],
+    details: "Tuna, canned white beans, olive oil, lemon, greens, and whole-grain toast.",
+  },
+  {
+    id: "greek-yogurt-plate",
+    title: "Greek yogurt plate",
+    category: "10-minute",
+    tags: ["Vegetarian", "High-protein", "Low-prep", "Budget-friendly"],
+    details: "Greek yogurt, berries, walnuts, chia, and a slice of whole-grain toast.",
+  },
+  {
+    id: "hummus-plate",
+    title: "Hummus snack plate",
+    category: "No-cook",
+    tags: ["Vegetarian", "Dairy-free", "Low-prep", "Budget-friendly"],
+    details: "Hummus, pita, cucumber, carrots, olives, fruit, and boiled eggs if useful.",
+  },
+  {
+    id: "salmon-rice-freezer",
+    title: "Salmon rice freezer bowl",
+    category: "Freezer-friendly",
+    tags: ["Pescatarian", "Gluten-free", "High-protein"],
+    details: "Frozen salmon, ready-to-eat rice, frozen vegetables, olive oil, and yogurt dill sauce.",
+  },
+  {
+    id: "lentil-soup-batch",
+    title: "Lentil soup batch",
+    category: "Batch-cook",
+    tags: ["Vegetarian", "Dairy-free", "High-protein", "Budget-friendly"],
+    details: "Lentils, canned tomatoes, carrots, spinach, broth, and olive oil.",
+  },
+  {
+    id: "egg-avocado-toast",
+    title: "Egg and avocado toast",
+    category: "10-minute",
+    tags: ["Vegetarian", "High-protein", "Low-prep"],
+    details: "Eggs, avocado, whole-grain toast, fruit, and seeds.",
+  },
+  {
+    id: "tofu-stir-fry-kit",
+    title: "Tofu stir-fry kit",
+    category: "10-minute",
+    tags: ["Vegetarian", "Dairy-free", "High-protein", "Low-prep"],
+    details: "Pre-cubed tofu, frozen vegetables, ready-to-eat rice, and simple sauce.",
+  },
+] as const;
+
+const FREE_SAMPLE_MEAL_PLAN = {
+  title: "1-day sample meal plan",
+  meals: [
+    "Breakfast: Greek yogurt, berries, chia, walnuts, and oats.",
+    "Lunch: Tuna or chickpea salad over greens with whole-grain toast.",
+    "Dinner: Salmon or tofu, ready-to-eat rice, frozen vegetables, and olive oil.",
+    "Snack: Apple with peanut butter or hummus with vegetables.",
+  ],
+} as const;
+
+const PREMIUM_MEAL_PLANS = [
+  {
+    id: "three-day-mediterranean-low-prep",
+    title: "3-day low-prep Mediterranean-style plan",
+    category: "3-day meal plan",
+    filters: ["Pescatarian", "High-protein", "Low-prep"],
+    meals: [
+      "Day 1: Yogurt bowl, tuna bean bowl, salmon rice bowl.",
+      "Day 2: Egg toast, lentil soup, sheet-pan chicken or tofu.",
+      "Day 3: Smoothie with protein, hummus plate, sardine or chickpea pasta.",
+    ],
+    groceries: {
+      Produce: ["Greens", "berries", "lemons", "cucumbers", "carrots", "avocados"],
+      Protein: ["Greek yogurt", "eggs", "tuna", "salmon", "lentils", "tofu"],
+      Pantry: ["Oats", "chia", "walnuts", "white beans", "rice", "olive oil"],
+      Freezer: ["Frozen vegetables", "frozen salmon or tofu-friendly vegetables"],
+    },
+  },
+  {
+    id: "seven-day-low-energy-prep",
+    title: "7-day low-energy meal prep plan",
+    category: "7-day meal plan",
+    filters: ["Vegetarian", "Dairy-free", "Gluten-free", "Low-prep", "Budget-friendly"],
+    meals: [
+      "Repeatable breakfasts: oats, smoothies, egg or tofu toast.",
+      "Easy lunches: lentil soup, hummus plates, bean bowls, leftovers.",
+      "Simple dinners: reheatable bowls, sheet-pan meals, chickpea pasta, rice bowls.",
+      "Prep once: wash produce, batch lentils, portion snacks, freeze two meals.",
+    ],
+    groceries: {
+      Produce: ["Spinach", "berries", "bananas", "sweet potatoes", "broccoli", "peppers"],
+      Protein: ["Lentils", "chickpeas", "tofu", "eggs or alternatives", "nuts"],
+      Pantry: ["Rice", "oats", "olive oil", "nut butter", "beans", "chickpea pasta"],
+      Freezer: ["Frozen vegetables", "frozen fruit", "freezer-friendly soup containers"],
+    },
+  },
+] as const;
+
+const FOOD_SEARCH_SUGGESTIONS = [
+  "chips",
+  "cookies",
+  "frozen pizza",
+  "energy drink",
+  "protein bar",
+  "instant noodles",
+  "sweet cereal",
+  "salmon",
+  "hummus",
+] as const;
+
+const FOOD_ANALYSIS_LIBRARY = [
+  {
+    terms: ["chips", "crisps"],
+    name: "Chips",
+    processing: "More processed snack",
+    inflammation: "May be less supportive for inflammation because it is often salty, refined, and fried.",
+    energy: "Can feel quick and convenient, but may not support steady energy on its own.",
+    balance: "Usually low in protein and fiber unless paired with something more filling.",
+    guidance: "If this is what is available, pair a smaller portion with protein or fiber.",
+    alternatives: ["popcorn with olive oil", "roasted chickpeas", "nuts and seeds", "hummus with crackers", "sweet potato chips"],
+    easyAlternatives: ["popcorn", "single-serve nuts", "hummus cup with crackers", "pre-cut vegetables and dip"],
+  },
+  {
+    terms: ["cookies", "cookie", "candy", "chocolate bar"],
+    name: "Sweet snack",
+    processing: "More processed sweet snack",
+    inflammation: "Higher added sugar may be less supportive for inflammation-focused eating patterns.",
+    energy: "May raise energy briefly and then feel less steady for some people.",
+    balance: "Usually lower in protein and fiber, so it may not stay filling for long.",
+    guidance: "A more supportive option adds protein, fiber, or fat so energy lasts longer.",
+    alternatives: ["Greek yogurt with berries", "apple with peanut butter", "dark chocolate with nuts", "oat energy bites", "berries with walnuts"],
+    easyAlternatives: ["fruit and nut pack", "Greek yogurt cup", "apple with peanut butter", "trail mix"],
+  },
+  {
+    terms: ["frozen meal", "frozen pizza", "pizza"],
+    name: "Frozen meal",
+    processing: "Often more processed, depending on ingredients",
+    inflammation: "Some frozen meals are higher in sodium, refined grains, and saturated fat.",
+    energy: "Can be useful on low-energy days, especially when paired with vegetables or protein.",
+    balance: "Look for protein, fiber, vegetables, and a sodium level that fits your needs.",
+    guidance: "Make it more supportive by adding frozen vegetables, beans, tuna, tofu, or a side salad.",
+    alternatives: ["frozen grain bowl with vegetables", "soup with beans", "salmon rice freezer bowl", "chickpea pasta", "rotisserie chicken with salad kit"],
+    easyAlternatives: ["ready-to-eat rice bowl plus frozen vegetables", "canned soup plus beans", "salad kit plus protein", "freezer soup"],
+  },
+  {
+    terms: ["energy drink", "soda", "soft drink"],
+    name: "Sweetened drink",
+    processing: "Sweetened beverage",
+    inflammation: "Frequent high-sugar drinks may be less supportive for inflammation-focused habits.",
+    energy: "Caffeine and sugar can feel helpful short-term but may contribute to energy dips later.",
+    balance: "Usually provides little protein or fiber.",
+    guidance: "Try a lower-sugar option or pair caffeine with food if energy crashes are common.",
+    alternatives: ["sparkling water with citrus", "iced tea with less sugar", "coffee with food", "electrolyte drink with low sugar", "smoothie with protein"],
+    easyAlternatives: ["sparkling water", "unsweetened iced tea", "low-sugar electrolyte drink", "coffee plus nuts"],
+  },
+  {
+    terms: ["protein bar", "granola bar", "bar"],
+    name: "Packaged bar",
+    processing: "Varies from simple to more processed",
+    inflammation: "Some bars are high in added sugar or saturated fat; others are reasonable convenience options.",
+    energy: "More supportive when it has protein and fiber without a large sugar spike.",
+    balance: "Check for protein, fiber, and added sugar balance.",
+    guidance: "A bar can be useful on low-energy days if it keeps you fed without extra prep.",
+    alternatives: ["nuts and fruit", "Greek yogurt", "hummus and crackers", "boiled eggs and fruit", "higher-fiber protein bar"],
+    easyAlternatives: ["nuts and dried fruit", "ready-to-drink protein shake", "cheese or hummus snack pack", "Greek yogurt cup"],
+  },
+  {
+    terms: ["instant noodles", "ramen"],
+    name: "Instant noodles",
+    processing: "More processed convenience meal",
+    inflammation: "Often high in sodium and refined grains, which may be less supportive as a frequent staple.",
+    energy: "Quick and low-effort, but usually needs protein or vegetables for steadier energy.",
+    balance: "Low protein and fiber unless you add extras.",
+    guidance: "Add frozen vegetables, egg, tofu, chicken, or edamame to make it more supportive.",
+    alternatives: ["rice noodles with tofu and vegetables", "miso soup with tofu", "ready-to-eat rice with edamame", "lentil soup", "chickpea pasta"],
+    easyAlternatives: ["ramen plus frozen vegetables", "ramen plus egg", "miso soup cup plus tofu", "ready-to-eat rice plus edamame"],
+  },
+  {
+    terms: ["cereal", "sweet cereal"],
+    name: "Sweet cereal",
+    processing: "Often refined and sweetened",
+    inflammation: "Higher added sugar may be less supportive for inflammation-focused eating patterns.",
+    energy: "May not keep energy steady unless paired with protein or fiber.",
+    balance: "Look for higher fiber and pair with protein when possible.",
+    guidance: "Make it steadier with Greek yogurt, nuts, chia, or a lower-sugar cereal.",
+    alternatives: ["oats with nuts", "higher-fiber cereal", "Greek yogurt with granola", "overnight oats", "eggs with toast"],
+    easyAlternatives: ["instant oats with nuts", "higher-fiber cereal", "Greek yogurt and granola", "smoothie with protein"],
+  },
+  {
+    terms: ["salmon", "sardines", "trout"],
+    name: "Fatty fish",
+    processing: "Minimally processed or lightly processed",
+    inflammation: "Generally fits Mediterranean-style and anti-inflammatory-style eating patterns.",
+    energy: "Protein and fat can support steadier energy than refined snacks alone.",
+    balance: "Good protein source, often with omega-3 fats; add fiber with vegetables, beans, or grains.",
+    guidance: "A simple frozen or canned option can make this easier on low-energy days.",
+    alternatives: ["sardines", "trout", "tofu with walnuts", "omega-3 eggs", "chia or flax with a protein meal"],
+    easyAlternatives: ["canned salmon", "sardines on toast", "frozen salmon fillet", "tuna bean bowl"],
+  },
+  {
+    terms: ["hummus", "chickpeas"],
+    name: "Hummus",
+    processing: "Usually minimally to moderately processed",
+    inflammation: "Often fits Mediterranean-style eating patterns when paired with vegetables or whole grains.",
+    energy: "Fiber and fat can help make snacks feel steadier.",
+    balance: "Add extra protein if it is the main meal.",
+    guidance: "Useful as a low-prep base for snack plates or simple lunches.",
+    alternatives: ["bean dip", "lentil soup", "Greek yogurt dip", "tuna bean bowl", "edamame"],
+    easyAlternatives: ["hummus cup with crackers", "hummus and pre-cut vegetables", "pita with hummus", "hummus snack plate"],
+  },
+] as const;
+
+const DEFAULT_FOOD_ANALYSIS = {
+  name: "Food item",
+  processing: "Depends on ingredients and preparation",
+  inflammation: "Less processed options with plants, protein, and fiber are often more supportive.",
+  energy: "Energy may feel steadier when the meal includes protein, fiber, and healthy fats.",
+  balance: "Check whether it includes protein, fiber, and added sugar balance.",
+  guidance: "Try pairing it with a simple protein or fiber source rather than treating it as all-or-nothing.",
+  alternatives: ["nuts and fruit", "hummus with crackers", "Greek yogurt with berries", "bean bowl", "freezer-friendly soup"],
+  easyAlternatives: ["single-serve nuts", "hummus cup", "Greek yogurt cup", "ready-to-eat rice plus beans"],
+} as const;
+
+const MEAL_PLAN_GOALS = [
+  "Stable energy",
+  "Lower inflammation",
+  "Low-energy meals",
+  "Brain fog support",
+  "Weight management",
+  "Better recovery",
+  "General wellness",
+] as const;
+
+const DIET_STYLE_OPTIONS = [
+  "Mediterranean-style",
+  "Anti-inflammatory-style",
+  "Plant-forward",
+  "Higher-protein balanced",
+  "Low-prep / fatigue-friendly",
+  "Recommend one for me",
+] as const;
+
+const PREP_PREFERENCES = [
+  { label: "Minimal cooking", description: "Simple meals with little cleanup." },
+  { label: "Quick meals", description: "Meals that take about 10 minutes." },
+  { label: "Batch cooking", description: "Cook once for multiple meals." },
+  { label: "Freezer-friendly meals", description: "Meals that store and reheat well." },
+  { label: "No-cook options", description: "Ready-to-eat meals and snack plates." },
+] as const;
+const BUDGET_PREFERENCES = ["Budget-friendly", "Flexible", "Higher convenience"] as const;
+const FREE_FOOD_ANALYSIS_LIMIT = 3;
 
 function getTodayDateString() {
   const now = new Date();
@@ -175,13 +521,6 @@ function getInitialFrequencyOption(frequency: string) {
     : "Custom";
 }
 
-function formatShortDateFromIso(dateString: string) {
-  return new Date(dateString).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
-
 function getNotePreview(note: string, maxLength = 110) {
   const trimmed = note.trim();
 
@@ -251,6 +590,1382 @@ function formatMedicationTakenSummary(takenCount: number, totalCount: number) {
   }
 
   return `${takenCount} of ${totalCount} taken today`;
+}
+
+function analyzeFood(foodName: string) {
+  const normalized = foodName.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  const match = FOOD_ANALYSIS_LIBRARY.find((item) =>
+    item.terms.some((term) => normalized.includes(term) || term.includes(normalized)),
+  );
+
+  return match ?? {
+    ...DEFAULT_FOOD_ANALYSIS,
+    name: foodName.trim(),
+  };
+}
+
+function getMealPlanGoalLine(goal: string) {
+  switch (goal) {
+    case "Stable energy":
+      return "Prioritize protein, fiber, and slower-digesting carbohydrates.";
+    case "Lower inflammation":
+      return "Emphasize colorful plants, beans, fish or plant proteins, olive oil, nuts, and seeds.";
+    case "Low-energy meals":
+      return "Use repeatable meals, freezer staples, and low-cleanup options.";
+    case "Better recovery":
+      return "Make hydration, protein, and a lower-stimulation evening easier to protect.";
+    case "Weight management":
+      return "Focus on filling meals with protein, fiber, and realistic portions without restriction.";
+    case "Brain fog support":
+      return "Keep meals simple and steady, with easy protein and fewer sugar spikes.";
+    case "General wellness":
+      return "Use flexible meals that are realistic, filling, and easy to repeat.";
+    default:
+      return "Keep meals simple, supportive, and realistic for the day.";
+  }
+}
+
+function parseFoodList(value: string) {
+  return value
+    .split(/[,.\n]/)
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function chooseDietStyle(goal: string, selectedStyle: string, filters: string[], prepPreference: string) {
+  if (selectedStyle && selectedStyle !== "Recommend one for me" && selectedStyle !== "Unsure — recommend one for me") {
+    return selectedStyle;
+  }
+
+  if (
+    prepPreference === "No-cook options" ||
+    prepPreference === "Minimal cooking" ||
+    filters.includes("Low-prep") ||
+    filters.includes("No-cook options") ||
+    goal === "Low-energy meals"
+  ) {
+    return "Low-prep / fatigue-friendly";
+  }
+
+  if (filters.includes("Vegetarian") || goal === "Lower inflammation") {
+    return "Plant-forward";
+  }
+
+  if (filters.includes("High-protein") || goal === "Stable energy" || goal === "Weight management") {
+    return "Higher-protein balanced";
+  }
+
+  return "Mediterranean-style";
+}
+
+function getDietRecommendationReasons(input: {
+  goal: string;
+  style: string;
+  filters: string[];
+  prepPreference: string;
+  dislikedFoods: string;
+}) {
+  const reasons: string[] = [];
+  const meaningfulFilters = input.filters.filter((filter) => filter !== "No preference");
+
+  if (input.goal) {
+    reasons.push(`You selected ${input.goal.toLowerCase()}, so the plan is built around that goal instead of a strict diet template.`);
+  }
+
+  if (input.style === "Mediterranean-style") {
+    reasons.push("Mediterranean-style eating emphasizes vegetables, olive oil, beans, fish or plant proteins, nuts, and whole grains.");
+    reasons.push("It is flexible enough to adapt around fatigue, budget, and foods you already like.");
+  }
+
+  if (input.style === "Anti-inflammatory-style") {
+    reasons.push("Anti-inflammatory-style meals emphasize colorful plants, fiber, unsaturated fats, and fewer highly processed staples.");
+    reasons.push("That can make meals feel more supportive for steady energy and general wellness without making food rules rigid.");
+  }
+
+  if (input.style === "Plant-forward") {
+    reasons.push("Plant-forward eating emphasizes vegetables, legumes, whole grains, nuts, seeds, and fiber-rich foods.");
+    reasons.push(
+      input.goal === "Lower inflammation"
+        ? "That fits lower inflammation because it leans on less processed, fiber-rich foods while still allowing gradual changes."
+        : "This can be affordable and flexible when simple protein options are planned ahead.",
+    );
+  }
+
+  if (input.style === "Higher-protein balanced") {
+    reasons.push("Higher-protein balanced meals pair protein with fiber-rich foods to support steadier energy.");
+    reasons.push("This can be useful when meals need to feel filling without becoming restrictive.");
+  }
+
+  if (input.style === "Low-prep / fatigue-friendly") {
+    reasons.push("Low-prep meals reduce cooking, cleanup, and decision load on fatigue-heavy days.");
+    reasons.push("The plan uses freezer staples, no-cook backups, and repeatable meals so eating does not depend on high energy.");
+  }
+
+  if (meaningfulFilters.length > 0) {
+    reasons.push(`Your preferences are included: ${meaningfulFilters.join(", ")}.`);
+  }
+
+  if (input.dislikedFoods.trim()) {
+    reasons.push("Foods you dislike are removed or treated as swap targets, not foods to force through.");
+  }
+
+  return reasons.slice(0, 5);
+}
+
+function getDietDirection(style: string) {
+  switch (style) {
+    case "Anti-inflammatory-style":
+      return {
+        title: "Anti-inflammatory-style direction",
+        emphasizes: "Colorful plants, beans, fish or plant proteins, olive oil, nuts, seeds, and fewer highly processed staples.",
+        watchFor: "Avoid turning it into strict food rules. Convenience still matters on fatigue days.",
+      };
+    case "Plant-forward":
+      return {
+        title: "Plant-forward direction",
+        emphasizes: "Beans, lentils, tofu, vegetables, fruit, whole grains, nuts, and seeds.",
+        watchFor: "Plan simple protein, B12, iron, and easy backups if you eat mostly plant-based.",
+      };
+    case "Higher-protein balanced":
+      return {
+        title: "Higher-protein balanced direction",
+        emphasizes: "Protein at meals, fiber-rich carbohydrates, vegetables, fruit, and satisfying snacks.",
+        watchFor: "Keep it supportive rather than restrictive; the goal is steadier energy, not perfection.",
+      };
+    case "Low-prep / fatigue-friendly":
+      return {
+        title: "Low-prep / fatigue-friendly direction",
+        emphasizes: "No-cook meals, freezer staples, ready-to-eat rice or quinoa packets, pre-washed produce, and repeatable easy proteins.",
+        watchFor: "Build backups for low-energy days instead of relying on cooking capacity.",
+      };
+    case "Mediterranean-style":
+    default:
+      return {
+        title: "Mediterranean-style direction",
+        emphasizes: "Vegetables, beans, whole grains, olive oil, fish or plant proteins, nuts, seeds, and fruit.",
+        watchFor: "Keep meals realistic by using canned, frozen, and prepared ingredients when needed.",
+      };
+  }
+}
+
+function getProteinOptions(filters: string[], dislikedFoods: string[]) {
+  const baseOptions = filters.includes("Vegetarian")
+    ? ["tofu", "lentils", "beans", "eggs", "Greek yogurt", "nuts and seeds"]
+    : filters.includes("Pescatarian")
+      ? ["sardines", "trout", "tuna", "eggs", "tofu", "beans"]
+      : ["trout", "tuna", "eggs", "chicken", "tofu", "beans", "Greek yogurt"];
+
+  return baseOptions.filter((option) => !dislikedFoods.some((food) => option.toLowerCase().includes(food)));
+}
+
+function getSwapExplanation(dislikedFoods: string[], proteinOptions: string[]) {
+  if (dislikedFoods.length === 0) {
+    return "No disliked foods listed yet. Add foods you avoid to rebuild the plan around easier swaps.";
+  }
+
+  const alternatives = proteinOptions.slice(0, 5).join(", ") || "beans, tofu, eggs, chicken, or another protein you tolerate";
+  return `Removed or avoided: ${dislikedFoods.join(", ")}. Use realistic alternatives such as ${alternatives}.`;
+}
+
+function buildAdaptivePlanReasons(input: {
+  goal: string;
+  style: string;
+  filters: string[];
+  prepPreference: string;
+  budgetPreference: string;
+  dislikedFoods: string;
+}) {
+  const reasons: string[] = [];
+  const visibleFilters = input.filters.filter((filter) => filter !== "No preference");
+
+  reasons.push(`This plan is built around ${input.goal.toLowerCase()} rather than a strict diet template.`);
+
+  if (input.style === "Low-prep / fatigue-friendly") {
+    reasons.push("Meals lean on repeatable low-prep options so eating still feels possible on lower-energy days.");
+  } else if (input.prepPreference === "No-cook options" || input.prepPreference === "Minimal cooking") {
+    reasons.push("The meals stay simple and low-cleanup because you chose lighter prep.");
+  } else if (input.prepPreference === "Batch cooking" || input.prepPreference === "Freezer-friendly meals") {
+    reasons.push("The plan uses repeatable ingredients so one round of prep covers more than one meal.");
+  }
+
+  if (visibleFilters.length > 0) {
+    reasons.push(`Your preferences are built in: ${visibleFilters.join(", ")}.`);
+  }
+
+  if (input.budgetPreference === "Budget-friendly") {
+    reasons.push("The grocery list favors repeatable staples and lower-friction convenience items.");
+  }
+
+  if (input.dislikedFoods.trim()) {
+    reasons.push("Foods you dislike are swapped out instead of pushed back into the plan.");
+  }
+
+  return reasons.slice(0, 4);
+}
+
+function formatGroceryListText(title: string, groceries: Record<string, string[]>) {
+  const sections = Object.entries(groceries)
+    .map(([category, items]) => `${category}\n${items.map((item) => `- ${item}`).join("\n")}`)
+    .join("\n\n");
+
+  return `${title}\n\n${sections}`;
+}
+
+function buildAdaptiveMealPlan(input: {
+  goal: string;
+  dietStyle: string;
+  filters: string[];
+  dislikes: string;
+  allergies: string;
+  prepPreference: string;
+  budgetPreference: string;
+  premium: boolean;
+}) {
+  const days = input.premium ? 7 : 1;
+  const dislikedFoods = parseFoodList(input.dislikes);
+  const proteinOptions = getProteinOptions(input.filters, dislikedFoods);
+  const protein = proteinOptions.length > 0 ? proteinOptions.join(", ") : "beans, tofu, eggs, or another protein you tolerate";
+  const chosenStyle = chooseDietStyle(input.goal, input.dietStyle, input.filters, input.prepPreference);
+  const noCook = input.prepPreference === "No-cook options" || input.filters.includes("No-cook options");
+  const freezerFriendly = input.prepPreference === "Freezer-friendly meals" || input.filters.includes("Freezer-friendly");
+  const batchCooking = input.prepPreference === "Batch cooking";
+  const breakfast = dislikedFoods.some((food) => /yogurt|dairy/.test(food))
+    ? "Overnight oats with berries, chia, nuts, and a protein option you tolerate"
+    : `Overnight oats or yogurt bowl with berries, chia, and nuts${input.filters.includes("Dairy-free") ? " using dairy-free yogurt" : ""}`;
+  const lunch = noCook
+    ? `${proteinOptions[0] ?? "Bean"} snack plate with vegetables, whole-grain crackers, and olive oil`
+    : `${proteinOptions[0] ?? "Bean"}, vegetable, and grain bowl with olive oil`;
+  const dinner = freezerFriendly
+    ? `Freezer-friendly rice bowl with ${proteinOptions[1] ?? proteinOptions[0] ?? "beans"} and frozen vegetables`
+    : batchCooking
+      ? `Batch bowl with ${proteinOptions[1] ?? proteinOptions[0] ?? "beans"}, rice or quinoa, and frozen vegetables`
+      : `Simple grain bowl with ${proteinOptions[1] ?? proteinOptions[0] ?? "beans"} and frozen or pre-cut vegetables`;
+  const lowEnergyAlternative = noCook
+    ? "hummus or bean dip with crackers, pre-cut vegetables, fruit, and nuts"
+    : freezerFriendly
+      ? "freezer soup or ready-to-eat rice with frozen vegetables and an easy protein"
+      : "Greek yogurt or hummus plate with fruit, nuts, and whole-grain crackers";
+  const prepNote = noCook
+    ? "Keep ready-to-eat proteins, washed produce, crackers, and fruit visible."
+    : freezerFriendly
+      ? "Use frozen vegetables, ready-to-eat rice or quinoa packets, and one freezer-friendly protein to reduce cleanup."
+      : batchCooking
+        ? "Cook one grain and one protein once, then use them in bowls, wraps, or soup."
+        : "Prep one protein or grain once, then repeat it in different combinations.";
+  const prep =
+    input.prepPreference === "No-cook options"
+      ? "no-cook plates, snack boxes, and ready-to-eat proteins"
+      : input.prepPreference === "Freezer-friendly meals"
+        ? "reheatable bowls, soups, frozen vegetables, and ready-to-eat rice or quinoa packets"
+        : input.prepPreference === "Batch cooking"
+          ? "one batch-cooked base that repeats in different ways"
+          : input.prepPreference === "Minimal cooking"
+            ? "minimal-cooking meals with little cleanup"
+            : "quick meals with minimal cleanup";
+  const dislikes = input.dislikes.trim();
+  const allergies = input.allergies.trim();
+  const fitReasons = buildAdaptivePlanReasons({
+    goal: input.goal,
+    style: chosenStyle,
+    filters: input.filters,
+    prepPreference: input.prepPreference,
+    budgetPreference: input.budgetPreference,
+    dislikedFoods: input.dislikes,
+  });
+
+  return {
+    title: input.premium ? `${days}-day adaptive meal plan` : "1-day simple meal plan",
+    dietStyle: chosenStyle,
+    focus: getMealPlanGoalLine(input.goal),
+    fitReasons,
+    plan: Array.from({ length: days }, (_, index) => {
+      const day = index + 1;
+      return {
+        day: `Day ${day}`,
+        meals: [
+          {
+            type: "Breakfast",
+            title: breakfast,
+            prep: noCook
+              ? "Assemble the bowl or plate using ready-to-eat ingredients."
+              : "Mix oats, milk or yogurt, berries, chia, and nuts in a container. Refrigerate overnight or eat right away.",
+            prepTime: "5 minutes",
+            lowEnergyOption: "Use pre-made overnight oats, a yogurt cup, or fruit with nuts.",
+          },
+          {
+            type: "Lunch",
+            title: lunch,
+            prep: noCook
+              ? "Place the protein, crackers, vegetables, and olive oil or dip on one plate."
+              : "Use ready-to-eat rice or quinoa packets, add protein, add vegetables, then finish with olive oil or dressing.",
+            prepTime: noCook ? "5 minutes" : "10 minutes",
+            lowEnergyOption: "Use a salad kit, canned beans or tuna, and crackers.",
+          },
+          {
+            type: "Dinner",
+            title: dinner,
+            prep: freezerFriendly
+              ? "Microwave rice and frozen vegetables, warm the protein, then add olive oil or a simple sauce."
+              : batchCooking
+                ? "Reheat the batch-cooked grain and protein, then add frozen vegetables or pre-washed greens."
+                : "Use ready-to-eat rice or quinoa packets, warm the protein, and add frozen or pre-cut vegetables.",
+            prepTime: freezerFriendly || batchCooking ? "10 minutes" : "10–15 minutes",
+            lowEnergyOption: lowEnergyAlternative,
+          },
+          {
+            type: "Snack",
+            title: "Fruit with nuts, hummus with crackers, or a higher-fiber protein option",
+            prep: "Keep one protein-or-fiber snack visible so it is easier to choose when energy is low.",
+            prepTime: "2 minutes",
+            lowEnergyOption: "Use single-serve nuts, hummus cups, fruit, or a ready-to-drink protein option.",
+          },
+        ],
+      };
+    }),
+    swaps: [
+      dislikes
+        ? `Protein swap: if ${dislikes} is not workable, use another easy protein such as ${protein}.`
+        : `Protein swap: rotate between the easiest options for this week, such as ${protein}.`,
+      allergies
+        ? `Safety swap: avoid ${allergies} and substitute a safe option you already tolerate.`
+        : "Low-energy swap: keep one backup meal ready for days when cooking is not realistic.",
+      `Preference swap: ${getSwapExplanation(dislikedFoods, proteinOptions)}`,
+      `Prep swap: this plan leans on ${prep}.`,
+      ...(input.premium
+        ? [
+            "Advanced swap: if dinner feels too demanding, use the low-energy option listed for that meal and keep the rest of the day simpler.",
+          ]
+        : []),
+    ],
+    groceries: {
+      Produce: ["greens", "berries", "pre-cut vegetables", "lemons", "fruit"],
+      Protein: protein.split(", ").slice(0, 5),
+      Pantry: ["oats", "rice or quinoa", "beans", "olive oil", "nuts or seeds"],
+      Frozen: ["frozen vegetables", "frozen fruit", "freezer-friendly protein"],
+      Snacks: ["hummus", "crackers", "nut packs", "higher-fiber bars"],
+    },
+    budget: input.budgetPreference,
+  };
+}
+
+export function NutritionScreenContent() {
+  const { user } = useAuth();
+  const premium = usePremium();
+  const growth = useGrowthState();
+  const [selectedNutritionFilters, setSelectedNutritionFilters] = useState<string[]>([]);
+  const [nutritionMessage, setNutritionMessage] = useState<string | null>(null);
+  const [foodSearchInput, setFoodSearchInput] = useState("");
+  const [foodAnalysis, setFoodAnalysis] = useState<ReturnType<typeof analyzeFood>>(null);
+  const [showEasierAlternatives, setShowEasierAlternatives] = useState(false);
+  const [mealPlanGoal, setMealPlanGoal] = useState<string>("Stable energy");
+  const [dietStyle, setDietStyle] = useState<string>("Recommend one for me");
+  const [mealPlanDislikes, setMealPlanDislikes] = useState("");
+  const [mealPlanAllergies, setMealPlanAllergies] = useState("");
+  const [mealPlanPrep, setMealPlanPrep] = useState<string>("Quick meals");
+  const [mealPlanBudget, setMealPlanBudget] = useState<string>("Budget-friendly");
+  const [adaptiveMealPlan, setAdaptiveMealPlan] = useState<ReturnType<typeof buildAdaptiveMealPlan> | null>(null);
+  const [savedMealPlans, setSavedMealPlans] = useState<SavedNutritionMeal[]>([]);
+  const [mealPlanStatus, setMealPlanStatus] = useState<"idle" | "generating">("idle");
+  const [mealPlanError, setMealPlanError] = useState<string | null>(null);
+  const [foodAnalysisUsageCount, setFoodAnalysisUsageCount] = useState(0);
+  const [foodAnalysisStatus, setFoodAnalysisStatus] = useState<"idle" | "analyzing">("idle");
+  const [foodAnalysisMessage, setFoodAnalysisMessage] = useState<string | null>(null);
+  const [pendingFoodImageUri, setPendingFoodImageUri] = useState<string | null>(null);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+
+  const filteredLowEnergyMeals = useMemo(() => {
+    const activeFilters = selectedNutritionFilters.filter((filter) => filter !== "No preference");
+
+    if (activeFilters.length === 0) {
+      return LOW_ENERGY_MEALS;
+    }
+
+    return LOW_ENERGY_MEALS.filter((meal) =>
+      activeFilters.every((filter) => meal.tags.includes(filter)),
+    );
+  }, [selectedNutritionFilters]);
+
+  const recommendedDietStyle = useMemo(
+    () => chooseDietStyle(mealPlanGoal, dietStyle, selectedNutritionFilters, mealPlanPrep),
+    [dietStyle, mealPlanGoal, mealPlanPrep, selectedNutritionFilters],
+  );
+  const recommendedDietDirection = useMemo(
+    () => getDietDirection(recommendedDietStyle),
+    [recommendedDietStyle],
+  );
+  const recommendationReasons = useMemo(
+    () =>
+      getDietRecommendationReasons({
+        goal: mealPlanGoal,
+        style: recommendedDietStyle,
+        filters: selectedNutritionFilters,
+        prepPreference: mealPlanPrep,
+        dislikedFoods: mealPlanDislikes,
+      }),
+    [mealPlanDislikes, mealPlanGoal, mealPlanPrep, recommendedDietStyle, selectedNutritionFilters],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!user?.id) {
+      return;
+    }
+
+    void (async () => {
+      const preferences = await loadNutritionPreferences(user.id);
+      const savedPlans = await loadSavedNutritionMeals(user.id);
+      if (!cancelled) {
+        if (preferences) {
+          setMealPlanGoal(preferences.goal);
+          setDietStyle(preferences.dietStyle);
+          setMealPlanDislikes(preferences.dislikedFoods);
+          setSelectedNutritionFilters(preferences.dietaryFilters);
+          setMealPlanPrep(preferences.prepPreference);
+          setMealPlanBudget(preferences.budgetPreference);
+          setAdaptiveMealPlan(preferences.currentMealPlan as ReturnType<typeof buildAdaptiveMealPlan> | null);
+        }
+        setSavedMealPlans(savedPlans);
+        setPreferencesLoaded(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!user?.id) {
+      setFoodAnalysisUsageCount(0);
+      return;
+    }
+
+    void loadFoodAnalysisUsage(user.id, getTodayDateString()).then((count) => {
+      if (!cancelled) {
+        setFoodAnalysisUsageCount(count);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const persistNutritionPreferences = useCallback(async (mealPlan: ReturnType<typeof buildAdaptiveMealPlan> | null = adaptiveMealPlan) => {
+    if (!user?.id) {
+      return;
+    }
+
+    const preferences: Omit<NutritionPreferences, "updatedAt"> = {
+      goal: mealPlanGoal,
+      dietStyle,
+      dislikedFoods: mealPlanDislikes,
+      dietaryFilters: selectedNutritionFilters,
+      prepPreference: mealPlanPrep,
+      budgetPreference: mealPlanBudget,
+      currentMealPlan: mealPlan,
+    };
+
+    await saveNutritionPreferences(user.id, preferences);
+  }, [
+    adaptiveMealPlan,
+    dietStyle,
+    mealPlanBudget,
+    mealPlanDislikes,
+    mealPlanGoal,
+    mealPlanPrep,
+    selectedNutritionFilters,
+    user?.id,
+  ]);
+
+  useEffect(() => {
+    if (!user?.id || !preferencesLoaded) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      void persistNutritionPreferences();
+    }, 250);
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    adaptiveMealPlan,
+    dietStyle,
+    mealPlanBudget,
+    mealPlanDislikes,
+    mealPlanGoal,
+    mealPlanPrep,
+    persistNutritionPreferences,
+    preferencesLoaded,
+    selectedNutritionFilters,
+    user?.id,
+  ]);
+
+  const toggleNutritionFilter = (filter: string) => {
+    if (filter === "No preference") {
+      setSelectedNutritionFilters((current) => (current.includes("No preference") ? [] : ["No preference"]));
+      return;
+    }
+
+    setSelectedNutritionFilters((current) =>
+      current.includes(filter)
+        ? current.filter((item) => item !== filter)
+        : [...current.filter((item) => item !== "No preference"), filter],
+    );
+  };
+
+  const handleShareGroceryList = async (plan: (typeof PREMIUM_MEAL_PLANS)[number]) => {
+    try {
+      await Share.share({
+        title: `${plan.title} grocery list`,
+        message: formatGroceryListText(`${plan.title} grocery list`, plan.groceries),
+      });
+    } catch {
+      setNutritionMessage("Grocery list could not be shared right now.");
+    }
+  };
+
+  const handleCopyGroceryList = (title: string, groceries: Record<string, string[]>) => {
+    try {
+      Clipboard.setString(formatGroceryListText(title, groceries));
+      setNutritionMessage("Grocery list copied ✓");
+    } catch {
+      setNutritionMessage("Grocery list could not be copied right now.");
+    }
+  };
+
+  const handleSaveCurrentMealPlan = async () => {
+    if (!user?.id || !adaptiveMealPlan || !premium.hasPremiumAccess) {
+      return;
+    }
+
+    try {
+      const nextSavedPlans = await saveNutritionMeal(user.id, {
+        id: `${adaptiveMealPlan.dietStyle}-${adaptiveMealPlan.plan.length}-day-${mealPlanGoal}`.toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
+        title: adaptiveMealPlan.title,
+        category: adaptiveMealPlan.dietStyle,
+        goal: mealPlanGoal,
+        dietStyle: adaptiveMealPlan.dietStyle,
+        plan: adaptiveMealPlan,
+      });
+      setSavedMealPlans(nextSavedPlans);
+      setNutritionMessage("Meal plan saved ✓");
+    } catch {
+      setNutritionMessage("Meal plan could not be saved right now.");
+    }
+  };
+
+  const handleLoadSavedMealPlan = (savedPlan: SavedNutritionMeal) => {
+    const nextPlan = savedPlan.plan as ReturnType<typeof buildAdaptiveMealPlan> | null;
+    if (!nextPlan) {
+      setNutritionMessage("Saved plan could not be opened right now.");
+      return;
+    }
+
+    setAdaptiveMealPlan(nextPlan);
+    setMealPlanGoal(savedPlan.goal ?? mealPlanGoal);
+    setDietStyle(savedPlan.dietStyle ?? nextPlan.dietStyle);
+    setNutritionMessage("Saved meal plan loaded.");
+  };
+
+  const handleRemoveSavedMealPlan = async (savedPlanId: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    try {
+      const nextSavedPlans = await removeSavedNutritionMeal(user.id, savedPlanId);
+      setSavedMealPlans(nextSavedPlans);
+      setNutritionMessage("Saved meal plan removed.");
+    } catch {
+      setNutritionMessage("Saved meal plan could not be removed right now.");
+    }
+  };
+
+  const canUseFoodAnalysis = premium.hasPremiumAccess || foodAnalysisUsageCount < FREE_FOOD_ANALYSIS_LIMIT;
+  const foodAnalysisUsageLabel = premium.hasPremiumAccess
+    ? "Premium includes unlimited food analysis."
+    : `${Math.max(FREE_FOOD_ANALYSIS_LIMIT - foodAnalysisUsageCount, 0)} free analyses left today.`;
+
+  const handleFoodAnalysis = async (value?: string, source: "search" | "photo" | "barcode" = "search") => {
+    if (!canUseFoodAnalysis) {
+      setFoodAnalysisMessage("Premium includes unlimited food analysis and meal updates.");
+      router.push("/premium?source=nutrition-food-analysis");
+      return;
+    }
+
+    const nextValue = value ?? foodSearchInput;
+    const nextAnalysis = analyzeFood(nextValue);
+
+    if (!nextAnalysis) {
+      setFoodAnalysisMessage("Enter a food to analyze.");
+      return;
+    }
+
+    setFoodAnalysisStatus("analyzing");
+    setFoodAnalysisMessage(source === "photo" ? "Analyzing photo..." : source === "barcode" ? "Checking packaged food..." : "Analyzing food...");
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      setFoodSearchInput(nextAnalysis.name);
+      setFoodAnalysis(nextAnalysis);
+      setPendingFoodImageUri(null);
+      if (user?.id && !premium.hasPremiumAccess) {
+        const nextCount = await incrementFoodAnalysisUsage(user.id, getTodayDateString());
+        setFoodAnalysisUsageCount(nextCount);
+      }
+      setNutritionMessage(null);
+      setFoodAnalysisMessage(source === "photo" ? "Photo analysis ready ✓" : "Food analysis ready ✓");
+    } catch {
+      setFoodAnalysisMessage("Food analysis could not be completed. Please try again.");
+    } finally {
+      setFoodAnalysisStatus("idle");
+    }
+  };
+
+  const handlePhotoFoodAnalysis = async () => {
+    if (!canUseFoodAnalysis) {
+      setFoodAnalysisMessage("Premium includes unlimited food analysis and meal updates.");
+      router.push("/premium?source=nutrition-food-analysis");
+      return;
+    }
+
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setFoodAnalysisMessage("Camera permission is needed to take a food photo. You can use manual search here.");
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.7,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const uri = result.assets?.[0]?.uri;
+      if (!uri) {
+        setFoodAnalysisMessage("Camera scanning works on a real iPhone build. You can use manual search here.");
+        return;
+      }
+
+      setPendingFoodImageUri(uri);
+      setFoodAnalysisMessage("We found the photo. What food should we analyze?");
+      setFoodSearchInput("");
+    } catch {
+      setFoodAnalysisMessage("Camera scanning works on a real iPhone build. You can use manual search here.");
+    }
+  };
+
+  const handleUploadFoodPhoto = async () => {
+    if (!canUseFoodAnalysis) {
+      setFoodAnalysisMessage("Premium includes unlimited food analysis and meal updates.");
+      router.push("/premium?source=nutrition-food-analysis");
+      return;
+    }
+
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setFoodAnalysisMessage("Photo library permission is needed to upload a food image. You can use manual search here.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.7,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const uri = result.assets?.[0]?.uri;
+      if (!uri) {
+        setFoodAnalysisMessage("Photo upload works on a real iPhone build. You can use manual search here.");
+        return;
+      }
+
+      setPendingFoodImageUri(uri);
+      setFoodAnalysisMessage("We found the photo. What food should we analyze?");
+      setFoodSearchInput("");
+    } catch {
+      setFoodAnalysisMessage("Photo upload works on a real iPhone build. You can use manual search here.");
+    }
+  };
+
+  const handleGenerateAdaptiveMealPlan = async () => {
+    if (!mealPlanGoal || !dietStyle) {
+      setMealPlanError("Choose your goal and eating style first.");
+      return;
+    }
+
+    if (!premium.hasPremiumAccess && adaptiveMealPlan) {
+      setMealPlanError("Premium includes unlimited food analysis and meal updates.");
+      router.push("/premium?source=nutrition-meal-updates");
+      return;
+    }
+
+    setMealPlanStatus("generating");
+    setMealPlanError(null);
+    setNutritionMessage(adaptiveMealPlan ? "Updating meal plan..." : "Generating meal plan...");
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      const plan = buildAdaptiveMealPlan({
+        goal: mealPlanGoal,
+        dietStyle,
+        filters: selectedNutritionFilters,
+        dislikes: mealPlanDislikes,
+        allergies: mealPlanAllergies,
+        prepPreference: mealPlanPrep,
+        budgetPreference: mealPlanBudget,
+        premium: premium.hasPremiumAccess,
+      });
+      setAdaptiveMealPlan(plan);
+      await persistNutritionPreferences(plan);
+      await growth.recordEvent("nutrition_meal_plan_generated", {
+        premium: premium.hasPremiumAccess,
+        days: plan.plan.length,
+      });
+      setNutritionMessage(adaptiveMealPlan ? "Meal plan updated ✓" : premium.hasPremiumAccess ? "Meal plan generated." : "1-day meal plan generated.");
+    } catch {
+      setMealPlanError("Meal plan could not be generated. Please try again.");
+      setNutritionMessage(null);
+    } finally {
+      setMealPlanStatus("idle");
+    }
+  };
+
+  const handleTryAnotherDietStyle = () => {
+    const switchable = DIET_STYLE_OPTIONS.filter((style) => style !== "Recommend one for me");
+    const currentIndex = switchable.indexOf(recommendedDietStyle);
+    const nextStyle = switchable[(currentIndex + 1) % switchable.length] ?? "Mediterranean-style";
+    setDietStyle(nextStyle);
+    setAdaptiveMealPlan(null);
+    setNutritionMessage(`Trying ${nextStyle}. Generate a plan when you are ready.`);
+  };
+
+  const handleShareAdaptiveGroceryList = async () => {
+    if (!adaptiveMealPlan) {
+      return;
+    }
+
+    try {
+      await Share.share({
+        title: `${adaptiveMealPlan.title} grocery list`,
+        message: formatGroceryListText(`${adaptiveMealPlan.title} grocery list`, adaptiveMealPlan.groceries),
+      });
+    } catch {
+      setNutritionMessage("Grocery list could not be shared right now.");
+    }
+  };
+
+  const generatedMealPlanContent = adaptiveMealPlan ? (
+    <View style={styles.foodAnalysisCard}>
+      <View style={styles.medicationHeader}>
+        <View style={styles.itemHeaderCopy}>
+          <AppText style={styles.itemTitle}>{adaptiveMealPlan.title}</AppText>
+          <AppText style={styles.itemMeta}>{mealPlanGoal}</AppText>
+        </View>
+        <AppText style={[styles.badge, premium.hasPremiumAccess ? styles.badgeActive : styles.badgeInactive]}>
+          {premium.hasPremiumAccess ? "Premium" : "Simple"}
+        </AppText>
+      </View>
+      <AppText style={styles.itemNotes}>{adaptiveMealPlan.focus}</AppText>
+      <View style={styles.groceryListCard}>
+        <AppText style={styles.nutritionCardTitle}>Why this plan fits you</AppText>
+        {adaptiveMealPlan.fitReasons.map((reason) => (
+          <AppText key={reason} style={styles.nutritionPlanLine}>• {reason}</AppText>
+        ))}
+      </View>
+      {adaptiveMealPlan.plan.map((day) => (
+        <View key={day.day} style={styles.groceryListCard}>
+          <AppText style={styles.nutritionCardTitle}>{day.day}</AppText>
+          {day.meals.map((meal) =>
+            typeof meal === "string" ? (
+              <AppText key={meal} style={styles.nutritionPlanLine}>• {meal}</AppText>
+            ) : (
+              <View key={`${day.day}-${meal.type}-${meal.title}`} style={styles.mealInstructionCard}>
+                <AppText style={styles.nutritionCardTitle}>{meal.type}: {meal.title}</AppText>
+                <AppText style={styles.nutritionCardBody}>
+                  <AppText style={styles.nutritionDetailLabel}>Prep: </AppText>
+                  {meal.prep}
+                </AppText>
+                <AppText style={styles.nutritionCardBody}>
+                  <AppText style={styles.nutritionDetailLabel}>Prep time: </AppText>
+                  {meal.prepTime}
+                </AppText>
+                <AppText style={styles.nutritionCardBody}>
+                  <AppText style={styles.nutritionDetailLabel}>Low-energy option: </AppText>
+                  {meal.lowEnergyOption}
+                </AppText>
+              </View>
+            ),
+          )}
+        </View>
+      ))}
+      <View style={styles.groceryListCard}>
+        <AppText style={styles.nutritionCardTitle}>Meal swaps</AppText>
+        {adaptiveMealPlan.swaps.map((swap) => (
+          <AppText key={swap} style={styles.nutritionPlanLine}>• {swap}</AppText>
+        ))}
+      </View>
+      <View style={styles.groceryListCard}>
+        <AppText style={styles.nutritionCardTitle}>Swap foods I don’t like</AppText>
+        <AppText style={styles.nutritionCardBody}>
+          Add foods to avoid, then regenerate the plan with easier alternatives.
+        </AppText>
+        <TextInput
+          value={mealPlanDislikes}
+          onChangeText={setMealPlanDislikes}
+          placeholder="Example: salmon, mushrooms, yogurt"
+          placeholderTextColor="#9ca3af"
+          style={styles.input}
+        />
+        <AppButton
+          label={mealPlanStatus === "generating" ? "Updating meal plan..." : "Update meal plan"}
+          onPress={() => void handleGenerateAdaptiveMealPlan()}
+          variant="secondary"
+          disabled={mealPlanStatus === "generating"}
+        />
+      </View>
+      {premium.hasPremiumAccess ? (
+        <>
+          <View style={styles.groceryListCard}>
+            <AppText style={styles.nutritionCardTitle}>Grocery list</AppText>
+            {Object.entries(adaptiveMealPlan.groceries).map(([category, items]) => (
+              <AppText key={category} style={styles.nutritionCardBody}>
+                <AppText style={styles.nutritionDetailLabel}>{category}: </AppText>
+                {items.join(", ")}
+              </AppText>
+            ))}
+          </View>
+          <View style={styles.itemActions}>
+            <AppButton label="Share grocery list" onPress={() => void handleShareAdaptiveGroceryList()} variant="secondary" />
+            <AppButton
+              label="Copy grocery list"
+              onPress={() => handleCopyGroceryList(`${adaptiveMealPlan.title} grocery list`, adaptiveMealPlan.groceries)}
+              variant="secondary"
+            />
+            <AppButton label="Save meal plan" onPress={() => void handleSaveCurrentMealPlan()} variant="secondary" />
+          </View>
+        </>
+      ) : (
+        <View style={styles.nutritionUpgradeCard}>
+          <AppText style={styles.nutritionCardBody}>
+            Premium adds unlimited meal plans, unlimited food analysis, grocery lists, saved plans, and advanced swaps.
+          </AppText>
+          <AppButton label="View Premium" onPress={() => router.push("/premium?source=nutrition-meal-plan")} variant="secondary" />
+        </View>
+      )}
+    </View>
+  ) : null;
+
+  return (
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <View style={styles.card}>
+        <View style={styles.formHeaderCopy}>
+          <AppText style={styles.title}>Nutrition</AppText>
+          <AppText style={styles.body}>Build a nutrition plan based on your goals and preferences.</AppText>
+          <AppText style={styles.nutritionDisclaimer}>
+            Nutrition information is for general wellness support and is not medical advice.
+          </AppText>
+        </View>
+
+        <View style={styles.nutritionPlannerCard}>
+          <AppText style={styles.sectionLabel}>Nutrition planner</AppText>
+          <View style={styles.nutritionStep}>
+            <AppText style={styles.nutritionStepTitle}>1. What would you like nutrition support with?</AppText>
+            <View style={styles.frequencyOptions}>
+              {MEAL_PLAN_GOALS.map((goal) => {
+                const isSelected = mealPlanGoal === goal;
+                return (
+                  <Pressable
+                    key={goal}
+                    onPress={() => setMealPlanGoal(goal)}
+                    style={({ pressed }) => [
+                      styles.frequencyChip,
+                      isSelected && styles.frequencyChipSelected,
+                      pressed && styles.frequencyChipPressed,
+                    ]}
+                  >
+                    <AppText style={[styles.frequencyChipText, isSelected && styles.frequencyChipTextSelected]}>{goal}</AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.nutritionStep}>
+            <AppText style={styles.nutritionStepTitle}>2. What eating style sounds best?</AppText>
+            <View style={styles.frequencyOptions}>
+              {DIET_STYLE_OPTIONS.map((style) => {
+                const isSelected = dietStyle === style;
+                return (
+                  <Pressable
+                    key={style}
+                    onPress={() => setDietStyle(style)}
+                    style={({ pressed }) => [
+                      styles.frequencyChip,
+                      isSelected && styles.frequencyChipSelected,
+                      pressed && styles.frequencyChipPressed,
+                    ]}
+                  >
+                    <AppText style={[styles.frequencyChipText, isSelected && styles.frequencyChipTextSelected]}>{style}</AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.nutritionStep}>
+            <AppText style={styles.nutritionStepTitle}>3. Any foods you avoid or dislike?</AppText>
+            <TextInput
+              value={mealPlanDislikes}
+              onChangeText={setMealPlanDislikes}
+              placeholder="Example: I don’t like salmon, mushrooms, yogurt."
+              placeholderTextColor="#9ca3af"
+              style={styles.input}
+            />
+          </View>
+
+          <View style={styles.nutritionStep}>
+            <AppText style={styles.nutritionStepTitle}>4. Dietary preferences</AppText>
+            <View style={styles.frequencyOptions}>
+              {NUTRITION_FILTERS.map((filter) => {
+                const isSelected = selectedNutritionFilters.includes(filter);
+                return (
+                  <Pressable
+                    key={filter}
+                    onPress={() => toggleNutritionFilter(filter)}
+                    style={({ pressed }) => [
+                      styles.frequencyChip,
+                      isSelected && styles.frequencyChipSelected,
+                      pressed && styles.frequencyChipPressed,
+                    ]}
+                  >
+                    <AppText style={[styles.frequencyChipText, isSelected && styles.frequencyChipTextSelected]}>{filter}</AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.nutritionStep}>
+            <AppText style={styles.nutritionStepTitle}>5. Prep and budget</AppText>
+            <AppText style={styles.fieldLabel}>Prep preference</AppText>
+            <View style={styles.frequencyOptions}>
+              {PREP_PREFERENCES.map((preference) => {
+                const isSelected = mealPlanPrep === preference.label;
+                return (
+                  <Pressable
+                    key={preference.label}
+                    onPress={() => setMealPlanPrep(preference.label)}
+                    style={({ pressed }) => [
+                      styles.frequencyChip,
+                      isSelected && styles.frequencyChipSelected,
+                      pressed && styles.frequencyChipPressed,
+                    ]}
+                  >
+                    <AppText style={[styles.frequencyChipText, isSelected && styles.frequencyChipTextSelected]}>{preference.label}</AppText>
+                    <AppText style={[styles.frequencyChipHint, isSelected && styles.frequencyChipTextSelected]}>
+                      {preference.description}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <AppText style={styles.fieldLabel}>Budget preference</AppText>
+            <View style={styles.frequencyOptions}>
+              {BUDGET_PREFERENCES.map((preference) => {
+                const isSelected = mealPlanBudget === preference;
+                return (
+                  <Pressable
+                    key={preference}
+                    onPress={() => setMealPlanBudget(preference)}
+                    style={({ pressed }) => [
+                      styles.frequencyChip,
+                      isSelected && styles.frequencyChipSelected,
+                      pressed && styles.frequencyChipPressed,
+                    ]}
+                  >
+                    <AppText style={[styles.frequencyChipText, isSelected && styles.frequencyChipTextSelected]}>{preference}</AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.dietRecommendationCard}>
+            <AppText style={styles.nutritionCardTitle}>{recommendedDietDirection.title}</AppText>
+            <AppText style={styles.nutritionCardBody}>
+              Recommended style: {recommendedDietStyle}, {mealPlanPrep.toLowerCase()} meals.
+            </AppText>
+            <View style={styles.list}>
+              <AppText style={styles.nutritionDetailLabel}>Why this may fit</AppText>
+              {recommendationReasons.map((reason) => (
+                <View key={reason} style={styles.alternativeRow}>
+                  <AppText style={styles.alternativeBullet}>•</AppText>
+                  <AppText style={styles.alternativeText}>{reason}</AppText>
+                </View>
+              ))}
+            </View>
+            <AppText style={styles.nutritionCardBody}>
+              <AppText style={styles.nutritionDetailLabel}>Emphasizes: </AppText>
+              {recommendedDietDirection.emphasizes}
+            </AppText>
+            <AppText style={styles.nutritionCardBody}>
+              <AppText style={styles.nutritionDetailLabel}>Watch for: </AppText>
+              {recommendedDietDirection.watchFor}
+            </AppText>
+          </View>
+
+          <View style={styles.itemActions}>
+            <AppButton
+              label={
+                mealPlanStatus === "generating"
+                  ? adaptiveMealPlan
+                    ? "Updating meal plan..."
+                    : "Generating meal plan..."
+                  : premium.hasPremiumAccess
+                    ? "Generate meal plan"
+                    : "Generate 1-day plan"
+              }
+              onPress={() => void handleGenerateAdaptiveMealPlan()}
+              variant="secondary"
+              disabled={mealPlanStatus === "generating"}
+            />
+            <AppButton label="Try another diet style" onPress={handleTryAnotherDietStyle} variant="secondary" />
+          </View>
+          {mealPlanError ? <AppText style={styles.errorText}>{mealPlanError}</AppText> : null}
+        </View>
+
+        {generatedMealPlanContent}
+
+        <View style={styles.nutritionSection}>
+          <AppText style={styles.sectionLabel}>Is this inflammatory?</AppText>
+          <AppText style={styles.body}>
+            Some foods may increase inflammation or energy crashes for some people. Check a food and get realistic swaps.
+          </AppText>
+          <View style={styles.scannerModeRow}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void handlePhotoFoodAnalysis()}
+              style={({ pressed }) => [styles.scannerModePill, pressed && styles.collapseRowPressed]}
+            >
+              <AppText style={styles.scannerModePillText}>Take food photo</AppText>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void handleUploadFoodPhoto()}
+              style={({ pressed }) => [styles.scannerModePill, pressed && styles.collapseRowPressed]}
+            >
+              <AppText style={styles.scannerModePillText}>Upload photo</AppText>
+            </Pressable>
+            <View style={[styles.scannerModePill, styles.scannerModePillActive]}>
+              <AppText style={[styles.scannerModePillText, styles.scannerModePillTextActive]}>Search manually</AppText>
+            </View>
+          </View>
+          {pendingFoodImageUri ? (
+            <View style={styles.nutritionUpgradeCard}>
+              <AppText style={styles.nutritionCardBody}>
+                Image selected. Visual AI analysis is not available yet, so confirm the food name below to analyze it.
+              </AppText>
+            </View>
+          ) : null}
+          <AppText style={styles.emptyHint}>
+            {foodAnalysisUsageLabel}
+          </AppText>
+          <View style={styles.fieldGroup}>
+            <AppText style={styles.fieldLabel}>Food or product</AppText>
+            <TextInput
+              value={foodSearchInput}
+              onChangeText={setFoodSearchInput}
+              placeholder="Try chips, frozen pizza, protein bar..."
+              placeholderTextColor="#9ca3af"
+              style={styles.input}
+              returnKeyType="search"
+              onSubmitEditing={() => void handleFoodAnalysis()}
+            />
+          </View>
+          <View style={styles.frequencyOptions}>
+            {FOOD_SEARCH_SUGGESTIONS.map((suggestion) => (
+              <Pressable
+                key={suggestion}
+                onPress={() => void handleFoodAnalysis(suggestion)}
+                style={({ pressed }) => [styles.frequencyChip, pressed && styles.frequencyChipPressed]}
+              >
+                <AppText style={styles.frequencyChipText}>{suggestion}</AppText>
+              </Pressable>
+            ))}
+          </View>
+          <AppButton
+            label={foodAnalysisStatus === "analyzing" ? "Analyzing food..." : "Analyze food"}
+            onPress={() => void handleFoodAnalysis()}
+            variant="secondary"
+            disabled={foodAnalysisStatus === "analyzing"}
+          />
+          {foodAnalysisMessage ? (
+            <AppText
+              style={
+                foodAnalysisMessage.includes("could not") ||
+                foodAnalysisMessage.includes("Premium") ||
+                foodAnalysisMessage.includes("needs camera")
+                  ? styles.errorText
+                  : styles.successText
+              }
+            >
+              {foodAnalysisMessage}
+            </AppText>
+          ) : null}
+        </View>
+
+        {foodAnalysis ? (
+          <View style={styles.foodAnalysisCard}>
+            <View style={styles.medicationHeader}>
+              <View style={styles.itemHeaderCopy}>
+                <AppText style={styles.itemTitle}>{foodAnalysis.name}</AppText>
+                <AppText style={styles.itemMeta}>Is this inflammatory?</AppText>
+              </View>
+              <AppText style={[styles.badge, styles.nutritionBadge]}>Educational</AppText>
+            </View>
+            <View style={styles.analysisMetricGrid}>
+              {[
+                ["Processing level", foodAnalysis.processing],
+                ["Likely inflammation impact", foodAnalysis.inflammation],
+                ["Energy stability", foodAnalysis.energy],
+                ["Sugar/protein/fiber balance", foodAnalysis.balance],
+              ].map(([title, body]) => (
+                <View key={title} style={styles.analysisMetricCard}>
+                  <AppText style={styles.nutritionCardTitle}>{title}</AppText>
+                  <AppText style={styles.nutritionCardBody}>{body}</AppText>
+                </View>
+              ))}
+            </View>
+            <AppText style={styles.itemNotes}>{foodAnalysis.guidance}</AppText>
+            <View style={styles.nutritionHeaderRow}>
+              <AppText style={styles.sectionLabel}>Better alternatives</AppText>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setShowEasierAlternatives((current) => !current)}
+                style={({ pressed }) => [styles.clearFiltersButton, pressed && styles.collapseRowPressed]}
+              >
+                <AppText style={styles.clearFiltersText}>{showEasierAlternatives ? "All options" : "Show easier"}</AppText>
+              </Pressable>
+            </View>
+            <View style={styles.list}>
+              {(showEasierAlternatives ? foodAnalysis.easyAlternatives : foodAnalysis.alternatives)
+                .slice(0, premium.hasPremiumAccess ? undefined : 3)
+                .map((alternative) => (
+                  <View key={alternative} style={styles.alternativeRow}>
+                    <AppText style={styles.alternativeBullet}>•</AppText>
+                    <AppText style={styles.alternativeText}>{alternative}</AppText>
+                  </View>
+                ))}
+            </View>
+          </View>
+        ) : null}
+
+        <View style={styles.nutritionSection}>
+          <View style={styles.nutritionHeaderRow}>
+            <AppText style={styles.sectionLabel}>Low-energy meal ideas</AppText>
+            {selectedNutritionFilters.length > 0 ? (
+              <Pressable onPress={() => setSelectedNutritionFilters([])} style={({ pressed }) => [styles.clearFiltersButton, pressed && styles.collapseRowPressed]}>
+                <AppText style={styles.clearFiltersText}>Clear</AppText>
+              </Pressable>
+            ) : null}
+          </View>
+          <View style={styles.frequencyOptions}>
+            {NUTRITION_FILTERS.map((filter) => {
+              const isSelected = selectedNutritionFilters.includes(filter);
+              return (
+                <Pressable
+                  key={filter}
+                  onPress={() => toggleNutritionFilter(filter)}
+                  style={({ pressed }) => [
+                    styles.frequencyChip,
+                    isSelected && styles.frequencyChipSelected,
+                    pressed && styles.frequencyChipPressed,
+                  ]}
+                >
+                  <AppText style={[styles.frequencyChipText, isSelected && styles.frequencyChipTextSelected]}>{filter}</AppText>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={styles.list}>
+            {filteredLowEnergyMeals.map((meal) => (
+              <View key={meal.id} style={styles.nutritionMealCard}>
+                <View style={styles.medicationHeader}>
+                  <View style={styles.itemHeaderCopy}>
+                    <AppText style={styles.itemTitle}>{meal.title}</AppText>
+                    <AppText style={styles.itemMeta}>{meal.category}</AppText>
+                  </View>
+                  <AppText style={[styles.badge, styles.nutritionBadge]}>Low energy</AppText>
+                </View>
+                <AppText style={styles.itemNotes}>{meal.details}</AppText>
+                <View style={styles.nutritionTagRow}>
+                  {meal.tags.slice(0, 4).map((tag) => (
+                    <AppText key={tag} style={styles.nutritionTag}>{tag}</AppText>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.nutritionSection}>
+          <AppText style={styles.sectionLabel}>Meal plans</AppText>
+          <View style={styles.nutritionMealCard}>
+            <View style={styles.medicationHeader}>
+              <View style={styles.itemHeaderCopy}>
+                <AppText style={styles.itemTitle}>{FREE_SAMPLE_MEAL_PLAN.title}</AppText>
+                <AppText style={styles.itemMeta}>Included</AppText>
+              </View>
+              <AppText style={[styles.badge, styles.badgeActive]}>Free</AppText>
+            </View>
+            {FREE_SAMPLE_MEAL_PLAN.meals.map((meal) => (
+              <AppText key={meal} style={styles.nutritionPlanLine}>• {meal}</AppText>
+            ))}
+          </View>
+          {PREMIUM_MEAL_PLANS.map((plan) => {
+            return (
+              <View key={plan.id} style={[styles.nutritionMealCard, !premium.hasPremiumAccess && styles.nutritionLockedCard]}>
+                <View style={styles.medicationHeader}>
+                  <View style={styles.itemHeaderCopy}>
+                    <AppText style={styles.itemTitle}>{plan.title}</AppText>
+                    <AppText style={styles.itemMeta}>{plan.category}</AppText>
+                  </View>
+                  <AppText style={[styles.badge, premium.hasPremiumAccess ? styles.badgeActive : styles.badgeInactive]}>Premium</AppText>
+                </View>
+                {premium.hasPremiumAccess ? (
+                  <>
+                    {plan.meals.map((meal) => (
+                      <AppText key={meal} style={styles.nutritionPlanLine}>• {meal}</AppText>
+                    ))}
+                    <View style={styles.groceryListCard}>
+                      <AppText style={styles.nutritionCardTitle}>Grocery support</AppText>
+                      {Object.entries(plan.groceries).map(([category, items]) => (
+                        <AppText key={category} style={styles.nutritionCardBody}>
+                          <AppText style={styles.nutritionDetailLabel}>{category}: </AppText>
+                          {items.join(", ")}
+                        </AppText>
+                      ))}
+                    </View>
+                    <View style={styles.itemActions}>
+                      <AppButton label="Share grocery list" onPress={() => void handleShareGroceryList(plan)} variant="secondary" />
+                      <AppButton
+                        label="Copy grocery list"
+                        onPress={() => handleCopyGroceryList(`${plan.title} grocery list`, plan.groceries)}
+                        variant="secondary"
+                      />
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <AppText style={styles.itemNotes}>
+                      Premium includes unlimited meal plans, unlimited food analysis, grocery lists, saved plans, and advanced swaps.
+                    </AppText>
+                    <AppButton label="View Premium" onPress={() => router.push("/premium?source=nutrition")} variant="secondary" />
+                  </>
+                )}
+              </View>
+            );
+          })}
+        </View>
+
+        {premium.hasPremiumAccess ? (
+          <View style={styles.nutritionSection}>
+            <AppText style={styles.sectionLabel}>Saved plans</AppText>
+            {savedMealPlans.length > 0 ? (
+              <View style={styles.list}>
+                {savedMealPlans.map((savedPlan) => (
+                  <View key={savedPlan.id} style={styles.nutritionMealCard}>
+                    <View style={styles.medicationHeader}>
+                      <View style={styles.itemHeaderCopy}>
+                        <AppText style={styles.itemTitle}>{savedPlan.title}</AppText>
+                        <AppText style={styles.itemMeta}>
+                          {savedPlan.goal ? `${savedPlan.goal} • ` : ""}
+                          {savedPlan.dietStyle ?? savedPlan.category}
+                        </AppText>
+                      </View>
+                      <AppText style={[styles.badge, styles.badgeActive]}>Saved</AppText>
+                    </View>
+                    <AppText style={styles.itemNotes}>
+                      Saved {new Date(savedPlan.savedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}.
+                    </AppText>
+                    <View style={styles.itemActions}>
+                      <AppButton label="Open plan" onPress={() => handleLoadSavedMealPlan(savedPlan)} variant="secondary" />
+                      <AppButton label="Remove" onPress={() => void handleRemoveSavedMealPlan(savedPlan.id)} variant="secondary" />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.nutritionUpgradeCard}>
+                <AppText style={styles.nutritionCardBody}>
+                  Save a generated meal plan to revisit it later without rebuilding everything.
+                </AppText>
+              </View>
+            )}
+          </View>
+        ) : null}
+
+        <View style={styles.nutritionSection}>
+          <AppText style={styles.sectionLabel}>Nutrition basics</AppText>
+          <View style={styles.nutritionGrid}>
+            {NUTRITION_BASICS.map((item) => (
+              <View key={item.title} style={styles.nutritionInfoCard}>
+                <AppText style={styles.nutritionCardTitle}>{item.title}</AppText>
+                <AppText style={styles.nutritionCardBody}>{item.body}</AppText>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.nutritionSection}>
+          <AppText style={styles.sectionLabel}>Diet approaches</AppText>
+          <View style={styles.list}>
+            {DIET_APPROACHES.map((approach) => (
+              <View key={approach.title} style={styles.nutritionApproachCard}>
+                <AppText style={styles.itemTitle}>{approach.title}</AppText>
+                <AppText style={styles.nutritionDetailText}>
+                  <AppText style={styles.nutritionDetailLabel}>Emphasizes: </AppText>
+                  {approach.emphasizes}
+                </AppText>
+                <AppText style={styles.nutritionDetailText}>
+                  <AppText style={styles.nutritionDetailLabel}>May be difficult: </AppText>
+                  {approach.difficult}
+                </AppText>
+                <AppText style={styles.nutritionDetailText}>
+                  <AppText style={styles.nutritionDetailLabel}>May fit: </AppText>
+                  {approach.useful}
+                </AppText>
+                <AppText style={styles.nutritionClinicianNote}>
+                  Talk with a clinician or dietitian before making major diet changes.
+                </AppText>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {nutritionMessage ? <AppText style={styles.successText}>{nutritionMessage}</AppText> : null}
+      </View>
+    </ScrollView>
+  );
 }
 
 export default function CareScreen() {
@@ -325,7 +2040,6 @@ export default function CareScreen() {
     () => medications.filter((medication) => !medication.active),
     [medications],
   );
-  const recentCareNote = careNotesQuery.data?.[0] ?? null;
   const nextAppointment = upcomingAppointments[0] ?? null;
   const takenMedicationCount = useMemo(
     () => activeMedications.filter((medication) => medicationsTakenToday[medication.id]).length,
@@ -1020,23 +2734,6 @@ export default function CareScreen() {
             ) : null}
           </View>
 
-          <View style={styles.summaryCard}>
-            <AppText style={styles.summaryLabel}>Recent care reminder</AppText>
-            {recentCareNote ? (
-              <>
-                <AppText style={styles.summaryTitle}>{recentCareNote.title || "Care reminder"}</AppText>
-                <AppText style={styles.summaryBody}>{getNotePreview(recentCareNote.body, 90)}</AppText>
-                <AppText style={styles.summaryHint}>
-                  Updated {formatShortDateFromIso(recentCareNote.updated_at)}
-                </AppText>
-              </>
-            ) : (
-              <>
-                <AppText style={styles.summaryEmptyTitle}>No care reminder saved yet.</AppText>
-                <AppText style={styles.summaryHint}>Questions, side effects, or changes can be saved here.</AppText>
-              </>
-            )}
-          </View>
         </View>
 
         <View style={styles.quickLinksCard}>
@@ -1046,6 +2743,20 @@ export default function CareScreen() {
             <AppButton label="Health Summary" onPress={() => router.push("/health-summary")} variant="secondary" />
           </View>
         </View>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push("/nutrition")}
+          style={({ pressed }) => [styles.quickLinksCard, pressed && styles.collapseRowPressed]}
+        >
+          <View style={styles.formHeaderCopy}>
+            <AppText style={styles.sectionTitle}>Nutrition</AppText>
+            <AppText style={styles.body}>Build a nutrition plan based on your goals and preferences.</AppText>
+          </View>
+          <View style={styles.nutritionOpenButton}>
+            <AppText style={styles.nutritionOpenButtonText}>Open</AppText>
+          </View>
+        </Pressable>
 
         <View style={styles.card}>
           <View style={styles.formHeader}>
@@ -1713,6 +3424,243 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1f2937",
   },
+  nutritionDisclaimer: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  nutritionSection: {
+    gap: 12,
+  },
+  nutritionPlannerCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#eadfd6",
+    backgroundColor: "#fffaf6",
+    padding: 14,
+    gap: 16,
+  },
+  nutritionStep: {
+    gap: 10,
+  },
+  nutritionStepTitle: {
+    color: "#1f2937",
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "700",
+  },
+  dietRecommendationCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#dbe9dc",
+    backgroundColor: "#f8fcf7",
+    padding: 14,
+    gap: 8,
+  },
+  nutritionGrid: {
+    gap: 10,
+  },
+  nutritionInfoCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    padding: 14,
+    gap: 6,
+  },
+  nutritionApproachCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    padding: 14,
+    gap: 8,
+  },
+  nutritionCardTitle: {
+    color: "#1f2937",
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "700",
+  },
+  nutritionCardBody: {
+    color: "#4b5563",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  nutritionDetailText: {
+    color: "#4b5563",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  nutritionDetailLabel: {
+    color: "#1f2937",
+    fontWeight: "700",
+  },
+  nutritionClinicianNote: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  nutritionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  nutritionOpenButton: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    backgroundColor: "#e8751a",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    marginTop: 2,
+  },
+  nutritionOpenButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "700",
+  },
+  scannerModeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  scannerModePill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#f9fafb",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  scannerModePillActive: {
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fff4ec",
+  },
+  scannerModePillText: {
+    color: "#6b7280",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+  },
+  scannerModePillTextActive: {
+    color: "#9a4a11",
+  },
+  clearFiltersButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#ead8ca",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  clearFiltersText: {
+    color: "#c25d10",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
+  },
+  nutritionMealCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    padding: 14,
+    gap: 10,
+  },
+  foodAnalysisCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#eadfd6",
+    backgroundColor: "#ffffff",
+    padding: 14,
+    gap: 12,
+  },
+  analysisMetricGrid: {
+    gap: 10,
+  },
+  analysisMetricCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    padding: 12,
+    gap: 5,
+  },
+  alternativeRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderRadius: 12,
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  alternativeBullet: {
+    color: "#c25d10",
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "700",
+  },
+  alternativeText: {
+    flex: 1,
+    color: "#374151",
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  nutritionUpgradeCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#eadfd6",
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    gap: 10,
+  },
+  nutritionLockedCard: {
+    backgroundColor: "#f9fafb",
+    borderColor: "#e5e7eb",
+  },
+  nutritionBadge: {
+    backgroundColor: "#eef7ed",
+    color: "#166534",
+  },
+  nutritionTagRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  nutritionTag: {
+    borderRadius: 999,
+    backgroundColor: "#fff0e2",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    color: "#9a4a11",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
+  },
+  nutritionPlanLine: {
+    color: "#4b5563",
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  groceryListCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#eadfd6",
+    backgroundColor: "#ffffff",
+    padding: 12,
+    gap: 6,
+  },
+  mealInstructionCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fffaf6",
+    padding: 12,
+    gap: 6,
+  },
   summaryLabel: {
     fontSize: 13,
     fontWeight: "700",
@@ -1936,6 +3884,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "600",
+  },
+  frequencyChipHint: {
+    color: "#6b7280",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "500",
+    marginTop: 2,
   },
   frequencyChipTextSelected: {
     color: "#9a4a11",

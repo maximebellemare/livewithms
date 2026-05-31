@@ -15,18 +15,6 @@ export const PROGRAM_LIBRARY_CATEGORIES: ProgramLibraryCategory[] = [
 
 const CORE_PROGRAM_MODULES: ProgramModule[] = [
   {
-    id: "plan-today-support",
-    title: "Plan today",
-    section: "Planning",
-    category: "pacing",
-    track: "energy-management",
-    description: "Create one energy-aware priority for today.",
-    whyItHelps: "A smaller plan can reduce decisions and keep the day easier to start.",
-    estimatedPace: "2 minutes",
-    toolIds: ["plan-today"],
-    content: [],
-  },
-  {
     id: "reduce-overwhelm-support",
     title: "Reduce overwhelm",
     section: "Calm",
@@ -489,26 +477,6 @@ const PREMIUM_PROGRAM_MODULES: ProgramModule[] = [
 export const PROGRAM_MODULES: ProgramModule[] = [...CORE_PROGRAM_MODULES, ...PREMIUM_PROGRAM_MODULES];
 
 const CORE_PROGRAM_TOOLS: ProgramTool[] = [
-  {
-    id: "plan-today",
-    title: "Plan today",
-    moduleId: "plan-today-support",
-    section: "Planning",
-    category: "pacing",
-    whenToUse: "When today needs a simpler, energy-aware plan.",
-    durationLabel: "2 minutes",
-    description: "A short planning tool for choosing one priority and reducing unnecessary decisions.",
-    steps: [
-      "Choose the most important thing to handle today.",
-      "Rate your current energy: low, medium, or steady.",
-      "Choose one task, decision, or expectation that can be simplified.",
-      "Set one support item nearby before you begin.",
-    ],
-    completionMessage: "Today’s plan is smaller and clearer.",
-    futureTrack: "energy-management",
-    continuationLabel: "Use this when the day needs a simpler starting point.",
-    supportTags: ["planning", "fatigue", "brain-fog"],
-  },
   {
     id: "reduce-overwhelm",
     title: "Reduce overwhelm",

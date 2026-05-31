@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Modal,
   Pressable,
   RefreshControl,
@@ -30,6 +31,7 @@ import {
   toggleCommunityReaction,
   upsertCommunityProfile,
 } from "../../../../features/community/api";
+import { rememberCommunityCategory, useCommunityActivity } from "../../../../features/community/activity";
 import {
   COMMUNITY_CATEGORIES,
   COMMUNITY_REACTIONS,
@@ -44,6 +46,7 @@ import {
   getCommunityPostTypeLabel,
 } from "../../../../features/community/constants";
 import type {
+  CommunityActivityItem,
   CommunityCategoryId,
   CommunityComment,
   CommunityPost,
@@ -54,6 +57,7 @@ import type {
   CommunityUsage,
 } from "../../../../features/community/types";
 import { useAuth } from "../../../../features/auth/hooks";
+import { useGrowthState } from "../../../../features/growth/hooks";
 import { usePremium } from "../../../../features/premium/hooks";
 
 type CommunityFilter = CommunityCategoryId | null;
@@ -98,6 +102,7 @@ export default function CommunityScreen() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const premium = usePremium();
+  const growth = useGrowthState();
   const [selectedCategory, setSelectedCategory] = useState<CommunityFilter>(null);
   const [posts, setPosts] = useState<CommunityPost[]>(COMMUNITY_STARTER_POSTS);
   const [comments, setComments] = useState<CommunityComment[]>([]);
@@ -120,8 +125,17 @@ export default function CommunityScreen() {
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [publishState, setPublishState] = useState<"idle" | "posting" | "success" | "error">("idle");
+  const [recentlyPublishedPostId, setRecentlyPublishedPostId] = useState<string | null>(null);
+  const publishFeedbackScale = useRef(new Animated.Value(0.96)).current;
+  const publishFeedbackOpacity = useRef(new Animated.Value(0)).current;
 
   const hasPremiumAccess = premium.hasPremiumAccess;
+  const {
+    summary: communityActivitySummary,
+    refresh: refreshCommunityActivity,
+    markSeen: markCommunityActivityAsSeen,
+  } = useCommunityActivity(user?.id);
   const freePostLimitReached = !hasPremiumAccess && usage.postsToday >= FREE_DAILY_COMMUNITY_POST_LIMIT;
   const freeCommentLimitReached = !hasPremiumAccess && usage.commentsToday >= FREE_DAILY_COMMUNITY_COMMENT_LIMIT;
   const displayName = useMemo(() => getSafeDisplayName(profileDisplayName), [profileDisplayName]);
@@ -152,6 +166,24 @@ export default function CommunityScreen() {
       cancelled = true;
     };
   }, [user?.id]);
+
+  const animatePublishSuccess = useCallback(() => {
+    publishFeedbackScale.setValue(0.96);
+    publishFeedbackOpacity.setValue(0);
+    Animated.parallel([
+      Animated.spring(publishFeedbackScale, {
+        toValue: 1,
+        friction: 8,
+        tension: 90,
+        useNativeDriver: true,
+      }),
+      Animated.timing(publishFeedbackOpacity, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [publishFeedbackOpacity, publishFeedbackScale]);
 
   const loadCommunity = useCallback(
     async (mode: "initial" | "refresh" = "initial") => {
@@ -190,13 +222,20 @@ export default function CommunityScreen() {
   useFocusEffect(
     useCallback(() => {
       void loadCommunity("initial");
-    }, [loadCommunity]),
+      void (async () => {
+        await refreshCommunityActivity();
+        await markCommunityActivityAsSeen();
+      })();
+    }, [loadCommunity, markCommunityActivityAsSeen, refreshCommunityActivity]),
   );
 
   const openPost = useCallback(
     async (post: CommunityPost) => {
       setSelectedPost(post);
       setComments([]);
+      if (user?.id) {
+        await rememberCommunityCategory(user.id, post.category);
+      }
       if (post.isStarter) {
         setComments(COMMUNITY_STARTER_COMMENTS[post.id] ?? []);
         return;
@@ -211,6 +250,29 @@ export default function CommunityScreen() {
     [blockedUserIds, user?.id],
   );
 
+  const openActivityItem = useCallback(async (item: CommunityActivityItem) => {
+    const matchingPost = posts.find((post) => post.id === item.postId);
+    if (matchingPost) {
+      await openPost(matchingPost);
+      return;
+    }
+
+    const refreshedPosts = await fetchCommunityPosts(undefined, user?.id);
+    const refreshedMatch = refreshedPosts.find((post) => post.id === item.postId);
+    if (refreshedMatch) {
+      setPosts((current) => {
+        const starterPosts = COMMUNITY_STARTER_POSTS.filter(
+          (post) => !refreshedPosts.some((livePost) => livePost.id === post.id),
+        );
+        return [...refreshedPosts, ...starterPosts];
+      });
+      await openPost(refreshedMatch);
+      return;
+    }
+
+    setMessage("That activity could not open right now.");
+  }, [openPost, posts, user?.id]);
+
   const resetComposer = useCallback(() => {
     const nextCategory = selectedCategory ?? "symptoms-daily-life";
     setTitle("");
@@ -218,6 +280,7 @@ export default function CommunityScreen() {
     setPostType(getDefaultCommunityPostType(nextCategory));
     setComposerCategory(nextCategory);
     setShowComposer(false);
+    setPublishState("idle");
   }, [selectedCategory]);
 
   const submitPost = useCallback(async () => {
@@ -241,8 +304,10 @@ export default function CommunityScreen() {
     }
 
     setSavingPost(true);
+    setPublishState("posting");
+    setMessage("Posting...");
     try {
-      await createCommunityPost({
+      const createdPost = await createCommunityPost({
         userId: user.id,
         displayName,
         title: trimmedTitle,
@@ -251,10 +316,22 @@ export default function CommunityScreen() {
         postType,
       });
       resetComposer();
-      await loadCommunity("refresh");
-      setMessage("Post shared.");
+      setPosts((current) => [createdPost, ...current.filter((post) => post.id !== createdPost.id)]);
+      setSelectedCategory(createdPost.category);
+      setSelectedPost(createdPost);
+      setComments([]);
+      setRecentlyPublishedPostId(createdPost.id);
+      setPublishState("success");
+      setMessage("Post published ✓");
+      void growth.recordEvent("community_post_created", {
+        category: createdPost.category,
+        postType: createdPost.post_type,
+      });
+      animatePublishSuccess();
+      void loadCommunity("refresh");
     } catch {
-      setMessage("Post could not be shared right now.");
+      setPublishState("error");
+      setMessage("Post could not be published. Please try again.");
     } finally {
       setSavingPost(false);
     }
@@ -269,6 +346,8 @@ export default function CommunityScreen() {
     title,
     user?.id,
     displayName,
+    animatePublishSuccess,
+    growth,
   ]);
 
   const submitComment = useCallback(async () => {
@@ -570,6 +649,23 @@ export default function CommunityScreen() {
         </View>
 
         {message ? <AppText style={styles.message}>{message}</AppText> : null}
+        {publishState === "success" && selectedPost && recentlyPublishedPostId === selectedPost.id ? (
+          <Animated.View
+            style={[
+              styles.publishSuccessCard,
+              {
+                opacity: publishFeedbackOpacity,
+                transform: [{ scale: publishFeedbackScale }],
+              },
+            ]}
+          >
+            <View style={styles.publishSuccessHeader}>
+              <Ionicons name="checkmark-circle" size={18} color={colors.accent} />
+              <AppText style={styles.publishSuccessTitle}>Post published ✓</AppText>
+            </View>
+            <AppText style={styles.publishSuccessBody}>Your thread is live and visible in Community now.</AppText>
+          </Animated.View>
+        ) : null}
         {loadFailed && posts.length === 0 ? (
           <View style={styles.errorCard}>
             <AppText style={styles.emptyTitle}>Community could not load right now.</AppText>
@@ -592,6 +688,9 @@ export default function CommunityScreen() {
                     setSelectedCategory(category.id);
                     setComposerCategory(category.id);
                     setPostType(getDefaultCommunityPostType(category.id));
+                    if (user?.id) {
+                      void rememberCommunityCategory(user.id, category.id);
+                    }
                   }}
                   style={({ pressed }) => [
                     styles.categoryCard,
@@ -608,22 +707,62 @@ export default function CommunityScreen() {
               ))}
             </View>
             <View style={styles.section}>
+              {communityActivitySummary.newReplies.length > 0 ? (
+                <View style={styles.section}>
+                  <AppText style={styles.sectionTitle}>New replies</AppText>
+                  {communityActivitySummary.newReplies.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      accessibilityRole="button"
+                      onPress={() => void openActivityItem(item)}
+                      style={({ pressed }) => [styles.activityCard, pressed && styles.pressed]}
+                    >
+                      <View style={styles.activityTopRow}>
+                        <AppText style={styles.activityTypePill}>Reply</AppText>
+                        <AppText style={styles.metaText}>{timeAgo(item.created_at)}</AppText>
+                      </View>
+                      <AppText style={styles.activityTitle}>{item.postTitle}</AppText>
+                      <AppText style={styles.activityBody}>{item.actorDisplayName}: {item.preview}</AppText>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
               <AppText style={styles.sectionTitle}>{loadFailed ? "Starter discussions" : "Recent activity"}</AppText>
-              {recentThreads.map((post) => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  onPress={() => void openPost(post)}
-                  onReact={(reactionType) => void reactToPost(post, reactionType)}
-                  onReport={() => {
-                    if (post.isStarter) {
-                      setMessage("Starter discussions are curated by LiveWithMS.");
-                      return;
-                    }
-                    reportPost(post);
-                  }}
-                />
-              ))}
+              {communityActivitySummary.recentActivity.length > 0 ? (
+                communityActivitySummary.recentActivity.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="button"
+                    onPress={() => void openActivityItem(item)}
+                    style={({ pressed }) => [styles.activityCard, pressed && styles.pressed]}
+                  >
+                    <View style={styles.activityTopRow}>
+                      <AppText style={styles.activityTypePill}>
+                        {item.type === "reaction" ? "Reaction" : item.type === "reply" ? "Reply" : "New post"}
+                      </AppText>
+                      <AppText style={styles.metaText}>{timeAgo(item.created_at)}</AppText>
+                    </View>
+                    <AppText style={styles.activityTitle}>{item.postTitle}</AppText>
+                    <AppText style={styles.activityBody}>{item.actorDisplayName}: {item.preview}</AppText>
+                  </Pressable>
+                ))
+              ) : (
+                recentThreads.map((post) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onPress={() => void openPost(post)}
+                    onReact={(reactionType) => void reactToPost(post, reactionType)}
+                    onReport={() => {
+                      if (post.isStarter) {
+                        setMessage("Starter discussions are curated by LiveWithMS.");
+                        return;
+                      }
+                      reportPost(post);
+                    }}
+                  />
+                ))
+              )}
             </View>
           </View>
         ) : null}
@@ -643,6 +782,7 @@ export default function CommunityScreen() {
             </Pressable>
             <PostDetailCard
               post={selectedPost}
+              showPostedJustNow={publishState === "success" && recentlyPublishedPostId === selectedPost.id}
               onReact={(reactionType) => void reactToPost(selectedPost, reactionType)}
               onReport={() => {
                 if (selectedPost.isStarter) {
@@ -810,7 +950,7 @@ export default function CommunityScreen() {
               </View>
             ) : null}
 
-            {loading ? (
+            {loading && categoryThreads.length === 0 ? (
               <View style={styles.loadingCard}>
                 <ActivityIndicator color={colors.accent} />
                 <AppText style={styles.emptyText}>Loading community...</AppText>
@@ -931,11 +1071,13 @@ function PostCard({
 
 function PostDetailCard({
   post,
+  showPostedJustNow = false,
   onReact,
   onReport,
   onBlock,
 }: {
   post: CommunityPost;
+  showPostedJustNow?: boolean;
   onReact: (reactionType: CommunityReactionType) => void;
   onReport: () => void;
   onBlock: () => void;
@@ -944,10 +1086,16 @@ function PostDetailCard({
     <View style={styles.detailCard}>
       <View style={styles.postTopRow}>
         <AppText style={styles.typePill}>{post.isStarter ? "Starter thread" : getCommunityPostTypeLabel(post.post_type)}</AppText>
-        <AppText style={styles.metaText}>{timeAgo(post.created_at)}</AppText>
+        <AppText style={styles.metaText}>{showPostedJustNow ? "Posted just now" : timeAgo(post.created_at)}</AppText>
       </View>
       <AuthorRow displayName={post.display_name} />
       <AppText style={styles.detailTitle}>{post.title}</AppText>
+      {showPostedJustNow ? (
+        <View style={styles.justNowRow}>
+          <Ionicons name="checkmark-circle" size={14} color={colors.accent} />
+          <AppText style={styles.justNowText}>Posted just now</AppText>
+        </View>
+      ) : null}
       <AppText style={styles.detailBody}>{post.body}</AppText>
       <ReactionBar reactions={post.reactions} onReact={onReact} />
       <View style={styles.postMetaRow}>
@@ -1142,6 +1290,44 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.textMuted,
   },
+  activityCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.compactCardPadding,
+    gap: 6,
+    ...shadows.soft,
+  },
+  activityTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 10,
+  },
+  activityTypePill: {
+    alignSelf: "flex-start",
+    overflow: "hidden",
+    borderRadius: radii.pill,
+    backgroundColor: colors.accentSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
+    color: colors.accent,
+  },
+  activityTitle: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  activityBody: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textBody,
+  },
   message: {
     borderRadius: radii.card,
     backgroundColor: colors.surfaceAccent,
@@ -1152,6 +1338,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: colors.text,
+  },
+  publishSuccessCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 6,
+    ...shadows.soft,
+  },
+  publishSuccessHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  publishSuccessTitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  publishSuccessBody: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textBody,
   },
   section: {
     gap: 14,
@@ -1410,6 +1622,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
     color: colors.textBody,
+  },
+  justNowRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  justNowText: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+    color: colors.accent,
   },
   replyHeader: {
     flexDirection: "row",

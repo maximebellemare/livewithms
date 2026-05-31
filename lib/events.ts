@@ -30,6 +30,8 @@ export type AppEventName =
   | "reminder_schedule_failed"
   | "program_completed"
   | "export_used"
+  | "nutrition_meal_plan_generated"
+  | "community_post_created"
   | "review_prompt_shown"
   | "feedback_email_opened"
   | "support_email_opened"

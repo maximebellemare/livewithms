@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase/client";
 import env from "../../lib/env";
 import type {
+  CommunityActivityItem,
+  CommunityActivitySummary,
   CommunityCategoryId,
   CommunityBlock,
   CommunityComment,
@@ -401,19 +403,39 @@ export async function createCommunityPost(input: {
 }) {
   assertConfigured();
 
-  const { error } = await db.from("community_posts").insert({
-    user_id: input.userId,
-    display_name: sanitizeDisplayName(input.displayName),
-    title: input.title,
-    body: input.body,
-    category: input.category,
-    post_type: input.postType,
-    suggestion_type: input.category === "app_suggestions" ? input.postType : null,
-  });
+  const { data, error } = await db
+    .from("community_posts")
+    .insert({
+      user_id: input.userId,
+      display_name: sanitizeDisplayName(input.displayName),
+      title: input.title,
+      body: input.body,
+      category: input.category,
+      post_type: input.postType,
+      suggestion_type: input.category === "app_suggestions" ? input.postType : null,
+    })
+    .select("id,user_id,display_name,title,body,category,post_type,created_at,updated_at,is_hidden,report_count,comments_count")
+    .single();
 
   if (error) {
     throw error;
   }
+
+  return {
+    id: data.id,
+    user_id: data.user_id,
+    display_name: sanitizeDisplayName(data.display_name),
+    title: data.title,
+    body: data.body,
+    category: data.category,
+    post_type: data.post_type,
+    created_at: data.created_at,
+    updated_at: data.updated_at,
+    hidden: Boolean(data.is_hidden),
+    report_count: data.report_count ?? 0,
+    replyCount: data.comments_count ?? 0,
+    reactions: [],
+  } satisfies CommunityPost;
 }
 
 export async function createCommunityComment(input: {
@@ -434,6 +456,192 @@ export async function createCommunityComment(input: {
   if (error) {
     throw error;
   }
+}
+
+export async function fetchCommunityActivity(input: {
+  userId: string;
+  lastSeenAt?: string | null;
+  recentCategories?: CommunityCategoryId[];
+}): Promise<CommunityActivitySummary> {
+  if (!env.isSupabaseConfigured || !input.userId) {
+    return { unreadCount: 0, newReplies: [], recentActivity: [] };
+  }
+
+  const lastSeenAt = input.lastSeenAt ?? new Date(0).toISOString();
+  const { data: ownPosts, error: ownPostsError } = await db
+    .from("community_posts")
+    .select("id,title,category")
+    .eq("user_id", input.userId)
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(40);
+
+  if (ownPostsError) {
+    throw ownPostsError;
+  }
+
+  const { data: ownComments, error: ownCommentsError } = await db
+    .from("community_comments")
+    .select("id,post_id")
+    .eq("user_id", input.userId)
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(80);
+
+  if (ownCommentsError) {
+    throw ownCommentsError;
+  }
+
+  const ownPostMap = new Map((ownPosts ?? []).map((post) => [post.id, post]));
+  const ownPostIds = Array.from(ownPostMap.keys());
+  const ownCommentIds = (ownComments ?? []).map((comment) => comment.id);
+
+  const replyRows = ownPostIds.length
+    ? await db
+        .from("community_comments")
+        .select("id,post_id,user_id,display_name,body,created_at")
+        .in("post_id", ownPostIds)
+        .eq("is_hidden", false)
+        .gt("created_at", lastSeenAt)
+        .neq("user_id", input.userId)
+        .order("created_at", { ascending: false })
+        .limit(20)
+    : { data: [], error: null };
+
+  if (replyRows.error) {
+    throw replyRows.error;
+  }
+
+  const postReactionRows = ownPostIds.length
+    ? await db
+        .from("community_reactions")
+        .select("id,user_id,post_id,reaction_type,created_at")
+        .in("post_id", ownPostIds)
+        .gt("created_at", lastSeenAt)
+        .neq("user_id", input.userId)
+        .order("created_at", { ascending: false })
+        .limit(20)
+    : { data: [], error: null };
+
+  if (postReactionRows.error) {
+    throw postReactionRows.error;
+  }
+
+  const commentReactionRows = ownCommentIds.length
+    ? await db
+        .from("community_reactions")
+        .select("id,user_id,comment_id,reaction_type,created_at")
+        .in("comment_id", ownCommentIds)
+        .gt("created_at", lastSeenAt)
+        .neq("user_id", input.userId)
+        .order("created_at", { ascending: false })
+        .limit(20)
+    : { data: [], error: null };
+
+  if (commentReactionRows.error) {
+    throw commentReactionRows.error;
+  }
+
+  const recentCategories = (input.recentCategories ?? []).filter(Boolean);
+  const recentPostRows = recentCategories.length
+    ? await db
+        .from("community_posts")
+        .select("id,user_id,display_name,title,body,category,created_at")
+        .in("category", recentCategories)
+        .eq("is_hidden", false)
+        .gt("created_at", lastSeenAt)
+        .neq("user_id", input.userId)
+        .order("created_at", { ascending: false })
+        .limit(10)
+    : { data: [], error: null };
+
+  if (recentPostRows.error) {
+    throw recentPostRows.error;
+  }
+
+  const actorIds = new Set<string>();
+  for (const row of replyRows.data ?? []) actorIds.add(row.user_id);
+  for (const row of postReactionRows.data ?? []) actorIds.add(row.user_id);
+  for (const row of commentReactionRows.data ?? []) actorIds.add(row.user_id);
+  for (const row of recentPostRows.data ?? []) actorIds.add(row.user_id);
+  const actorNames = await fetchCommunityProfileNames(Array.from(actorIds));
+
+  const replies: CommunityActivityItem[] = (replyRows.data ?? []).map((row) => {
+    const post = ownPostMap.get(row.post_id);
+    return {
+      id: `reply:${row.id}`,
+      type: "reply",
+      created_at: row.created_at,
+      postId: row.post_id,
+      postTitle: post?.title ?? "Your thread",
+      category: post?.category ?? "community-support",
+      actorDisplayName: actorNames.get(row.user_id) ?? sanitizeDisplayName(row.display_name),
+      preview: previewCommunityText(row.body),
+    };
+  });
+
+  const commentPostIds = Array.from(new Set((ownComments ?? []).map((comment) => comment.post_id)));
+  const commentPosts = commentPostIds.length
+    ? await db.from("community_posts").select("id,title,category").in("id", commentPostIds).eq("is_hidden", false)
+    : { data: [], error: null };
+
+  if (commentPosts.error) {
+    throw commentPosts.error;
+  }
+
+  const commentPostMap = new Map((commentPosts.data ?? []).map((post) => [post.id, post]));
+  const ownCommentPostMap = new Map((ownComments ?? []).map((comment) => [comment.id, comment.post_id]));
+
+  const reactions: CommunityActivityItem[] = [
+    ...(postReactionRows.data ?? []).map((row) => {
+      const post = ownPostMap.get(row.post_id ?? "");
+      return {
+        id: `post-reaction:${row.id}`,
+        type: "reaction" as const,
+        created_at: row.created_at,
+        postId: row.post_id ?? "",
+        postTitle: post?.title ?? "Your thread",
+        category: post?.category ?? "community-support",
+        actorDisplayName: actorNames.get(row.user_id) ?? "Community member",
+        preview: `Reacted with ${row.reaction_type}.`,
+      };
+    }),
+    ...(commentReactionRows.data ?? []).map((row) => {
+      const postId = ownCommentPostMap.get(row.comment_id ?? "") ?? "";
+      const post = commentPostMap.get(postId);
+      return {
+        id: `comment-reaction:${row.id}`,
+        type: "reaction" as const,
+        created_at: row.created_at,
+        postId,
+        postTitle: post?.title ?? "A thread you replied to",
+        category: post?.category ?? "community-support",
+        actorDisplayName: actorNames.get(row.user_id) ?? "Community member",
+        preview: `Reacted to your reply with ${row.reaction_type}.`,
+      };
+    }),
+  ];
+
+  const recentPosts: CommunityActivityItem[] = (recentPostRows.data ?? []).map((row) => ({
+    id: `post:${row.id}`,
+    type: "post",
+    created_at: row.created_at,
+    postId: row.id,
+    postTitle: row.title,
+    category: row.category,
+    actorDisplayName: actorNames.get(row.user_id) ?? sanitizeDisplayName(row.display_name),
+    preview: previewCommunityText(row.body),
+  }));
+
+  const recentActivity = [...replies, ...reactions, ...recentPosts]
+    .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+    .slice(0, 8);
+
+  return {
+    unreadCount: recentActivity.length,
+    newReplies: replies.slice(0, 5),
+    recentActivity,
+  };
 }
 
 export async function toggleCommunityReaction(input: {
@@ -530,6 +738,11 @@ function sanitizeDisplayName(name: string | null | undefined) {
     return "Community member";
   }
   return trimmed.slice(0, 32);
+}
+
+function previewCommunityText(body: string) {
+  const compact = body.trim().replace(/\s+/g, " ");
+  return compact.length > 90 ? `${compact.slice(0, 90).trim()}...` : compact;
 }
 
 async function fetchCommunityProfileNames(userIds: string[]): Promise<Map<string, string>> {

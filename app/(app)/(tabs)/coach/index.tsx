@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import {
+  FlatList,
   KeyboardAvoidingView,
   LayoutChangeEvent,
   Linking,
@@ -39,9 +40,9 @@ import { canAccessPremiumFeature } from "../../../../features/premium/entitlemen
 import { FREE_DAILY_AI_COACH_MESSAGES } from "../../../../features/premium/config";
 import { deriveLowEnergyAssist } from "../../../../features/premium/low-energy-assist";
 import { incrementAiCoachUsage, loadAiCoachUsage } from "../../../../features/premium/usage";
-import { getProgramToolById } from "../../../../features/programs/catalog";
 import { useProgramProgress } from "../../../../features/programs/hooks";
-import type { ProgramTool } from "../../../../features/programs/types";
+import type { AdaptiveSupportRecommendation } from "../../../../features/support/adaptive-support";
+import { deriveAdaptiveSupportRecommendations } from "../../../../features/support/adaptive-support";
 import { useAuth } from "../../../../features/auth/hooks";
 import { useCheckInHistory, useSaveDailyCheckIn, useTodaysCheckIn } from "../../../../features/checkins/hooks";
 import type { DailyCheckIn, DailyCheckInInput } from "../../../../features/checkins/types";
@@ -66,64 +67,10 @@ import { useLowEnergyMode } from "../../../../features/low-energy-mode/hooks";
 import { startCoachVoiceInput, stopCoachVoiceInput } from "../../../../features/coach/voice-input";
 import { deriveCoachOperationalMemory } from "../../../../features/coach/operational-memory";
 import { loadRecentTodayPlans, type TodayPlan } from "../../../../features/today-plan/storage";
+import { useCalmEnvironment } from "../../../../features/calm-environment/hooks";
+import { playSoundCue } from "../../../../features/sound-effects/player";
 
 const COACH_RETRY_COOLDOWN_MS = 8000;
-const RELATED_SUPPORT_COPY: Record<string, { title?: string; description: string }> = {
-  "one-priority-planner": {
-    description: "Simplify today’s focus and reduce overload.",
-  },
-  "reduce-overwhelm": {
-    description: "Sort competing pressure into one focus and one next step.",
-  },
-  "brain-fog-basics": {
-    description: "Narrow mental load into one clear next action.",
-  },
-  "difficult-day-pacing-checklist": {
-    title: "Fatigue pacing planner",
-    description: "Protect energy and make today’s demands smaller.",
-  },
-  "low-energy-checklist": {
-    description: "Make a lower-energy day easier to move through.",
-  },
-  "breathing-reset": {
-    description: "Use a short reset when stress feels high.",
-  },
-  "hard-moment-reflection": {
-    description: "Capture what matters without turning it into a long reflection.",
-  },
-};
-
-function getRelatedSupportRecommendation(input: {
-  stress: number | null;
-  fatigue: number | null;
-  brainFog: number | null;
-  adaptiveStressTrend: "elevated" | "steady" | "lighter" | "unknown";
-  adaptiveFatigueTrend: "high" | "steady" | "lighter" | "unknown";
-  adaptiveBrainFogTrend: "high" | "steady" | "lighter" | "unknown";
-  fallbackTool: ProgramTool | null;
-}) {
-  const recommendedToolId =
-    (input.stress ?? 0) >= 4 || input.adaptiveStressTrend === "elevated"
-      ? "reduce-overwhelm"
-      : (input.fatigue ?? 0) >= 4 || input.adaptiveFatigueTrend === "high"
-        ? "difficult-day-pacing-checklist"
-        : (input.brainFog ?? 0) >= 4 || input.adaptiveBrainFogTrend === "high"
-          ? "brain-fog-basics"
-          : input.fallbackTool?.id ?? "one-priority-planner";
-  const tool = getProgramToolById(recommendedToolId) ?? input.fallbackTool ?? getProgramToolById("one-priority-planner");
-
-  if (!tool) {
-    return null;
-  }
-
-  const copy = RELATED_SUPPORT_COPY[tool.id];
-
-  return {
-    tool,
-    title: copy?.title ?? tool.title,
-    description: copy?.description ?? tool.description,
-  };
-}
 
 const COACH_QUICK_STARTS: Array<{
   id: string;
@@ -177,8 +124,21 @@ const COACH_PROMPT_CHIPS = [
   "Help me prepare for an appointment",
 ] as const;
 
-type CoachToolKey = CoachActionKey | "plan-today";
-type GuidedPlanToolKey = "plan-today" | "plan";
+type CoachToolKey = CoachActionKey;
+type GuidedPlanToolKey = "plan";
+type ChatListItem =
+  | {
+      id: string;
+      role: "assistant" | "user";
+      content: string;
+      kind: "message";
+    }
+  | {
+      id: "pending-assistant";
+      role: "assistant";
+      content: string;
+      kind: "pending";
+    };
 
 function getDateString(offsetDays = 0) {
   const now = new Date();
@@ -274,6 +234,7 @@ export default function CoachScreen() {
   const premium = usePremium();
   const programProgress = useProgramProgress();
   const lowEnergyMode = useLowEnergyMode();
+  const calmEnvironment = useCalmEnvironment();
 
   const [activeAction, setActiveAction] = useState<CoachToolKey | null>(null);
   const [reflection, setReflection] = useState("");
@@ -292,23 +253,20 @@ export default function CoachScreen() {
   const [resetCompleted, setResetCompleted] = useState(false);
   const [reflectionError, setReflectionError] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
-  const [todayPriority, setTodayPriority] = useState("");
-  const [todayEnergy, setTodayEnergy] = useState("");
-  const [todaySimplify, setTodaySimplify] = useState("");
-  const [todayPlanState, setTodayPlanState] = useState<"idle" | "complete">("idle");
   const [priority, setPriority] = useState("");
   const [avoid, setAvoid] = useState("");
   const [supportAction, setSupportAction] = useState("");
   const [recentTodayPlans, setRecentTodayPlans] = useState<TodayPlan[]>([]);
+  const [recentSupportRecommendationIds, setRecentSupportRecommendationIds] = useState<string[]>([]);
   const [dailyCoachUsage, setDailyCoachUsage] = useState(0);
   const [isLoadingDailyCoachUsage, setIsLoadingDailyCoachUsage] = useState(true);
   const [retryCooldownUntil, setRetryCooldownUntil] = useState<number | null>(null);
   const [retryCooldownSeconds, setRetryCooldownSeconds] = useState(0);
   const [pendingToolScroll, setPendingToolScroll] = useState<GuidedPlanToolKey | null>(null);
   const screenScrollRef = useRef<ScrollView>(null);
-  const chatScrollRef = useRef<ScrollView>(null);
-  const messageLayoutYRef = useRef<Record<string, number>>({});
-  const pendingCoachMessageYRef = useRef<number | null>(null);
+  const chatListRef = useRef<FlatList<ChatListItem>>(null);
+  const pendingChatScrollTargetRef = useRef<string | null>(null);
+  const lastPlayedAssistantMessageIdRef = useRef<string | null>(null);
   const toolLayoutYRef = useRef<Partial<Record<GuidedPlanToolKey, number>>>({});
   const draftInputRef = useRef("");
   const voiceBaseInputRef = useRef("");
@@ -337,6 +295,35 @@ export default function CoachScreen() {
     [coachMessages],
   );
   const latestAssistantMessageId = latestAssistantIndex >= 0 ? coachMessages[latestAssistantIndex]?.id ?? null : null;
+  const chatItems = useMemo<ChatListItem[]>(
+    () => [
+      ...coachMessages.map((message) => ({
+        id: message.id,
+        role: message.role,
+        content: message.content,
+        kind: "message" as const,
+      })),
+      ...(sendCoachMessage.isPending
+        ? [
+            {
+              id: "pending-assistant" as const,
+              role: "assistant" as const,
+              content: "",
+              kind: "pending" as const,
+            },
+          ]
+        : []),
+    ],
+    [coachMessages, sendCoachMessage.isPending],
+  );
+  const chatTargetIndex = useMemo(() => {
+    if (sendCoachMessage.isPending) {
+      return chatItems.findIndex((item) => item.id === "pending-assistant");
+    }
+
+    return latestAssistantIndex;
+  }, [chatItems, latestAssistantIndex, sendCoachMessage.isPending]);
+  const chatTargetId = sendCoachMessage.isPending ? "pending-assistant" : latestAssistantMessageId;
   const recentEntries = useMemo(() => recentEntriesQuery.data ?? [], [recentEntriesQuery.data]);
   const activeMedications = useMemo(
     () => (medicationsQuery.data ?? []).filter((medication) => medication.active),
@@ -439,81 +426,94 @@ export default function CoachScreen() {
     return () => clearTimeout(timeout);
   }, [resetRunning, resetSecondsLeft]);
 
-  const scrollChatToMessageY = useCallback((messageY: number | null | undefined, delay = 80) => {
-    if (typeof messageY !== "number") {
-      if (__DEV__) {
-        console.log("[coach-scroll]", {
-          latestAssistantIndex,
-          latestAssistantId: latestAssistantMessageId,
-          targetY: null,
-          usingRef: "chatScrollView",
-        });
-      }
-
+  const scrollToChatTarget = useCallback((delay = 80) => {
+    if (typeof chatTargetIndex !== "number" || chatTargetIndex < 0 || !chatTargetId) {
       return undefined;
     }
 
+    pendingChatScrollTargetRef.current = chatTargetId;
+
     const timeout = setTimeout(() => {
-      const targetY = Math.max(0, messageY - 16);
+      requestAnimationFrame(() => {
+        if (__DEV__) {
+          console.log("[coach-scroll]", {
+            latestAssistantId: latestAssistantMessageId,
+            latestAssistantIndex,
+            messageCount: chatItems.length,
+            target: "assistant-start",
+            targetId: chatTargetId,
+            targetIndex: chatTargetIndex,
+            scrollMethod: "flatlist-scrollToIndex",
+          });
+        }
 
-      if (__DEV__) {
-        console.log("[coach-scroll]", {
-          latestAssistantIndex,
-          latestAssistantId: latestAssistantMessageId,
-          targetY,
-          usingRef: "chatScrollView",
+        chatListRef.current?.scrollToIndex({
+          index: chatTargetIndex,
+          animated: true,
+          viewPosition: 0,
         });
-      }
-
-      chatScrollRef.current?.scrollTo({
-        y: targetY,
-        animated: true,
       });
     }, delay);
 
     return () => clearTimeout(timeout);
-  }, [latestAssistantIndex, latestAssistantMessageId]);
+  }, [chatItems.length, chatTargetId, chatTargetIndex, latestAssistantIndex, latestAssistantMessageId]);
 
-  const scrollToLatestAssistantMessage = useCallback((delay = 80) => {
-    if (!latestAssistantMessageId) {
-      return undefined;
+  const handleChatScrollToIndexFailed = useCallback((info: { index: number; highestMeasuredFrameIndex: number; averageItemLength: number }) => {
+    if (__DEV__) {
+      console.log("[coach-scroll]", {
+        latestAssistantId: latestAssistantMessageId,
+        latestAssistantIndex,
+        messageCount: chatItems.length,
+        target: "assistant-start",
+        targetId: chatTargetId,
+        targetIndex: info.index,
+        scrollMethod: "flatlist-scrollToIndex-failed",
+        highestMeasuredFrameIndex: info.highestMeasuredFrameIndex,
+        averageItemLength: info.averageItemLength,
+      });
     }
 
-    return scrollChatToMessageY(messageLayoutYRef.current[latestAssistantMessageId], delay);
-  }, [latestAssistantMessageId, scrollChatToMessageY]);
+    chatListRef.current?.scrollToOffset({
+      offset: Math.max(0, info.averageItemLength * info.index),
+      animated: true,
+    });
 
-  const scrollToPendingCoachMessage = useCallback((delay = 80) => {
-    return scrollChatToMessageY(pendingCoachMessageYRef.current, delay);
-  }, [scrollChatToMessageY]);
-
-  const handleMessageLayout = useCallback((messageId: string, y: number) => {
-    messageLayoutYRef.current[messageId] = y;
-  }, []);
-
-  const handlePendingMessageLayout = useCallback((y: number) => {
-    pendingCoachMessageYRef.current = y;
-    if (sendCoachMessage.isPending) {
-      scrollChatToMessageY(y, 40);
-    }
-  }, [scrollChatToMessageY, sendCoachMessage.isPending]);
+    setTimeout(() => {
+      if (pendingChatScrollTargetRef.current === chatTargetId && typeof chatTargetIndex === "number" && chatTargetIndex >= 0) {
+        chatListRef.current?.scrollToIndex({
+          index: chatTargetIndex,
+          animated: true,
+          viewPosition: 0,
+        });
+      }
+    }, 120);
+  }, [chatItems.length, chatTargetId, chatTargetIndex, latestAssistantIndex, latestAssistantMessageId]);
 
   useEffect(() => {
-    if (!coachMessages.length && !sendCoachMessage.isPending) {
+    if (chatTargetIndex < 0 || !chatTargetId) {
       return;
     }
 
-    if (sendCoachMessage.isPending) {
-      return scrollToPendingCoachMessage(80);
+    return scrollToChatTarget(sendCoachMessage.isPending ? 80 : 120);
+  }, [chatTargetId, chatTargetIndex, scrollToChatTarget, sendCoachMessage.isPending]);
+
+  useEffect(() => {
+    if (!latestAssistantMessageId) {
+      return;
     }
 
-    return scrollToLatestAssistantMessage(100);
-  }, [
-    coachMessages.length,
-    latestAssistantMessageId,
-    scrollToLatestAssistantMessage,
-    scrollToPendingCoachMessage,
-    sendCoachMessage.isPending,
-  ]);
+    if (lastPlayedAssistantMessageIdRef.current === null && !sendCoachMessage.isPending) {
+      lastPlayedAssistantMessageIdRef.current = latestAssistantMessageId;
+      return;
+    }
+
+    if (lastPlayedAssistantMessageIdRef.current === latestAssistantMessageId) {
+      return;
+    }
+
+    lastPlayedAssistantMessageIdRef.current = latestAssistantMessageId;
+    void playSoundCue("coach-response", calmEnvironment.soundEffects);
+  }, [calmEnvironment.soundEffects, latestAssistantMessageId, sendCoachMessage.isPending]);
 
   useEffect(() => {
     if (!retryCooldownUntil) {
@@ -801,31 +801,75 @@ export default function CoachScreen() {
         })),
     [recentEntries],
   );
-  const suggestedProgramTool = useMemo(
-    () => getProgramToolById(adaptiveProfile.suggestedProgram),
-    [adaptiveProfile.suggestedProgram],
+  const relatedSupportTextInputs = useMemo(
+    () => [
+      chatInput,
+      coachEntry?.notes,
+      ...coachMessages.slice(-4).map((message) => message.content),
+      ...recentTodayPlans.map((plan) =>
+        [
+          plan.mainPriority,
+          plan.staySmaller,
+          plan.tomorrowEnergy,
+          plan.prepareTonight,
+          plan.tomorrowSmaller,
+          plan.recoveryTonight,
+          plan.whatHelped,
+        ].join(" "),
+      ),
+    ],
+    [chatInput, coachEntry?.notes, coachMessages, recentTodayPlans],
   );
-  const relatedSupportRecommendation = useMemo(
+  const relatedSupportRecommendation = useMemo<AdaptiveSupportRecommendation | null>(
     () =>
-      getRelatedSupportRecommendation({
-        stress: coachEntry?.stress ?? recentAverages.stress,
-        fatigue: coachEntry?.fatigue ?? recentAverages.fatigue,
-        brainFog: coachEntry?.brain_fog ?? null,
-        adaptiveStressTrend: adaptiveProfile.stressTrend,
-        adaptiveFatigueTrend: adaptiveProfile.fatigueTrend,
-        adaptiveBrainFogTrend: adaptiveProfile.brainFogTrend,
-        fallbackTool: suggestedProgramTool,
-      }),
+      deriveAdaptiveSupportRecommendations({
+        current: {
+          fatigue: coachEntry?.fatigue ?? recentAverages.fatigue,
+          stress: coachEntry?.stress ?? recentAverages.stress,
+          brainFog: coachEntry?.brain_fog ?? null,
+          sleepHours: coachEntry?.sleep_hours ?? recentAverages.sleep,
+        },
+        recentEntries,
+        programProgress: programProgress.progress,
+        recentRecommendationIds: recentSupportRecommendationIds,
+        upcomingAppointments: nextAppointment ? [nextAppointment] : [],
+        recoveryStrategies: recentTodayPlans.map((plan) => plan.whatHelped),
+        textInputs: relatedSupportTextInputs,
+        baseRecommendations: [
+          adaptiveProfile.suggestedProgram
+            ? {
+                toolId: adaptiveProfile.suggestedProgram,
+                body: "Open support that fits today’s pattern.",
+              }
+            : null,
+          adaptiveProfile.secondarySuggestedProgram
+            ? {
+                toolId: adaptiveProfile.secondarySuggestedProgram,
+                body: "Use a second option if this fits better.",
+              }
+            : null,
+        ].filter((recommendation): recommendation is { toolId: string; body: string } => Boolean(recommendation)),
+        currentHour: new Date().getHours(),
+        date: `${today}:${new Date().getHours()}`,
+        maxItems: 1,
+      })[0] ?? null,
     [
-      adaptiveProfile.brainFogTrend,
-      adaptiveProfile.fatigueTrend,
-      adaptiveProfile.stressTrend,
+      adaptiveProfile.secondarySuggestedProgram,
+      adaptiveProfile.suggestedProgram,
       coachEntry?.brain_fog,
       coachEntry?.fatigue,
+      coachEntry?.sleep_hours,
       coachEntry?.stress,
+      nextAppointment,
+      programProgress.progress,
       recentAverages.fatigue,
+      recentAverages.sleep,
       recentAverages.stress,
-      suggestedProgramTool,
+      recentEntries,
+      recentSupportRecommendationIds,
+      recentTodayPlans,
+      relatedSupportTextInputs,
+      today,
     ],
   );
   const visibleOperationalContext = useMemo(
@@ -1019,7 +1063,8 @@ export default function CoachScreen() {
     const startedAt = Date.now();
     const isRetry = options?.isRetry === true;
     coachRequestInFlightRef.current = true;
-    scrollToPendingCoachMessage(40);
+    scrollToChatTarget(40);
+    void playSoundCue("coach-send", calmEnvironment.soundEffects);
 
     if (isRetry) {
       await trackRetryTriggered("ai-coach-send", {
@@ -1060,7 +1105,7 @@ export default function CoachScreen() {
       hasTrackedAbandonRef.current = false;
       lastTrackedAbandonedDraftRef.current = null;
       setRetryCooldownUntil(null);
-      scrollToLatestAssistantMessage(100);
+      scrollToChatTarget(100);
     } catch (error) {
       await growth.recordEvent("ai_coach_response_failed", {
         mode: selectedMode,
@@ -1082,11 +1127,11 @@ export default function CoachScreen() {
     coachContext,
     coachMode,
     growth,
+    calmEnvironment.soundEffects,
     hasReachedFreeCoachLimit,
     hasUnlimitedAiCoach,
     retryCooldownSeconds,
-    scrollToLatestAssistantMessage,
-    scrollToPendingCoachMessage,
+    scrollToChatTarget,
     sendCoachMessage,
     user?.id,
   ]);
@@ -1148,7 +1193,7 @@ export default function CoachScreen() {
     setChatInput(prompt);
     setChatError(null);
     setTimeout(() => {
-      scrollToPendingCoachMessage(40);
+      scrollToChatTarget(40);
     }, 80);
 
     try {
@@ -1156,7 +1201,7 @@ export default function CoachScreen() {
     } finally {
       setActiveQuickActionId(null);
     }
-  }, [handleSendCoachMessage, retryCooldownSeconds, scrollToPendingCoachMessage, sendCoachMessage.isPending]);
+  }, [handleSendCoachMessage, retryCooldownSeconds, scrollToChatTarget, sendCoachMessage.isPending]);
 
   const scrollToGuidedTool = useCallback((tool: GuidedPlanToolKey) => {
     const y = toolLayoutYRef.current[tool];
@@ -1175,7 +1220,7 @@ export default function CoachScreen() {
   const handleToolSelect = useCallback((tool: CoachToolKey) => {
     setActiveAction(tool);
 
-    if (tool === "plan-today" || tool === "plan") {
+    if (tool === "plan") {
       setPendingToolScroll(tool);
     }
   }, []);
@@ -1450,60 +1495,67 @@ export default function CoachScreen() {
               </View>
             ) : coachMessages.length || sendCoachMessage.isPending ? (
               <View style={styles.chatShell}>
-                <ScrollView
-                  ref={chatScrollRef}
+                <FlatList
+                  ref={chatListRef}
                   style={styles.chatScrollView}
                   contentContainerStyle={styles.chatContent}
+                  data={chatItems}
+                  keyExtractor={(item) => item.id}
+                  onScrollToIndexFailed={handleChatScrollToIndexFailed}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                   nestedScrollEnabled
-                  onContentSizeChange={() => {
-                    if (sendCoachMessage.isPending) {
-                      scrollToPendingCoachMessage(40);
-                    } else {
-                      scrollToLatestAssistantMessage(60);
-                    }
-                  }}
-                >
-                  <View style={styles.messageList}>
-                    {coachMessages.map((message) => (
+                  renderItem={({ item }) => (
+                    item.kind === "pending" ? (
                       <View
-                        key={message.id}
-                        onLayout={(event) => {
-                          handleMessageLayout(message.id, event.nativeEvent.layout.y);
-                          if (message.id === latestAssistantMessageId) {
-                            scrollChatToMessageY(event.nativeEvent.layout.y, 60);
-                          }
-                        }}
                         style={[
                           styles.messageBubble,
-                          message.role === "assistant" ? styles.coachBubble : styles.userBubble,
+                          styles.coachBubble,
+                          styles.generatingBubble,
                         ]}
                       >
                         <AppText
                           style={[
                             styles.messageRole,
-                            message.role === "assistant" ? styles.coachRole : styles.userRole,
+                            styles.coachRole,
                           ]}
                         >
-                          {message.role === "assistant" ? "Coach" : "You"}
+                          Coach
                         </AppText>
-                        <AppText style={styles.messageText}>{message.content}</AppText>
+                        <View style={styles.generatingDotsRow}>
+                          <View style={styles.generatingDot} />
+                          <View style={styles.generatingDot} />
+                          <View style={styles.generatingDot} />
+                        </View>
+                        <AppText style={[styles.messageText, styles.coachMessageText]}>{chatLoadingLabel}</AppText>
                       </View>
-                    ))}
-                    {sendCoachMessage.isPending ? (
+                    ) : (
                       <View
-                        onLayout={(event) => {
-                          handlePendingMessageLayout(event.nativeEvent.layout.y);
-                        }}
-                        style={[styles.messageBubble, styles.coachBubble]}
+                        style={[
+                          styles.messageBubble,
+                          item.role === "assistant" ? styles.coachBubble : styles.userBubble,
+                        ]}
                       >
-                        <AppText style={[styles.messageRole, styles.coachRole]}>Coach</AppText>
-                        <AppText style={styles.messageText}>{chatLoadingLabel}</AppText>
+                        <AppText
+                          style={[
+                            styles.messageRole,
+                            item.role === "assistant" ? styles.coachRole : styles.userRole,
+                          ]}
+                        >
+                          {item.role === "assistant" ? "Coach" : "You"}
+                        </AppText>
+                        <AppText
+                          style={[
+                            styles.messageText,
+                            item.role === "assistant" ? styles.coachMessageText : styles.userMessageText,
+                          ]}
+                        >
+                          {item.content}
+                        </AppText>
                       </View>
-                    ) : null}
-                  </View>
-                </ScrollView>
+                    )
+                  )}
+                />
               </View>
             ) : (
               <View style={styles.emptyChatCard}>
@@ -1554,11 +1606,7 @@ export default function CoachScreen() {
                     }
                   }}
                   onFocus={() => {
-                    if (sendCoachMessage.isPending) {
-                      scrollToPendingCoachMessage(40);
-                    } else {
-                      scrollToLatestAssistantMessage(60);
-                    }
+                    scrollToChatTarget(60);
                   }}
                   placeholder={
                     effectiveLowEnergyConversationMode
@@ -1670,18 +1718,36 @@ export default function CoachScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Open ${relatedSupportRecommendation.title}`}
-              onPress={() =>
-                router.push({
-                  pathname: "/(app)/(tabs)/programs",
-                  params: { tool: relatedSupportRecommendation.tool.id },
-                })
-              }
+              onPress={() => {
+                setRecentSupportRecommendationIds((current) =>
+                  [relatedSupportRecommendation.id, ...current.filter((id) => id !== relatedSupportRecommendation.id)].slice(0, 6),
+                );
+
+                if (relatedSupportRecommendation.tool) {
+                  router.push({
+                    pathname: "/(app)/(tabs)/programs",
+                    params: { tool: relatedSupportRecommendation.tool.id },
+                  });
+                  return;
+                }
+
+                if (relatedSupportRecommendation.route) {
+                  router.push(
+                    relatedSupportRecommendation.params
+                      ? {
+                          pathname: relatedSupportRecommendation.route as never,
+                          params: relatedSupportRecommendation.params,
+                        }
+                      : relatedSupportRecommendation.route as never,
+                  );
+                }
+              }}
               style={({ pressed }) => [styles.card, styles.relatedSupportCard, pressed && styles.actionCardPressed]}
             >
               <AppText style={styles.title}>Related support</AppText>
               <AppText style={styles.relatedToolTitle}>{relatedSupportRecommendation.title}</AppText>
-              <AppText style={styles.body}>{relatedSupportRecommendation.description}</AppText>
-              <AppText style={styles.relatedOpenLabel}>Open tool</AppText>
+              <AppText style={styles.body}>{relatedSupportRecommendation.body}</AppText>
+              <AppText style={styles.relatedOpenLabel}>{relatedSupportRecommendation.tool ? "Open tool" : "Open"}</AppText>
             </Pressable>
           ) : null}
 
@@ -1689,11 +1755,6 @@ export default function CoachScreen() {
           <AppText style={styles.title}>Tools</AppText>
           <View style={styles.quickActions}>
             {[
-              {
-                key: "plan-today",
-                label: "Plan today",
-                description: "Answer three short questions for a focused plan.",
-              },
               {
                 key: "plan",
                 label: "Plan tomorrow",
@@ -1831,77 +1892,6 @@ export default function CoachScreen() {
                 <AppText style={styles.successTitle}>Reset complete</AppText>
                 <AppText style={styles.successBody}>
                   The timer has finished.
-                </AppText>
-              </View>
-            ) : null}
-            </View>
-          ) : null}
-
-          {activeAction === "plan-today" ? (
-            <View
-              style={styles.card}
-              onLayout={(event) => handleToolLayout("plan-today", event)}
-            >
-            <AppText style={styles.contextLabel}>Plan Today</AppText>
-            <AppText style={styles.title}>Plan today</AppText>
-            <AppText style={styles.body}>
-              Answer three short questions to create a focused plan for today.
-            </AppText>
-            <View style={styles.fieldGroup}>
-              <AppText style={styles.fieldLabel}>What is the most important thing to handle today?</AppText>
-              <TextInput
-                value={todayPriority}
-                onChangeText={(next) => {
-                  setTodayPriority(next);
-                  setTodayPlanState("idle");
-                }}
-                placeholder="Today’s main priority"
-                placeholderTextColor="#9ca3af"
-                style={styles.input}
-              />
-            </View>
-            <View style={styles.fieldGroup}>
-              <AppText style={styles.fieldLabel}>What is your current energy level?</AppText>
-              <TextInput
-                value={todayEnergy}
-                onChangeText={(next) => {
-                  setTodayEnergy(next);
-                  setTodayPlanState("idle");
-                }}
-                placeholder="Low, medium, high, or a short note"
-                placeholderTextColor="#9ca3af"
-                style={styles.input}
-              />
-            </View>
-            <View style={styles.fieldGroup}>
-              <AppText style={styles.fieldLabel}>What can be simplified or postponed?</AppText>
-              <TextInput
-                value={todaySimplify}
-                onChangeText={(next) => {
-                  setTodaySimplify(next);
-                  setTodayPlanState("idle");
-                }}
-                placeholder="One thing to reduce"
-                placeholderTextColor="#9ca3af"
-                style={styles.input}
-              />
-            </View>
-            <AppButton
-              label={todayPlanState === "complete" ? "Plan ready" : "Create today plan"}
-              onPress={() => setTodayPlanState("complete")}
-              disabled={!todayPriority.trim() && !todayEnergy.trim() && !todaySimplify.trim()}
-            />
-            {todayPlanState === "complete" ? (
-              <View style={styles.successCard}>
-                <AppText style={styles.successTitle}>Today’s plan</AppText>
-                <AppText style={styles.successBody}>
-                  Priority: {todayPriority.trim() || "Not set"}
-                </AppText>
-                <AppText style={styles.successBody}>
-                  Energy-aware plan: {todayEnergy.trim() || "Not set"}
-                </AppText>
-                <AppText style={styles.successBody}>
-                  Reduce: {todaySimplify.trim() || "Not set"}
                 </AppText>
               </View>
             ) : null}
@@ -2134,16 +2124,19 @@ const styles = StyleSheet.create({
   },
   coachBubble: {
     alignSelf: "flex-start",
-    backgroundColor: "#fff4ec",
+    backgroundColor: "#f4eee7",
     borderWidth: 1,
-    borderColor: "#f2d8c4",
+    borderColor: "#dccfc2",
     maxWidth: "92%",
+  },
+  generatingBubble: {
+    borderStyle: "dashed",
   },
   userBubble: {
     alignSelf: "flex-end",
-    backgroundColor: "#fffaf6",
+    backgroundColor: "#c96b1d",
     borderWidth: 1,
-    borderColor: "#f1e1d4",
+    borderColor: "#ad5712",
     maxWidth: "88%",
   },
   messageRole: {
@@ -2152,14 +2145,30 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   coachRole: {
-    color: "#c25d10",
+    color: "#7b4d2a",
   },
   userRole: {
-    color: "#6b7280",
+    color: "#fef2e8",
   },
   messageText: {
-    color: "#374151",
     lineHeight: 22,
+  },
+  coachMessageText: {
+    color: "#2f261f",
+  },
+  userMessageText: {
+    color: "#fff8f1",
+  },
+  generatingDotsRow: {
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "center",
+  },
+  generatingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+    backgroundColor: "#e3b995",
   },
   inlineState: {
     gap: 10,

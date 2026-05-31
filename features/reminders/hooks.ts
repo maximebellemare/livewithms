@@ -52,10 +52,14 @@ function toReminderSettings(state: ReminderState): ReminderSettings {
     minute: state.minute,
     permissionStatus: state.permissionStatus,
     notificationId: state.notificationId,
+    dailyCheckInRemindersEnabled: state.dailyCheckInRemindersEnabled,
     medicationRemindersEnabled: state.medicationRemindersEnabled,
     appointmentRemindersEnabled: state.appointmentRemindersEnabled,
     appointmentReminderOneDay: state.appointmentReminderOneDay,
     appointmentReminderOneHour: state.appointmentReminderOneHour,
+    communityReplyNotificationsEnabled: state.communityReplyNotificationsEnabled,
+    communityReactionNotificationsEnabled: state.communityReactionNotificationsEnabled,
+    communityRecentActivityNotificationsEnabled: state.communityRecentActivityNotificationsEnabled,
     quietReminders: state.quietReminders,
   };
 }
@@ -274,7 +278,7 @@ export function useReminderSettings() {
 
       if (state.enabled && state.permissionStatus === "granted") {
         await cancelScheduledReminder(state.notificationId);
-        const nextNotificationId = attentionReminderSilenced || !overloadProtectedReminder.shouldSchedule
+        const nextNotificationId = !state.dailyCheckInRemindersEnabled || attentionReminderSilenced || !overloadProtectedReminder.shouldSchedule
           ? null
           : await scheduleDailyReminder(calmTiming.hour, calmTiming.minute, overloadProtectedReminder.tone);
         nextSettings = {
@@ -308,9 +312,13 @@ export function useReminderSettings() {
         Pick<
           ReminderSettings,
           | "medicationRemindersEnabled"
+          | "dailyCheckInRemindersEnabled"
           | "appointmentRemindersEnabled"
           | "appointmentReminderOneDay"
           | "appointmentReminderOneHour"
+          | "communityReplyNotificationsEnabled"
+          | "communityReactionNotificationsEnabled"
+          | "communityRecentActivityNotificationsEnabled"
           | "quietReminders"
         >
       >,
@@ -326,6 +334,22 @@ export function useReminderSettings() {
         await cancelCareRemindersByPrefix("medication.");
       }
 
+      if (updates.dailyCheckInRemindersEnabled === false) {
+        await cancelScheduledReminder(state.notificationId);
+        nextSettings.notificationId = null;
+      }
+
+      if (
+        updates.dailyCheckInRemindersEnabled === true &&
+        state.enabled &&
+        state.permissionStatus === "granted" &&
+        !attentionReminderSilenced &&
+        overloadProtectedReminder.shouldSchedule
+      ) {
+        await cancelScheduledReminder(state.notificationId);
+        nextSettings.notificationId = await scheduleDailyReminder(state.hour, state.minute, overloadProtectedReminder.tone);
+      }
+
       if (updates.appointmentRemindersEnabled === false) {
         await cancelCareRemindersByPrefix("appointment.");
       }
@@ -337,7 +361,7 @@ export function useReminderSettings() {
         isSaving: false,
       }));
     },
-    [state],
+    [attentionReminderSilenced, overloadProtectedReminder, state],
   );
 
   const disableReminders = useCallback(async () => {
@@ -401,7 +425,7 @@ export function useReminderSettings() {
         minute: state.minute,
         pressure: reminderPressure,
       });
-      const nextNotificationId = attentionReminderSilenced || !overloadProtectedReminder.shouldSchedule
+      const nextNotificationId = !state.dailyCheckInRemindersEnabled || attentionReminderSilenced || !overloadProtectedReminder.shouldSchedule
         ? null
         : await scheduleDailyReminder(calmTiming.hour, calmTiming.minute, overloadProtectedReminder.tone);
       const nextSettings: ReminderSettings = {

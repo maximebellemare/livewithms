@@ -6,10 +6,14 @@ export type ReminderSettings = {
   minute: number;
   permissionStatus: ReminderPermissionStatus;
   notificationId: string | null;
+  dailyCheckInRemindersEnabled: boolean;
   medicationRemindersEnabled: boolean;
   appointmentRemindersEnabled: boolean;
   appointmentReminderOneDay: boolean;
   appointmentReminderOneHour: boolean;
+  communityReplyNotificationsEnabled: boolean;
+  communityReactionNotificationsEnabled: boolean;
+  communityRecentActivityNotificationsEnabled: boolean;
   quietReminders: boolean;
 };
 

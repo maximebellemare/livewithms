@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Animated, Linking, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { useCalmEnvironment } from "../../../../features/calm-environment/hooks";
 import AppButton from "../../../../components/ui/AppButton";
@@ -15,7 +15,13 @@ import { fetchCommunityProfile, upsertCommunityProfile } from "../../../../featu
 import { useSaveProfileStep } from "../../../../features/profile/hooks";
 import { useReminderSettings } from "../../../../features/reminders/hooks";
 import { requestReminderPermission, scheduleTestNotification } from "../../../../features/reminders/notifications";
+import { useCheckInOverview } from "../../../../features/checkins/hooks";
+import { getCurrentCheckInStreak } from "../../../../features/checkins/consistency";
+import { useGrowthState } from "../../../../features/growth/hooks";
+import type { CelebrationKey } from "../../../../features/growth/types";
 import { resetOnboardingSupportPreferences } from "../../../../features/onboarding/preferences";
+import { useProgramProgress } from "../../../../features/programs/hooks";
+import { loadExerciseUsage, type ExerciseUsage } from "../../../../features/exercises/storage";
 import { getErrorMessage } from "../../../../lib/errors";
 import { trackEvent } from "../../../../lib/events";
 import { derivePremiumPositioning } from "../../../../lib/premium-ecosystem/calm-premium/derivePremiumPositioning";
@@ -63,6 +69,92 @@ function formatReminderTime(hour: number, minute: number) {
     minute: "2-digit",
   });
 }
+
+function getTodayDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+type AchievementRow = {
+  id: CelebrationKey;
+  title: string;
+  body: string;
+  completed: boolean;
+  unlockCopy: string;
+};
+
+function getAchievementRows(input: {
+  streak: number;
+  totalCheckIns: number;
+  firstReflectionCompleted: boolean;
+  firstMealPlanGenerated: boolean;
+  firstCommunityPost: boolean;
+  firstBreathingReset: boolean;
+  exerciseSessionsCompleted: number;
+}): AchievementRow[] {
+  return [
+    {
+      id: "first_check_in_completed",
+      title: "First check-in completed",
+      body: "The first check-in gives Today, Track, and Insights something real to build from.",
+      completed: input.totalCheckIns >= 1,
+      unlockCopy: "First check-in completed.",
+    },
+    {
+      id: "three_day_check_in_streak",
+      title: "3-day check-in streak",
+      body: "Three days of check-ins helps patterns start to become more useful.",
+      completed: input.streak >= 3,
+      unlockCopy: "Nice consistency.",
+    },
+    {
+      id: "seven_day_check_in_streak",
+      title: "7-day check-in streak",
+      body: "A week of check-ins gives Insights more context.",
+      completed: input.streak >= 7,
+      unlockCopy: "7-day check-in streak.",
+    },
+    {
+      id: "first_reflection_completed",
+      title: "First reflection completed",
+      body: "One useful note can make future patterns easier to understand.",
+      completed: input.firstReflectionCompleted,
+      unlockCopy: "First reflection completed.",
+    },
+    {
+      id: "first_nutrition_plan",
+      title: "First meal plan generated",
+      body: "Nutrition support is ready when food decisions feel tiring.",
+      completed: input.firstMealPlanGenerated,
+      unlockCopy: "First nutrition plan created.",
+    },
+    {
+      id: "first_community_post",
+      title: "First community post",
+      body: "A shared question or experience can make Community feel more useful and lived-in.",
+      completed: input.firstCommunityPost,
+      unlockCopy: "First community post published.",
+    },
+    {
+      id: "first_breathing_reset",
+      title: "First breathing reset",
+      body: "A quick reset is now there when stress or overload starts building.",
+      completed: input.firstBreathingReset,
+      unlockCopy: "First breathing reset completed.",
+    },
+    {
+      id: "ten_exercises_completed",
+      title: "10 exercises completed",
+      body: "A few short exercise sessions can build useful focus and consistency over time.",
+      completed: input.exerciseSessionsCompleted >= 10,
+      unlockCopy: "10 exercises completed.",
+    },
+  ];
+}
+
 type PreferenceRowProps = {
   title: string;
   description: string;
@@ -122,7 +214,13 @@ export default function ProfileScreen() {
   const deleteAccount = useDeleteAccount();
   const resetOnboarding = useSaveProfileStep();
   const reminders = useReminderSettings();
+  const checkInOverview = useCheckInOverview(user?.id);
   const premium = usePremium();
+  const programProgress = useProgramProgress();
+  const growth = useGrowthState({
+    totalCheckIns: checkInOverview.data?.length ?? 0,
+    reminderEnabled: reminders.enabled,
+  });
   const showInternalPremiumDebug = shouldShowPremiumInternalDebug(user?.email) || premium.testerPremiumOverrideActive;
   const lowEnergyMode = useLowEnergyMode();
   const calmEnvironment = useCalmEnvironment();
@@ -147,6 +245,49 @@ export default function ProfileScreen() {
   const [communityDisplayName, setCommunityDisplayName] = useState("");
   const [isSavingCommunityProfile, setIsSavingCommunityProfile] = useState(false);
   const [communityProfileError, setCommunityProfileError] = useState<string | null>(null);
+  const [exerciseUsage, setExerciseUsage] = useState<ExerciseUsage | null>(null);
+  const [achievementCelebration, setAchievementCelebration] = useState<AchievementRow | null>(null);
+  const achievementCelebrationOpacity = useRef(new Animated.Value(0)).current;
+  const achievementCelebrationY = useRef(new Animated.Value(8)).current;
+  const lastCelebratedAchievementIdRef = useRef<CelebrationKey | null>(null);
+  const streak = useMemo(
+    () => getCurrentCheckInStreak(checkInOverview.data ?? [], getTodayDateString()),
+    [checkInOverview.data],
+  );
+  const achievementRows = useMemo(() => getAchievementRows({
+    streak,
+    totalCheckIns: checkInOverview.data?.length ?? 0,
+    firstReflectionCompleted:
+      (checkInOverview.data ?? []).some((entry) => entry.hasReflection) ||
+      (growth.state?.eventCounts.reflection_saved ?? 0) > 0,
+    firstMealPlanGenerated: (growth.state?.eventCounts.nutrition_meal_plan_generated ?? 0) > 0,
+    firstCommunityPost: (growth.state?.eventCounts.community_post_created ?? 0) > 0,
+    firstBreathingReset: (programProgress.progress.toolProgress["breathing-reset"]?.completionCount ?? 0) > 0,
+    exerciseSessionsCompleted: exerciseUsage?.sessionsCompleted ?? 0,
+  }), [
+    checkInOverview.data,
+    exerciseUsage?.sessionsCompleted,
+    growth.state?.eventCounts.community_post_created,
+    growth.state?.eventCounts.nutrition_meal_plan_generated,
+    growth.state?.eventCounts.reflection_saved,
+    programProgress.progress.toolProgress,
+    streak,
+  ]);
+  const unseenAchievement = useMemo(
+    () => {
+      if (growth.isLoading || programProgress.isLoading || exerciseUsage === null) {
+        return null;
+      }
+
+      return achievementRows.find(
+        (achievement) =>
+          achievement.completed &&
+          !growth.state?.seenCelebrations[achievement.id] &&
+          lastCelebratedAchievementIdRef.current !== achievement.id,
+      ) ?? null;
+    },
+    [achievementRows, exerciseUsage, growth.isLoading, growth.state?.seenCelebrations, programProgress.isLoading],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -179,6 +320,58 @@ export default function ProfileScreen() {
       cancelled = true;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadExerciseUsage().then((usage) => {
+      if (!cancelled) {
+        setExerciseUsage(usage);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!unseenAchievement) {
+      return;
+    }
+
+    lastCelebratedAchievementIdRef.current = unseenAchievement.id;
+    setAchievementCelebration(unseenAchievement);
+    achievementCelebrationOpacity.setValue(0);
+    achievementCelebrationY.setValue(8);
+
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(achievementCelebrationOpacity, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.timing(achievementCelebrationY, {
+          toValue: 0,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.delay(2200),
+      Animated.timing(achievementCelebrationOpacity, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) {
+        setAchievementCelebration((current) => (current?.id === unseenAchievement.id ? null : current));
+      }
+    });
+
+    void growth.markCelebrationSeen(unseenAchievement.id);
+  }, [achievementCelebrationOpacity, achievementCelebrationY, growth, unseenAchievement]);
 
   const handleSaveCommunityProfile = () => {
     if (!user?.id || isSavingCommunityProfile) {
@@ -548,6 +741,31 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        <View style={cardStyle}>
+          <AppText style={styles.sectionKicker}>Audio</AppText>
+          <AppText style={styles.sectionTitle}>Audio</AppText>
+          <View style={[styles.environmentCard, darkMode && styles.environmentCardDark]}>
+            <PreferenceRow
+              title="Sound effects"
+              description="Optional gentle sounds for Coach, timers, and support cues."
+              value={calmEnvironment.soundEffects}
+              onValueChange={(value) => {
+                void calmEnvironment.setSoundEffects(value);
+              }}
+              disabled={calmEnvironment.isLoading}
+            />
+            <PreferenceRow
+              title="Background audio"
+              description="Optional low background tone during calm reset sessions."
+              value={calmEnvironment.backgroundAudio}
+              onValueChange={(value) => {
+                void calmEnvironment.setBackgroundAudio(value);
+              }}
+              disabled={calmEnvironment.isLoading}
+            />
+          </View>
+        </View>
+
         {reminders.notificationsAvailable ? (
           <View style={cardStyle}>
             <AppText style={styles.sectionKicker}>Notifications</AppText>
@@ -583,6 +801,36 @@ export default function ProfileScreen() {
               </AppText>
             </Pressable>
             <View style={styles.notificationSettingsList}>
+              <PreferenceRow
+                title="Daily check-in reminders"
+                description="A gentle afternoon or evening prompt when today’s check-in is not complete."
+                value={reminders.dailyCheckInRemindersEnabled}
+                onValueChange={(value) => updateReminderPreference({ dailyCheckInRemindersEnabled: value })}
+                disabled={reminders.isSaving}
+              />
+              <View style={styles.subSettingGroup}>
+                <PreferenceRow
+                  title="Community replies"
+                  description="Let me know when someone replies to one of my threads."
+                  value={reminders.communityReplyNotificationsEnabled}
+                  onValueChange={(value) => updateReminderPreference({ communityReplyNotificationsEnabled: value })}
+                  disabled={reminders.isSaving}
+                />
+                <PreferenceRow
+                  title="Community reactions"
+                  description="Let me know when someone reacts to one of my posts or replies."
+                  value={reminders.communityReactionNotificationsEnabled}
+                  onValueChange={(value) => updateReminderPreference({ communityReactionNotificationsEnabled: value })}
+                  disabled={reminders.isSaving}
+                />
+                <PreferenceRow
+                  title="Recent category activity"
+                  description="Optional updates when new posts appear in categories I opened recently."
+                  value={reminders.communityRecentActivityNotificationsEnabled}
+                  onValueChange={(value) => updateReminderPreference({ communityRecentActivityNotificationsEnabled: value })}
+                  disabled={reminders.isSaving}
+                />
+              </View>
               <PreferenceRow
                 title="Medication reminders"
                 description="Daily medication reminders at your selected time."
@@ -667,6 +915,49 @@ export default function ProfileScreen() {
             </View>
           </View>
         ) : null}
+
+        <View style={cardStyle}>
+          <AppText style={styles.sectionKicker}>Achievements</AppText>
+          <AppText style={styles.sectionTitle}>Gentle consistency</AppText>
+          <AppText style={styles.preferenceDescription}>
+            These celebrate useful app moments, not symptom improvement.
+          </AppText>
+          {achievementCelebration ? (
+            <Animated.View
+              style={[
+                styles.achievementCelebrationCard,
+                {
+                  opacity: achievementCelebrationOpacity,
+                  transform: [{ translateY: achievementCelebrationY }],
+                },
+              ]}
+            >
+              <AppText style={styles.achievementCelebrationIcon}>✓</AppText>
+              <View style={styles.preferenceCopy}>
+                <AppText style={styles.preferenceTitle}>{achievementCelebration.unlockCopy}</AppText>
+                <AppText style={styles.preferenceDescription}>{achievementCelebration.title}</AppText>
+              </View>
+            </Animated.View>
+          ) : null}
+          <View style={styles.achievementList}>
+            {achievementRows.map((achievement) => (
+              <View
+                key={achievement.id}
+                style={[
+                  styles.achievementRow,
+                  achievement.completed && styles.achievementRowComplete,
+                  achievementCelebration?.id === achievement.id && styles.achievementRowFresh,
+                ]}
+              >
+                <AppText style={styles.achievementIcon}>{achievement.completed ? "✓" : "○"}</AppText>
+                <View style={styles.preferenceCopy}>
+                  <AppText style={styles.preferenceTitle}>{achievement.title}</AppText>
+                  <AppText style={styles.preferenceDescription}>{achievement.body}</AppText>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
 
         {__DEV__ ? (
           <View style={cardStyle}>
@@ -888,6 +1179,61 @@ const styles = StyleSheet.create({
   premiumFeatureText: {
     color: "#4b5563",
     lineHeight: 20,
+  },
+  achievementCelebrationCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f2c29f",
+    backgroundColor: "#fff5eb",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  achievementCelebrationIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    textAlign: "center",
+    lineHeight: 30,
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#b45309",
+    backgroundColor: "#fde6d2",
+  },
+  achievementList: {
+    gap: 10,
+  },
+  achievementRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  achievementRowComplete: {
+    borderColor: "#cde8d2",
+    backgroundColor: "#f4fbf5",
+  },
+  achievementRowFresh: {
+    borderColor: "#e8751a",
+  },
+  achievementIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    backgroundColor: "#fff0e5",
+    color: "#c25d10",
+    fontSize: 14,
+    lineHeight: 24,
+    fontWeight: "700",
+    textAlign: "center",
+    overflow: "hidden",
   },
   devPremiumDebugBlock: {
     gap: 6,

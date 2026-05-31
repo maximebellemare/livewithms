@@ -1,4 +1,5 @@
 import type { ReminderContentTone, ReminderPermissionStatus } from "./types";
+import type { CommunityActivityItem } from "../community/types";
 import { REMINDER_PLANS } from "./plans";
 import { appSecureStore } from "../../lib/secure-store";
 import { loadReminderSettings } from "./storage";
@@ -193,6 +194,50 @@ export async function scheduleTestNotification() {
       sound: !settings.quietReminders,
     },
     trigger: new Date(Date.now() + 10 * 1000),
+  });
+}
+
+export async function scheduleCommunityActivityNotification(input: {
+  item: CommunityActivityItem;
+  quiet: boolean;
+}) {
+  const Notifications = loadNotificationsModule();
+
+  if (!Notifications) {
+    return null;
+  }
+
+  const permissionStatus = await getReminderPermissionStatus();
+  if (permissionStatus !== "granted") {
+    return null;
+  }
+
+  const title =
+    input.item.type === "reply"
+      ? "New reply in Community"
+      : input.item.type === "reaction"
+        ? "New reaction in Community"
+        : "New post in Community";
+  const body =
+    input.item.type === "reply"
+      ? `${input.item.actorDisplayName} replied to “${input.item.postTitle}”.`
+      : input.item.type === "reaction"
+        ? `${input.item.actorDisplayName} interacted with “${input.item.postTitle}”.`
+        : `${input.item.actorDisplayName} posted in ${input.item.category.replace(/-/g, " ")}.`;
+
+  return Notifications.scheduleNotificationAsync({
+    content: {
+      title,
+      body,
+      sound: !input.quiet,
+      data: {
+        type: "community-activity",
+        postId: input.item.postId,
+        communityActivityId: input.item.id,
+        communityActivityType: input.item.type,
+      },
+    },
+    trigger: new Date(Date.now() + 1200),
   });
 }
 

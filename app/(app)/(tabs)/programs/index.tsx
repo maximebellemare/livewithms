@@ -14,10 +14,12 @@ import { useCheckInHistory, useCheckInOverview } from "../../../../features/chec
 import { getCheckInsInLastDays } from "../../../../features/checkins/consistency";
 import { useGrowthState } from "../../../../features/growth/hooks";
 import { applyLowEnergyModeOverride, useLowEnergyMode } from "../../../../features/low-energy-mode/hooks";
+import { useCalmEnvironment } from "../../../../features/calm-environment/hooks";
 import { buildLifecycleProfile } from "../../../../features/lifecycle/logic";
 import { canAccessPremiumFeature } from "../../../../features/premium/entitlements";
 import { usePremium } from "../../../../features/premium/hooks";
 import { deriveLowEnergyAssist } from "../../../../features/premium/low-energy-assist";
+import { getExerciseById, type ExerciseId } from "../../../../features/exercises/catalog";
 import { getCalmAudioSessionByToolId } from "../../../../features/audio-support/library";
 import type { CalmAudioSessionProgress } from "../../../../features/audio-support/types";
 import {
@@ -66,6 +68,7 @@ import { preventCompletionPressure } from "../../../../lib/guided-programs/gentl
 import { deriveRecoverySupport } from "../../../../lib/guided-programs/recovery-oriented-design/deriveRecoverySupport";
 import { deriveDifficultPeriodPrograms } from "../../../../lib/guided-programs/recovery-oriented-design/deriveDifficultPeriodPrograms";
 import { exportHealthSummary } from "../../../../lib/exportHealthSummary";
+import { getSoundCueDurationMs, playSoundCue, startAmbientLoop, stopAmbientLoop } from "../../../../features/sound-effects/player";
 
 function formatTime(secondsRemaining: number) {
   const minutes = Math.floor(secondsRemaining / 60);
@@ -113,7 +116,6 @@ function deriveAdaptiveStatePrimary(input: {
 }
 
 const FREE_PROGRAM_TOOL_IDS = [
-  "plan-today",
   "reduce-overwhelm",
   "brain-fog-basics",
   "breathing-reset",
@@ -129,7 +131,6 @@ const PREMIUM_PROGRAM_TOOL_IDS = [
 ] as const;
 
 const PROGRAM_TOOL_OUTCOMES: Record<string, string> = {
-  "plan-today": "Create one realistic priority and reduce decisions.",
   "reduce-overwhelm": "Sort competing pressure into one focus and one next step.",
   "brain-fog-basics": "Narrow attention to one or two clear steps.",
   "breathing-reset": "Use a short reset when stress feels high.",
@@ -193,49 +194,6 @@ const CUSTOM_OPTION_LABEL = "+ Custom";
 const RESET_TOOL_OPTIONS = new Set(["60-second reset"]);
 
 const PROGRAM_TOOL_WORKFLOWS: Record<string, ProgramWorkflow> = {
-  "plan-today": {
-    title: "Plan today",
-    summaryTitle: "Today’s plan",
-    questions: [
-      {
-        id: "focus",
-        label: "What matters most today?",
-        type: "text",
-        placeholder: "One important thing",
-      },
-      {
-        id: "energy",
-        label: "How is your energy today?",
-        type: "choice",
-        options: ["Low", "Medium", "High"],
-      },
-      {
-        id: "drain",
-        label: "What feels most draining right now?",
-        type: "choice",
-        options: ["Decisions", "Physical fatigue", "Brain fog", "Stress", "Appointments", "Work/tasks", "Emotional overwhelm"],
-      },
-      {
-        id: "smaller",
-        label: "What can stay smaller today?",
-        type: "text",
-        placeholder: "One task, decision, or expectation",
-      },
-      {
-        id: "success",
-        label: "What would make today feel successful?",
-        type: "text",
-        placeholder: "A realistic enough outcome",
-      },
-    ],
-    summaryItems: [
-      { answerId: "focus", label: "Main focus" },
-      { answerId: "energy", label: "Energy level" },
-      { answerId: "drain", label: "Biggest drain" },
-      { answerId: "smaller", label: "Stays smaller" },
-      { answerId: "success", label: "Success today" },
-    ],
-  },
   "reduce-overwhelm": {
     title: "Reduce overwhelm",
     summaryTitle: "Overwhelm reset",
@@ -941,20 +899,25 @@ function deriveDifficultDayCue(answers: Record<string, string>) {
 }
 
 export default function ProgramsScreen() {
-  const params = useLocalSearchParams<{ section?: string; tool?: string }>();
+  const params = useLocalSearchParams<{ section?: string; tool?: string; exercise?: string }>();
   const sectionParam = Array.isArray(params.section) ? params.section[0] : params.section;
   const toolParam = Array.isArray(params.tool) ? params.tool[0] : params.tool;
-  const deepLinkKey = `${sectionParam ?? ""}:${toolParam ?? ""}`;
+  const exerciseParam = Array.isArray(params.exercise) ? params.exercise[0] : params.exercise;
+  const deepLinkExerciseId = getExerciseById(exerciseParam)?.id ?? null;
+  const deepLinkKey = `${sectionParam ?? ""}:${toolParam ?? ""}:${deepLinkExerciseId ?? ""}`;
   const scrollRef = useRef<ScrollView>(null);
   const detailCardYRef = useRef(0);
   const toolCardPositionsRef = useRef<Record<string, number>>({});
   const timerCardYRef = useRef(0);
   const exerciseSectionYRef = useRef(0);
+  const breathingAmbientStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shouldScrollToDetailRef = useRef(false);
   const shouldScrollToTimerRef = useRef(false);
   const handledDeepLinkRef = useRef<string | null>(null);
   const breathingScale = useRef(new Animated.Value(0)).current;
   const lastBreathingPhaseRef = useRef<string | null>(null);
+  const timerCueStateRef = useRef({ halfwayPlayed: false, nearEndPlayed: false });
+  const audioCueStateRef = useRef({ nearEndPlayed: false });
   const { user } = useAuth();
   const overviewQuery = useCheckInOverview(user?.id);
   const historyQuery = useCheckInHistory(user?.id, 14);
@@ -962,6 +925,7 @@ export default function ProgramsScreen() {
     totalCheckIns: overviewQuery.data?.length ?? 0,
   });
   const lowEnergyMode = useLowEnergyMode();
+  const calmEnvironment = useCalmEnvironment();
   const premium = usePremium();
   const programProgress = useProgramProgress();
   const markOpenedRef = useRef(programProgress.markOpened);
@@ -993,6 +957,67 @@ export default function ProgramsScreen() {
   useEffect(() => {
     markOpenedRef.current = programProgress.markOpened;
   }, [programProgress.markOpened]);
+
+  useEffect(() => {
+    return () => {
+      if (breathingAmbientStartTimeoutRef.current) {
+        clearTimeout(breathingAmbientStartTimeoutRef.current);
+        breathingAmbientStartTimeoutRef.current = null;
+      }
+      void stopAmbientLoop();
+    };
+  }, []);
+
+  const clearBreathingAmbientTimeout = useCallback(() => {
+    if (!breathingAmbientStartTimeoutRef.current) {
+      return;
+    }
+
+    clearTimeout(breathingAmbientStartTimeoutRef.current);
+    breathingAmbientStartTimeoutRef.current = null;
+  }, []);
+
+  const startBreathingResetAudio = useCallback(() => {
+    clearBreathingAmbientTimeout();
+
+    if (__DEV__ && !calmEnvironment.soundEffects) {
+      console.log("[timer-sound]", {
+        event: "breathing-start-muted-by-settings",
+        soundEffectsEnabled: calmEnvironment.soundEffects,
+      });
+    }
+
+    void playSoundCue("breathing-start", calmEnvironment.soundEffects);
+
+    const delayMs = calmEnvironment.soundEffects ? getSoundCueDurationMs("breathing-start") + 140 : 0;
+    breathingAmbientStartTimeoutRef.current = setTimeout(() => {
+      breathingAmbientStartTimeoutRef.current = null;
+      void startAmbientLoop(true);
+    }, delayMs);
+  }, [calmEnvironment.soundEffects, clearBreathingAmbientTimeout]);
+
+  const logTimerSound = useCallback((event: string, details?: Record<string, unknown>) => {
+    if (!__DEV__) {
+      return;
+    }
+
+    console.log("[timer-sound]", {
+      event,
+      activeTimerId,
+      selectedToolId,
+      secondsRemaining,
+      soundEffectsEnabled: calmEnvironment.soundEffects,
+      backgroundAudioEnabled: calmEnvironment.backgroundAudio,
+      ...(details ?? {}),
+    });
+  }, [
+    activeTimerId,
+    calmEnvironment.backgroundAudio,
+    calmEnvironment.soundEffects,
+    secondsRemaining,
+    selectedToolId,
+  ]);
+
   const overviewEntries = useMemo(() => overviewQuery.data ?? [], [overviewQuery.data]);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const weeklyCheckIns = useMemo(
@@ -1433,7 +1458,7 @@ export default function ProgramsScreen() {
 
   useEffect(() => {
     if (__DEV__) {
-      console.log("[programs-deeplink]", { sectionParam, toolParam });
+      console.log("[programs-deeplink]", { sectionParam, toolParam, exerciseParam });
     }
 
     if (sectionParam !== "exercises") {
@@ -1448,7 +1473,7 @@ export default function ProgramsScreen() {
     }, 350);
 
     return () => clearTimeout(timeoutId);
-  }, [sectionParam, toolParam]);
+  }, [exerciseParam, sectionParam, toolParam]);
 
   useEffect(() => {
     const resolvedToolId = resolveProgramToolId(toolParam);
@@ -1482,7 +1507,22 @@ export default function ProgramsScreen() {
 
   useEffect(() => {
     if (!activeTimerId || secondsRemaining === null) {
+      timerCueStateRef.current = { halfwayPlayed: false, nearEndPlayed: false };
+      clearBreathingAmbientTimeout();
+      void stopAmbientLoop();
       return;
+    }
+
+    if (!timerCueStateRef.current.halfwayPlayed && secondsRemaining === 30) {
+      timerCueStateRef.current.halfwayPlayed = true;
+      logTimerSound("timer-halfway-trigger");
+      void playSoundCue("timer-halfway", calmEnvironment.soundEffects);
+    }
+
+    if (!timerCueStateRef.current.nearEndPlayed && secondsRemaining === 10) {
+      timerCueStateRef.current.nearEndPlayed = true;
+      logTimerSound("timer-near-end-trigger");
+      void playSoundCue("timer-near-end", calmEnvironment.soundEffects);
     }
 
     if (secondsRemaining <= 0) {
@@ -1490,6 +1530,16 @@ export default function ProgramsScreen() {
       void programProgress.markCompleted(activeTimerId);
       setActiveTimerId(null);
       setSecondsRemaining(null);
+      const completedTimerId = activeTimerId;
+      logTimerSound(completedTimerId === "breathing-reset" ? "breathing-end-trigger" : "timer-end-trigger", {
+        toolId: completedTimerId,
+      });
+      void playSoundCue(
+        completedTimerId === "breathing-reset" ? "breathing-end" : "timer-end",
+        calmEnvironment.soundEffects,
+      );
+      clearBreathingAmbientTimeout();
+      void stopAmbientLoop();
       return;
     }
 
@@ -1498,7 +1548,7 @@ export default function ProgramsScreen() {
     }, 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [activeTimerId, programProgress, secondsRemaining]);
+  }, [activeTimerId, calmEnvironment.soundEffects, clearBreathingAmbientTimeout, logTimerSound, programProgress, secondsRemaining]);
 
   useEffect(() => {
     if (activeTool?.id !== "breathing-reset" || secondsRemaining === null) {
@@ -1548,7 +1598,19 @@ export default function ProgramsScreen() {
 
   useEffect(() => {
     if (!audioSessionState?.isPlaying || !selectedAudioSession || audioSessionState.sessionId !== selectedAudioSession.id) {
+      audioCueStateRef.current = { nearEndPlayed: false };
+      if (!audioSessionState?.isPlaying) {
+        void stopAmbientLoop();
+      }
       return;
+    }
+
+    if (!audioCueStateRef.current.nearEndPlayed && audioSessionState.totalSecondsRemaining === 15) {
+      audioCueStateRef.current.nearEndPlayed = true;
+      logTimerSound("audio-near-end-trigger", {
+        sessionId: audioSessionState.sessionId,
+      });
+      void playSoundCue("timer-near-end", calmEnvironment.soundEffects);
     }
 
     if (audioSessionState.totalSecondsRemaining <= 0) {
@@ -1558,6 +1620,11 @@ export default function ProgramsScreen() {
       }
       setAudioSessionState(null);
       void programProgress.clearAudioSession();
+      logTimerSound("audio-end-trigger", {
+        sessionId: audioSessionState.sessionId,
+      });
+      void playSoundCue("timer-end", calmEnvironment.soundEffects);
+      void stopAmbientLoop();
       return;
     }
 
@@ -1591,6 +1658,11 @@ export default function ProgramsScreen() {
             void programProgress.markCompleted(selectedTool.id);
           }
           void programProgress.clearAudioSession();
+          logTimerSound("audio-end-trigger", {
+            sessionId: current.sessionId,
+          });
+          void playSoundCue("timer-end", calmEnvironment.soundEffects);
+          void stopAmbientLoop();
           return null;
         }
 
@@ -1613,7 +1685,7 @@ export default function ProgramsScreen() {
     }, 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [audioSessionState, programProgress, selectedAudioSession, selectedTool]);
+  }, [audioSessionState, calmEnvironment.soundEffects, logTimerSound, programProgress, selectedAudioSession, selectedTool]);
 
   useEffect(() => {
     if (!selectedToolId) {
@@ -1693,11 +1765,22 @@ export default function ProgramsScreen() {
 
     if (tool.durationSeconds) {
       shouldScrollToTimerRef.current = true;
+      timerCueStateRef.current = { halfwayPlayed: false, nearEndPlayed: false };
       setActiveTimerId(tool.id);
       setSecondsRemaining(tool.durationSeconds);
+      logTimerSound(tool.id === "breathing-reset" ? "breathing-start-trigger" : "timer-start-trigger", {
+        toolId: tool.id,
+      });
+      if (tool.id === "breathing-reset") {
+        startBreathingResetAudio();
+      } else {
+        void playSoundCue("timer-start", calmEnvironment.soundEffects);
+      }
     } else {
       setActiveTimerId(null);
       setSecondsRemaining(null);
+      clearBreathingAmbientTimeout();
+      void stopAmbientLoop();
     }
   };
 
@@ -1719,10 +1802,17 @@ export default function ProgramsScreen() {
     };
 
     setCompletedToolId(null);
+    audioCueStateRef.current = { nearEndPlayed: false };
     setAudioSessionState(nextState);
     void programProgress.markOpened(tool.id);
     void programProgress.markStarted(tool.id);
     void programProgress.saveAudioSession(nextState);
+    logTimerSound("audio-start-trigger", {
+      toolId: tool.id,
+      sessionId: session.id,
+    });
+    void playSoundCue("timer-start", calmEnvironment.soundEffects);
+    void startAmbientLoop(calmEnvironment.backgroundAudio);
 
     if (nextState.hapticsEnabled && session.supportsHaptics) {
       void Haptics.selectionAsync().catch(() => undefined);
@@ -1743,6 +1833,7 @@ export default function ProgramsScreen() {
       void programProgress.saveAudioSession(nextState);
       return nextState;
     });
+    void stopAmbientLoop();
   };
 
   const resumeAudioSession = () => {
@@ -1759,11 +1850,13 @@ export default function ProgramsScreen() {
       void programProgress.saveAudioSession(nextState);
       return nextState;
     });
+    void startAmbientLoop(calmEnvironment.backgroundAudio);
   };
 
   const stopAudioSession = () => {
     setAudioSessionState(null);
     void programProgress.clearAudioSession();
+    void stopAmbientLoop();
   };
 
   const toggleAudioHaptics = () => {
@@ -1788,10 +1881,12 @@ export default function ProgramsScreen() {
     if (activeTimerId === tool.id) {
       setActiveTimerId(null);
       setSecondsRemaining(null);
+      void stopAmbientLoop();
     }
     if (audioSessionState?.toolId === tool.id) {
       setAudioSessionState(null);
       void programProgress.clearAudioSession();
+      void stopAmbientLoop();
     }
 
     void growth.recordEvent("program_completed", {
@@ -1810,6 +1905,7 @@ export default function ProgramsScreen() {
     setActiveTimerId(null);
     setSecondsRemaining(null);
     void programProgress.clearActiveTool();
+    void stopAmbientLoop();
   };
 
   const isSelectedToolCompleted = selectedTool
@@ -2318,6 +2414,7 @@ export default function ProgramsScreen() {
           <GentleExercisesSection
             hasPremiumAccess={premium.hasPremiumAccess}
             lowEnergyMode={adaptiveProfile.lowEnergyMode || lowEnergyAssist.active}
+            initialExerciseId={deepLinkExerciseId as ExerciseId | null}
             onActiveExerciseLayout={(relativeY) => {
               scrollRef.current?.scrollTo({
                 y: Math.max(exerciseSectionYRef.current + relativeY - 20, 0),

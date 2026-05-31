@@ -2,15 +2,16 @@
   "expo": {
     "name": "LiveWithMS",
     "description": "A calm, emotionally safe support environment for people living with MS. Designed to reduce overwhelm, support steadiness, and make difficult periods feel lighter and more manageable.",
-    "version": "1.0.8",
+    "version": "1.1.0",
     "scheme": "com.livewithms.app",
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.livewithms.app",
-      "buildNumber": "62",
+      "buildNumber": "66",
       "infoPlist": {
+        "NSCameraUsageDescription": "LiveWithMS uses the camera when you choose to take a food photo for nutrition analysis.",
         "NSMicrophoneUsageDescription": "LiveWithMS uses voice input so you can speak instead of typing.",
-        "NSPhotoLibraryUsageDescription": "LiveWithMS may access your photo library only when you choose to attach or upload an image.",
+        "NSPhotoLibraryUsageDescription": "LiveWithMS accesses your photo library only when you choose to upload a food image.",
         "NSSpeechRecognitionUsageDescription": "LiveWithMS uses voice input so you can speak instead of typing."
       }
     },
@@ -29,6 +30,13 @@
         {
           "microphonePermission": "LiveWithMS uses voice input so you can speak instead of typing.",
           "speechRecognitionPermission": "LiveWithMS uses voice input so you can speak instead of typing."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "LiveWithMS uses the camera when you choose to take a food photo for nutrition analysis.",
+          "photosPermission": "LiveWithMS accesses your photo library only when you choose to upload a food image."
         }
       ]
     ]

@@ -45,7 +45,8 @@ import { derivePostCheckInMoment } from "../../../../features/today/post-check-i
 import { getErrorMessage } from "../../../../lib/errors";
 import { buildAdaptiveProfile } from "../../../../features/adaptive/logic";
 import { getProgramToolById } from "../../../../features/programs/catalog";
-import type { ProgramTool } from "../../../../features/programs/types";
+import type { AdaptiveSupportRecommendation } from "../../../../features/support/adaptive-support";
+import { deriveAdaptiveSupportRecommendations } from "../../../../features/support/adaptive-support";
 import { derivePacingRecoveryIntelligence } from "../../../../features/recovery/pacing-intelligence";
 import { useReminderSettings } from "../../../../features/reminders/hooks";
 import { trackRetryTriggered } from "../../../../lib/events";
@@ -263,10 +264,18 @@ function getTodayPlanSaveLabel(saveState: "idle" | "saving" | "saved") {
   return "Save plan";
 }
 
+function formatPlanDate(date: string) {
+  return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 const CHECK_IN_STREAK_MILESTONES = new Set([3, 7, 14, 30, 60, 100]);
 
 type TodayPlanDraft = {
   mainPriority: string;
+  energyLevel: string;
   staySmaller: string;
   recoveryProtection: string;
   tomorrowEnergy: string;
@@ -278,6 +287,7 @@ type TodayPlanDraft = {
 
 const EMPTY_TODAY_PLAN: TodayPlanDraft = {
   mainPriority: "",
+  energyLevel: "",
   staySmaller: "",
   recoveryProtection: "",
   tomorrowEnergy: "",
@@ -523,11 +533,13 @@ function getOperationalObservation(entries: DailyCheckIn[]) {
   return null;
 }
 
-type TodaySupportRecommendation = {
-  tool: ProgramTool;
-  body: string;
-  premiumOnly?: boolean;
-};
+const RECOVERY_PROTECTION_FALLBACKS = [
+  "Protect a low-stimulation break before the day gets too full.",
+  "Leave more space between tasks so recovery has room.",
+  "Keep tonight quieter if stress or fatigue has been high.",
+  "Use a recovery break before fatigue reaches its peak.",
+  "Reduce one avoidable demand to protect energy for tomorrow.",
+] as const;
 
 function getCurrentScaleValue(
   todayEntry: DailyCheckIn | null,
@@ -537,12 +549,81 @@ function getCurrentScaleValue(
   return todayEntry?.[key] ?? draft[key] ?? null;
 }
 
+function normalizeGuidanceText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getGuidanceTopics(value: string) {
+  const normalized = normalizeGuidanceText(value);
+  const topics = new Set<string>();
+
+  if (/\b(smaller|lighter|non urgent|demand|demands|workload|essentials|plans?|priority)\b/.test(normalized)) {
+    topics.add("workload");
+  }
+
+  if (/\b(stimulation|quiet|quieter|noise|tabs|screen|screens|activation|task switching)\b/.test(normalized)) {
+    topics.add("stimulation");
+  }
+
+  if (/\b(sleep|evening|tonight|tomorrow|morning)\b/.test(normalized)) {
+    topics.add("sleep-evening");
+  }
+
+  if (/\b(break|breaks|spacing|space|window|recovery)\b/.test(normalized)) {
+    topics.add("recovery-breaks");
+  }
+
+  if (/\b(fatigue|energy)\b/.test(normalized)) {
+    topics.add("fatigue-energy");
+  }
+
+  if (/\b(stress|pressure)\b/.test(normalized)) {
+    topics.add("stress");
+  }
+
+  if (/\b(brain fog|cognitive|mental|thinking|choices)\b/.test(normalized)) {
+    topics.add("cognitive-load");
+  }
+
+  return topics;
+}
+
+function hasDuplicateGuidanceIdea(candidate: string, existingItems: string[]) {
+  const candidateNormalized = normalizeGuidanceText(candidate);
+  const existingNormalized = existingItems.map(normalizeGuidanceText);
+
+  if (existingNormalized.some((item) => item === candidateNormalized || item.includes(candidateNormalized) || candidateNormalized.includes(item))) {
+    return true;
+  }
+
+  const candidateTopics = getGuidanceTopics(candidate);
+
+  return existingItems.some((item) => {
+    const existingTopics = getGuidanceTopics(item);
+    return Array.from(candidateTopics).some((topic) => existingTopics.has(topic));
+  });
+}
+
+function pickDistinctGuidanceLine(candidates: string[], existingItems: string[]) {
+  return candidates.find((candidate) => !hasDuplicateGuidanceIdea(candidate, existingItems)) ?? null;
+}
+
 function getAdaptiveDailyDashboard(input: {
   todayEntry: DailyCheckIn | null;
   draft: DailyCheckInDraft;
   recentEntries: DailyCheckIn[];
   recoveryStrategies?: string[];
   hasPremiumAccess: boolean;
+  programProgress: Parameters<typeof deriveAdaptiveSupportRecommendations>[0]["programProgress"];
+  recentRecommendationIds?: string[];
+  currentHour: number;
+  date: string;
+  upcomingAppointments: Appointment[];
+  textInputs?: Array<string | null | undefined>;
 }) {
   const intelligence = derivePacingRecoveryIntelligence({
     entries: input.recentEntries,
@@ -551,16 +632,47 @@ function getAdaptiveDailyDashboard(input: {
     recoveryStrategies: input.recoveryStrategies,
     hasPremiumAccess: input.hasPremiumAccess,
   });
-  const recommendations = intelligence.suggestedSupport
-    .map((recommendation) => {
-      const tool = getProgramToolById(recommendation.toolId);
-      return tool ? { tool, body: recommendation.body } : null;
-    })
-    .filter((item): item is TodaySupportRecommendation => Boolean(item));
+  const recommendations = deriveAdaptiveSupportRecommendations({
+    current: {
+      fatigue: getCurrentScaleValue(input.todayEntry, input.draft, "fatigue"),
+      stress: getCurrentScaleValue(input.todayEntry, input.draft, "stress"),
+      brainFog: getCurrentScaleValue(input.todayEntry, input.draft, "brain_fog"),
+      sleepHours: input.todayEntry?.sleep_hours ?? input.draft.sleep_hours,
+    },
+    recentEntries: input.recentEntries,
+    programProgress: input.programProgress,
+    recentRecommendationIds: input.recentRecommendationIds,
+    currentHour: input.currentHour,
+    date: `${input.date}:${input.currentHour}`,
+    textInputs: [
+      input.draft.notes,
+      input.todayEntry?.notes,
+      ...(input.textInputs ?? []),
+      ...(input.recoveryStrategies ?? []),
+    ],
+    recoveryStrategies: input.recoveryStrategies,
+    upcomingAppointments: input.upcomingAppointments,
+    baseRecommendations: intelligence.suggestedSupport.map((recommendation) => ({
+      toolId: recommendation.toolId,
+      body: recommendation.body,
+    })),
+    maxItems: intelligence.lowEnergyUi.maxSuggestedCards,
+  });
+  const stateSummary =
+    pickDistinctGuidanceLine(
+      [...intelligence.triggerPatterns, ...intelligence.weeklySummary],
+      [intelligence.dailyState.message],
+    ) ?? "Use today’s support to keep energy, recovery, and workload visible.";
+  const recoveryProtection =
+    pickDistinctGuidanceLine(
+      [...intelligence.recoveryProtection, ...RECOVERY_PROTECTION_FALLBACKS],
+      [intelligence.dailyState.message, stateSummary],
+    ) ?? "Protect one recovery break before adding more to the day.";
 
   return {
     guidance: intelligence.dailyState.message,
-    stateSummary: intelligence.recoveryProtection[0] ?? "Use today’s support to keep energy, recovery, and workload visible.",
+    stateSummary,
+    recoveryProtection,
     recommendations,
   };
 }
@@ -572,6 +684,10 @@ function pickRotatingPrompt(prompts: string[], seed: string) {
 
   const value = seed.split("").reduce((sum, character) => sum + character.charCodeAt(0), 0);
   return prompts[value % prompts.length];
+}
+
+function getReflectionNotes(todayEntry: DailyCheckIn | null, draft: DailyCheckInDraft) {
+  return `${todayEntry?.notes ?? ""} ${draft.notes ?? ""}`.toLowerCase();
 }
 
 function getDailyReflectionPrompt(todayEntry: DailyCheckIn | null, draft: DailyCheckInDraft, date: string) {
@@ -591,16 +707,43 @@ function getDailyReflectionPrompt(todayEntry: DailyCheckIn | null, draft: DailyC
     mobility ?? 0,
     spasticity ?? 0,
   );
+  const highSymptomCount = [fatigue, stress, brainFog, pain, mobility, spasticity].filter(
+    (value) => typeof value === "number" && value >= 4,
+  ).length;
+  const moderateSymptomCount = [fatigue, stress, brainFog, pain, mobility, spasticity].filter(
+    (value) => typeof value === "number" && value >= 3,
+  ).length;
+  const notes = getReflectionNotes(todayEntry, draft);
+  const notesSuggestOverload = /overload|overwhelmed|too much|crash|flare|hard day|rough day|exhausted|burned out/.test(notes);
+  const hasAnyDaySignal = [fatigue, stress, brainFog, mood, pain, mobility, spasticity].some(
+    (value) => typeof value === "number",
+  ) || (typeof sleep === "number" && sleep > 0) || notes.trim().length > 0;
   const isDifficultDay =
-    highestSymptom >= 4 &&
-    (((fatigue ?? 0) >= 4 && (stress ?? 0) >= 4) || (typeof mood === "number" && mood <= 2));
+    highestSymptom >= 5 ||
+    highSymptomCount >= 2 ||
+    notesSuggestOverload ||
+    (typeof mood === "number" && mood <= 2 && moderateSymptomCount >= 1) ||
+    ((fatigue ?? 0) >= 4 && (stress ?? 0) >= 4);
+
+  if (!hasAnyDaySignal) {
+    return pickRotatingPrompt(
+      [
+        "What would be useful to remember from today?",
+        "What would make tomorrow slightly easier?",
+        "What actually mattered today?",
+      ],
+      `${date}:no-day-signal`,
+    );
+  }
 
   if (isDifficultDay) {
     return pickRotatingPrompt(
       [
         "What would make tomorrow slightly easier?",
         "What felt hardest to carry today?",
+        "What would help tomorrow feel more manageable?",
         "What can stay smaller tomorrow?",
+        "What needs less pressure tomorrow?",
       ],
       `${date}:difficult-day`,
     );
@@ -612,6 +755,7 @@ function getDailyReflectionPrompt(todayEntry: DailyCheckIn | null, draft: DailyC
         "What helped thinking feel clearer today?",
         "What made thinking harder today?",
         "What would reduce mental load tomorrow?",
+        "What would make the next step easier to see tomorrow?",
       ],
       `${date}:brain-fog`,
     );
@@ -623,6 +767,7 @@ function getDailyReflectionPrompt(todayEntry: DailyCheckIn | null, draft: DailyC
         "What took the most energy today?",
         "What helped protect energy today?",
         "What could use less energy tomorrow?",
+        "What would make tomorrow require less effort?",
       ],
       `${date}:fatigue`,
     );
@@ -634,6 +779,7 @@ function getDailyReflectionPrompt(todayEntry: DailyCheckIn | null, draft: DailyC
         "What helped reduce stress, even a little?",
         "What added the most pressure today?",
         "What would lower pressure tomorrow?",
+        "What can be made simpler tomorrow?",
       ],
       `${date}:stress`,
     );
@@ -645,6 +791,7 @@ function getDailyReflectionPrompt(todayEntry: DailyCheckIn | null, draft: DailyC
         "What would help tonight feel easier?",
         "What can stay lighter after shorter sleep?",
         "What helped you get through today with less sleep?",
+        "What would protect recovery tomorrow?",
       ],
       `${date}:sleep`,
     );
@@ -781,10 +928,12 @@ export default function TodayScreen() {
   const [draft, setDraft] = useState<DailyCheckInDraft>(getEmptyCheckInDraft());
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [todayPlan, setTodayPlan] = useState<TodayPlanDraft>(EMPTY_TODAY_PLAN);
+  const [savedTodayPlan, setSavedTodayPlan] = useState<TodayPlan | null>(null);
   const [recentTodayPlans, setRecentTodayPlans] = useState<TodayPlan[]>([]);
   const [todayPlanSaveState, setTodayPlanSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [lastSaveQueued, setLastSaveQueued] = useState(false);
   const [medicationsTakenToday, setMedicationsTakenToday] = useState<Record<string, string>>({});
+  const [recentSupportRecommendationIds, setRecentSupportRecommendationIds] = useState<string[]>([]);
   const [streakCelebration, setStreakCelebration] = useState<string | null>(null);
   const streakCelebrationOpacity = useRef(new Animated.Value(0)).current;
   const streakCelebrationY = useRef(new Animated.Value(8)).current;
@@ -931,8 +1080,22 @@ export default function TodayScreen() {
         recentEntries: historyEntries,
         recoveryStrategies: recentTodayPlans.map((plan) => plan.whatHelped),
         hasPremiumAccess: premium.hasPremiumAccess,
+        programProgress: programProgress.progress,
+        recentRecommendationIds: recentSupportRecommendationIds,
+        currentHour,
+        date: today,
+        upcomingAppointments,
+        textInputs: [
+          todayPlan.mainPriority,
+          todayPlan.staySmaller,
+          todayPlan.tomorrowEnergy,
+          todayPlan.prepareTonight,
+          todayPlan.tomorrowSmaller,
+          todayPlan.recoveryTonight,
+          todayPlan.whatHelped,
+        ],
       }),
-    [draft, historyEntries, premium.hasPremiumAccess, recentTodayPlans, todayEntry],
+    [currentHour, draft, historyEntries, premium.hasPremiumAccess, programProgress.progress, recentSupportRecommendationIds, recentTodayPlans, today, todayEntry, todayPlan, upcomingAppointments],
   );
   const todayPlanPrioritySuggestions = useMemo(
     () =>
@@ -944,8 +1107,6 @@ export default function TodayScreen() {
       }),
     [draft, showAppointmentPrepShortcut, todayEntry],
   );
-  const todayPlanRecoveryProtection =
-    todayPlan.recoveryProtection.trim() || adaptiveDailyDashboard.stateSummary;
   const dailyReflectionPrompt = useMemo(
     () => getDailyReflectionPrompt(todayEntry, draft, today),
     [draft, today, todayEntry],
@@ -1669,6 +1830,7 @@ export default function TodayScreen() {
   useEffect(() => {
     if (!user?.id) {
       setTodayPlan(EMPTY_TODAY_PLAN);
+      setSavedTodayPlan(null);
       setTodayPlanSaveState("idle");
       return;
     }
@@ -1686,11 +1848,13 @@ export default function TodayScreen() {
       }
 
       setRecentTodayPlans(recentPlans);
+      setSavedTodayPlan(savedPlan);
 
       setTodayPlan(
         savedPlan
           ? {
               mainPriority: savedPlan.mainPriority,
+              energyLevel: savedPlan.energyLevel,
               staySmaller: savedPlan.staySmaller,
               recoveryProtection: savedPlan.recoveryProtection,
               tomorrowEnergy: savedPlan.tomorrowEnergy,
@@ -1812,19 +1976,24 @@ export default function TodayScreen() {
       userId: user.id,
       date: today,
       mainPriority: todayPlan.mainPriority.trim(),
+      energyLevel: todayPlan.energyLevel.trim(),
       staySmaller: todayPlan.staySmaller.trim(),
-      recoveryProtection: todayPlanRecoveryProtection.trim(),
+      recoveryProtection: todayPlan.recoveryProtection.trim(),
       tomorrowEnergy: todayPlan.tomorrowEnergy.trim(),
       prepareTonight: todayPlan.prepareTonight.trim(),
       tomorrowSmaller: todayPlan.tomorrowSmaller.trim(),
       recoveryTonight: todayPlan.recoveryTonight.trim(),
       whatHelped: todayPlan.whatHelped.trim(),
+      isComplete: savedTodayPlan?.isComplete ?? false,
+      createdAt: savedTodayPlan?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     await saveTodayPlan(nextPlan);
+    setSavedTodayPlan(nextPlan);
     setTodayPlan({
       mainPriority: nextPlan.mainPriority,
+      energyLevel: nextPlan.energyLevel,
       staySmaller: nextPlan.staySmaller,
       recoveryProtection: nextPlan.recoveryProtection,
       tomorrowEnergy: nextPlan.tomorrowEnergy,
@@ -1834,6 +2003,35 @@ export default function TodayScreen() {
       whatHelped: nextPlan.whatHelped,
     });
     setRecentTodayPlans((current) => [nextPlan, ...current.filter((plan) => plan.date !== today)].slice(0, 14));
+    setTodayPlanSaveState("saved");
+    void Haptics.selectionAsync();
+  };
+
+  const toggleTodayPlanComplete = async () => {
+    if (!user?.id) {
+      return;
+    }
+
+    const nextPlan: TodayPlan = {
+      userId: user.id,
+      date: today,
+      mainPriority: todayPlan.mainPriority.trim(),
+      energyLevel: todayPlan.energyLevel.trim(),
+      staySmaller: todayPlan.staySmaller.trim(),
+      recoveryProtection: todayPlan.recoveryProtection.trim(),
+      tomorrowEnergy: todayPlan.tomorrowEnergy.trim(),
+      prepareTonight: todayPlan.prepareTonight.trim(),
+      tomorrowSmaller: todayPlan.tomorrowSmaller.trim(),
+      recoveryTonight: todayPlan.recoveryTonight.trim(),
+      whatHelped: todayPlan.whatHelped.trim(),
+      isComplete: !(savedTodayPlan?.isComplete ?? false),
+      createdAt: savedTodayPlan?.createdAt ?? new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setSavedTodayPlan(nextPlan);
+    setRecentTodayPlans((current) => [nextPlan, ...current.filter((plan) => plan.date !== today)].slice(0, 14));
+    await saveTodayPlan(nextPlan);
     setTodayPlanSaveState("saved");
     void Haptics.selectionAsync();
   };
@@ -2065,25 +2263,72 @@ export default function TodayScreen() {
               <AppText style={styles.navTitle}>Today plan</AppText>
               <AppText style={styles.todayPlanSubtitle}>One realistic focus, one thing to keep smaller.</AppText>
             </View>
-            <Pressable
-              onPress={() => void saveCurrentTodayPlan()}
-              disabled={todayPlanSaveState === "saving"}
-              style={({ pressed }) => [
-                styles.todayPlanSaveButton,
-                todayPlanSaveState === "saved" && styles.todayPlanSaveButtonSaved,
-                pressed && styles.quickLinkPressed,
-              ]}
-            >
-              <AppText
-                style={[
-                  styles.todayPlanSaveButtonText,
-                  todayPlanSaveState === "saved" && styles.todayPlanSaveButtonTextSaved,
+            <View style={styles.todayPlanHeaderActions}>
+              {savedTodayPlan ? (
+                <Pressable
+                  onPress={() => void toggleTodayPlanComplete()}
+                  style={({ pressed }) => [
+                    styles.todayPlanSecondaryButton,
+                    savedTodayPlan.isComplete && styles.todayPlanSecondaryButtonComplete,
+                    pressed && styles.quickLinkPressed,
+                  ]}
+                >
+                  <AppText
+                    style={[
+                      styles.todayPlanSecondaryButtonText,
+                      savedTodayPlan.isComplete && styles.todayPlanSecondaryButtonTextComplete,
+                    ]}
+                  >
+                    {savedTodayPlan.isComplete ? "Done for today" : "Mark done"}
+                  </AppText>
+                </Pressable>
+              ) : null}
+              <Pressable
+                onPress={() => void saveCurrentTodayPlan()}
+                disabled={todayPlanSaveState === "saving"}
+                style={({ pressed }) => [
+                  styles.todayPlanSaveButton,
+                  todayPlanSaveState === "saved" && styles.todayPlanSaveButtonSaved,
+                  pressed && styles.quickLinkPressed,
                 ]}
               >
-                {getTodayPlanSaveLabel(todayPlanSaveState)}
-              </AppText>
-            </Pressable>
+                <AppText
+                  style={[
+                    styles.todayPlanSaveButtonText,
+                    todayPlanSaveState === "saved" && styles.todayPlanSaveButtonTextSaved,
+                  ]}
+                >
+                  {getTodayPlanSaveLabel(todayPlanSaveState)}
+                </AppText>
+              </Pressable>
+            </View>
           </View>
+
+          {savedTodayPlan ? (
+            <View style={styles.todayPlanSavedCard}>
+              <View style={styles.todayPlanSavedHeader}>
+                <AppText style={styles.todayPlanSavedTitle}>Saved for today</AppText>
+                <AppText style={styles.todayPlanSavedMeta}>
+                  {savedTodayPlan.isComplete ? "Done for today" : `Updated ${new Date(savedTodayPlan.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`}
+                </AppText>
+              </View>
+              {savedTodayPlan.mainPriority ? (
+                <AppText style={styles.todayPlanSavedLine}>Main priority: {savedTodayPlan.mainPriority}</AppText>
+              ) : null}
+              {savedTodayPlan.energyLevel ? (
+                <AppText style={styles.todayPlanSavedLine}>Energy today: {savedTodayPlan.energyLevel}</AppText>
+              ) : null}
+              {savedTodayPlan.staySmaller ? (
+                <AppText style={styles.todayPlanSavedLine}>Keep smaller: {savedTodayPlan.staySmaller}</AppText>
+              ) : null}
+              {savedTodayPlan.recoveryProtection ? (
+                <AppText style={styles.todayPlanSavedLine}>Recovery support: {savedTodayPlan.recoveryProtection}</AppText>
+              ) : null}
+              {savedTodayPlan.prepareTonight ? (
+                <AppText style={styles.todayPlanSavedLine}>Prepare tonight: {savedTodayPlan.prepareTonight}</AppText>
+              ) : null}
+            </View>
+          ) : null}
 
           <View style={styles.todayPlanSection}>
             <AppText style={styles.todayPlanLabel}>Main priority</AppText>
@@ -2112,6 +2357,42 @@ export default function TodayScreen() {
                     style={[
                       styles.todayPlanChipText,
                       todayPlan.mainPriority === suggestion && styles.todayPlanChipTextSelected,
+                    ]}
+                  >
+                    {suggestion}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.todayPlanSection}>
+            <AppText style={styles.todayPlanLabel}>Energy today</AppText>
+            <AppText style={styles.todayPlanPrompt}>What does energy look like today?</AppText>
+            <TextInput
+              value={todayPlan.energyLevel}
+              onChangeText={(value) => updateTodayPlanField("energyLevel", value)}
+              placeholder="Low, mixed, steady, or a short note"
+              placeholderTextColor="#9ca3af"
+              multiline
+              textAlignVertical="top"
+              style={styles.todayPlanInput}
+            />
+            <View style={styles.todayPlanChipRow}>
+              {["Low", "Mixed", "Steadier"].map((suggestion) => (
+                <Pressable
+                  key={suggestion}
+                  onPress={() => updateTodayPlanField("energyLevel", suggestion)}
+                  style={({ pressed }) => [
+                    styles.todayPlanChip,
+                    todayPlan.energyLevel === suggestion && styles.todayPlanChipSelected,
+                    pressed && styles.quickLinkPressed,
+                  ]}
+                >
+                  <AppText
+                    style={[
+                      styles.todayPlanChipText,
+                      todayPlan.energyLevel === suggestion && styles.todayPlanChipTextSelected,
                     ]}
                   >
                     {suggestion}
@@ -2157,9 +2438,40 @@ export default function TodayScreen() {
             </View>
           </View>
 
-          <View style={styles.todayPlanRecoveryCard}>
-            <AppText style={styles.todayPlanLabel}>Recovery protection</AppText>
-            <AppText style={styles.todayPlanRecoveryText}>{todayPlanRecoveryProtection}</AppText>
+          <View style={styles.todayPlanSection}>
+            <AppText style={styles.todayPlanLabel}>Recovery support</AppText>
+            <AppText style={styles.todayPlanPrompt}>What helps protect energy today?</AppText>
+            <TextInput
+              value={todayPlan.recoveryProtection}
+              onChangeText={(value) => updateTodayPlanField("recoveryProtection", value)}
+              placeholder="Recovery break, quieter evening, hydration..."
+              placeholderTextColor="#9ca3af"
+              multiline
+              textAlignVertical="top"
+              style={styles.todayPlanInput}
+            />
+            <View style={styles.todayPlanChipRow}>
+              {DEFAULT_RECOVERY_STRATEGIES.map((suggestion) => (
+                <Pressable
+                  key={suggestion}
+                  onPress={() => updateTodayPlanField("recoveryProtection", suggestion)}
+                  style={({ pressed }) => [
+                    styles.todayPlanChip,
+                    todayPlan.recoveryProtection === suggestion && styles.todayPlanChipSelected,
+                    pressed && styles.quickLinkPressed,
+                  ]}
+                >
+                  <AppText
+                    style={[
+                      styles.todayPlanChipText,
+                      todayPlan.recoveryProtection === suggestion && styles.todayPlanChipTextSelected,
+                    ]}
+                  >
+                    {suggestion}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
           </View>
 
           <View style={styles.todayPlanLogistics}>
@@ -2320,7 +2632,7 @@ export default function TodayScreen() {
           </View>
 
           <View style={styles.todayPlanRecoveryCard}>
-            <AppText style={styles.todayPlanLabel}>What helped this time?</AppText>
+            <AppText style={styles.todayPlanLabel}>What helped you recently?</AppText>
             <AppText style={styles.todayPlanRecoveryText}>
               Save one useful support so future guidance can notice what works.
             </AppText>
@@ -2356,6 +2668,34 @@ export default function TodayScreen() {
               ))}
             </View>
           </View>
+
+          {recentTodayPlans.filter((plan) => plan.date !== today).length > 0 ? (
+            <View style={styles.todayPlanHistoryCard}>
+              <AppText style={styles.todayPlanLabel}>Recent plans</AppText>
+              <View style={styles.todayPlanHistoryList}>
+                {recentTodayPlans
+                  .filter((plan) => plan.date !== today)
+                  .slice(0, 5)
+                  .map((plan) => (
+                    <View key={plan.date} style={styles.todayPlanHistoryRow}>
+                      <View style={styles.todayPlanHistoryCopy}>
+                        <AppText style={styles.todayPlanHistoryDate}>{formatPlanDate(plan.date)}</AppText>
+                        {plan.mainPriority ? (
+                          <AppText style={styles.todayPlanHistoryText}>Main priority: {plan.mainPriority}</AppText>
+                        ) : null}
+                        {plan.energyLevel ? (
+                          <AppText style={styles.todayPlanHistoryText}>Energy today: {plan.energyLevel}</AppText>
+                        ) : null}
+                        {plan.staySmaller ? (
+                          <AppText style={styles.todayPlanHistoryText}>Keep smaller: {plan.staySmaller}</AppText>
+                        ) : null}
+                      </View>
+                      <AppText style={styles.todayPlanHistoryStatus}>{plan.isComplete ? "Done" : "Saved"}</AppText>
+                    </View>
+                  ))}
+              </View>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.suggestedSupportCard}>
@@ -2363,19 +2703,37 @@ export default function TodayScreen() {
           <View style={styles.suggestedSupportList}>
             {adaptiveDailyDashboard.recommendations.map((recommendation) => (
               <Pressable
-                key={recommendation.tool.id}
+                key={recommendation.id}
                 accessibilityRole="button"
-                accessibilityLabel={`Open ${recommendation.tool.title}`}
-                onPress={() =>
-                  router.push({
-                    pathname: "/(app)/(tabs)/programs",
-                    params: { tool: recommendation.tool.id },
-                  })
-                }
+                accessibilityLabel={`Open ${recommendation.title}`}
+                onPress={() => {
+                  setRecentSupportRecommendationIds((current) =>
+                    [recommendation.id, ...current.filter((id) => id !== recommendation.id)].slice(0, 6),
+                  );
+
+                  if (recommendation.tool) {
+                    router.push({
+                      pathname: "/(app)/(tabs)/programs",
+                      params: { tool: recommendation.tool.id },
+                    });
+                    return;
+                  }
+
+                  if (recommendation.route) {
+                    router.push(
+                      recommendation.params
+                        ? {
+                            pathname: recommendation.route as never,
+                            params: recommendation.params,
+                          }
+                        : (recommendation.route as never),
+                    );
+                  }
+                }}
                 style={({ pressed }) => [styles.suggestedSupportItem, pressed && styles.quickLinkPressed]}
               >
                 <View style={styles.suggestedSupportCopy}>
-                  <AppText style={styles.suggestedSupportTitle}>{recommendation.tool.title}</AppText>
+                  <AppText style={styles.suggestedSupportTitle}>{recommendation.title}</AppText>
                   <AppText style={styles.suggestedSupportBody}>{recommendation.body}</AppText>
                 </View>
                 <AppText style={styles.suggestedSupportOpen}>Open</AppText>
@@ -2576,6 +2934,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
   },
+  todayPlanHeaderActions: {
+    alignItems: "flex-end",
+    gap: 8,
+  },
   todayPlanHeaderCopy: {
     flex: 1,
     gap: 4,
@@ -2605,6 +2967,29 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   todayPlanSaveButtonTextSaved: {
+    color: "#166534",
+  },
+  todayPlanSecondaryButton: {
+    minHeight: 38,
+    justifyContent: "center",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#ead9cb",
+    backgroundColor: "#fffaf6",
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+  todayPlanSecondaryButtonComplete: {
+    borderColor: "#cfe8d4",
+    backgroundColor: "#eef8f0",
+  },
+  todayPlanSecondaryButtonText: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
+  },
+  todayPlanSecondaryButtonTextComplete: {
     color: "#166534",
   },
   todayPlanSection: {
@@ -2669,6 +3054,36 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 6,
   },
+  todayPlanSavedCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f1e1d4",
+    backgroundColor: "#fffaf6",
+    padding: 14,
+    gap: 8,
+  },
+  todayPlanSavedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  todayPlanSavedTitle: {
+    color: "#1f2937",
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "700",
+  },
+  todayPlanSavedMeta: {
+    color: "#8b6a4f",
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  todayPlanSavedLine: {
+    color: "#4b5563",
+    fontSize: 14,
+    lineHeight: 20,
+  },
   todayPlanRecoveryText: {
     color: "#374151",
     fontSize: 14,
@@ -2697,6 +3112,47 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     fontSize: 13,
     lineHeight: 18,
+  },
+  todayPlanHistoryCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f1e1d4",
+    backgroundColor: "#fffaf6",
+    padding: 14,
+    gap: 10,
+  },
+  todayPlanHistoryList: {
+    gap: 10,
+  },
+  todayPlanHistoryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f3e5d8",
+    paddingTop: 10,
+  },
+  todayPlanHistoryCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  todayPlanHistoryDate: {
+    color: "#9a4b0c",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
+  },
+  todayPlanHistoryText: {
+    color: "#4b5563",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  todayPlanHistoryStatus: {
+    color: "#8b6a4f",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
   },
   suggestedSupportCard: {
     backgroundColor: "#ffffff",

@@ -4,6 +4,7 @@ export type TodayPlan = {
   userId: string;
   date: string;
   mainPriority: string;
+  energyLevel: string;
   staySmaller: string;
   recoveryProtection: string;
   tomorrowEnergy: string;
@@ -11,6 +12,8 @@ export type TodayPlan = {
   tomorrowSmaller: string;
   recoveryTonight: string;
   whatHelped: string;
+  isComplete: boolean;
+  createdAt: string;
   updatedAt: string;
 };
 
@@ -29,6 +32,7 @@ function sanitizeTodayPlan(input: Partial<TodayPlan> | null | undefined, userId:
     userId,
     date,
     mainPriority: normalizeText(input?.mainPriority),
+    energyLevel: normalizeText(input?.energyLevel),
     staySmaller: normalizeText(input?.staySmaller),
     recoveryProtection: normalizeText(input?.recoveryProtection),
     tomorrowEnergy: normalizeText(input?.tomorrowEnergy),
@@ -36,6 +40,8 @@ function sanitizeTodayPlan(input: Partial<TodayPlan> | null | undefined, userId:
     tomorrowSmaller: normalizeText(input?.tomorrowSmaller),
     recoveryTonight: normalizeText(input?.recoveryTonight),
     whatHelped: normalizeText(input?.whatHelped),
+    isComplete: typeof input?.isComplete === "boolean" ? input.isComplete : false,
+    createdAt: typeof input?.createdAt === "string" ? input.createdAt : new Date().toISOString(),
     updatedAt: typeof input?.updatedAt === "string" ? input.updatedAt : new Date().toISOString(),
   };
 }

@@ -23,6 +23,7 @@ type Props = {
   hasPremiumAccess: boolean;
   lowEnergyMode?: boolean;
   onActiveExerciseLayout?: (relativeY: number) => void;
+  initialExerciseId?: ExerciseId | null;
 };
 
 type MemoryCard = {
@@ -284,6 +285,7 @@ export default function GentleExercisesSection({
   hasPremiumAccess,
   lowEnergyMode = false,
   onActiveExerciseLayout,
+  initialExerciseId = null,
 }: Props) {
   const [usage, setUsage] = useState<ExerciseUsage | null>(null);
   const [bests, setBests] = useState<ExerciseBests>({});
@@ -328,6 +330,24 @@ export default function GentleExercisesSection({
 
   const sessionStartedAtRef = useRef<number>(0);
   const reactionCueStartedAtRef = useRef<number>(0);
+  const handledInitialExerciseRef = useRef<ExerciseId | null>(null);
+
+  useEffect(() => {
+    if (!initialExerciseId || handledInitialExerciseRef.current === initialExerciseId) {
+      return;
+    }
+
+    const exercise = EXERCISES.find((item) => item.id === initialExerciseId);
+    if (!exercise) {
+      return;
+    }
+
+    handledInitialExerciseRef.current = initialExerciseId;
+    setSelectedExerciseId(exercise.id);
+    setPhase(exercise.premiumOnly && !hasPremiumAccess ? "locked" : "ready");
+    setStatus(exercise.premiumOnly && !hasPremiumAccess ? "Premium includes unlimited exercise sessions." : null);
+    setSummary(null);
+  }, [hasPremiumAccess, initialExerciseId]);
   const steadyCompletedRef = useRef(false);
 
   const selectedExercise = useMemo(

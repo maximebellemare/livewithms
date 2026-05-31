@@ -170,6 +170,22 @@ export function isCelebrationAvailable(
   }
 
   switch (key) {
+    case "first_check_in_completed":
+      return options.totalCheckIns >= 1;
+    case "three_day_check_in_streak":
+      return options.totalCheckIns >= 3;
+    case "seven_day_check_in_streak":
+      return options.totalCheckIns >= 7;
+    case "first_reflection_completed":
+      return (state.eventCounts.reflection_saved ?? 0) >= 1;
+    case "first_nutrition_plan":
+      return (state.eventCounts.nutrition_meal_plan_generated ?? 0) >= 1;
+    case "first_community_post":
+      return (state.eventCounts.community_post_created ?? 0) >= 1;
+    case "first_breathing_reset":
+      return (state.eventCounts.program_completed ?? 0) >= 1;
+    case "ten_exercises_completed":
+      return false;
     case "first_coach_conversation":
       return (state.eventCounts.ai_coach_message_sent ?? 0) >= 1;
     case "first_week_of_checkins":

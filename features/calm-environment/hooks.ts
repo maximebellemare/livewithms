@@ -64,6 +64,22 @@ export async function setCalmEnvironmentNightCalm(nightCalm: boolean) {
   });
 }
 
+export async function setCalmEnvironmentSoundEffects(soundEffects: boolean) {
+  return saveState({
+    ...currentCalmEnvironmentState,
+    soundEffects,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+export async function setCalmEnvironmentBackgroundAudio(backgroundAudio: boolean) {
+  return saveState({
+    ...currentCalmEnvironmentState,
+    backgroundAudio,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
 export async function setCalmEnvironmentDensity(density: CalmDensityMode) {
   return saveState({
     ...currentCalmEnvironmentState,
@@ -107,6 +123,8 @@ export function useCalmEnvironment() {
       setReducedMotion: setCalmEnvironmentReducedMotion,
       setSofterHaptics: setCalmEnvironmentSofterHaptics,
       setNightCalm: setCalmEnvironmentNightCalm,
+      setSoundEffects: setCalmEnvironmentSoundEffects,
+      setBackgroundAudio: setCalmEnvironmentBackgroundAudio,
       setDensity: setCalmEnvironmentDensity,
       setAppearance: setCalmEnvironmentAppearance,
     }),

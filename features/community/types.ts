@@ -23,6 +23,25 @@ export type CommunityReactionSummary = {
   reactedByMe: boolean;
 };
 
+export type CommunityActivityType = "reply" | "reaction" | "post";
+
+export type CommunityActivityItem = {
+  id: string;
+  type: CommunityActivityType;
+  created_at: string;
+  postId: string;
+  postTitle: string;
+  category: CommunityCategoryId;
+  actorDisplayName: string;
+  preview: string;
+};
+
+export type CommunityActivitySummary = {
+  unreadCount: number;
+  newReplies: CommunityActivityItem[];
+  recentActivity: CommunityActivityItem[];
+};
+
 export type CommunityPost = {
   id: string;
   user_id: string;

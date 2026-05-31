@@ -44,14 +44,50 @@ export function useSendCoachMessage(userId?: string) {
 
   return useMutation({
     mutationFn: (input: SendCoachMessageInput) => coachMessagesApi.sendCoachMessage(input),
-    onSuccess: (data) => {
+    onMutate: async (input) => {
+      if (!userId) {
+        return { optimisticId: null as string | null };
+      }
+
+      const optimisticId = `optimistic-user-${Date.now()}`;
+      queryClient.setQueryData<CoachChatMessage[]>(
+        ["coach-messages", userId],
+        (existing) =>
+          mergeCoachMessages(existing, [
+            {
+              id: optimisticId,
+              user_id: userId,
+              role: "user",
+              content: input.message,
+              created_at: new Date().toISOString(),
+            },
+          ]),
+      );
+
+      return { optimisticId };
+    },
+    onSuccess: (data, _variables, context) => {
       if (!userId) {
         return;
       }
 
       queryClient.setQueryData<CoachChatMessage[]>(
         ["coach-messages", userId],
-        (existing) => mergeCoachMessages(existing, [data.userMessage, data.assistantMessage]),
+        (existing) =>
+          mergeCoachMessages(
+            (existing ?? []).filter((message) => message.id !== context?.optimisticId),
+            [data.userMessage, data.assistantMessage],
+          ),
+      );
+    },
+    onError: (_error, _variables, context) => {
+      if (!userId || !context?.optimisticId) {
+        return;
+      }
+
+      queryClient.setQueryData<CoachChatMessage[]>(
+        ["coach-messages", userId],
+        (existing) => (existing ?? []).filter((message) => message.id !== context.optimisticId),
       );
     },
   });

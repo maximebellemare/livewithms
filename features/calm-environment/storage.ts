@@ -7,6 +7,8 @@ export const DEFAULT_CALM_ENVIRONMENT_STATE: CalmEnvironmentState = {
   reducedMotion: false,
   softerHaptics: true,
   nightCalm: true,
+  soundEffects: true,
+  backgroundAudio: false,
   density: "standard",
   appearance: "light",
   updatedAt: null,
@@ -39,6 +41,14 @@ function sanitizeCalmEnvironmentState(
       typeof input?.nightCalm === "boolean"
         ? input.nightCalm
         : DEFAULT_CALM_ENVIRONMENT_STATE.nightCalm,
+    soundEffects:
+      typeof input?.soundEffects === "boolean"
+        ? input.soundEffects
+        : DEFAULT_CALM_ENVIRONMENT_STATE.soundEffects,
+    backgroundAudio:
+      typeof input?.backgroundAudio === "boolean"
+        ? input.backgroundAudio
+        : DEFAULT_CALM_ENVIRONMENT_STATE.backgroundAudio,
     density: sanitizeDensity(input?.density),
     appearance: sanitizeAppearance(input?.appearance),
     updatedAt:
