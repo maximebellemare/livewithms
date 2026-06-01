@@ -68,7 +68,7 @@ import { preventCompletionPressure } from "../../../../lib/guided-programs/gentl
 import { deriveRecoverySupport } from "../../../../lib/guided-programs/recovery-oriented-design/deriveRecoverySupport";
 import { deriveDifficultPeriodPrograms } from "../../../../lib/guided-programs/recovery-oriented-design/deriveDifficultPeriodPrograms";
 import { exportHealthSummary } from "../../../../lib/exportHealthSummary";
-import { getSoundCueDurationMs, playSoundCue, startAmbientLoop, stopAmbientLoop } from "../../../../features/sound-effects/player";
+import { getSoundCueDurationMs, playSoundCue, startAmbientLoop, stopAmbientLoop, type AmbientDebugState } from "../../../../features/sound-effects/player";
 
 function formatTime(secondsRemaining: number) {
   const minutes = Math.floor(secondsRemaining / 60);
@@ -935,6 +935,7 @@ export default function ProgramsScreen() {
   const [completedToolId, setCompletedToolId] = useState<string | null>(null);
   const [showSelectedToolDetails, setShowSelectedToolDetails] = useState(false);
   const [audioSessionState, setAudioSessionState] = useState<CalmAudioSessionProgress | null>(null);
+  const [, setAmbientDebugState] = useState<AmbientDebugState>({ status: "idle" });
   const [workflowAnswers, setWorkflowAnswers] = useState<Record<string, Record<string, string>>>({});
   const [savedWorkflowByToolId, setSavedWorkflowByToolId] = useState<Record<string, Record<string, string>>>({});
   const [customWorkflowFields, setCustomWorkflowFields] = useState<Record<string, Record<string, boolean>>>({});
@@ -964,7 +965,7 @@ export default function ProgramsScreen() {
         clearTimeout(breathingAmbientStartTimeoutRef.current);
         breathingAmbientStartTimeoutRef.current = null;
       }
-      void stopAmbientLoop();
+      void stopAmbientLoop("programs-unmount", setAmbientDebugState);
     };
   }, []);
 
@@ -979,6 +980,8 @@ export default function ProgramsScreen() {
 
   const startBreathingResetAudio = useCallback(() => {
     clearBreathingAmbientTimeout();
+    setAmbientDebugState({ status: "stopped", detail: "Background audio disabled for breathing reset." });
+    void stopAmbientLoop("before-breathing-reset", setAmbientDebugState);
 
     if (__DEV__ && !calmEnvironment.soundEffects) {
       console.log("[timer-sound]", {
@@ -989,11 +992,11 @@ export default function ProgramsScreen() {
 
     void playSoundCue("breathing-start", calmEnvironment.soundEffects);
 
-    const delayMs = calmEnvironment.soundEffects ? getSoundCueDurationMs("breathing-start") + 140 : 0;
-    breathingAmbientStartTimeoutRef.current = setTimeout(() => {
-      breathingAmbientStartTimeoutRef.current = null;
-      void startAmbientLoop(true);
-    }, delayMs);
+    if (__DEV__) {
+      console.log("[timer-sound]", {
+        event: "breathing-ambient-disabled",
+      });
+    }
   }, [calmEnvironment.soundEffects, clearBreathingAmbientTimeout]);
 
   const logTimerSound = useCallback((event: string, details?: Record<string, unknown>) => {
@@ -1539,7 +1542,7 @@ export default function ProgramsScreen() {
         calmEnvironment.soundEffects,
       );
       clearBreathingAmbientTimeout();
-      void stopAmbientLoop();
+      void stopAmbientLoop("timer-completed", setAmbientDebugState);
       return;
     }
 
@@ -1780,7 +1783,7 @@ export default function ProgramsScreen() {
       setActiveTimerId(null);
       setSecondsRemaining(null);
       clearBreathingAmbientTimeout();
-      void stopAmbientLoop();
+      void stopAmbientLoop("non-breathing-tool-started", setAmbientDebugState);
     }
   };
 
@@ -3442,6 +3445,12 @@ const styles = StyleSheet.create({
     color: "#3f5f46",
     fontWeight: "700",
     lineHeight: 21,
+  },
+  ambientDebugText: {
+    color: "#557064",
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: "center",
   },
   timerBody: {
     color: "#4b5563",

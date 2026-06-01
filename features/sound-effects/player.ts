@@ -22,7 +22,12 @@ const SAMPLE_RATE = 22050;
 const cueBase64Cache = new Map<string, string>();
 const cueFileUriCache = new Map<string, string>();
 let audioModeReady = false;
-let ambientSound: Audio.Sound | null = null;
+export type AmbientDebugState = {
+  status: "idle" | "muted" | "loaded" | "playing" | "failed" | "stopped";
+  detail?: string;
+};
+
+type AmbientDebugListener = (state: AmbientDebugState) => void;
 
 const CUE_CONFIG: Record<CueId, CueConfig> = {
   "coach-send": { frequencies: [554.37, 659.25], durationMs: 130, volume: 0.05 },
@@ -37,6 +42,10 @@ const CUE_CONFIG: Record<CueId, CueConfig> = {
 
 export function getSoundCueDurationMs(cueId: CueId) {
   return CUE_CONFIG[cueId].durationMs;
+}
+
+function emitAmbientDebug(listener: AmbientDebugListener | undefined, state: AmbientDebugState) {
+  listener?.(state);
 }
 
 function bytesToBase64(bytes: Uint8Array) {
@@ -238,63 +247,36 @@ export async function playSoundCue(cueId: CueId, enabled: boolean) {
   }
 }
 
-export async function startAmbientLoop(enabled: boolean) {
-  if (!enabled) {
-    await stopAmbientLoop();
-    return;
-  }
-
-  try {
-    await ensureAudioMode();
-
-    if (ambientSound) {
-      const status = await ambientSound.getStatusAsync();
-      if (status.isLoaded) {
-        await ambientSound.playAsync();
-        return;
+export async function startAmbientLoop(enabled: boolean, options?: { onDebugState?: AmbientDebugListener }) {
+  const onDebugState = options?.onDebugState;
+  emitAmbientDebug(onDebugState, enabled
+    ? {
+        status: "stopped",
+        detail: "Background ambient audio is disabled in this release.",
       }
-    }
+    : {
+        status: "muted",
+        detail: "Background audio is turned off.",
+      });
 
-    ambientSound = new Audio.Sound();
-    const fileUri = await getCueFileUri({
-      frequencies: [220, 329.63],
-      durationMs: 4000,
-      loopSeconds: 4,
-      volume: 0.024,
-      fadeMs: 350,
+  if (__DEV__) {
+    console.log("[sound-effects]", {
+      event: "ambient-disabled-for-release",
+      enabled,
     });
-    await ambientSound.loadAsync(
-      { uri: fileUri },
-      { shouldPlay: true, isLooping: true, volume: 1 },
-    );
-    if (__DEV__) {
-      console.log("[sound-effects]", {
-        event: "ambient-started",
-        fileUri,
-      });
-    }
-  } catch (error) {
-    if (__DEV__) {
-      console.log("[sound-effects]", {
-        event: "ambient-failed",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
-    // Ambient audio is optional and should fail silently.
   }
 }
 
-export async function stopAmbientLoop() {
-  if (!ambientSound) {
-    return;
+export async function stopAmbientLoop(reason = "stop-requested", onDebugState?: AmbientDebugListener) {
+  if (__DEV__) {
+    console.log("[sound-effects]", {
+      event: "ambient-stopped",
+      reason,
+    });
   }
 
-  try {
-    await ambientSound.stopAsync();
-    await ambientSound.unloadAsync();
-  } catch {
-    // Ignore cleanup issues.
-  } finally {
-    ambientSound = null;
-  }
+  emitAmbientDebug(onDebugState, {
+    status: "stopped",
+    detail: reason,
+  });
 }

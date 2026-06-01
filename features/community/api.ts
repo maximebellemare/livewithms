@@ -22,47 +22,22 @@ type CommunityDatabase = {
         Row: {
           id: string;
           user_id: string;
-          display_name: string;
-          title: string;
+          parent_id: string | null;
+          title: string | null;
           body: string;
           category: CommunityCategoryId;
           post_type: CommunityPostType;
-          suggestion_type: CommunityPostType | null;
           created_at: string;
           updated_at: string;
           is_hidden: boolean;
-          report_count: number;
-          reaction_count: number;
-          comments_count: number;
         };
         Insert: {
           user_id: string;
-          display_name: string;
-          title: string;
+          parent_id?: string | null;
+          title?: string | null;
           body: string;
           category: CommunityCategoryId;
-          post_type: CommunityPostType;
-          suggestion_type?: CommunityPostType | null;
-        };
-        Update: never;
-        Relationships: [];
-      };
-      community_comments: {
-        Row: {
-          id: string;
-          post_id: string;
-          user_id: string;
-          display_name: string;
-          body: string;
-          created_at: string;
-          is_hidden: boolean;
-          report_count: number;
-        };
-        Insert: {
-          post_id: string;
-          user_id: string;
-          display_name: string;
-          body: string;
+          post_type?: CommunityPostType;
         };
         Update: never;
         Relationships: [];
@@ -70,17 +45,19 @@ type CommunityDatabase = {
       community_reports: {
         Row: {
           id: string;
-          reporter_id: string;
+          reporter_user_id: string;
           post_id: string | null;
-          comment_id: string | null;
+          reported_user_id: string | null;
           reason: CommunityReportReason;
+          notes: string | null;
           created_at: string;
         };
         Insert: {
-          reporter_id: string;
+          reporter_user_id: string;
           post_id?: string | null;
-          comment_id?: string | null;
+          reported_user_id?: string | null;
           reason: CommunityReportReason;
+          notes?: string | null;
         };
         Update: never;
         Relationships: [];
@@ -88,7 +65,7 @@ type CommunityDatabase = {
       community_blocks: {
         Row: CommunityBlock;
         Insert: {
-          blocker_id: string;
+          blocker_user_id: string;
           blocked_user_id: string;
         };
         Update: never;
@@ -97,17 +74,15 @@ type CommunityDatabase = {
       community_reactions: {
         Row: {
           id: string;
+          post_id: string;
           user_id: string;
-          post_id: string | null;
-          comment_id: string | null;
-          reaction_type: CommunityReactionType;
+          reaction: CommunityReactionType;
           created_at: string;
         };
         Insert: {
+          post_id: string;
           user_id: string;
-          post_id?: string | null;
-          comment_id?: string | null;
-          reaction_type: CommunityReactionType;
+          reaction: CommunityReactionType;
         };
         Update: never;
         Relationships: [];
@@ -141,6 +116,8 @@ type CommunityDatabase = {
 const db = supabase as unknown as SupabaseClient<CommunityDatabase>;
 
 export type CommunityProfile = CommunityDatabase["public"]["Tables"]["profiles"]["Row"];
+let hasLoggedMissingCommunitySchema = false;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function todayStartIso() {
   const now = new Date();
@@ -154,6 +131,27 @@ function assertConfigured() {
   }
 }
 
+function assertUuid(value: string, label: string) {
+  if (UUID_PATTERN.test(value)) {
+    return;
+  }
+
+  throw new Error(`${label} is not ready yet. Please refresh Community and try again.`);
+}
+
+function logMissingCommunitySchema(error: unknown) {
+  const details = getSupabaseErrorDetails(error);
+  const combined = `${details.message} ${details.details ?? ""} ${details.hint ?? ""}`.toLowerCase();
+  if (
+    !hasLoggedMissingCommunitySchema &&
+    (details.code === "PGRST205" || details.code === "PGRST204") &&
+    combined.includes("community_posts")
+  ) {
+    hasLoggedMissingCommunitySchema = true;
+    console.error("[community] missing community schema — apply migration", details);
+  }
+}
+
 export async function fetchCommunityPosts(category?: CommunityCategoryId | "all", userId?: string | null): Promise<CommunityPost[]> {
   if (!env.isSupabaseConfigured) {
     return [];
@@ -161,8 +159,9 @@ export async function fetchCommunityPosts(category?: CommunityCategoryId | "all"
 
   let query = db
     .from("community_posts")
-    .select("id,user_id,display_name,title,body,category,post_type,created_at,updated_at,is_hidden,report_count,comments_count")
+    .select("id,user_id,parent_id,title,body,category,post_type,created_at,updated_at,is_hidden")
     .eq("is_hidden", false)
+    .is("parent_id", null)
     .order("created_at", { ascending: false })
     .limit(40);
 
@@ -172,27 +171,28 @@ export async function fetchCommunityPosts(category?: CommunityCategoryId | "all"
 
   const { data, error } = await query;
   if (error) {
+    logMissingCommunitySchema(error);
     throw error;
   }
 
   const posts = ((data ?? []) as Array<
     Omit<CommunityPost, "hidden" | "replyCount" | "reactions"> & {
+      parent_id?: string | null;
       is_hidden?: boolean;
-      comments_count?: number;
     }
   >).map((post) => ({
     id: post.id,
     user_id: post.user_id,
-    display_name: sanitizeDisplayName(post.display_name),
-    title: post.title,
+    display_name: "Community member",
+    title: post.title ?? "Untitled thread",
     body: post.body,
     category: post.category,
     post_type: post.post_type,
     created_at: post.created_at,
     updated_at: post.updated_at,
     hidden: Boolean(post.is_hidden),
-    report_count: post.report_count ?? 0,
-    replyCount: post.comments_count ?? 0,
+    report_count: 0,
+    replyCount: 0,
     reactions: [],
   }));
   const profileNames = await fetchCommunityProfileNames(posts.map((post) => post.user_id));
@@ -205,19 +205,23 @@ export async function fetchCommunityPosts(category?: CommunityCategoryId | "all"
     return [];
   }
 
-  const { data: comments, error: commentsError } = await db
-    .from("community_comments")
-    .select("post_id")
-    .in("post_id", postIds)
+  const { data: replies, error: repliesError } = await db
+    .from("community_posts")
+    .select("parent_id")
+    .in("parent_id", postIds)
     .eq("is_hidden", false);
 
-  if (commentsError) {
-    throw commentsError;
+  if (repliesError) {
+    logMissingCommunitySchema(repliesError);
+    throw repliesError;
   }
 
   const replyCounts = new Map<string, number>();
-  for (const comment of comments ?? []) {
-    replyCounts.set(comment.post_id, (replyCounts.get(comment.post_id) ?? 0) + 1);
+  for (const reply of replies ?? []) {
+    if (!reply.parent_id) {
+      continue;
+    }
+    replyCounts.set(reply.parent_id, (replyCounts.get(reply.parent_id) ?? 0) + 1);
   }
 
   const reactionMap = await fetchReactionSummaries({
@@ -237,27 +241,35 @@ export async function fetchCommunityComments(postId: string, userId?: string | n
     return [];
   }
 
+  assertUuid(postId, "Community thread");
+
   const { data, error } = await db
-    .from("community_comments")
-    .select("id,post_id,user_id,display_name,body,created_at,is_hidden,report_count")
-    .eq("post_id", postId)
+    .from("community_posts")
+    .select("id,user_id,parent_id,body,created_at,is_hidden")
+    .eq("parent_id", postId)
     .eq("is_hidden", false)
     .order("created_at", { ascending: true })
     .limit(80);
 
   if (error) {
+    logMissingCommunitySchema(error);
     throw error;
   }
 
-  const comments = ((data ?? []) as Array<Omit<CommunityComment, "hidden" | "reactions"> & { is_hidden?: boolean }>).map((comment) => ({
+  const comments = ((data ?? []) as Array<
+    Omit<CommunityComment, "hidden" | "reactions"> & {
+      parent_id?: string | null;
+      is_hidden?: boolean;
+    }
+  >).map((comment) => ({
     id: comment.id,
-    post_id: comment.post_id,
+    post_id: comment.parent_id ?? postId,
     user_id: comment.user_id,
-    display_name: sanitizeDisplayName(comment.display_name),
+    display_name: "Community member",
     body: comment.body,
     created_at: comment.created_at,
     hidden: Boolean(comment.is_hidden),
-    report_count: comment.report_count ?? 0,
+    report_count: 0,
     reactions: [],
   }));
   const profileNames = await fetchCommunityProfileNames(comments.map((comment) => comment.user_id));
@@ -267,7 +279,7 @@ export async function fetchCommunityComments(postId: string, userId?: string | n
   }));
 
   const reactionMap = await fetchReactionSummaries({
-    commentIds: commentsWithNames.map((comment) => comment.id),
+    postIds: commentsWithNames.map((comment) => comment.id),
     userId,
   });
 
@@ -355,18 +367,22 @@ export async function fetchCommunityUsage(userId: string): Promise<CommunityUsag
       .from("community_posts")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
+      .is("parent_id", null)
       .gte("created_at", since),
     db
-      .from("community_comments")
+      .from("community_posts")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
+      .not("parent_id", "is", null)
       .gte("created_at", since),
   ]);
 
   if (postsError) {
+    logMissingCommunitySchema(postsError);
     return { postsToday: 0, commentsToday: 0 };
   }
   if (commentsError) {
+    logMissingCommunitySchema(commentsError);
     return { postsToday: 0, commentsToday: 0 };
   }
 
@@ -384,9 +400,10 @@ export async function fetchCommunityBlockedUserIds(userId: string): Promise<stri
   const { data, error } = await db
     .from("community_blocks")
     .select("blocked_user_id")
-    .eq("blocker_id", userId);
+    .eq("blocker_user_id", userId);
 
   if (error) {
+    logMissingCommunitySchema(error);
     return [];
   }
 
@@ -407,33 +424,40 @@ export async function createCommunityPost(input: {
     .from("community_posts")
     .insert({
       user_id: input.userId,
-      display_name: sanitizeDisplayName(input.displayName),
       title: input.title,
       body: input.body,
       category: input.category,
       post_type: input.postType,
-      suggestion_type: input.category === "app_suggestions" ? input.postType : null,
+      parent_id: null,
     })
-    .select("id,user_id,display_name,title,body,category,post_type,created_at,updated_at,is_hidden,report_count,comments_count")
+    .select("id,user_id,parent_id,title,body,category,post_type,created_at,updated_at,is_hidden")
     .single();
 
   if (error) {
+    logMissingCommunitySchema(error);
+    console.error("[community] create thread failed", {
+      error,
+      ...getSupabaseErrorDetails(error),
+      userId: input.userId,
+      category: input.category,
+      postType: input.postType,
+    });
     throw error;
   }
 
   return {
     id: data.id,
     user_id: data.user_id,
-    display_name: sanitizeDisplayName(data.display_name),
-    title: data.title,
+    display_name: sanitizeDisplayName(input.displayName),
+    title: data.title ?? "Untitled thread",
     body: data.body,
     category: data.category,
     post_type: data.post_type,
     created_at: data.created_at,
     updated_at: data.updated_at,
     hidden: Boolean(data.is_hidden),
-    report_count: data.report_count ?? 0,
-    replyCount: data.comments_count ?? 0,
+    report_count: 0,
+    replyCount: 0,
     reactions: [],
   } satisfies CommunityPost;
 }
@@ -442,20 +466,45 @@ export async function createCommunityComment(input: {
   postId: string;
   userId: string;
   displayName: string;
+  category: CommunityCategoryId;
   body: string;
 }) {
   assertConfigured();
+  assertUuid(input.postId, "Community thread");
 
-  const { error } = await db.from("community_comments").insert({
-    post_id: input.postId,
-    user_id: input.userId,
-    display_name: sanitizeDisplayName(input.displayName),
-    body: input.body,
-  });
+  const { data, error } = await db
+    .from("community_posts")
+    .insert({
+      user_id: input.userId,
+      parent_id: input.postId,
+      category: input.category,
+      body: input.body,
+    })
+    .select("id,user_id,parent_id,body,created_at,updated_at,is_hidden")
+    .single();
 
   if (error) {
+    logMissingCommunitySchema(error);
+    console.error("[community] add reply failed", {
+      error,
+      ...getSupabaseErrorDetails(error),
+      userId: input.userId,
+      postId: input.postId,
+    });
     throw error;
   }
+
+  return {
+    id: data.id,
+    post_id: data.parent_id ?? input.postId,
+    user_id: data.user_id,
+    display_name: sanitizeDisplayName(input.displayName),
+    body: data.body,
+    created_at: data.created_at,
+    hidden: Boolean(data.is_hidden),
+    report_count: 0,
+    reactions: [],
+  } satisfies CommunityComment;
 }
 
 export async function fetchCommunityActivity(input: {
@@ -473,22 +522,26 @@ export async function fetchCommunityActivity(input: {
     .select("id,title,category")
     .eq("user_id", input.userId)
     .eq("is_hidden", false)
+    .is("parent_id", null)
     .order("created_at", { ascending: false })
     .limit(40);
 
   if (ownPostsError) {
+    logMissingCommunitySchema(ownPostsError);
     throw ownPostsError;
   }
 
   const { data: ownComments, error: ownCommentsError } = await db
-    .from("community_comments")
-    .select("id,post_id")
+    .from("community_posts")
+    .select("id,parent_id")
     .eq("user_id", input.userId)
     .eq("is_hidden", false)
+    .not("parent_id", "is", null)
     .order("created_at", { ascending: false })
     .limit(80);
 
   if (ownCommentsError) {
+    logMissingCommunitySchema(ownCommentsError);
     throw ownCommentsError;
   }
 
@@ -498,9 +551,9 @@ export async function fetchCommunityActivity(input: {
 
   const replyRows = ownPostIds.length
     ? await db
-        .from("community_comments")
-        .select("id,post_id,user_id,display_name,body,created_at")
-        .in("post_id", ownPostIds)
+        .from("community_posts")
+        .select("id,parent_id,user_id,body,created_at")
+        .in("parent_id", ownPostIds)
         .eq("is_hidden", false)
         .gt("created_at", lastSeenAt)
         .neq("user_id", input.userId)
@@ -509,13 +562,14 @@ export async function fetchCommunityActivity(input: {
     : { data: [], error: null };
 
   if (replyRows.error) {
+    logMissingCommunitySchema(replyRows.error);
     throw replyRows.error;
   }
 
   const postReactionRows = ownPostIds.length
     ? await db
         .from("community_reactions")
-        .select("id,user_id,post_id,reaction_type,created_at")
+        .select("id,user_id,post_id,reaction,created_at")
         .in("post_id", ownPostIds)
         .gt("created_at", lastSeenAt)
         .neq("user_id", input.userId)
@@ -524,14 +578,15 @@ export async function fetchCommunityActivity(input: {
     : { data: [], error: null };
 
   if (postReactionRows.error) {
+    logMissingCommunitySchema(postReactionRows.error);
     throw postReactionRows.error;
   }
 
   const commentReactionRows = ownCommentIds.length
     ? await db
         .from("community_reactions")
-        .select("id,user_id,comment_id,reaction_type,created_at")
-        .in("comment_id", ownCommentIds)
+        .select("id,user_id,post_id,reaction,created_at")
+        .in("post_id", ownCommentIds)
         .gt("created_at", lastSeenAt)
         .neq("user_id", input.userId)
         .order("created_at", { ascending: false })
@@ -539,6 +594,7 @@ export async function fetchCommunityActivity(input: {
     : { data: [], error: null };
 
   if (commentReactionRows.error) {
+    logMissingCommunitySchema(commentReactionRows.error);
     throw commentReactionRows.error;
   }
 
@@ -546,9 +602,10 @@ export async function fetchCommunityActivity(input: {
   const recentPostRows = recentCategories.length
     ? await db
         .from("community_posts")
-        .select("id,user_id,display_name,title,body,category,created_at")
+        .select("id,user_id,title,body,category,created_at")
         .in("category", recentCategories)
         .eq("is_hidden", false)
+        .is("parent_id", null)
         .gt("created_at", lastSeenAt)
         .neq("user_id", input.userId)
         .order("created_at", { ascending: false })
@@ -556,6 +613,7 @@ export async function fetchCommunityActivity(input: {
     : { data: [], error: null };
 
   if (recentPostRows.error) {
+    logMissingCommunitySchema(recentPostRows.error);
     throw recentPostRows.error;
   }
 
@@ -567,30 +625,35 @@ export async function fetchCommunityActivity(input: {
   const actorNames = await fetchCommunityProfileNames(Array.from(actorIds));
 
   const replies: CommunityActivityItem[] = (replyRows.data ?? []).map((row) => {
-    const post = ownPostMap.get(row.post_id);
+    const post = ownPostMap.get(row.parent_id ?? "");
     return {
       id: `reply:${row.id}`,
       type: "reply",
       created_at: row.created_at,
-      postId: row.post_id,
+      postId: row.parent_id ?? "",
       postTitle: post?.title ?? "Your thread",
       category: post?.category ?? "community-support",
-      actorDisplayName: actorNames.get(row.user_id) ?? sanitizeDisplayName(row.display_name),
+      actorDisplayName: actorNames.get(row.user_id) ?? "Community member",
       preview: previewCommunityText(row.body),
     };
   });
 
-  const commentPostIds = Array.from(new Set((ownComments ?? []).map((comment) => comment.post_id)));
+  const commentPostIds = Array.from(new Set((ownComments ?? []).map((comment) => comment.parent_id).filter(Boolean)));
   const commentPosts = commentPostIds.length
     ? await db.from("community_posts").select("id,title,category").in("id", commentPostIds).eq("is_hidden", false)
     : { data: [], error: null };
 
   if (commentPosts.error) {
+    logMissingCommunitySchema(commentPosts.error);
     throw commentPosts.error;
   }
 
   const commentPostMap = new Map((commentPosts.data ?? []).map((post) => [post.id, post]));
-  const ownCommentPostMap = new Map((ownComments ?? []).map((comment) => [comment.id, comment.post_id]));
+  const ownCommentPostMap = new Map(
+    (ownComments ?? [])
+      .filter((comment) => Boolean(comment.parent_id))
+      .map((comment) => [comment.id, comment.parent_id as string]),
+  );
 
   const reactions: CommunityActivityItem[] = [
     ...(postReactionRows.data ?? []).map((row) => {
@@ -603,11 +666,11 @@ export async function fetchCommunityActivity(input: {
         postTitle: post?.title ?? "Your thread",
         category: post?.category ?? "community-support",
         actorDisplayName: actorNames.get(row.user_id) ?? "Community member",
-        preview: `Reacted with ${row.reaction_type}.`,
+        preview: `Reacted with ${row.reaction}.`,
       };
     }),
     ...(commentReactionRows.data ?? []).map((row) => {
-      const postId = ownCommentPostMap.get(row.comment_id ?? "") ?? "";
+      const postId = ownCommentPostMap.get(row.post_id ?? "") ?? "";
       const post = commentPostMap.get(postId);
       return {
         id: `comment-reaction:${row.id}`,
@@ -617,7 +680,7 @@ export async function fetchCommunityActivity(input: {
         postTitle: post?.title ?? "A thread you replied to",
         category: post?.category ?? "community-support",
         actorDisplayName: actorNames.get(row.user_id) ?? "Community member",
-        preview: `Reacted to your reply with ${row.reaction_type}.`,
+        preview: `Reacted to your reply with ${row.reaction}.`,
       };
     }),
   ];
@@ -629,7 +692,7 @@ export async function fetchCommunityActivity(input: {
     postId: row.id,
     postTitle: row.title,
     category: row.category,
-    actorDisplayName: actorNames.get(row.user_id) ?? sanitizeDisplayName(row.display_name),
+    actorDisplayName: actorNames.get(row.user_id) ?? "Community member",
     preview: previewCommunityText(row.body),
   }));
 
@@ -652,60 +715,125 @@ export async function toggleCommunityReaction(input: {
 }) {
   assertConfigured();
 
-  const targetColumn = input.postId ? "post_id" : "comment_id";
   const targetId = input.postId ?? input.commentId;
   if (!targetId) {
     throw new Error("Reaction target is required.");
   }
+  assertUuid(targetId, "Community post");
+  const reactionDebug = {
+    tableName: "community_reactions",
+    postId: targetId,
+    userId: input.userId,
+    reaction: input.reactionType,
+    isUuid: UUID_PATTERN.test(targetId),
+  };
+
+  if (__DEV__) {
+    console.log("[community] reaction attempt", reactionDebug);
+  }
 
   const { data: existing, error: existingError } = await db
     .from("community_reactions")
-    .select("id,reaction_type")
+    .select("id,reaction")
     .eq("user_id", input.userId)
-    .eq(targetColumn, targetId)
+    .eq("post_id", targetId)
     .maybeSingle();
 
   if (existingError) {
+    logMissingCommunitySchema(existingError);
+    console.error("[community] reaction failed", {
+      error: existingError,
+      ...getSupabaseErrorDetails(existingError),
+      userId: input.userId,
+      postId: input.postId,
+      commentId: input.commentId,
+      reactionType: input.reactionType,
+      phase: "lookup",
+      ...reactionDebug,
+    });
     throw existingError;
   }
 
   if (existing) {
-    const { error: deleteError } = await db.from("community_reactions").delete().eq("id", existing.id);
+    const { error: deleteError, data: deleteData } = await db
+      .from("community_reactions")
+      .delete()
+      .eq("id", existing.id)
+      .select("id");
     if (deleteError) {
+      console.error("[community] reaction failed", {
+        error: deleteError,
+        ...getSupabaseErrorDetails(deleteError),
+        userId: input.userId,
+        postId: input.postId,
+        commentId: input.commentId,
+        reactionType: input.reactionType,
+        phase: "delete-existing",
+        ...reactionDebug,
+      });
       throw deleteError;
     }
-    if (existing.reaction_type === input.reactionType) {
+    if (__DEV__) {
+      console.log("[community] reaction delete response", {
+        ...reactionDebug,
+        existingReaction: existing.reaction,
+        data: deleteData,
+      });
+    }
+    if (existing.reaction === input.reactionType) {
       return;
     }
   }
 
-  const { error } = await db.from("community_reactions").insert({
+  const insertPayload = {
     user_id: input.userId,
-    post_id: input.postId ?? null,
-    comment_id: input.commentId ?? null,
-    reaction_type: input.reactionType,
-  });
+    post_id: targetId,
+    reaction: input.reactionType,
+  };
+  const { error, data } = await db
+    .from("community_reactions")
+    .insert(insertPayload)
+    .select("id,post_id,user_id,reaction");
 
   if (error) {
+    logMissingCommunitySchema(error);
+    console.error("[community] reaction failed", {
+      error,
+      ...getSupabaseErrorDetails(error),
+      userId: input.userId,
+      postId: input.postId,
+      commentId: input.commentId,
+      reactionType: input.reactionType,
+      phase: "insert",
+      insertPayload,
+      data,
+      ...reactionDebug,
+    });
     throw error;
+  }
+
+  if (__DEV__) {
+    console.log("[community] reaction insert response", {
+      ...reactionDebug,
+      insertPayload,
+      data,
+    });
   }
 }
 
 async function fetchReactionSummaries(input: {
   postIds?: string[];
-  commentIds?: string[];
   userId?: string | null;
 }): Promise<Map<string, CommunityReactionSummary[]>> {
-  const ids = input.postIds?.length ? input.postIds : input.commentIds ?? [];
+  const ids = input.postIds ?? [];
   if (!env.isSupabaseConfigured || ids.length === 0) {
     return new Map();
   }
 
-  const targetColumn = input.postIds?.length ? "post_id" : "comment_id";
   const { data, error } = await db
     .from("community_reactions")
-    .select("user_id,post_id,comment_id,reaction_type")
-    .in(targetColumn, ids);
+    .select("user_id,post_id,reaction")
+    .in("post_id", ids);
 
   if (error) {
     return new Map();
@@ -713,19 +841,19 @@ async function fetchReactionSummaries(input: {
 
   const grouped = new Map<string, Map<CommunityReactionType, CommunityReactionSummary>>();
   for (const reaction of data ?? []) {
-    const targetId = reaction.post_id ?? reaction.comment_id;
+    const targetId = reaction.post_id;
     if (!targetId) {
       continue;
     }
     const target = grouped.get(targetId) ?? new Map<CommunityReactionType, CommunityReactionSummary>();
-    const summary = target.get(reaction.reaction_type) ?? {
-      reaction_type: reaction.reaction_type,
+    const summary = target.get(reaction.reaction) ?? {
+      reaction_type: reaction.reaction,
       count: 0,
       reactedByMe: false,
     };
     summary.count += 1;
     summary.reactedByMe = summary.reactedByMe || reaction.user_id === input.userId;
-    target.set(reaction.reaction_type, summary);
+    target.set(reaction.reaction, summary);
     grouped.set(targetId, target);
   }
 
@@ -825,17 +953,31 @@ function createCommunityProfileError(message: string, error?: unknown) {
 export async function reportCommunityPost(input: {
   reporterId: string;
   postId: string;
+  reportedUserId: string;
   reason: CommunityReportReason;
+  notes?: string;
 }) {
   assertConfigured();
+  assertUuid(input.postId, "Community post");
+  assertUuid(input.reportedUserId, "Community author");
 
   const { error } = await db.from("community_reports").insert({
-    reporter_id: input.reporterId,
+    reporter_user_id: input.reporterId,
     post_id: input.postId,
+    reported_user_id: input.reportedUserId,
     reason: input.reason,
+    notes: input.notes?.trim() ? input.notes.trim() : null,
   });
 
   if (error) {
+    logMissingCommunitySchema(error);
+    console.error("[community] report failed", {
+      error,
+      ...getSupabaseErrorDetails(error),
+      reporterId: input.reporterId,
+      postId: input.postId,
+      reason: input.reason,
+    });
     throw error;
   }
 }
@@ -843,17 +985,31 @@ export async function reportCommunityPost(input: {
 export async function reportCommunityComment(input: {
   reporterId: string;
   commentId: string;
+  reportedUserId: string;
   reason: CommunityReportReason;
+  notes?: string;
 }) {
   assertConfigured();
+  assertUuid(input.commentId, "Community reply");
+  assertUuid(input.reportedUserId, "Community author");
 
   const { error } = await db.from("community_reports").insert({
-    reporter_id: input.reporterId,
-    comment_id: input.commentId,
+    reporter_user_id: input.reporterId,
+    post_id: input.commentId,
+    reported_user_id: input.reportedUserId,
     reason: input.reason,
+    notes: input.notes?.trim() ? input.notes.trim() : null,
   });
 
   if (error) {
+    logMissingCommunitySchema(error);
+    console.error("[community] report failed", {
+      error,
+      ...getSupabaseErrorDetails(error),
+      reporterId: input.reporterId,
+      commentId: input.commentId,
+      reason: input.reason,
+    });
     throw error;
   }
 }
@@ -863,13 +1019,66 @@ export async function blockCommunityUser(input: {
   blockedUserId: string;
 }) {
   assertConfigured();
+  assertUuid(input.blockedUserId, "Community author");
 
   const { error } = await db.from("community_blocks").insert({
-    blocker_id: input.blockerId,
+    blocker_user_id: input.blockerId,
     blocked_user_id: input.blockedUserId,
   });
 
   if (error) {
+    const details = getSupabaseErrorDetails(error);
+    if (details.code === "23505") {
+      return;
+    }
+    logMissingCommunitySchema(error);
+    console.error("[community] block failed", {
+      error,
+      ...details,
+      blockerId: input.blockerId,
+      blockedUserId: input.blockedUserId,
+    });
     throw error;
   }
+}
+
+export async function hideCommunityPost(input: {
+  postId: string;
+  userId: string;
+}) {
+  assertConfigured();
+  assertUuid(input.postId, "Community post");
+
+  const rpcPromise = db.rpc("soft_delete_community_post", {
+    target_post_id: input.postId,
+  });
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error("Delete timed out")), 8000);
+  });
+
+  const result = await Promise.race([rpcPromise, timeoutPromise]);
+
+  if (__DEV__) {
+    console.log("[community-delete-step]", "delete rpc returned", {
+      data: result.data,
+      error: result.error,
+      postId: input.postId,
+      userId: input.userId,
+    });
+  }
+
+  const { error, data } = result;
+
+  if (error) {
+    logMissingCommunitySchema(error);
+    console.error("[community] delete failed", {
+      error,
+      ...getSupabaseErrorDetails(error),
+      postId: input.postId,
+      userId: input.userId,
+    });
+    throw error;
+  }
+
+  return Boolean(data);
 }

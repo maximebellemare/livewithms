@@ -24,6 +24,7 @@ import { useProgramProgress } from "../../../../features/programs/hooks";
 import { loadExerciseUsage, type ExerciseUsage } from "../../../../features/exercises/storage";
 import { getErrorMessage } from "../../../../lib/errors";
 import { trackEvent } from "../../../../lib/events";
+import { requestAppTourReplay } from "../../../../features/app-tour/storage";
 import { derivePremiumPositioning } from "../../../../lib/premium-ecosystem/calm-premium/derivePremiumPositioning";
 import { derivePremiumValue } from "../../../../lib/premium-ecosystem/calm-premium/derivePremiumValue";
 import { preserveFreeUserDignity } from "../../../../lib/premium-ecosystem/calm-premium/preserveFreeUserDignity";
@@ -754,15 +755,6 @@ export default function ProfileScreen() {
               }}
               disabled={calmEnvironment.isLoading}
             />
-            <PreferenceRow
-              title="Background audio"
-              description="Optional low background tone during calm reset sessions."
-              value={calmEnvironment.backgroundAudio}
-              onValueChange={(value) => {
-                void calmEnvironment.setBackgroundAudio(value);
-              }}
-              disabled={calmEnvironment.isLoading}
-            />
           </View>
         </View>
 
@@ -981,6 +973,7 @@ export default function ProfileScreen() {
         <View style={cardStyle}>
           <AppText style={styles.sectionKicker}>Support</AppText>
           <AppText style={styles.sectionTitle}>Support and legal</AppText>
+          <LinkRow label="App tour" onPress={requestAppTourReplay} />
           <LinkRow
             label="Contact Support"
             onPress={() => void openTrackedLink(SUPPORT_EMAIL_URL, "support_email_opened", "support@livewithms.com")}

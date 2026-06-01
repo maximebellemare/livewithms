@@ -26,6 +26,7 @@ import {
   fetchCommunityProfile,
   fetchCommunityPosts,
   fetchCommunityUsage,
+  hideCommunityPost,
   reportCommunityComment,
   reportCommunityPost,
   toggleCommunityReaction,
@@ -36,7 +37,6 @@ import {
   COMMUNITY_CATEGORIES,
   COMMUNITY_REACTIONS,
   COMMUNITY_REPORT_REASONS,
-  COMMUNITY_STARTER_COMMENTS,
   COMMUNITY_STARTER_POSTS,
   FREE_DAILY_COMMUNITY_COMMENT_LIMIT,
   FREE_DAILY_COMMUNITY_POST_LIMIT,
@@ -61,13 +61,51 @@ import { useGrowthState } from "../../../../features/growth/hooks";
 import { usePremium } from "../../../../features/premium/hooks";
 
 type CommunityFilter = CommunityCategoryId | null;
+type ModerationTarget =
+  | { kind: "post"; post: CommunityPost }
+  | { kind: "comment"; comment: CommunityComment };
 
 const TITLE_LIMIT = 120;
 const BODY_LIMIT = 2000;
 const COMMENT_LIMIT = 1200;
+const REPORT_NOTES_LIMIT = 500;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const COMMUNITY_LIST_ROUTE = "/community";
 
 function safeTrim(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function isUuid(value: string | null | undefined) {
+  return typeof value === "string" && UUID_PATTERN.test(value);
+}
+
+function isOwnedByCurrentUser(postUserId: string | null | undefined, currentUserId: string | null | undefined) {
+  return typeof postUserId === "string" && typeof currentUserId === "string" && postUserId === currentUserId;
+}
+
+function dedupeThreads(threads: CommunityPost[]) {
+  return Array.from(new Map(threads.map((thread) => [thread.id, thread])).values());
+}
+
+function dedupeComments(replies: CommunityComment[]) {
+  return Array.from(new Map(replies.map((reply) => [reply.id, reply])).values());
+}
+
+function isStarterDemoPost(post: CommunityPost | null | undefined) {
+  return false;
+}
+
+function isStarterDemoComment(comment: CommunityComment | null | undefined) {
+  return false;
+}
+
+function canInteractWithPost(post: CommunityPost | null | undefined) {
+  return Boolean(post && !isStarterDemoPost(post) && isUuid(post.id));
+}
+
+function canInteractWithComment(comment: CommunityComment | null | undefined) {
+  return Boolean(comment && !isStarterDemoComment(comment) && isUuid(comment.id));
 }
 
 function timeAgo(dateString: string) {
@@ -87,6 +125,72 @@ function timeAgo(dateString: string) {
 function previewText(body: string) {
   const compact = safeTrim(body).replace(/\s+/g, " ");
   return compact.length > 130 ? `${compact.slice(0, 130).trim()}...` : compact;
+}
+
+function buildOptimisticReactions(
+  reactions: CommunityReactionSummary[],
+  reactionType: CommunityReactionType,
+) {
+  const byType = new Map(
+    reactions.map((reaction) => [
+      reaction.reaction_type,
+      {
+        ...reaction,
+      },
+    ]),
+  );
+  const activeReaction = reactions.find((reaction) => reaction.reactedByMe);
+
+  if (activeReaction?.reaction_type === reactionType) {
+    const current = byType.get(reactionType);
+    if (current) {
+      const nextCount = Math.max(0, current.count - 1);
+      if (nextCount === 0) {
+        byType.delete(reactionType);
+      } else {
+        byType.set(reactionType, {
+          ...current,
+          count: nextCount,
+          reactedByMe: false,
+        });
+      }
+    }
+  } else {
+    if (activeReaction) {
+      const currentActive = byType.get(activeReaction.reaction_type);
+      if (currentActive) {
+        const nextCount = Math.max(0, currentActive.count - 1);
+        if (nextCount === 0) {
+          byType.delete(activeReaction.reaction_type);
+        } else {
+          byType.set(activeReaction.reaction_type, {
+            ...currentActive,
+            count: nextCount,
+            reactedByMe: false,
+          });
+        }
+      }
+    }
+
+    const current = byType.get(reactionType);
+    if (current) {
+      byType.set(reactionType, {
+        ...current,
+        count: current.count + 1,
+        reactedByMe: true,
+      });
+    } else {
+      byType.set(reactionType, {
+        reaction_type: reactionType,
+        count: 1,
+        reactedByMe: true,
+      });
+    }
+  }
+
+  return COMMUNITY_REACTIONS
+    .map((reaction) => byType.get(reaction.id))
+    .filter((reaction): reaction is CommunityReactionSummary => Boolean(reaction && reaction.count > 0));
 }
 
 function getSafeDisplayName(profileDisplayName?: string | null) {
@@ -113,6 +217,8 @@ export default function CommunityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [savingPost, setSavingPost] = useState(false);
   const [savingComment, setSavingComment] = useState(false);
+  const [deletingReplyId, setDeletingReplyId] = useState<string | null>(null);
+  const [deletingThreadId, setDeletingThreadId] = useState<string | null>(null);
   const [showComposer, setShowComposer] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -125,6 +231,13 @@ export default function CommunityScreen() {
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [moderationTarget, setModerationTarget] = useState<ModerationTarget | null>(null);
+  const [reportReason, setReportReason] = useState<CommunityReportReason>("spam");
+  const [reportNotes, setReportNotes] = useState("");
+  const [savingReport, setSavingReport] = useState(false);
+  const [blockingAuthor, setBlockingAuthor] = useState(false);
   const [publishState, setPublishState] = useState<"idle" | "posting" | "success" | "error">("idle");
   const [recentlyPublishedPostId, setRecentlyPublishedPostId] = useState<string | null>(null);
   const publishFeedbackScale = useRef(new Animated.Value(0.96)).current;
@@ -139,6 +252,16 @@ export default function CommunityScreen() {
   const freePostLimitReached = !hasPremiumAccess && usage.postsToday >= FREE_DAILY_COMMUNITY_POST_LIMIT;
   const freeCommentLimitReached = !hasPremiumAccess && usage.commentsToday >= FREE_DAILY_COMMUNITY_COMMENT_LIMIT;
   const displayName = useMemo(() => getSafeDisplayName(profileDisplayName), [profileDisplayName]);
+
+  const forceReturnToCommunityList = useCallback((reason: "reply-delete" | "thread-delete") => {
+    const route = `${COMMUNITY_LIST_ROUTE}?refresh=${Date.now().toString()}`;
+    if (__DEV__) {
+      console.log("[community-delete-step]", "navigation called", { reason, route });
+    }
+    setSelectedPost(null);
+    setComments([]);
+    router.replace(route as never);
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -201,10 +324,8 @@ export default function CommunityScreen() {
         ]);
         const nextBlockedSet = new Set(nextBlockedUserIds);
         const visiblePosts = nextPosts.filter((post) => !nextBlockedSet.has(post.user_id));
-        const visibleTitles = new Set(visiblePosts.map((post) => safeTrim(post.title).toLowerCase()));
-        const starterPosts = COMMUNITY_STARTER_POSTS.filter((post) => !visibleTitles.has(safeTrim(post.title).toLowerCase()));
         setBlockedUserIds(nextBlockedSet);
-        setPosts([...visiblePosts, ...starterPosts]);
+        setPosts(dedupeThreads(visiblePosts.length > 0 ? visiblePosts : COMMUNITY_STARTER_POSTS));
         setUsage(nextUsage);
         setMessage(null);
         setLoadFailed(false);
@@ -236,13 +357,17 @@ export default function CommunityScreen() {
       if (user?.id) {
         await rememberCommunityCategory(user.id, post.category);
       }
-      if (post.isStarter) {
-        setComments(COMMUNITY_STARTER_COMMENTS[post.id] ?? []);
-        return;
-      }
       try {
-        const nextComments = await fetchCommunityComments(post.id, user?.id);
-        setComments(nextComments.filter((comment) => !blockedUserIds.has(comment.user_id)));
+      const nextComments = await fetchCommunityComments(post.id, user?.id);
+        const visibleComments = dedupeComments(
+          nextComments.filter((comment) => !blockedUserIds.has(comment.user_id)),
+        );
+        setComments(visibleComments);
+        setSelectedPost((current) =>
+          current && current.id === post.id
+            ? { ...current, replyCount: visibleComments.length }
+            : current,
+        );
       } catch {
         setMessage("Replies could not load right now.");
       }
@@ -260,12 +385,7 @@ export default function CommunityScreen() {
     const refreshedPosts = await fetchCommunityPosts(undefined, user?.id);
     const refreshedMatch = refreshedPosts.find((post) => post.id === item.postId);
     if (refreshedMatch) {
-      setPosts((current) => {
-        const starterPosts = COMMUNITY_STARTER_POSTS.filter(
-          (post) => !refreshedPosts.some((livePost) => livePost.id === post.id),
-        );
-        return [...refreshedPosts, ...starterPosts];
-      });
+      setPosts(dedupeThreads(refreshedPosts.length > 0 ? refreshedPosts : COMMUNITY_STARTER_POSTS));
       await openPost(refreshedMatch);
       return;
     }
@@ -305,7 +425,7 @@ export default function CommunityScreen() {
 
     setSavingPost(true);
     setPublishState("posting");
-    setMessage("Posting...");
+    setMessage("Publishing...");
     try {
       const createdPost = await createCommunityPost({
         userId: user.id,
@@ -322,16 +442,19 @@ export default function CommunityScreen() {
       setComments([]);
       setRecentlyPublishedPostId(createdPost.id);
       setPublishState("success");
-      setMessage("Post published ✓");
+      setMessage("Thread published ✓");
       void growth.recordEvent("community_post_created", {
         category: createdPost.category,
         postType: createdPost.post_type,
       });
       animatePublishSuccess();
       void loadCommunity("refresh");
-    } catch {
+    } catch (error) {
+      if (__DEV__) {
+        console.error("[community] create thread failed", error);
+      }
       setPublishState("error");
-      setMessage("Post could not be published. Please try again.");
+      setMessage("Thread could not be published. Please try again.");
     } finally {
       setSavingPost(false);
     }
@@ -356,11 +479,13 @@ export default function CommunityScreen() {
     }
     if (displayName === "Community member") {
       setNameDraft("");
+      setMessage("Choose a community name before replying.");
       setShowNamePrompt(true);
       return;
     }
     const trimmedBody = safeTrim(commentBody);
     if (!trimmedBody) {
+      setMessage("Write a short reply before posting.");
       return;
     }
     if (freeCommentLimitReached) {
@@ -369,20 +494,39 @@ export default function CommunityScreen() {
     }
 
     setSavingComment(true);
+    setMessage("Posting reply...");
     try {
-      await createCommunityComment({
+      const createdComment = await createCommunityComment({
         postId: selectedPost.id,
         userId: user.id,
         displayName,
+        category: selectedPost.category,
         body: trimmedBody,
       });
       setCommentBody("");
-      const nextComments = await fetchCommunityComments(selectedPost.id, user?.id);
-      setComments(nextComments.filter((comment) => !blockedUserIds.has(comment.user_id)));
-      await loadCommunity("refresh");
-      setMessage("Reply added.");
-    } catch {
-      setMessage("Reply could not be shared right now.");
+      setComments((current) => [...current, createdComment]);
+      setSelectedPost((current) =>
+        current && current.id === selectedPost.id
+          ? { ...current, replyCount: current.replyCount + 1 }
+          : current,
+      );
+      setPosts((current) =>
+        current.map((post) =>
+          post.id === selectedPost.id
+            ? {
+                ...post,
+                replyCount: post.replyCount + 1,
+              }
+            : post,
+        ),
+      );
+      setMessage("Reply posted ✓");
+      void loadCommunity("refresh");
+    } catch (error) {
+      if (__DEV__) {
+        console.error("[community] add reply failed", error);
+      }
+      setMessage("Reply could not be posted. Please try again.");
     } finally {
       setSavingComment(false);
     }
@@ -393,7 +537,6 @@ export default function CommunityScreen() {
     savingComment,
     selectedPost,
     user?.id,
-    blockedUserIds,
     displayName,
   ]);
 
@@ -429,17 +572,35 @@ export default function CommunityScreen() {
     }
   }, [nameDraft, savingName, user?.id]);
 
-  const refreshThreadComments = useCallback(
-    async (post: CommunityPost) => {
-      if (post.isStarter) {
-        setComments(COMMUNITY_STARTER_COMMENTS[post.id] ?? []);
-        return;
-      }
-      const nextComments = await fetchCommunityComments(post.id, user?.id);
-      setComments(nextComments.filter((comment) => !blockedUserIds.has(comment.user_id)));
-    },
-    [blockedUserIds, user?.id],
-  );
+  const openReportModal = useCallback((target: ModerationTarget) => {
+    setModerationTarget(target);
+    setReportReason("spam");
+    setReportNotes("");
+    setShowReportModal(true);
+  }, []);
+
+  const openBlockModal = useCallback((target: ModerationTarget) => {
+    setModerationTarget(target);
+    setShowBlockModal(true);
+  }, []);
+
+  const closeReportModal = useCallback(() => {
+    if (savingReport) {
+      return;
+    }
+    setShowReportModal(false);
+    setModerationTarget(null);
+    setReportReason("spam");
+    setReportNotes("");
+  }, [savingReport]);
+
+  const closeBlockModal = useCallback(() => {
+    if (blockingAuthor) {
+      return;
+    }
+    setShowBlockModal(false);
+    setModerationTarget(null);
+  }, [blockingAuthor]);
 
   const reactToPost = useCallback(
     async (post: CommunityPost, reactionType: CommunityReactionType) => {
@@ -447,23 +608,29 @@ export default function CommunityScreen() {
         setMessage("Sign in to react.");
         return;
       }
-      if (post.isStarter) {
-        setMessage("Starter threads are read-only. Open a new thread to react or reply.");
-        return;
+
+      const previousReactions = post.reactions;
+      const nextReactions = buildOptimisticReactions(previousReactions, reactionType);
+      setPosts((current) =>
+        current.map((item) => (item.id === post.id ? { ...item, reactions: nextReactions } : item)),
+      );
+      if (selectedPost?.id === post.id) {
+        setSelectedPost((current) => (current ? { ...current, reactions: nextReactions } : current));
       }
 
       try {
         await toggleCommunityReaction({ userId: user.id, postId: post.id, reactionType });
-        const nextPosts = await fetchCommunityPosts(undefined, user.id);
-        const nextPost = nextPosts.find((item) => item.id === post.id);
-        if (nextPost) {
-          setPosts((current) => current.map((item) => (item.id === nextPost.id ? nextPost : item)));
-          if (selectedPost?.id === nextPost.id) {
-            setSelectedPost(nextPost);
-          }
+      } catch (error) {
+        if (__DEV__) {
+          console.error("[community] reaction failed", error);
         }
-      } catch {
-        setMessage("Reaction could not update right now.");
+        setPosts((current) =>
+          current.map((item) => (item.id === post.id ? { ...item, reactions: previousReactions } : item)),
+        );
+        if (selectedPost?.id === post.id) {
+          setSelectedPost((current) => (current ? { ...current, reactions: previousReactions } : current));
+        }
+        setMessage("Reaction could not be saved.");
       }
     },
     [selectedPost?.id, user?.id],
@@ -475,62 +642,26 @@ export default function CommunityScreen() {
         setMessage("Sign in to react.");
         return;
       }
-      if (comment.isStarter) {
-        setMessage("Starter replies are read-only.");
-        return;
-      }
+
+      const previousReactions = comment.reactions;
+      const nextReactions = buildOptimisticReactions(previousReactions, reactionType);
+      setComments((current) =>
+        current.map((item) => (item.id === comment.id ? { ...item, reactions: nextReactions } : item)),
+      );
 
       try {
         await toggleCommunityReaction({ userId: user.id, commentId: comment.id, reactionType });
-        await refreshThreadComments(selectedPost);
-      } catch {
-        setMessage("Reaction could not update right now.");
+      } catch (error) {
+        if (__DEV__) {
+          console.error("[community] reaction failed", error);
+        }
+        setComments((current) =>
+          current.map((item) => (item.id === comment.id ? { ...item, reactions: previousReactions } : item)),
+        );
+        setMessage("Reaction could not be saved.");
       }
     },
-    [refreshThreadComments, selectedPost, user?.id],
-  );
-
-  const blockAuthor = useCallback(
-    (blockedUserId: string) => {
-      if (!user?.id) {
-        setMessage("Sign in to block a community author.");
-        return;
-      }
-      if (blockedUserId === user.id) {
-        setMessage("You cannot block your own posts.");
-        return;
-      }
-
-      Alert.alert(
-        "Block author",
-        "Posts and replies from this author will be hidden for you.",
-        [
-          {
-            text: "Block author",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                await blockCommunityUser({
-                  blockerId: user.id,
-                  blockedUserId,
-                });
-                setBlockedUserIds((current) => new Set([...current, blockedUserId]));
-                setPosts((current) => current.filter((post) => post.user_id !== blockedUserId));
-                setComments((current) => current.filter((comment) => comment.user_id !== blockedUserId));
-                if (selectedPost?.user_id === blockedUserId) {
-                  setSelectedPost(null);
-                }
-                setMessage("Author blocked.");
-              } catch {
-                setMessage("Author could not be blocked right now.");
-              }
-            },
-          },
-          { text: "Cancel", style: "cancel" },
-        ],
-      );
-    },
-    [selectedPost?.user_id, user?.id],
+    [selectedPost, user?.id],
   );
 
   const reportPost = useCallback(
@@ -539,31 +670,9 @@ export default function CommunityScreen() {
         setMessage("Sign in to report community content.");
         return;
       }
-
-      Alert.alert(
-        "Report post",
-        "Choose the closest reason. Reports help keep Community safe.",
-        [
-          ...COMMUNITY_REPORT_REASONS.map((reason) => ({
-            text: reason.label,
-            onPress: async () => {
-              try {
-                await reportCommunityPost({
-                  reporterId: user.id,
-                  postId: post.id,
-                  reason: reason.id as CommunityReportReason,
-                });
-                setMessage("Report sent.");
-              } catch {
-                setMessage("Report could not be sent right now.");
-              }
-            },
-          })),
-          { text: "Cancel", style: "cancel" as const },
-        ],
-      );
+      openReportModal({ kind: "post", post });
     },
-    [user?.id],
+    [openReportModal, user?.id],
   );
 
   const reportComment = useCallback(
@@ -572,31 +681,238 @@ export default function CommunityScreen() {
         setMessage("Sign in to report community content.");
         return;
       }
-
-      Alert.alert(
-        "Report reply",
-        "Choose the closest reason. Reports help keep Community safe.",
-        [
-          ...COMMUNITY_REPORT_REASONS.map((reason) => ({
-            text: reason.label,
-            onPress: async () => {
-              try {
-                await reportCommunityComment({
-                  reporterId: user.id,
-                  commentId: comment.id,
-                  reason: reason.id as CommunityReportReason,
-                });
-                setMessage("Report sent.");
-              } catch {
-                setMessage("Report could not be sent right now.");
-              }
-            },
-          })),
-          { text: "Cancel", style: "cancel" as const },
-        ],
-      );
+      openReportModal({ kind: "comment", comment });
     },
-    [user?.id],
+    [openReportModal, user?.id],
+  );
+
+  const submitReport = useCallback(async () => {
+    if (!user?.id || !moderationTarget || savingReport) {
+      return;
+    }
+
+    setSavingReport(true);
+    setMessage("Submitting report...");
+    try {
+      if (moderationTarget.kind === "post") {
+        await reportCommunityPost({
+          reporterId: user.id,
+          postId: moderationTarget.post.id,
+          reportedUserId: moderationTarget.post.user_id,
+          reason: reportReason,
+          notes: reportNotes,
+        });
+      } else {
+        await reportCommunityComment({
+          reporterId: user.id,
+          commentId: moderationTarget.comment.id,
+          reportedUserId: moderationTarget.comment.user_id,
+          reason: reportReason,
+          notes: reportNotes,
+        });
+      }
+      setShowReportModal(false);
+      setModerationTarget(null);
+      setReportNotes("");
+      setReportReason("spam");
+      setMessage("Report submitted ✓");
+    } catch (error) {
+      if (__DEV__) {
+        console.error("[community] report failed", error);
+      }
+      const maybeError = error as { code?: unknown };
+      if (maybeError?.code === "23505") {
+        setShowReportModal(false);
+        setModerationTarget(null);
+        setReportNotes("");
+        setReportReason("spam");
+        setMessage("Report submitted ✓");
+      } else {
+        setMessage("Report could not be submitted.");
+      }
+    } finally {
+      setSavingReport(false);
+    }
+  }, [moderationTarget, reportNotes, reportReason, savingReport, user?.id]);
+
+  const confirmBlockAuthor = useCallback(async () => {
+    if (!user?.id || !moderationTarget || blockingAuthor) {
+      return;
+    }
+
+    const blockedUserId =
+      moderationTarget.kind === "post" ? moderationTarget.post.user_id : moderationTarget.comment.user_id;
+
+    setBlockingAuthor(true);
+    setMessage("Blocking author...");
+    try {
+      await blockCommunityUser({
+        blockerId: user.id,
+        blockedUserId,
+      });
+      setBlockedUserIds((current) => new Set([...current, blockedUserId]));
+      setPosts((current) => current.filter((post) => post.user_id !== blockedUserId));
+      setComments((current) => current.filter((comment) => comment.user_id !== blockedUserId));
+      if (selectedPost?.user_id === blockedUserId) {
+        setSelectedPost(null);
+      }
+      setShowBlockModal(false);
+      setModerationTarget(null);
+      setMessage("Author blocked ✓");
+    } catch (error) {
+      if (__DEV__) {
+        console.error("[community] block failed", error);
+      }
+      setMessage("Author could not be blocked.");
+    } finally {
+      setBlockingAuthor(false);
+    }
+  }, [blockingAuthor, moderationTarget, selectedPost?.user_id, user?.id]);
+
+  const deletePost = useCallback(
+    (post: CommunityPost) => {
+      if (!user?.id || !isOwnedByCurrentUser(post.user_id, user.id)) {
+        setMessage("You can only delete your own posts.");
+        return;
+      }
+
+      if (__DEV__) {
+        console.log("[community] delete ownership", {
+          postId: post.id,
+          postUserId: post.user_id,
+          currentUserId: user.id,
+        });
+      }
+
+      Alert.alert("Delete this post?", "This will hide the thread from Community.", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              try {
+                if (__DEV__) {
+                  console.log("[community-delete-step]", "delete tapped", { kind: "thread", postId: post.id });
+                }
+                setDeletingThreadId(post.id);
+                setMessage("Delete tapped");
+                if (__DEV__) {
+                  console.log("[community-delete-step]", "delete rpc started", { kind: "thread", postId: post.id });
+                }
+                setMessage("Delete RPC started");
+                const didDelete = await hideCommunityPost({ postId: post.id, userId: user.id });
+                if (!didDelete) {
+                  setMessage("You can only delete your own posts.");
+                  return;
+                }
+                if (__DEV__) {
+                  console.log("[community-delete-step]", "rpc success", { kind: "thread", postId: post.id });
+                }
+                setPosts((current) => current.filter((item) => item.id !== post.id));
+                setSelectedPost(null);
+                setComments([]);
+                setMessage("Thread deleted ✓");
+                void loadCommunity("refresh");
+                if (__DEV__) {
+                  console.log("[community-delete-step]", "navigating away", { kind: "thread", postId: post.id });
+                }
+                setMessage("Navigating away");
+                forceReturnToCommunityList("thread-delete");
+              } catch (error) {
+                if (__DEV__) {
+                  console.error("[community] delete failed", error);
+                }
+                setMessage(
+                  error instanceof Error && error.message === "Delete timed out"
+                    ? "Delete is taking too long. Please try again."
+                    : "Could not delete. Please try again.",
+                );
+              } finally {
+                setDeletingThreadId((current) => (current === post.id ? null : current));
+              }
+            })();
+          },
+        },
+      ]);
+    },
+    [forceReturnToCommunityList, loadCommunity, user?.id],
+  );
+
+  const deleteComment = useCallback(
+    (comment: CommunityComment) => {
+      if (!user?.id || !selectedPost || !isOwnedByCurrentUser(comment.user_id, user.id)) {
+        setMessage("You can only delete your own posts.");
+        return;
+      }
+
+      if (__DEV__) {
+        console.log("[community] delete ownership", {
+          postId: comment.id,
+          postUserId: comment.user_id,
+          currentUserId: user.id,
+        });
+      }
+
+      Alert.alert("Delete this post?", "This will hide your reply from the thread.", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              try {
+                if (__DEV__) {
+                  console.log("[community-delete-step]", "delete tapped", { kind: "reply", postId: comment.id });
+                }
+                setDeletingReplyId(comment.id);
+                setMessage("Delete tapped");
+                if (__DEV__) {
+                  console.log("[community-delete-step]", "delete rpc started", { kind: "reply", postId: comment.id });
+                }
+                setMessage("Delete RPC started");
+                const didDelete = await hideCommunityPost({ postId: comment.id, userId: user.id });
+                if (!didDelete) {
+                  setMessage("You can only delete your own posts.");
+                  return;
+                }
+                if (__DEV__) {
+                  console.log("[community-delete-step]", "rpc success", { kind: "reply", postId: comment.id });
+                  console.log("[community] DELETE_SUCCESS", {
+                    deletedReplyId: comment.id,
+                  });
+                }
+                setComments((current) => current.filter((item) => item.id !== comment.id));
+                setSelectedPost((current) =>
+                  current ? { ...current, replyCount: Math.max(0, current.replyCount - 1) } : current,
+                );
+                setPosts((current) =>
+                  current.map((post) =>
+                    post.id === selectedPost.id
+                      ? { ...post, replyCount: Math.max(0, post.replyCount - 1) }
+                      : post,
+                  ),
+                );
+                setMessage("Reply deleted ✓");
+                void loadCommunity("refresh");
+              } catch (error) {
+                if (__DEV__) {
+                  console.error("[community] delete failed", error);
+                }
+                setMessage(
+                  error instanceof Error && error.message === "Delete timed out"
+                    ? "Delete is taking too long. Please try again."
+                    : "Could not delete. Please try again.",
+                );
+              } finally {
+                setDeletingReplyId((current) => (current === comment.id ? null : current));
+              }
+            })();
+          },
+        },
+      ]);
+    },
+    [loadCommunity, selectedPost, user?.id],
   );
 
   const categoryCounts = useMemo(() => {
@@ -612,24 +928,42 @@ export default function CommunityScreen() {
     }
     return counts;
   }, [posts]);
+  const visiblePosts = useMemo(() => dedupeThreads(posts.filter((post) => !post.hidden)), [posts]);
+  const visibleComments = useMemo(() => dedupeComments(comments.filter((comment) => !comment.hidden)), [comments]);
   const categoryLatestActivity = useMemo(() => {
     const latest = new Map<CommunityCategoryId, string>();
-    for (const post of posts) {
+    for (const post of visiblePosts) {
       const current = latest.get(post.category);
       if (!current || new Date(post.created_at).getTime() > new Date(current).getTime()) {
         latest.set(post.category, post.created_at);
       }
     }
     return latest;
-  }, [posts]);
+  }, [visiblePosts]);
   const selectedCategoryDetails = selectedCategory
     ? COMMUNITY_CATEGORIES.find((category) => category.id === selectedCategory) ?? null
     : null;
   const categoryThreads = useMemo(
-    () => (selectedCategory ? posts.filter((post) => post.category === selectedCategory) : []),
-    [posts, selectedCategory],
+    () => (selectedCategory ? visiblePosts.filter((post) => post.category === selectedCategory) : []),
+    [selectedCategory, visiblePosts],
   );
-  const recentThreads = useMemo(() => posts.slice(0, 5), [posts]);
+  const recentThreads = useMemo(() => visiblePosts.slice(0, 5), [visiblePosts]);
+
+  useEffect(() => {
+    if (!__DEV__ || !selectedPost) {
+      return;
+    }
+
+    console.log(
+      "[community] ACTUAL_RENDERED_REPLIES",
+      visibleComments.map((reply) => ({
+        id: reply.id,
+        is_hidden: reply.hidden,
+        parent_id: reply.post_id,
+        body: reply.body,
+      })),
+    );
+  }, [selectedPost, visibleComments]);
 
   return (
     <AppScreen title="Community" subtitle="Practical questions, lived experience, and calm support from people who understand MS.">
@@ -751,15 +1085,10 @@ export default function CommunityScreen() {
                   <PostCard
                     key={post.id}
                     post={post}
+                    canInteract={canInteractWithPost(post)}
                     onPress={() => void openPost(post)}
                     onReact={(reactionType) => void reactToPost(post, reactionType)}
-                    onReport={() => {
-                      if (post.isStarter) {
-                        setMessage("Starter discussions are curated by LiveWithMS.");
-                        return;
-                      }
-                      reportPost(post);
-                    }}
+                    onReport={() => reportPost(post)}
                   />
                 ))
               )}
@@ -782,52 +1111,55 @@ export default function CommunityScreen() {
             </Pressable>
             <PostDetailCard
               post={selectedPost}
+              canInteract={canInteractWithPost(selectedPost)}
+              canDelete={isOwnedByCurrentUser(selectedPost.user_id, user?.id) && canInteractWithPost(selectedPost)}
               showPostedJustNow={publishState === "success" && recentlyPublishedPostId === selectedPost.id}
               onReact={(reactionType) => void reactToPost(selectedPost, reactionType)}
               onReport={() => {
-                if (selectedPost.isStarter) {
-                  setMessage("Starter discussions are curated by LiveWithMS.");
-                  return;
-                }
                 reportPost(selectedPost);
               }}
               onBlock={() => {
-                if (selectedPost.isStarter) {
-                  setMessage("Starter discussions are curated by LiveWithMS.");
+                if (selectedPost.user_id === user?.id) {
+                  setMessage("You cannot block your own posts.");
                   return;
                 }
-                blockAuthor(selectedPost.user_id);
+                openBlockModal({ kind: "post", post: selectedPost });
               }}
+              onDelete={() => deletePost(selectedPost)}
             />
             <View style={styles.replyHeader}>
               <AppText style={styles.sectionTitle}>Replies</AppText>
-              <AppText style={styles.metaText}>{comments.length}</AppText>
+              <View style={styles.replyHeaderMeta}>
+                {(deletingReplyId || deletingThreadId) ? (
+                  <ActivityIndicator size="small" color={colors.accent} />
+                ) : null}
+                <AppText style={styles.metaText}>{visibleComments.length}</AppText>
+              </View>
             </View>
-            {comments.length === 0 ? (
+            {visibleComments.length === 0 ? (
               <View style={styles.emptyCard}>
                 <AppText style={styles.emptyTitle}>No replies yet.</AppText>
                 <AppText style={styles.emptyText}>Share a practical response if you have one.</AppText>
               </View>
             ) : (
-              comments.map((comment) => (
+              visibleComments.map((comment) => (
                 <CommentCard
                   key={comment.id}
                   comment={comment}
+                  canInteract={canInteractWithComment(comment)}
+                  canDelete={isOwnedByCurrentUser(comment.user_id, user?.id) && canInteractWithComment(comment)}
                   onReact={(reactionType) => void reactToComment(comment, reactionType)}
                   onReport={() => {
-                    if (comment.isStarter) {
-                      setMessage("Starter replies are curated by LiveWithMS.");
-                      return;
-                    }
                     reportComment(comment);
                   }}
                   onBlock={() => {
-                    if (comment.isStarter) {
-                      setMessage("Starter replies are curated by LiveWithMS.");
+                    if (comment.user_id === user?.id) {
+                      setMessage("You cannot block your own posts.");
                       return;
                     }
-                    blockAuthor(comment.user_id);
+                    openBlockModal({ kind: "comment", comment });
                   }}
+                  onDelete={() => deleteComment(comment)}
                 />
               ))
             )}
@@ -853,13 +1185,10 @@ export default function CommunityScreen() {
                   ) : null}
                 </View>
                 <AppButton
-                  label={savingComment ? "Adding..." : "Add reply"}
+                  label={savingComment ? "Posting reply..." : "Add reply"}
                   onPress={submitComment}
-                  disabled={!safeTrim(commentBody) || savingComment || freeCommentLimitReached || Boolean(selectedPost.isStarter)}
+                  disabled={!safeTrim(commentBody) || savingComment || freeCommentLimitReached}
                 />
-                {selectedPost.isStarter ? (
-                  <AppText style={styles.limitText}>Starter threads are read-only. Open a new thread to continue this topic.</AppText>
-                ) : null}
                 {freeCommentLimitReached ? (
                   <AppButton label="View Premium" variant="secondary" onPress={() => router.push("/premium")} />
                 ) : null}
@@ -938,7 +1267,7 @@ export default function CommunityScreen() {
                 ) : null}
                 <View style={styles.buttonStack}>
                   <AppButton
-                    label={savingPost ? "Posting..." : "Post Thread"}
+                    label={savingPost ? "Publishing..." : "Post Thread"}
                     onPress={submitPost}
                     disabled={!safeTrim(title) || !safeTrim(body) || savingPost || freePostLimitReached}
                   />
@@ -965,15 +1294,10 @@ export default function CommunityScreen() {
                 <PostCard
                   key={post.id}
                   post={post}
+                  canInteract={canInteractWithPost(post)}
                   onPress={() => void openPost(post)}
                   onReact={(reactionType) => void reactToPost(post, reactionType)}
-                  onReport={() => {
-                    if (post.isStarter) {
-                      setMessage("Starter discussions are curated by LiveWithMS.");
-                      return;
-                    }
-                    reportPost(post);
-                  }}
+                  onReport={() => reportPost(post)}
                 />
               ))
             )}
@@ -982,6 +1306,83 @@ export default function CommunityScreen() {
 
         <AppText style={styles.footerCopy}>Community posts are shared experiences, not medical advice.</AppText>
       </ScrollView>
+      <Modal
+        visible={showReportModal}
+        transparent
+        animationType="fade"
+        onRequestClose={closeReportModal}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.nameModal}>
+            <AppText style={styles.sectionTitle}>Why are you reporting this?</AppText>
+            <AppText style={styles.sectionSubtitle}>Choose the closest reason. Reports help keep Community safe.</AppText>
+            <View style={styles.chipWrap}>
+              {COMMUNITY_REPORT_REASONS.map((reason) => (
+                <CategoryChip
+                  key={reason.id}
+                  label={reason.label}
+                  selected={reportReason === reason.id}
+                  onPress={() => setReportReason(reason.id)}
+                />
+              ))}
+            </View>
+            <AppText style={styles.composerLabel}>Additional details</AppText>
+            <TextInput
+              value={reportNotes}
+              onChangeText={setReportNotes}
+              placeholder="Optional details"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              maxLength={REPORT_NOTES_LIMIT}
+              style={[styles.input, styles.reportNotesInput]}
+              textAlignVertical="top"
+            />
+            <AppText style={styles.limitText}>{reportNotes.length}/{REPORT_NOTES_LIMIT}</AppText>
+            <View style={styles.buttonStack}>
+              <AppButton
+                label={savingReport ? "Submitting..." : "Submit Report"}
+                onPress={submitReport}
+                disabled={savingReport}
+              />
+              <AppButton label="Cancel" variant="secondary" onPress={closeReportModal} disabled={savingReport} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={showBlockModal}
+        transparent
+        animationType="fade"
+        onRequestClose={closeBlockModal}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.nameModal}>
+            <AppText style={styles.sectionTitle}>Block author?</AppText>
+            <AppText style={styles.sectionSubtitle}>
+              Hide future posts and replies from this user?
+            </AppText>
+            <View style={styles.blockSummaryCard}>
+              <AuthorRow
+                displayName={
+                  moderationTarget?.kind === "post"
+                    ? moderationTarget.post.display_name
+                    : moderationTarget?.kind === "comment"
+                      ? moderationTarget.comment.display_name
+                      : "Community member"
+                }
+              />
+            </View>
+            <View style={styles.buttonStack}>
+              <AppButton
+                label={blockingAuthor ? "Blocking..." : "Block"}
+                onPress={confirmBlockAuthor}
+                disabled={blockingAuthor}
+              />
+              <AppButton label="Cancel" variant="secondary" onPress={closeBlockModal} disabled={blockingAuthor} />
+            </View>
+          </View>
+        </View>
+      </Modal>
       <Modal
         visible={showNamePrompt}
         transparent
@@ -1032,11 +1433,13 @@ function CategoryChip({ label, selected, onPress }: { label: string; selected: b
 
 function PostCard({
   post,
+  canInteract,
   onPress,
   onReact,
   onReport,
 }: {
   post: CommunityPost;
+  canInteract: boolean;
   onPress: () => void;
   onReact: (reactionType: CommunityReactionType) => void;
   onReport: () => void;
@@ -1044,26 +1447,28 @@ function PostCard({
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.postCard, pressed && styles.pressed]}>
       <View style={styles.postTopRow}>
-        <AppText style={styles.typePill}>{post.isStarter ? "Starter thread" : getCommunityPostTypeLabel(post.post_type)}</AppText>
+        <AppText style={styles.typePill}>{getCommunityPostTypeLabel(post.post_type)}</AppText>
         <AppText style={styles.metaText}>{timeAgo(post.created_at)}</AppText>
       </View>
       <AuthorRow displayName={post.display_name} />
       <AppText style={styles.postTitle}>{post.title}</AppText>
       <AppText style={styles.postPreview}>{previewText(post.body)}</AppText>
-      <ReactionBar reactions={post.reactions} onReact={onReact} />
+      {canInteract ? <ReactionBar reactions={post.reactions} onReact={onReact} /> : null}
       <View style={styles.postMetaRow}>
         <AppText style={styles.metaText}>{getCommunityCategoryLabel(post.category)}</AppText>
         <AppText style={styles.metaText}>{post.replyCount} replies</AppText>
-        <Pressable
-          accessibilityRole="button"
-          onPress={(event) => {
-            event.stopPropagation();
-            onReport();
-          }}
-          hitSlop={8}
-        >
-          <AppText style={styles.reportText}>Report</AppText>
-        </Pressable>
+        {canInteract ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={(event) => {
+              event.stopPropagation();
+              onReport();
+            }}
+            hitSlop={8}
+          >
+            <AppText style={styles.reportText}>Report</AppText>
+          </Pressable>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -1071,21 +1476,27 @@ function PostCard({
 
 function PostDetailCard({
   post,
+  canInteract,
+  canDelete,
   showPostedJustNow = false,
   onReact,
   onReport,
   onBlock,
+  onDelete,
 }: {
   post: CommunityPost;
+  canInteract: boolean;
+  canDelete: boolean;
   showPostedJustNow?: boolean;
   onReact: (reactionType: CommunityReactionType) => void;
   onReport: () => void;
   onBlock: () => void;
+  onDelete: () => void;
 }) {
   return (
     <View style={styles.detailCard}>
       <View style={styles.postTopRow}>
-        <AppText style={styles.typePill}>{post.isStarter ? "Starter thread" : getCommunityPostTypeLabel(post.post_type)}</AppText>
+        <AppText style={styles.typePill}>{getCommunityPostTypeLabel(post.post_type)}</AppText>
         <AppText style={styles.metaText}>{showPostedJustNow ? "Posted just now" : timeAgo(post.created_at)}</AppText>
       </View>
       <AuthorRow displayName={post.display_name} />
@@ -1097,15 +1508,24 @@ function PostDetailCard({
         </View>
       ) : null}
       <AppText style={styles.detailBody}>{post.body}</AppText>
-      <ReactionBar reactions={post.reactions} onReact={onReact} />
+      {canInteract ? <ReactionBar reactions={post.reactions} onReact={onReact} /> : null}
       <View style={styles.postMetaRow}>
         <AppText style={styles.metaText}>{getCommunityCategoryLabel(post.category)}</AppText>
-        <Pressable accessibilityRole="button" onPress={onReport} hitSlop={8}>
-          <AppText style={styles.reportText}>Report</AppText>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={onBlock} hitSlop={8}>
-          <AppText style={styles.reportText}>Block author</AppText>
-        </Pressable>
+        {canInteract ? (
+          <>
+            <Pressable accessibilityRole="button" onPress={onReport} hitSlop={8}>
+              <AppText style={styles.reportText}>Report</AppText>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={onBlock} hitSlop={8}>
+              <AppText style={styles.reportText}>Block author</AppText>
+            </Pressable>
+          </>
+        ) : null}
+        {canDelete ? (
+          <Pressable accessibilityRole="button" onPress={onDelete} hitSlop={8}>
+            <AppText style={styles.reportText}>Delete</AppText>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -1113,14 +1533,20 @@ function PostDetailCard({
 
 function CommentCard({
   comment,
+  canInteract,
+  canDelete,
   onReact,
   onReport,
   onBlock,
+  onDelete,
 }: {
   comment: CommunityComment;
+  canInteract: boolean;
+  canDelete: boolean;
   onReact: (reactionType: CommunityReactionType) => void;
   onReport: () => void;
   onBlock: () => void;
+  onDelete: () => void;
 }) {
   return (
     <View style={styles.commentCard}>
@@ -1129,14 +1555,23 @@ function CommentCard({
         <AppText style={styles.metaText}>{timeAgo(comment.created_at)}</AppText>
       </View>
       <AppText style={styles.commentBody}>{comment.body}</AppText>
-      <ReactionBar reactions={comment.reactions} onReact={onReact} />
+      {canInteract ? <ReactionBar reactions={comment.reactions} onReact={onReact} /> : null}
       <View style={styles.commentActions}>
-        <Pressable accessibilityRole="button" onPress={onReport} hitSlop={8}>
-          <AppText style={styles.reportText}>Report</AppText>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={onBlock} hitSlop={8}>
-          <AppText style={styles.reportText}>Block</AppText>
-        </Pressable>
+        {canInteract ? (
+          <>
+            <Pressable accessibilityRole="button" onPress={onReport} hitSlop={8}>
+              <AppText style={styles.reportText}>Report</AppText>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={onBlock} hitSlop={8}>
+              <AppText style={styles.reportText}>Block</AppText>
+            </Pressable>
+          </>
+        ) : null}
+        {canDelete ? (
+          <Pressable accessibilityRole="button" onPress={onDelete} hitSlop={8}>
+            <AppText style={styles.reportText}>Delete</AppText>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -1178,6 +1613,7 @@ function ReactionBar({
           <Pressable
             key={reaction.id}
             accessibilityRole="button"
+            accessibilityState={{ selected: active }}
             accessibilityLabel={reaction.label}
             onPress={() => onReact(reaction.id)}
             style={({ pressed }) => [
@@ -1186,7 +1622,7 @@ function ReactionBar({
               pressed && styles.pressed,
             ]}
           >
-            <AppText style={styles.reactionText}>
+            <AppText style={[styles.reactionText, active && styles.reactionTextActive]}>
               {reaction.emoji} {summary?.count ?? 0}
             </AppText>
           </Pressable>
@@ -1424,6 +1860,9 @@ const styles = StyleSheet.create({
   bodyInput: {
     minHeight: 116,
   },
+  reportNotesInput: {
+    minHeight: 100,
+  },
   limitRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1579,6 +2018,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.text,
   },
+  reactionTextActive: {
+    color: colors.accent,
+  },
   metaText: {
     fontSize: 12,
     lineHeight: 17,
@@ -1639,6 +2081,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  replyHeaderMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
   commentCard: {
     backgroundColor: colors.surfaceWarm,
     borderRadius: radii.card,
@@ -1677,6 +2124,13 @@ const styles = StyleSheet.create({
     padding: spacing.cardPadding,
     gap: 14,
     ...shadows.soft,
+  },
+  blockSummaryCard: {
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceWarm,
+    padding: 12,
   },
   pressed: {
     opacity: 0.82,

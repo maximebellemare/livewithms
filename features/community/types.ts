@@ -15,7 +15,7 @@ export type CommunityPostType =
   | "bug_report"
   | "improvement"
   | "general_feedback";
-export type CommunityReactionType = "heart" | "thanks" | "idea" | "agree";
+export type CommunityReactionType = "heart" | "helpful" | "support" | "thanks";
 
 export type CommunityReactionSummary = {
   reaction_type: CommunityReactionType;
@@ -79,14 +79,14 @@ export type CommunityUsage = {
 
 export type CommunityBlock = {
   id: string;
-  blocker_id: string;
+  blocker_user_id: string;
   blocked_user_id: string;
   created_at: string;
 };
 
 export type CommunityReportReason =
-  | "medical_advice"
-  | "fear_based_claim"
+  | "spam"
   | "harassment"
-  | "unsafe_or_crisis"
+  | "offensive_content"
+  | "misinformation"
   | "other";
