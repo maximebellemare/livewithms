@@ -1,6 +1,7 @@
 import env from "../env";
 import { normalizeError } from "../errors";
 import { logger } from "../logger";
+import { Platform } from "react-native";
 import type { PremiumPlan, PremiumOffering, PremiumOfferingPackage } from "../../features/premium/types";
 import { shouldUseRevenueCatNativeStore } from "../revenueCatEnvironment";
 import {
@@ -63,7 +64,7 @@ let configuredApiKey: string | null = null;
 let loggedInUserId: string | null = null;
 let debugSnapshot: RevenueCatDebugSnapshot = createBaseRevenueCatDebugSnapshot({
   bundleIdentifier: env.bundleIdentifier,
-  sdkKey: env.revenueCatIosApiKey,
+  sdkKey: env.revenueCatApiKey,
   requestedOfferingIdentifier: EXPECTED_REVENUECAT_OFFERING_IDENTIFIER,
 });
 
@@ -149,10 +150,10 @@ export const revenueCatClient = {
 
     try {
       const { default: Purchases, LOG_LEVEL } = await loadPurchasesModule();
-      const shouldConfigure = configuredApiKey !== env.revenueCatIosApiKey;
+      const shouldConfigure = configuredApiKey !== env.revenueCatApiKey;
 
       logRevenueCatDebug("[LIVEWITHMS_RC_DEBUG]", "configure", {
-        platform: "ios",
+        platform: Platform.OS,
         maskedKey: debugSnapshot.maskedSdkKey,
         bundleId: env.bundleIdentifier,
         appVersion: debugSnapshot.appVersion,
@@ -163,8 +164,8 @@ export const revenueCatClient = {
 
       if (shouldConfigure) {
         await Purchases.setLogLevel(LOG_LEVEL.WARN);
-        await Purchases.configure({ apiKey: env.revenueCatIosApiKey, appUserID: userId });
-        configuredApiKey = env.revenueCatIosApiKey;
+        await Purchases.configure({ apiKey: env.revenueCatApiKey, appUserID: userId });
+        configuredApiKey = env.revenueCatApiKey;
         loggedInUserId = userId;
         updateDebugSnapshot((snapshot) => ({
           ...snapshot,
@@ -200,18 +201,48 @@ export const revenueCatClient = {
     }
 
     const { default: Purchases } = await loadPurchasesModule();
+    console.log("[revenuecat] getOfferings start", {
+      platform: Platform.OS,
+      requestedOfferingIdentifier: EXPECTED_REVENUECAT_OFFERING_IDENTIFIER,
+    });
     logRevenueCatDebug("[LIVEWITHMS_RC_DEBUG]", "RC STEP 1: starting offerings fetch", {
       requestedOfferingIdentifier: EXPECTED_REVENUECAT_OFFERING_IDENTIFIER,
     });
 
     try {
       const offerings = await Purchases.getOfferings();
+      console.log("[revenuecat] getOfferings success", {
+        platform: Platform.OS,
+        currentOfferingIdentifier: offerings.current?.identifier ?? null,
+        allOfferingIdentifiers: Object.keys(offerings.all ?? {}),
+      });
       logRevenueCatDebug("[LIVEWITHMS_RC_OFFERINGS]", "offerings fetched", {
         currentOfferingIdentifier: offerings.current?.identifier ?? null,
         allOfferingIdentifiers: Object.keys(offerings.all ?? {}),
       });
       const { selected: offering, source } = selectPreferredOffering(offerings as RevenueCatOfferings);
       const packages = offering?.availablePackages ?? [];
+      console.log("[revenuecat] current offering", {
+        platform: Platform.OS,
+        selectedOfferingIdentifier: offering?.identifier ?? null,
+        source,
+      });
+      console.log("[revenuecat] packages count", {
+        platform: Platform.OS,
+        count: packages.length,
+      });
+      console.log("[revenuecat] packages", {
+        platform: Platform.OS,
+        packages: packages.map((pkg) => ({
+          packageIdentifier: pkg.identifier,
+          packageType: pkg.packageType ?? null,
+          productIdentifier: pkg.product.identifier,
+          title: pkg.product.title ?? null,
+          localizedPrice: pkg.product.priceString ?? null,
+          price: typeof pkg.product.price === "number" ? pkg.product.price : null,
+          currencyCode: pkg.product.currencyCode ?? null,
+        })),
+      });
       updateDebugSnapshot((snapshot) =>
         withRevenueCatOfferings(
           snapshot,
@@ -246,6 +277,10 @@ export const revenueCatClient = {
 
       return mapOffering(offering);
     } catch (error) {
+      console.error("[revenuecat] error", {
+        platform: Platform.OS,
+        ...extractRevenueCatErrorDetails(error),
+      });
       updateDebugSnapshot((snapshot) => withRevenueCatError(snapshot, error));
       const details = extractRevenueCatErrorDetails(error);
       logRevenueCatDebug("[LIVEWITHMS_RC_ERROR]", "offerings fetch failed", details);

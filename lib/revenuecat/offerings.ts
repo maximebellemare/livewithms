@@ -28,7 +28,7 @@ type RevenueCatOfferings = {
 
 export const EXPECTED_REVENUECAT_OFFERING_IDENTIFIER = "default" as const;
 export const EXPECTED_REVENUECAT_PACKAGE_IDENTIFIERS = ["$rc_monthly", "$rc_annual"] as const;
-export const EXPECTED_REVENUECAT_PRODUCT_IDENTIFIERS = ["livewithms_monthly", "livewithms_yearly"] as const;
+export const EXPECTED_REVENUECAT_PRODUCT_IDENTIFIERS = ["premium_monthly", "premium_yearly"] as const;
 
 function hasPackages(offering: RevenueCatOffering | null | undefined) {
   return (offering?.availablePackages?.length ?? 0) > 0;

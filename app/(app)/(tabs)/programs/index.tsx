@@ -1178,6 +1178,41 @@ export default function ProgramsScreen() {
         .filter((tool): tool is ProgramTool => Boolean(tool)),
     [],
   );
+  const visibleProgramTools = useMemo(
+    () => [...freeProgramTools, ...premiumProgramTools],
+    [freeProgramTools, premiumProgramTools],
+  );
+
+  useEffect(() => {
+    if (!__DEV__) {
+      return;
+    }
+
+    console.log("[programs]", {
+      totalPrograms: visibleProgramTools.length,
+      filteredPrograms: visibleProgramTools.length,
+      visiblePrograms: visibleProgramTools.map((tool) => tool.title),
+      activeCategory: sectionParam ?? null,
+      activeFilter: toolParam ?? exerciseParam ?? null,
+      premiumStatus: premium.hasPremiumAccess,
+      lowEnergyModeEnabled: lowEnergyMode.enabled,
+      adaptiveLowEnergyMode: adaptiveProfile.lowEnergyMode,
+      lowEnergyAssistActive: lowEnergyAssist.active,
+      freeProgramCount: freeProgramTools.length,
+      premiumProgramCount: premiumProgramTools.length,
+    });
+  }, [
+    adaptiveProfile.lowEnergyMode,
+    exerciseParam,
+    freeProgramTools,
+    lowEnergyAssist.active,
+    lowEnergyMode.enabled,
+    premium.hasPremiumAccess,
+    premiumProgramTools,
+    sectionParam,
+    toolParam,
+    visibleProgramTools,
+  ]);
 
   const openTool = (toolId: string | null | undefined) => {
     const resolvedToolId = resolveProgramToolId(toolId);

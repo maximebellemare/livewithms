@@ -5,10 +5,13 @@ import { useMyProfile } from "../../features/profile/hooks";
 import { logger } from "../../lib/logger";
 import LoadingState from "./LoadingState";
 import { getAllowedPath, type RouteGateMode } from "./route-gate-logic";
+import SignInScreen from "../../app/(auth)/sign-in";
 
 type RouteGateProps = PropsWithChildren<{
   mode: RouteGateMode;
 }>;
+
+const AUTH_ROUTE = "/sign-in";
 
 export default function RouteGate({ children, mode }: RouteGateProps) {
   const router = useRouter();
@@ -30,6 +33,17 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
         : "(app)";
 
   const onboardingCompleted = profileQuery.data?.onboarding_completed ?? false;
+  const profileReady = !isAuthenticated || !shouldLoadProfile || !profileQuery.isLoading;
+  const sessionStatus = !isReady ? "loading" : session?.user?.id ? "authenticated" : "none";
+  const shouldShowUnauthenticatedAppFlow = isReady && !isAuthenticated && (mode === "app" || mode === "onboarding");
+  const buildDebugLabel = (currentStep: string) =>
+    [
+      `authReady: ${String(isReady)}`,
+      `profileReady: ${String(profileReady)}`,
+      `appReady: ${String(isReady)}`,
+      `session: ${sessionStatus}`,
+      `currentStep: ${currentStep}`,
+    ].join("\n");
   const authenticatedTargetPath = useMemo(() => {
     if (!isAuthenticated || profileQuery.isLoading) {
       return null;
@@ -39,6 +53,57 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
   }, [isAuthenticated, mode, onboardingCompleted, profileQuery.isLoading]);
 
   useEffect(() => {
+    if (!shouldShowUnauthenticatedAppFlow) {
+      return;
+    }
+
+    console.log("[startup] route decision: no session -> auth", {
+      pathname,
+      mode,
+      route: AUTH_ROUTE,
+    });
+  }, [mode, pathname, shouldShowUnauthenticatedAppFlow]);
+
+  useEffect(() => {
+    if (isReady && isAuthenticated) {
+      console.log("[startup] route decision: session -> app", {
+        pathname,
+        mode,
+      });
+    }
+  }, [isAuthenticated, isReady, mode, pathname]);
+
+  useEffect(() => {
+    if (!__DEV__) {
+      return;
+    }
+
+    console.log("[startup] RouteGate render", {
+      pathname,
+      activeGroup,
+      expectedGroup,
+      mode,
+      isReady,
+      isAuthenticated,
+      profileLoading: profileQuery.isLoading,
+      hasProfile: Boolean(profileQuery.data),
+      onboardingCompleted,
+      sessionStatus,
+    });
+  }, [
+    activeGroup,
+    expectedGroup,
+    isAuthenticated,
+    isReady,
+    mode,
+    onboardingCompleted,
+    pathname,
+    profileQuery.data,
+    profileQuery.isLoading,
+    sessionStatus,
+  ]);
+
+  useEffect(() => {
     if (!isReady) {
       return;
     }
@@ -46,7 +111,7 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
     let targetPath: string | null = null;
 
     if (!isAuthenticated) {
-      targetPath = mode === "app" || mode === "onboarding" ? "/sign-in" : null;
+      targetPath = mode === "app" || mode === "onboarding" ? AUTH_ROUTE : null;
     } else {
       if (profileQuery.isLoading) {
         return;
@@ -80,28 +145,85 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
   ]);
 
   if (!isReady) {
-    return <LoadingState message="Restoring session..." />;
+    if (__DEV__) {
+      console.log("[startup] RouteGate loading state", {
+        reason: "auth-not-ready",
+        authReady: isReady,
+        profileReady,
+        appReady: isReady,
+        sessionStatus,
+      });
+    }
+    return <LoadingState message="Restoring session..." debugLabel={buildDebugLabel("loading session")} />;
   }
 
   if (!isAuthenticated) {
     if (mode === "app" || mode === "onboarding") {
-      return <LoadingState message="Redirecting..." />;
+      console.log("[startup] navigation fallback rendered auth", {
+        pathname,
+        mode,
+      });
+      return <SignInScreen />;
     }
 
-    return activeGroup === expectedGroup ? <>{children}</> : <LoadingState message="Loading..." />;
+    if (mode === "auth") {
+      return <>{children}</>;
+    }
+
+    console.log("[startup] navigation fallback rendered auth", {
+      pathname,
+      mode,
+      reason: activeGroup !== expectedGroup ? "public-group-mismatch" : "public-mode-fallback",
+    });
+    return <SignInScreen />;
   }
 
   if (profileQuery.isLoading) {
-    return <LoadingState message="Loading profile..." />;
+    if (__DEV__) {
+      console.log("[startup] RouteGate loading state", {
+        reason: "profile-loading",
+        authReady: isReady,
+        profileReady,
+        appReady: isReady,
+        sessionStatus,
+      });
+    }
+    return <LoadingState message="Loading profile..." debugLabel={buildDebugLabel("loading profile")} />;
   }
 
   if (authenticatedTargetPath && pathname !== authenticatedTargetPath) {
-    return <LoadingState message="Redirecting..." />;
+    if (__DEV__) {
+      console.log("[startup] RouteGate loading state", {
+        reason: "redirecting-authenticated",
+        authReady: isReady,
+        profileReady,
+        appReady: isReady,
+        sessionStatus,
+      });
+    }
+    return <LoadingState message="Redirecting..." debugLabel={buildDebugLabel("waiting for navigation")} />;
   }
 
   if (activeGroup !== expectedGroup) {
-    return <LoadingState message="Loading..." />;
+    if (__DEV__) {
+      console.log("[startup] RouteGate loading state", {
+        reason: "app-group-mismatch",
+        authReady: isReady,
+        profileReady,
+        appReady: isReady,
+        sessionStatus,
+      });
+    }
+    return <LoadingState message="Loading..." debugLabel={buildDebugLabel("waiting for navigation")} />;
   }
 
+  if (__DEV__) {
+    console.log("[startup] RouteGate appReady state", {
+      authReady: isReady,
+      profileReady,
+      appReady: isReady,
+      sessionStatus,
+    });
+  }
   return <>{children}</>;
 }

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Modal, Pressable, StyleSheet, View } from "react-native";
 import AppText from "../../../components/ui/AppText";
@@ -16,11 +16,17 @@ import {
   saveCommunityNotifiedActivityIds,
   useCommunityActivity,
 } from "../../../features/community/activity";
+import { upsertUserPushToken } from "../../../features/community/api";
 import { useMyProfile } from "../../../features/profile/hooks";
 import { useReminderSettings } from "../../../features/reminders/hooks";
-import { scheduleCommunityActivityNotification } from "../../../features/reminders/notifications";
+import {
+  addAppNotificationResponseListener,
+  getExpoPushToken,
+  scheduleCommunityActivityNotification,
+} from "../../../features/reminders/notifications";
 
 export default function TabsLayout() {
+  const router = useRouter();
   const { user } = useAuth();
   const communityActivity = useCommunityActivity(user?.id);
   const reminders = useReminderSettings();
@@ -60,7 +66,9 @@ export default function TabsLayout() {
       return;
     }
 
-    const activityItems = communityActivitySummary.recentActivity.filter((item) => enabledTypes.has(item.type));
+    const activityItems = communityActivitySummary.recentActivity.filter(
+      (item) => enabledTypes.has(item.type) && item.type === "post" && item.id.startsWith("summary-post:"),
+    );
     if (activityItems.length === 0) {
       return;
     }
@@ -108,6 +116,54 @@ export default function TabsLayout() {
   useEffect(() => {
     void maybeNotifyCommunityActivity();
   }, [maybeNotifyCommunityActivity]);
+
+  useEffect(() => {
+    if (!user?.id || reminders.permissionStatus !== "granted") {
+      return;
+    }
+
+    void (async () => {
+      const pushToken = await getExpoPushToken();
+      if (!pushToken?.token) {
+        return;
+      }
+
+      try {
+        await upsertUserPushToken({
+          userId: user.id,
+          expoPushToken: pushToken.token,
+          platform: pushToken.platform,
+        });
+      } catch {
+        // Keep push token registration silent so the app still opens normally.
+      }
+    })();
+  }, [reminders.permissionStatus, user?.id]);
+
+  useEffect(() => {
+    const removeListener = addAppNotificationResponseListener((response) => {
+      const data = response.notification?.request?.content?.data ?? {};
+      const type = typeof data.type === "string" ? data.type : null;
+      if (type !== "community-activity") {
+        return;
+      }
+
+      const threadId =
+        typeof data.threadId === "string"
+          ? data.threadId
+          : typeof data.postId === "string"
+            ? data.postId
+            : null;
+
+      if (!threadId) {
+        return;
+      }
+
+      router.push(`/community?postId=${encodeURIComponent(threadId)}` as never);
+    });
+
+    return removeListener;
+  }, [router]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {

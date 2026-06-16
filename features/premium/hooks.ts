@@ -1,5 +1,5 @@
 import { PropsWithChildren, createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 import { useAuth } from "../auth/hooks";
 import { revenueCatClient } from "../../lib/revenuecat/client";
 import { normalizeError } from "../../lib/errors";
@@ -184,6 +184,11 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       lastRefreshAtRef.current = Date.now();
 
     if (!subscriptionsEnabled) {
+      if (__DEV__) {
+        console.log("[startup] RevenueCat init end", {
+          status: "skipped-subscriptions-disabled",
+        });
+      }
       setStatus("free");
       setRevenueCatEntitlementActive(false);
       setCurrentOffering(null);
@@ -193,6 +198,11 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     }
 
     if (!user?.id) {
+      if (__DEV__) {
+        console.log("[startup] RevenueCat init end", {
+          status: "skipped-no-user",
+        });
+      }
       setStatus("free");
       setRevenueCatEntitlementActive(false);
       setCurrentOffering(null);
@@ -202,6 +212,11 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     }
 
     if (!shouldUseRevenueCatNativeStore()) {
+      if (__DEV__) {
+        console.log("[startup] RevenueCat init end", {
+          status: "skipped-native-store-unavailable",
+        });
+      }
       setStatus("free");
       setRevenueCatEntitlementActive(false);
       setCurrentOffering(null);
@@ -213,6 +228,12 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     }
 
     setIsLoading(true);
+
+    if (__DEV__) {
+      console.log("[startup] RevenueCat init start", {
+        userId: user.id,
+      });
+    }
 
     try {
       await revenueCatClient.configureRevenueCat(user.id);
@@ -244,7 +265,19 @@ export function PremiumProvider({ children }: PropsWithChildren) {
           ? null
           : "Pricing is still settling in. You can try again a little later, and the rest of the app still works normally.",
       );
+      if (__DEV__) {
+        console.log("[startup] RevenueCat init end", {
+          status: "ready",
+          hasOffering: Boolean(offering),
+          premiumStatus: resolvedStatus,
+        });
+      }
     } catch (error) {
+      if (__DEV__) {
+        console.error("[startup] RevenueCat init failed", {
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
       setRevenueCatDebugSnapshot(revenueCatClient.getDebugSnapshot());
       const normalizedError = normalizeError(error);
       const shouldTrackFailure = shouldTrackRevenueCatFailure(refreshStateRef.current, now);
@@ -403,7 +436,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       if (!restoredEntitlementActive) {
         return {
           success: false,
-          message: "No active Premium subscription was found for this Apple ID.",
+          message: `No active Premium subscription was found for this ${Platform.OS === "android" ? "Google Play account" : "Apple ID"}.`,
         };
       }
 

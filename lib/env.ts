@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const supabaseAnonKey =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
@@ -5,11 +7,13 @@ const supabaseAnonKey =
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   "";
 const revenueCatIosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || "";
+const revenueCatAndroidApiKey = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY || "";
+const revenueCatApiKey = Platform.OS === "android" ? revenueCatAndroidApiKey : revenueCatIosApiKey;
 const appScheme = "com.livewithms.app" as const;
 const bundleIdentifier = "com.livewithms.app" as const;
 
 const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
-const isRevenueCatConfigured = !!revenueCatIosApiKey;
+const isRevenueCatConfigured = !!revenueCatApiKey;
 
 export function getSupabaseProjectRef(url: string) {
   try {
@@ -45,6 +49,8 @@ const env = {
   supabaseAnonKey,
   supabaseProjectRef: getSupabaseProjectRef(supabaseUrl),
   revenueCatIosApiKey,
+  revenueCatAndroidApiKey,
+  revenueCatApiKey,
   isSupabaseConfigured,
   isRevenueCatConfigured,
   appScheme,

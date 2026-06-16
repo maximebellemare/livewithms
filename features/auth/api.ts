@@ -3,9 +3,18 @@ import env from "../../lib/env";
 import { supabase } from "../../lib/supabase/client";
 import type { AuthResult, SignUpResult } from "./types";
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
+    }),
+  ]);
+}
+
 export const authApi = {
   async getSession(): Promise<Session | null> {
-    const { data, error } = await supabase.auth.getSession();
+    const { data, error } = await withTimeout(supabase.auth.getSession(), 8000, "Supabase session restore");
     if (error) {
       throw error;
     }
@@ -13,7 +22,7 @@ export const authApi = {
     return data.session;
   },
   async getCurrentSession(): Promise<Session | null> {
-    const { data, error } = await supabase.auth.getSession();
+    const { data, error } = await withTimeout(supabase.auth.getSession(), 8000, "Supabase current session");
     if (error) {
       throw error;
     }

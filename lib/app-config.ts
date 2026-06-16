@@ -7,8 +7,8 @@ export const APP_CONFIG = {
     entitlement: "premium",
     freeDailyAiCoachMessages: 5,
     productIds: {
-      monthly: "livewithms_monthly",
-      yearly: "livewithms_yearly",
+      monthly: "premium_monthly",
+      yearly: "premium_yearly",
     },
   },
   reminders: {

@@ -802,21 +802,21 @@ export default function ProfileScreen() {
               />
               <View style={styles.subSettingGroup}>
                 <PreferenceRow
-                  title="Community replies"
+                  title="Replies to my posts"
                   description="Let me know when someone replies to one of my threads."
                   value={reminders.communityReplyNotificationsEnabled}
                   onValueChange={(value) => updateReminderPreference({ communityReplyNotificationsEnabled: value })}
                   disabled={reminders.isSaving}
                 />
                 <PreferenceRow
-                  title="Community reactions"
+                  title="Reactions to my posts"
                   description="Let me know when someone reacts to one of my posts or replies."
                   value={reminders.communityReactionNotificationsEnabled}
                   onValueChange={(value) => updateReminderPreference({ communityReactionNotificationsEnabled: value })}
                   disabled={reminders.isSaving}
                 />
                 <PreferenceRow
-                  title="Recent category activity"
+                  title="Community activity summary"
                   description="Optional updates when new posts appear in categories I opened recently."
                   value={reminders.communityRecentActivityNotificationsEnabled}
                   onValueChange={(value) => updateReminderPreference({ communityRecentActivityNotificationsEnabled: value })}

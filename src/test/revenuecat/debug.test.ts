@@ -38,7 +38,7 @@ describe("revenuecat debug snapshot", () => {
         {
           identifier: "$rc_monthly",
           product: {
-            identifier: "livewithms_monthly",
+            identifier: "premium_monthly",
             title: "Monthly",
             priceString: "$9.99",
             price: 9.99,
@@ -48,7 +48,7 @@ describe("revenuecat debug snapshot", () => {
       ],
     );
 
-    expect(snapshot.productIdentifiers).toEqual(["livewithms_monthly"]);
+    expect(snapshot.productIdentifiers).toEqual(["premium_monthly"]);
     expect(snapshot.products[0]?.priceString).toBe("$9.99");
     expect(snapshot.products[0]?.currencyCode).toBe("USD");
   });
@@ -83,7 +83,7 @@ describe("revenuecat debug snapshot", () => {
 
     const snapshot = withRevenueCatCustomerInfo(base, {
       entitlements: { active: { premium: { identifier: "premium" } } },
-      activeSubscriptions: ["livewithms_yearly"],
+      activeSubscriptions: ["premium_yearly"],
       originalAppUserId: "private-user-id-123",
     });
 
@@ -115,8 +115,8 @@ describe("revenuecat debug snapshot", () => {
 
   it("keeps the approved RevenueCat product ids unchanged", () => {
     expect(APP_CONFIG.premium.productIds).toEqual({
-      monthly: "livewithms_monthly",
-      yearly: "livewithms_yearly",
+      monthly: "premium_monthly",
+      yearly: "premium_yearly",
     });
   });
 });

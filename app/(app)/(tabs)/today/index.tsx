@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { Animated, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Animated, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DailyCheckInCard, {
   getEmptyCheckInDraft,
@@ -29,6 +29,7 @@ import { useAppointments } from "../../../../features/appointments/hooks";
 import type { Appointment } from "../../../../features/appointments/types";
 import { useMedications } from "../../../../features/medications/hooks";
 import { medicationsApi } from "../../../../features/medications/api";
+import { buildMedicationTakenKey, getMedicationDoseEntriesForDate } from "../../../../features/medications/schedule";
 import { usePersonalizationMemory } from "../../../../features/personalization-memory/hooks";
 import { canAccessPremiumFeature } from "../../../../features/premium/entitlements";
 import { usePremium } from "../../../../features/premium/hooks";
@@ -158,39 +159,6 @@ function formatTimeLabel(time: string | null) {
   }
 
   return parsed.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function getMedicationDueTimeLabel(frequency: string, reminderTime?: string | null, reminderHour?: number, reminderMinute?: number) {
-  const normalized = frequency.toLowerCase();
-
-  if (normalized.includes("as needed") || normalized.includes("prn")) {
-    return null;
-  }
-
-  if (reminderTime) {
-    const [hourText, minuteText] = reminderTime.split(":");
-    const hourValue = Number(hourText);
-    const minuteValue = Number(minuteText);
-    const reminderDate = new Date();
-    reminderDate.setHours(hourValue, minuteValue, 0, 0);
-
-    if (!Number.isNaN(reminderDate.getTime())) {
-      return reminderDate.toLocaleTimeString(undefined, {
-        hour: "numeric",
-        minute: "2-digit",
-      });
-    }
-  }
-
-  const hour = reminderHour ?? (normalized.includes("evening") ? 19 : 9);
-  const minute = reminderMinute ?? 0;
-  const date = new Date();
-  date.setHours(hour, minute, 0, 0);
-
-  return date.toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
   });
@@ -827,7 +795,7 @@ function TodayLoadingShell({ today }: { today: string }) {
       >
       <ScrollView
         contentContainerStyle={styles.content}
-        keyboardDismissMode="interactive"
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -947,7 +915,16 @@ export default function TodayScreen() {
     () => (medicationsQuery.data ?? []).filter((medication) => medication.active),
     [medicationsQuery.data],
   );
-  const visibleTodayMedications = activeMedications;
+  const visibleTodayMedications = useMemo(
+    () =>
+      activeMedications.flatMap((medication) =>
+        getMedicationDoseEntriesForDate(medication, today).map((doseEntry) => ({
+          medication,
+          doseEntry,
+        })),
+      ),
+    [activeMedications, today],
+  );
   const upcomingAppointments = useMemo(
     () =>
       sortAppointmentsByDateTime(
@@ -2036,7 +2013,7 @@ export default function TodayScreen() {
     void Haptics.selectionAsync();
   };
 
-  const markMedicationTakenToday = (medicationId: string) => {
+  const markMedicationTakenToday = (medicationId: string, scheduledTime?: string | null) => {
     if (!user?.id) {
       return;
     }
@@ -2044,16 +2021,17 @@ export default function TodayScreen() {
     void Haptics.selectionAsync();
 
     const takenAt = new Date().toISOString();
+    const takenKey = buildMedicationTakenKey(medicationId, scheduledTime);
 
     setMedicationsTakenToday((current) => {
       const next = {
         ...current,
-        [medicationId]: takenAt,
+        [takenKey]: takenAt,
       };
       return next;
     });
 
-    void medicationsApi.markTakenToday(user.id, medicationId, today, takenAt).catch((error) => {
+    void medicationsApi.markTakenToday(user.id, medicationId, today, takenAt, scheduledTime).catch((error) => {
       logger.warn("Today medication taken state could not sync.", {
         error: getErrorMessage(error),
       });
@@ -2159,7 +2137,7 @@ export default function TodayScreen() {
             paddingBottom: Math.max(120, insets.bottom + 96),
           },
         ]}
-        keyboardDismissMode="interactive"
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -2480,28 +2458,18 @@ export default function TodayScreen() {
               <AppText style={styles.careEmptyText}>Loading medications.</AppText>
             ) : visibleTodayMedications.length > 0 ? (
               <View style={styles.careItemList}>
-                {visibleTodayMedications.map((medication) => {
-                  const takenAt = medicationsTakenToday[medication.id];
-                  const dueTime = getMedicationDueTimeLabel(
-                    medication.frequency,
-                    medication.reminder_time,
-                    reminderSettings.hour,
-                    reminderSettings.minute,
-                  );
+                {visibleTodayMedications.map(({ medication, doseEntry }) => {
+                  const takenAt = medicationsTakenToday[doseEntry.key];
 
                   return (
-                    <View key={medication.id} style={styles.medicationRow}>
+                    <View key={doseEntry.key} style={styles.medicationRow}>
                       <View style={styles.medicationCopy}>
                         <AppText style={styles.medicationName}>{medication.name}</AppText>
-                        {medication.dosage ? (
-                          <AppText style={styles.medicationDosage}>{medication.dosage}</AppText>
+                        {doseEntry.dose || medication.dosage ? (
+                          <AppText style={styles.medicationDosage}>{doseEntry.dose ?? medication.dosage}</AppText>
                         ) : null}
                         <AppText style={styles.medicationMeta}>
-                          {takenAt
-                            ? "✓ Taken today"
-                            : dueTime
-                              ? `Due at ${dueTime}`
-                              : medication.frequency}
+                          {takenAt ? "✓ Taken today" : `Due at ${doseEntry.label}`}
                         </AppText>
                       </View>
                       {takenAt ? (
@@ -2510,7 +2478,7 @@ export default function TodayScreen() {
                         </View>
                       ) : (
                         <Pressable
-                          onPress={() => markMedicationTakenToday(medication.id)}
+                          onPress={() => markMedicationTakenToday(medication.id, doseEntry.time)}
                           style={({ pressed }) => [styles.markTakenButton, pressed && styles.quickLinkPressed]}
                         >
                           <AppText style={styles.markTakenButtonText}>Mark as taken</AppText>
@@ -2873,10 +2841,12 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   todayFocusCard: {
-    backgroundColor: "#fffaf6",
+    backgroundColor: "#fff3e7",
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#f2dfcf",
+    borderColor: "#f0d4bd",
+    borderLeftWidth: 4,
+    borderLeftColor: "#d97706",
     paddingHorizontal: 16,
     paddingVertical: 14,
     gap: 6,
@@ -2885,14 +2855,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontWeight: "700",
-    color: "#9a4b0c",
+    color: "#b45309",
     textTransform: "uppercase",
   },
   todayFocusText: {
-    color: "#374151",
+    color: "#7c3607",
     fontSize: 16,
     lineHeight: 22,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   dailyIntelligenceCard: {
     backgroundColor: "#f7faf9",

@@ -3,6 +3,9 @@ import type { CommunityActivityItem } from "../community/types";
 import { REMINDER_PLANS } from "./plans";
 import { appSecureStore } from "../../lib/secure-store";
 import { loadReminderSettings } from "./storage";
+import { Platform } from "react-native";
+import type { MedicationDay, MedicationDoseTime, MedicationScheduleType } from "../medications/schedule";
+import { MEDICATION_DAY_OPTIONS } from "../medications/schedule";
 
 type NotificationsModule = {
   getPermissionsAsync: () => Promise<{ status?: string; granted?: boolean; ios?: { status?: number } }>;
@@ -22,6 +25,7 @@ type NotificationsModule = {
       title: string;
       body: string;
       sound?: boolean;
+      channelId?: string;
       categoryIdentifier?: string;
       data?: Record<string, unknown>;
     };
@@ -30,6 +34,7 @@ type NotificationsModule = {
           hour: number;
           minute: number;
           repeats: boolean;
+          weekday?: number;
         }
       | Date;
   }) => Promise<string>;
@@ -37,6 +42,17 @@ type NotificationsModule = {
   addNotificationResponseReceivedListener?: (listener: (response: NotificationResponse) => void) => {
     remove: () => void;
   };
+  getExpoPushTokenAsync?: (input?: { projectId?: string }) => Promise<{ data: string }>;
+  setNotificationChannelAsync?: (
+    channelId: string,
+    channel: {
+      name: string;
+      importance?: number;
+      vibrationPattern?: number[];
+      lightColor?: string;
+      sound?: "default" | null;
+    },
+  ) => Promise<void>;
 };
 
 type NotificationResponse = {
@@ -54,14 +70,17 @@ export type CareNotificationAction =
   | {
       type: "medication-taken";
       medicationId: string;
+      scheduledTime?: string | null;
     }
   | {
       type: "medication-skipped";
       medicationId: string;
+      scheduledTime?: string | null;
     }
   | {
       type: "medication-later";
       medicationId: string;
+      scheduledTime?: string | null;
     }
   | {
       type: "appointment-prepare";
@@ -71,11 +90,31 @@ export type CareNotificationAction =
 const CARE_REMINDER_IDS_KEY = "livewithms.care-reminder-ids";
 const MEDICATION_REMINDER_CATEGORY = "medication-reminder";
 const APPOINTMENT_REMINDER_CATEGORY = "appointment-reminder";
+const DEFAULT_NOTIFICATION_CHANNEL = "livewithms-default";
 
 function loadNotificationsModule(): NotificationsModule | null {
   try {
     const dynamicRequire = Function("return require")();
     return dynamicRequire("expo-notifications") as NotificationsModule;
+  } catch {
+    return null;
+  }
+}
+
+function loadConstantsModule() {
+  try {
+    const dynamicRequire = Function("return require")();
+    return dynamicRequire("expo-constants") as {
+      default?: {
+        expoConfig?: {
+          extra?: {
+            eas?: {
+              projectId?: string;
+            };
+          };
+        };
+      };
+    };
   } catch {
     return null;
   }
@@ -97,8 +136,48 @@ function normalizePermissionStatus(result: {
   return "unknown";
 }
 
+async function ensureAndroidNotificationChannel(Notifications: NotificationsModule) {
+  if (Platform.OS !== "android" || !Notifications.setNotificationChannelAsync) {
+    return;
+  }
+
+  await Notifications.setNotificationChannelAsync(DEFAULT_NOTIFICATION_CHANNEL, {
+    name: "LiveWithMS notifications",
+    importance: 4,
+    vibrationPattern: [0, 200, 120, 200],
+    lightColor: "#d97706",
+    sound: "default",
+  });
+}
+
 export function isNotificationsAvailable() {
   return loadNotificationsModule() !== null;
+}
+
+export async function getExpoPushToken() {
+  const Notifications = loadNotificationsModule();
+
+  if (!Notifications?.getExpoPushTokenAsync) {
+    return null;
+  }
+
+  const permissionStatus = await getReminderPermissionStatus();
+  if (permissionStatus !== "granted") {
+    return null;
+  }
+
+  try {
+    await ensureAndroidNotificationChannel(Notifications);
+    const Constants = loadConstantsModule();
+    const projectId = Constants?.default?.expoConfig?.extra?.eas?.projectId;
+    const token = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+    return {
+      token: token.data,
+      platform: Platform.OS,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function getReminderPermissionStatus(): Promise<ReminderPermissionStatus> {
@@ -125,6 +204,7 @@ export async function requestReminderPermission(): Promise<ReminderPermissionSta
 
   try {
     const permissions = await Notifications.requestPermissionsAsync();
+    await ensureAndroidNotificationChannel(Notifications);
     return normalizePermissionStatus(permissions);
   } catch {
     return "unknown";
@@ -148,6 +228,7 @@ export async function scheduleDailyReminder(
       title: defaultPlan?.title ?? "How are you feeling today?",
       body: defaultPlan?.body ?? "A quick check-in can help you notice patterns.",
       sound: false,
+      channelId: Platform.OS === "android" ? DEFAULT_NOTIFICATION_CHANNEL : undefined,
     },
     trigger: {
       hour,
@@ -192,6 +273,7 @@ export async function scheduleTestNotification() {
       title: "LiveWithMS notification test",
       body: "Notifications are working.",
       sound: !settings.quietReminders,
+      channelId: Platform.OS === "android" ? DEFAULT_NOTIFICATION_CHANNEL : undefined,
     },
     trigger: new Date(Date.now() + 10 * 1000),
   });
@@ -230,6 +312,7 @@ export async function scheduleCommunityActivityNotification(input: {
       title,
       body,
       sound: !input.quiet,
+      channelId: Platform.OS === "android" ? DEFAULT_NOTIFICATION_CHANNEL : undefined,
       data: {
         type: "community-activity",
         postId: input.item.postId,
@@ -260,6 +343,7 @@ async function saveCareReminderIds(ids: Record<string, string[]>) {
 }
 
 async function ensureCareNotificationCategories(Notifications: NotificationsModule) {
+  await ensureAndroidNotificationChannel(Notifications);
   await Notifications.setNotificationCategoryAsync?.(MEDICATION_REMINDER_CATEGORY, [
     { identifier: "taken", buttonTitle: "Taken", options: { opensAppToForeground: true } },
     { identifier: "skip", buttonTitle: "Skip", options: { opensAppToForeground: true } },
@@ -306,34 +390,86 @@ export async function cancelCareRemindersByPrefix(prefix: string) {
   }
 }
 
-async function getMedicationReminderTime(frequency: string) {
-  const settings = await loadReminderSettings();
-
-  if (settings.hour !== undefined && settings.minute !== undefined) {
-    return { hour: settings.hour, minute: settings.minute };
+function parseDoseClock(time: string) {
+  const [hour, minute] = time.split(":").map((part) => Number(part));
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) {
+    return null;
   }
 
-  const normalized = frequency.toLowerCase();
+  return { hour, minute };
+}
 
-  if (normalized.includes("evening")) {
-    return { hour: 19, minute: 0 };
+function getExpoWeekday(day: MedicationDay) {
+  return MEDICATION_DAY_OPTIONS.indexOf(day) + 1;
+}
+
+function buildMedicationReminderTriggers(input: {
+  scheduleType: MedicationScheduleType;
+  doseTimes: MedicationDoseTime[];
+  selectedDays: MedicationDay[];
+}) {
+  if (input.scheduleType === "as_needed") {
+    return [] as Array<{
+      scheduledTime: string;
+      trigger: {
+        hour: number;
+        minute: number;
+        repeats: boolean;
+        weekday?: number;
+      };
+    }>;
   }
 
-  if (normalized.includes("twice")) {
-    return { hour: 9, minute: 0 };
+  const normalizedTimes = input.doseTimes
+    .map((doseTime) => {
+      const parsed = parseDoseClock(doseTime.time);
+      if (!parsed) {
+        return null;
+      }
+
+      return {
+        scheduledTime: doseTime.time,
+        hour: parsed.hour,
+        minute: parsed.minute,
+      };
+    })
+    .filter((item): item is { scheduledTime: string; hour: number; minute: number } => Boolean(item));
+
+  if (normalizedTimes.length === 0) {
+    return [];
   }
 
-  if (normalized.includes("three")) {
-    return { hour: 9, minute: 0 };
+  if (input.scheduleType === "daily") {
+    return normalizedTimes.map((item) => ({
+      scheduledTime: item.scheduledTime,
+      trigger: {
+        hour: item.hour,
+        minute: item.minute,
+        repeats: true,
+      },
+    }));
   }
 
-  return { hour: 9, minute: 0 };
+  return input.selectedDays.flatMap((day) => {
+    const weekday = getExpoWeekday(day);
+    return normalizedTimes.map((item) => ({
+      scheduledTime: item.scheduledTime,
+      trigger: {
+        weekday,
+        hour: item.hour,
+        minute: item.minute,
+        repeats: true,
+      },
+    }));
+  });
 }
 
 export async function scheduleMedicationReminder(input: {
   medicationId: string;
   name: string;
-  frequency: string;
+  scheduleType: MedicationScheduleType;
+  doseTimes: MedicationDoseTime[];
+  selectedDays: MedicationDay[];
 }) {
   const Notifications = loadNotificationsModule();
 
@@ -357,32 +493,43 @@ export async function scheduleMedicationReminder(input: {
   await ensureCareNotificationCategories(Notifications);
   const key = `medication.${input.medicationId}`;
   await cancelCareReminders(key);
-  const timing = await getMedicationReminderTime(input.frequency);
-  const identifier = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: `Time to take ${input.name}.`,
-      body: "Mark it taken when you can.",
-      sound: !settings.quietReminders,
-      categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
-      data: {
-        type: "medication",
-        medicationId: input.medicationId,
-        medicationName: input.name,
-      },
-    },
-    trigger: {
-      hour: timing.hour,
-      minute: timing.minute,
-      repeats: true,
-    },
+  const triggers = buildMedicationReminderTriggers({
+    scheduleType: input.scheduleType,
+    doseTimes: input.doseTimes,
+    selectedDays: input.selectedDays,
   });
+
+  if (triggers.length === 0) {
+    return [];
+  }
+
+  const identifiers = await Promise.all(
+    triggers.map((item) =>
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Time to take ${input.name}.`,
+          body: "Mark it taken when you can.",
+          sound: !settings.quietReminders,
+          channelId: Platform.OS === "android" ? DEFAULT_NOTIFICATION_CHANNEL : undefined,
+          categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
+          data: {
+            type: "medication",
+            medicationId: input.medicationId,
+            medicationName: input.name,
+            scheduledTime: item.scheduledTime,
+          },
+        },
+        trigger: item.trigger,
+      }),
+    ),
+  );
   const ids = await loadCareReminderIds();
   await saveCareReminderIds({
     ...ids,
-    [key]: [identifier],
+    [key]: identifiers,
   });
 
-  return identifier;
+  return identifiers;
 }
 
 export function addCareNotificationResponseListener(
@@ -400,13 +547,14 @@ export function addCareNotificationResponseListener(
     const type = typeof data.type === "string" ? data.type : null;
 
     if (type === "medication" && typeof data.medicationId === "string") {
+      const scheduledTime = typeof data.scheduledTime === "string" ? data.scheduledTime : null;
       if (actionIdentifier === "skip") {
-        listener({ type: "medication-skipped", medicationId: data.medicationId });
+        listener({ type: "medication-skipped", medicationId: data.medicationId, scheduledTime });
         return;
       }
 
       if (actionIdentifier === "later") {
-        listener({ type: "medication-later", medicationId: data.medicationId });
+        listener({ type: "medication-later", medicationId: data.medicationId, scheduledTime });
         const medicationName = typeof data.medicationName === "string" ? data.medicationName : "your medication";
         const remindLaterAt = new Date(Date.now() + 30 * 60 * 1000);
         void Notifications.scheduleNotificationAsync({
@@ -414,6 +562,7 @@ export function addCareNotificationResponseListener(
             title: `Time to take ${medicationName}.`,
             body: "A later reminder from your medication schedule.",
             sound: false,
+            channelId: Platform.OS === "android" ? DEFAULT_NOTIFICATION_CHANNEL : undefined,
             categoryIdentifier: MEDICATION_REMINDER_CATEGORY,
             data,
           },
@@ -422,13 +571,29 @@ export function addCareNotificationResponseListener(
         return;
       }
 
-      listener({ type: "medication-taken", medicationId: data.medicationId });
+      listener({ type: "medication-taken", medicationId: data.medicationId, scheduledTime });
       return;
     }
 
     if (type === "appointment" && typeof data.appointmentId === "string") {
       listener({ type: "appointment-prepare", appointmentId: data.appointmentId });
     }
+  });
+
+  return () => subscription.remove();
+}
+
+export function addAppNotificationResponseListener(
+  listener: (response: NotificationResponse) => void,
+) {
+  const Notifications = loadNotificationsModule();
+
+  if (!Notifications?.addNotificationResponseReceivedListener) {
+    return () => undefined;
+  }
+
+  const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+    listener(response);
   });
 
   return () => subscription.remove();
@@ -503,6 +668,7 @@ export async function scheduleAppointmentReminders(input: {
               : `${input.title} is coming up at ${appointmentTimeLabel}.`,
           body: "Open Care if you want to prepare a short summary.",
           sound: !settings.quietReminders,
+          channelId: Platform.OS === "android" ? DEFAULT_NOTIFICATION_CHANNEL : undefined,
           categoryIdentifier: APPOINTMENT_REMINDER_CATEGORY,
           data: {
             type: "appointment",

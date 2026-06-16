@@ -23,8 +23,8 @@ describe("revenuecat offerings", () => {
       current: {
         identifier: "current",
         availablePackages: [
-          createPackage("$rc_monthly", "livewithms_monthly"),
-          createPackage("$rc_annual", "livewithms_yearly"),
+          createPackage("$rc_monthly", "premium_monthly"),
+          createPackage("$rc_annual", "premium_yearly"),
         ],
       },
       all: {},
@@ -42,8 +42,8 @@ describe("revenuecat offerings", () => {
         default: {
           identifier: "default",
           availablePackages: [
-            createPackage("$rc_monthly", "livewithms_monthly"),
-            createPackage("$rc_annual", "livewithms_yearly"),
+            createPackage("$rc_monthly", "premium_monthly"),
+            createPackage("$rc_annual", "premium_yearly"),
           ],
         },
       },
@@ -67,8 +67,8 @@ describe("revenuecat offerings", () => {
     const offering = {
       identifier: "default",
       availablePackages: [
-        createPackage("$rc_monthly", "livewithms_monthly"),
-        createPackage("$rc_annual", "livewithms_yearly"),
+        createPackage("$rc_monthly", "premium_monthly"),
+        createPackage("$rc_annual", "premium_yearly"),
       ],
     };
     const diagnostics = deriveOfferingsDiagnostics(

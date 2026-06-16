@@ -7,6 +7,8 @@ import type {
   CommunityCategoryId,
   CommunityBlock,
   CommunityComment,
+  CommunityNotification,
+  CommunityNotificationType,
   CommunityPost,
   CommunityPostType,
   CommunityReactionSummary,
@@ -87,6 +89,51 @@ type CommunityDatabase = {
         Update: never;
         Relationships: [];
       };
+      community_notifications: {
+        Row: CommunityNotification;
+        Insert: {
+          recipient_user_id: string;
+          actor_user_id?: string | null;
+          type: CommunityNotificationType;
+          post_id?: string | null;
+          thread_id?: string | null;
+          reaction?: CommunityReactionType | null;
+          title?: string | null;
+          body?: string | null;
+          is_read?: boolean;
+        };
+        Update: {
+          is_read?: boolean;
+          created_at?: string;
+          title?: string | null;
+          body?: string | null;
+        };
+        Relationships: [];
+      };
+      user_push_tokens: {
+        Row: {
+          id: string;
+          user_id: string;
+          expo_push_token: string;
+          platform: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          expo_push_token: string;
+          platform?: string | null;
+          is_active?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          platform?: string | null;
+          is_active?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           user_id: string;
@@ -123,6 +170,10 @@ function todayStartIso() {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   return now.toISOString();
+}
+
+function tenMinutesAgoIso() {
+  return new Date(Date.now() - 10 * 60 * 1000).toISOString();
 }
 
 function assertConfigured() {
@@ -410,6 +461,261 @@ export async function fetchCommunityBlockedUserIds(userId: string): Promise<stri
   return (data ?? []).map((row) => row.blocked_user_id);
 }
 
+export async function fetchCommunityPostById(postId: string, userId?: string | null): Promise<CommunityPost | null> {
+  if (!env.isSupabaseConfigured || !postId) {
+    return null;
+  }
+
+  assertUuid(postId, "Community thread");
+
+  const { data, error } = await db
+    .from("community_posts")
+    .select("id,user_id,parent_id,title,body,category,post_type,created_at,updated_at,is_hidden")
+    .eq("id", postId)
+    .eq("is_hidden", false)
+    .maybeSingle();
+
+  if (error) {
+    logMissingCommunitySchema(error);
+    throw error;
+  }
+
+  if (!data || data.parent_id) {
+    return null;
+  }
+
+  const [profileNames, reactionMap, repliesResponse] = await Promise.all([
+    fetchCommunityProfileNames([data.user_id]),
+    fetchReactionSummaries({
+      postIds: [data.id],
+      userId,
+    }),
+    db
+      .from("community_posts")
+      .select("id", { count: "exact", head: true })
+      .eq("parent_id", data.id)
+      .eq("is_hidden", false),
+  ]);
+
+  if (repliesResponse.error) {
+    logMissingCommunitySchema(repliesResponse.error);
+    throw repliesResponse.error;
+  }
+
+  return {
+    id: data.id,
+    user_id: data.user_id,
+    display_name: profileNames.get(data.user_id) ?? "Community member",
+    title: data.title ?? "Untitled thread",
+    body: data.body,
+    category: data.category,
+    post_type: data.post_type,
+    created_at: data.created_at,
+    updated_at: data.updated_at,
+    hidden: Boolean(data.is_hidden),
+    report_count: 0,
+    replyCount: repliesResponse.count ?? 0,
+    reactions: reactionMap.get(data.id) ?? [],
+  };
+}
+
+export async function upsertUserPushToken(input: {
+  userId: string;
+  expoPushToken: string;
+  platform?: string | null;
+}) {
+  assertConfigured();
+
+  const { error } = await db.from("user_push_tokens").upsert(
+    {
+      user_id: input.userId,
+      expo_push_token: input.expoPushToken,
+      platform: input.platform ?? null,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,expo_push_token" },
+  );
+
+  if (error) {
+    console.error("[community] push token save failed", {
+      error,
+      ...getSupabaseErrorDetails(error),
+      userId: input.userId,
+    });
+    throw error;
+  }
+}
+
+async function fetchActivePushTokens(recipientUserId: string) {
+  const { data, error } = await db
+    .from("user_push_tokens")
+    .select("expo_push_token")
+    .eq("user_id", recipientUserId)
+    .eq("is_active", true);
+
+  if (error) {
+    console.error("[community] push token lookup failed", {
+      error,
+      ...getSupabaseErrorDetails(error),
+      recipientUserId,
+    });
+    return [] as string[];
+  }
+
+  return (data ?? [])
+    .map((row) => row.expo_push_token)
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+}
+
+async function sendExpoPushNotification(input: {
+  tokens: string[];
+  title: string;
+  body: string;
+  data: Record<string, unknown>;
+}) {
+  if (input.tokens.length === 0) {
+    return;
+  }
+
+  try {
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(
+        input.tokens.map((token) => ({
+          to: token,
+          title: input.title,
+          body: input.body,
+          sound: "default",
+          data: input.data,
+        })),
+      ),
+    });
+
+    if (!response.ok) {
+      console.error("[community] push send failed", {
+        status: response.status,
+        statusText: response.statusText,
+      });
+    }
+  } catch (error) {
+    console.error("[community] push send failed", error);
+  }
+}
+
+export async function createCommunityNotification(input: {
+  recipientUserId: string;
+  actorUserId: string;
+  type: CommunityNotificationType;
+  postId?: string | null;
+  threadId?: string | null;
+  reaction?: CommunityReactionType | null;
+  title: string;
+  body: string;
+}) {
+  assertConfigured();
+
+  if (!input.recipientUserId || input.recipientUserId === input.actorUserId) {
+    return null;
+  }
+
+  const recentThreshold = tenMinutesAgoIso();
+  const { data: existing, error: existingError } = await db
+    .from("community_notifications")
+    .select("id")
+    .eq("recipient_user_id", input.recipientUserId)
+    .eq("actor_user_id", input.actorUserId)
+    .eq("type", input.type)
+    .eq("post_id", input.postId ?? null)
+    .eq("thread_id", input.threadId ?? null)
+    .eq("reaction", input.reaction ?? null)
+    .gte("created_at", recentThreshold)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error("[community] notification lookup failed", {
+      error: existingError,
+      ...getSupabaseErrorDetails(existingError),
+      recipientUserId: input.recipientUserId,
+      actorUserId: input.actorUserId,
+      type: input.type,
+    });
+  }
+
+  let notificationId: string | null = null;
+
+  if (existing?.id) {
+    const { data: updated, error: updateError } = await db
+      .from("community_notifications")
+      .update({
+        is_read: false,
+        title: input.title,
+        body: input.body,
+        created_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .select("id")
+      .single();
+
+    if (updateError) {
+      console.error("[community] notification update failed", {
+        error: updateError,
+        ...getSupabaseErrorDetails(updateError),
+      });
+      throw updateError;
+    }
+
+    notificationId = updated.id;
+  } else {
+    const { data, error } = await db
+      .from("community_notifications")
+      .insert({
+        recipient_user_id: input.recipientUserId,
+        actor_user_id: input.actorUserId,
+        type: input.type,
+        post_id: input.postId ?? null,
+        thread_id: input.threadId ?? null,
+        reaction: input.reaction ?? null,
+        title: input.title,
+        body: input.body,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("[community] notification create failed", {
+        error,
+        ...getSupabaseErrorDetails(error),
+      });
+      throw error;
+    }
+
+    notificationId = data.id;
+  }
+
+  const tokens = await fetchActivePushTokens(input.recipientUserId);
+  await sendExpoPushNotification({
+    tokens,
+    title: input.title,
+    body: input.body,
+    data: {
+      type: "community-activity",
+      threadId: input.threadId ?? input.postId ?? null,
+      postId: input.postId ?? null,
+      notificationId,
+      communityActivityType: input.type,
+    },
+  });
+
+  return notificationId;
+}
+
 export async function createCommunityPost(input: {
   userId: string;
   displayName: string;
@@ -517,88 +823,19 @@ export async function fetchCommunityActivity(input: {
   }
 
   const lastSeenAt = input.lastSeenAt ?? new Date(0).toISOString();
-  const { data: ownPosts, error: ownPostsError } = await db
-    .from("community_posts")
-    .select("id,title,category")
-    .eq("user_id", input.userId)
-    .eq("is_hidden", false)
-    .is("parent_id", null)
-    .order("created_at", { ascending: false })
-    .limit(40);
-
-  if (ownPostsError) {
-    logMissingCommunitySchema(ownPostsError);
-    throw ownPostsError;
-  }
-
-  const { data: ownComments, error: ownCommentsError } = await db
-    .from("community_posts")
-    .select("id,parent_id")
-    .eq("user_id", input.userId)
-    .eq("is_hidden", false)
-    .not("parent_id", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(80);
-
-  if (ownCommentsError) {
-    logMissingCommunitySchema(ownCommentsError);
-    throw ownCommentsError;
-  }
-
-  const ownPostMap = new Map((ownPosts ?? []).map((post) => [post.id, post]));
-  const ownPostIds = Array.from(ownPostMap.keys());
-  const ownCommentIds = (ownComments ?? []).map((comment) => comment.id);
-
-  const replyRows = ownPostIds.length
-    ? await db
-        .from("community_posts")
-        .select("id,parent_id,user_id,body,created_at")
-        .in("parent_id", ownPostIds)
-        .eq("is_hidden", false)
-        .gt("created_at", lastSeenAt)
-        .neq("user_id", input.userId)
-        .order("created_at", { ascending: false })
-        .limit(20)
-    : { data: [], error: null };
-
-  if (replyRows.error) {
-    logMissingCommunitySchema(replyRows.error);
-    throw replyRows.error;
-  }
-
-  const postReactionRows = ownPostIds.length
-    ? await db
-        .from("community_reactions")
-        .select("id,user_id,post_id,reaction,created_at")
-        .in("post_id", ownPostIds)
-        .gt("created_at", lastSeenAt)
-        .neq("user_id", input.userId)
-        .order("created_at", { ascending: false })
-        .limit(20)
-    : { data: [], error: null };
-
-  if (postReactionRows.error) {
-    logMissingCommunitySchema(postReactionRows.error);
-    throw postReactionRows.error;
-  }
-
-  const commentReactionRows = ownCommentIds.length
-    ? await db
-        .from("community_reactions")
-        .select("id,user_id,post_id,reaction,created_at")
-        .in("post_id", ownCommentIds)
-        .gt("created_at", lastSeenAt)
-        .neq("user_id", input.userId)
-        .order("created_at", { ascending: false })
-        .limit(20)
-    : { data: [], error: null };
-
-  if (commentReactionRows.error) {
-    logMissingCommunitySchema(commentReactionRows.error);
-    throw commentReactionRows.error;
-  }
-
   const recentCategories = (input.recentCategories ?? []).filter(Boolean);
+  const { data: notificationRows, error: notificationsError } = await db
+    .from("community_notifications")
+    .select("id,recipient_user_id,actor_user_id,type,post_id,thread_id,reaction,title,body,is_read,created_at")
+    .eq("recipient_user_id", input.userId)
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  if (notificationsError) {
+    logMissingCommunitySchema(notificationsError);
+    throw notificationsError;
+  }
+
   const recentPostRows = recentCategories.length
     ? await db
         .from("community_posts")
@@ -618,75 +855,58 @@ export async function fetchCommunityActivity(input: {
   }
 
   const actorIds = new Set<string>();
-  for (const row of replyRows.data ?? []) actorIds.add(row.user_id);
-  for (const row of postReactionRows.data ?? []) actorIds.add(row.user_id);
-  for (const row of commentReactionRows.data ?? []) actorIds.add(row.user_id);
+  for (const row of notificationRows ?? []) {
+    if (row.actor_user_id) actorIds.add(row.actor_user_id);
+  }
   for (const row of recentPostRows.data ?? []) actorIds.add(row.user_id);
   const actorNames = await fetchCommunityProfileNames(Array.from(actorIds));
 
-  const replies: CommunityActivityItem[] = (replyRows.data ?? []).map((row) => {
-    const post = ownPostMap.get(row.parent_id ?? "");
+  const threadIds = Array.from(
+    new Set(
+      (notificationRows ?? [])
+        .map((row) => row.thread_id ?? row.post_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0),
+    ),
+  );
+  const threadRows = threadIds.length
+    ? await db
+        .from("community_posts")
+        .select("id,title,category")
+        .in("id", threadIds)
+        .eq("is_hidden", false)
+    : { data: [], error: null };
+
+  if (threadRows.error) {
+    logMissingCommunitySchema(threadRows.error);
+    throw threadRows.error;
+  }
+
+  const threadMap = new Map((threadRows.data ?? []).map((post) => [post.id, post]));
+  const notificationItems: CommunityActivityItem[] = (notificationRows ?? []).map((row) => {
+    const threadId = row.thread_id ?? row.post_id ?? "";
+    const thread = threadMap.get(threadId);
+    const type = row.type === "reply_to_thread" ? "reply" : "reaction";
     return {
-      id: `reply:${row.id}`,
-      type: "reply",
+      id: `notification:${row.id}`,
+      notificationId: row.id,
+      type,
       created_at: row.created_at,
-      postId: row.parent_id ?? "",
-      postTitle: post?.title ?? "Your thread",
-      category: post?.category ?? "community-support",
-      actorDisplayName: actorNames.get(row.user_id) ?? "Community member",
-      preview: previewCommunityText(row.body),
+      postId: threadId,
+      postTitle: thread?.title ?? row.title ?? "Community thread",
+      category: thread?.category ?? "community-support",
+      actorDisplayName: row.actor_user_id ? (actorNames.get(row.actor_user_id) ?? "Community member") : "Community member",
+      preview:
+        row.body ??
+        (row.type === "reply_to_thread"
+          ? "Someone replied to your thread."
+          : row.type === "reaction_to_reply"
+            ? `Reacted to your reply${row.reaction ? ` with ${row.reaction}` : ""}.`
+            : `Reacted to your post${row.reaction ? ` with ${row.reaction}` : ""}.`),
     };
   });
 
-  const commentPostIds = Array.from(new Set((ownComments ?? []).map((comment) => comment.parent_id).filter(Boolean)));
-  const commentPosts = commentPostIds.length
-    ? await db.from("community_posts").select("id,title,category").in("id", commentPostIds).eq("is_hidden", false)
-    : { data: [], error: null };
-
-  if (commentPosts.error) {
-    logMissingCommunitySchema(commentPosts.error);
-    throw commentPosts.error;
-  }
-
-  const commentPostMap = new Map((commentPosts.data ?? []).map((post) => [post.id, post]));
-  const ownCommentPostMap = new Map(
-    (ownComments ?? [])
-      .filter((comment) => Boolean(comment.parent_id))
-      .map((comment) => [comment.id, comment.parent_id as string]),
-  );
-
-  const reactions: CommunityActivityItem[] = [
-    ...(postReactionRows.data ?? []).map((row) => {
-      const post = ownPostMap.get(row.post_id ?? "");
-      return {
-        id: `post-reaction:${row.id}`,
-        type: "reaction" as const,
-        created_at: row.created_at,
-        postId: row.post_id ?? "",
-        postTitle: post?.title ?? "Your thread",
-        category: post?.category ?? "community-support",
-        actorDisplayName: actorNames.get(row.user_id) ?? "Community member",
-        preview: `Reacted with ${row.reaction}.`,
-      };
-    }),
-    ...(commentReactionRows.data ?? []).map((row) => {
-      const postId = ownCommentPostMap.get(row.post_id ?? "") ?? "";
-      const post = commentPostMap.get(postId);
-      return {
-        id: `comment-reaction:${row.id}`,
-        type: "reaction" as const,
-        created_at: row.created_at,
-        postId,
-        postTitle: post?.title ?? "A thread you replied to",
-        category: post?.category ?? "community-support",
-        actorDisplayName: actorNames.get(row.user_id) ?? "Community member",
-        preview: `Reacted to your reply with ${row.reaction}.`,
-      };
-    }),
-  ];
-
   const recentPosts: CommunityActivityItem[] = (recentPostRows.data ?? []).map((row) => ({
-    id: `post:${row.id}`,
+    id: `summary-post:${row.id}`,
     type: "post",
     created_at: row.created_at,
     postId: row.id,
@@ -696,15 +916,49 @@ export async function fetchCommunityActivity(input: {
     preview: previewCommunityText(row.body),
   }));
 
-  const recentActivity = [...replies, ...reactions, ...recentPosts]
+  const unreadNotifications = (notificationRows ?? []).filter((row) => !row.is_read);
+  const replies = notificationItems.filter((item) => item.type === "reply");
+  const recentActivity = [...notificationItems, ...recentPosts]
     .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
     .slice(0, 8);
 
   return {
-    unreadCount: recentActivity.length,
+    unreadCount: unreadNotifications.length,
     newReplies: replies.slice(0, 5),
     recentActivity,
   };
+}
+
+export async function markCommunityNotificationsRead(input: {
+  userId: string;
+  notificationIds?: string[];
+  threadId?: string;
+}) {
+  if (!env.isSupabaseConfigured || !input.userId) {
+    return;
+  }
+
+  let query = db
+    .from("community_notifications")
+    .update({ is_read: true })
+    .eq("recipient_user_id", input.userId)
+    .eq("is_read", false);
+
+  if (input.notificationIds && input.notificationIds.length > 0) {
+    query = query.in("id", input.notificationIds);
+  } else if (input.threadId) {
+    query = query.eq("thread_id", input.threadId);
+  }
+
+  const { error } = await query.select("id");
+  if (error) {
+    console.error("[community] notification mark-read failed", {
+      error,
+      ...getSupabaseErrorDetails(error),
+      userId: input.userId,
+      threadId: input.threadId,
+    });
+  }
 }
 
 export async function toggleCommunityReaction(input: {

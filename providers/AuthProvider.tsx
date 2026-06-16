@@ -22,6 +22,17 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   const initializedRef = useRef(false);
   const readyRef = useRef(false);
 
+  useEffect(() => {
+    if (!__DEV__) {
+      return;
+    }
+
+    console.log("[startup] AuthProvider initialization", {
+      isSupabaseConfigured: env.isSupabaseConfigured,
+      supabaseProjectRef: env.supabaseProjectRef,
+    });
+  }, []);
+
   const setDevMockState = useCallback((state: DevMockAuthState) => {
     setGlobalDevMockAuthState(state);
   }, []);
@@ -107,6 +118,12 @@ export default function AuthProvider({ children }: PropsWithChildren) {
 
     if (!env.isSupabaseConfigured) {
       logger.warn("AuthProvider using dev-only mock auth mode");
+      if (__DEV__) {
+        console.log("[startup] Session load end", {
+          source: "mock-auth",
+          hasSession: Boolean(getMockSessionData().session),
+        });
+      }
       const initial = getMockSessionData();
       setSession(initial.session);
       setUser(initial.user);
@@ -120,6 +137,12 @@ export default function AuthProvider({ children }: PropsWithChildren) {
 
       if (!readyRef.current) {
         readyRef.current = true;
+        if (__DEV__) {
+          console.log("[startup] RouteGate appReady state", {
+            source: "mock-auth",
+            appReady: true,
+          });
+        }
         setIsReady(true);
       }
 
@@ -127,17 +150,42 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     }
 
     const { data } = authApi.onAuthStateChange((nextSession) => {
+      if (__DEV__) {
+        console.log("[startup] Auth state changed", {
+          event: "onAuthStateChange",
+          hasSession: Boolean(nextSession),
+          userId: nextSession?.user?.id ?? null,
+        });
+      }
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
     });
 
+    if (__DEV__) {
+      console.log("[startup] Session load start", {
+        source: "supabase",
+      });
+    }
+
     void authApi
       .getSession()
       .then((nextSession) => {
+        if (__DEV__) {
+          console.log("[startup] Session load end", {
+            source: "supabase",
+            hasSession: Boolean(nextSession),
+            userId: nextSession?.user?.id ?? null,
+          });
+        }
         setSession(nextSession);
         setUser(nextSession?.user ?? null);
       })
       .catch((error) => {
+        if (__DEV__) {
+          console.error("[startup] Session load failed", {
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
         logger.error("Initial session restore failed", { error: String(error) });
         setSession(null);
         setUser(null);
@@ -145,6 +193,12 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       .finally(() => {
         if (!readyRef.current) {
           readyRef.current = true;
+          if (__DEV__) {
+            console.log("[startup] RouteGate appReady state", {
+              source: "auth-provider-finally",
+              appReady: true,
+            });
+          }
           setIsReady(true);
         }
       });

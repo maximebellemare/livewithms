@@ -30,6 +30,14 @@ export default function PublicLayout() {
             headerShadowVisible: false,
           }}
         />
+        <Stack.Screen
+          name="account-deletion"
+          options={{
+            title: "Account Deletion",
+            headerBackTitle: "Back",
+            headerShadowVisible: false,
+          }}
+        />
       </Stack>
     </RouteGate>
   );

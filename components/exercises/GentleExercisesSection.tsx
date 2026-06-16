@@ -33,6 +33,17 @@ type MemoryCard = {
   matched: boolean;
 };
 
+type MemoryDeckMode = "words" | "icons" | "illustrations" | "mixed";
+type PatternMode = "words" | "icons" | "shapes" | "numbers" | "colors" | "categories";
+
+type PatternRoundData = {
+  sequence: string[];
+  answer: string;
+  options: string[];
+  mode: PatternMode;
+  modeLabel: string;
+};
+
 type FocusTargetItem = {
   id: number;
   color: "blue" | "green" | "orange";
@@ -48,8 +59,12 @@ type CompletionSummary = {
   newBest?: boolean;
 };
 
-const MEMORY_SYMBOLS = ["Leaf", "Moon", "Wave", "Stone", "Fern", "Rain", "Shell", "Star", "Moss", "Lake"];
+const MEMORY_WORDS = ["Apple", "Dog", "Car", "House", "River", "Cloud", "Forest", "Book", "Garden", "Bridge", "Sun", "Train"];
+const MEMORY_ICONS = ["🍎", "🐶", "🚗", "🏠", "🌊", "☁️", "🌲", "📘", "🌼", "🌉", "☀️", "🚂"];
+const MEMORY_ILLUSTRATIONS = ["🌳 Tree", "🌙 Moon", "🌧️ Rain", "🐚 Shell", "⭐ Star", "🏡 House", "🌻 Flower", "🦊 Fox", "⛰️ Mountain", "🚲 Bicycle", "🐦 Bird", "🍋 Lemon"];
 const SEQUENCE_TILES = ["1", "2", "3", "4", "5"];
+const MEMORY_DECK_MODES: MemoryDeckMode[] = ["words", "icons", "illustrations", "mixed"];
+const PATTERN_MODES: PatternMode[] = ["words", "icons", "shapes", "numbers", "colors", "categories"];
 const DIFFICULTIES: Array<{ id: ExerciseDifficulty; label: string }> = [
   { id: "easy", label: "Easy" },
   { id: "medium", label: "Medium" },
@@ -58,6 +73,10 @@ const DIFFICULTIES: Array<{ id: ExerciseDifficulty; label: string }> = [
 
 function shuffle<T>(items: T[]) {
   return [...items].sort(() => Math.random() - 0.5);
+}
+
+function pickRandom<T>(items: T[]) {
+  return items[Math.floor(Math.random() * items.length)];
 }
 
 function formatDuration(milliseconds: number) {
@@ -182,14 +201,14 @@ function getReactionConfig(difficulty: ExerciseDifficulty) {
 
 function getPatternConfig(difficulty: ExerciseDifficulty) {
   if (difficulty === "easy") {
-    return { rounds: 8, itemCount: 6, oddLabel: "Oval", baseLabel: "Circle" };
+    return { rounds: 8, sequenceLength: 4, optionCount: 3 };
   }
 
   if (difficulty === "hard") {
-    return { rounds: 12, itemCount: 12, oddLabel: "Wide oval", baseLabel: "Oval" };
+    return { rounds: 12, sequenceLength: 6, optionCount: 4 };
   }
 
-  return { rounds: 10, itemCount: 9, oddLabel: "Square", baseLabel: "Circle" };
+  return { rounds: 10, sequenceLength: 5, optionCount: 4 };
 }
 
 function getFocusSprintConfig(difficulty: ExerciseDifficulty) {
@@ -212,16 +231,140 @@ function generateSequence(length: number, tileCount: number) {
   return Array.from({ length }, () => SEQUENCE_TILES[Math.floor(Math.random() * tileCount)]);
 }
 
-function generatePatternRound(difficulty: ExerciseDifficulty, round: number) {
-  const config = getPatternConfig(difficulty);
-  const oddIndex = (round * 2 + (difficulty === "hard" ? 3 : 1)) % config.itemCount;
+function buildAlternatingPattern<T>(values: T[], length: number) {
+  return Array.from({ length }, (_, index) => values[index % values.length]);
+}
 
+function buildAlternatingNextOptions(correct: string, distractors: string[], optionCount: number) {
+  return shuffle([correct, ...distractors.filter((item) => item !== correct).slice(0, Math.max(0, optionCount - 1))]);
+}
+
+function generatePatternRound(difficulty: ExerciseDifficulty, round: number): PatternRoundData {
+  const config = getPatternConfig(difficulty);
+  const mode = PATTERN_MODES[(round - 1 + Math.floor(Math.random() * PATTERN_MODES.length)) % PATTERN_MODES.length];
+
+  if (mode === "words") {
+    const pair = shuffle(["Apple", "Banana", "Pear", "Grape", "House", "River"]).slice(0, 2);
+    const sequence = buildAlternatingPattern(pair, config.sequenceLength);
+    const answer = pair[config.sequenceLength % 2];
+    return {
+      sequence,
+      answer,
+      options: buildAlternatingNextOptions(answer, ["Pear", "Grape", pair[0] === "Apple" ? "Orange" : "Apple"], config.optionCount),
+      mode,
+      modeLabel: "Words",
+    };
+  }
+
+  if (mode === "icons") {
+    const pair = shuffle(["🍎", "🍌", "🚗", "🏠", "⭐", "🌊"]).slice(0, 2);
+    const sequence = buildAlternatingPattern(pair, config.sequenceLength);
+    const answer = pair[config.sequenceLength % 2];
+    return {
+      sequence,
+      answer,
+      options: buildAlternatingNextOptions(answer, ["🚗", "🏠", "⭐"], config.optionCount),
+      mode,
+      modeLabel: "Icons",
+    };
+  }
+
+  if (mode === "shapes") {
+    const pattern = ["⭐", "⭐", "🔺"];
+    const sequence = Array.from({ length: config.sequenceLength }, (_, index) => pattern[index % pattern.length]);
+    const answer = pattern[config.sequenceLength % pattern.length];
+    return {
+      sequence,
+      answer,
+      options: buildAlternatingNextOptions(answer, ["⚫", "🟦", "⬟"], config.optionCount),
+      mode,
+      modeLabel: "Shapes",
+    };
+  }
+
+  if (mode === "numbers") {
+    const start = difficulty === "easy" ? 2 : difficulty === "hard" ? 3 : 4;
+    const step = difficulty === "easy" ? 2 : difficulty === "hard" ? 3 : 2;
+    const sequence = Array.from({ length: config.sequenceLength }, (_, index) => String(start + index * step));
+    const answer = String(start + config.sequenceLength * step);
+    return {
+      sequence,
+      answer,
+      options: buildAlternatingNextOptions(
+        answer,
+        [String(Number(answer) + step), String(Number(answer) - step), String(Number(answer) + step * 2)],
+        config.optionCount,
+      ),
+      mode,
+      modeLabel: "Numbers",
+    };
+  }
+
+  if (mode === "colors") {
+    const pair = shuffle(["Blue", "Green", "Orange", "Purple", "Yellow", "Teal"]).slice(0, 2);
+    const sequence = buildAlternatingPattern(pair, config.sequenceLength);
+    const answer = pair[config.sequenceLength % 2];
+    return {
+      sequence,
+      answer,
+      options: buildAlternatingNextOptions(answer, ["Orange", "Purple", "Yellow"], config.optionCount),
+      mode,
+      modeLabel: "Colors",
+    };
+  }
+
+  const categoryPattern = ["Apple", "Dog", "Banana", "Cat", "Orange", "Bird", "Pear"];
+  const sequence = categoryPattern.slice(0, config.sequenceLength);
+  const answer = categoryPattern[config.sequenceLength] ?? "Pear";
   return {
-    items: Array.from({ length: config.itemCount }, (_, index) =>
-      index === oddIndex ? config.oddLabel : config.baseLabel,
-    ),
-    answerIndex: oddIndex,
+    sequence,
+    answer,
+    options: buildAlternatingNextOptions(answer, ["Chair", "River", "Carrot"], config.optionCount),
+    mode,
+    modeLabel: "Categories",
   };
+}
+
+function getMemoryModeLabel(mode: MemoryDeckMode) {
+  if (mode === "words") {
+    return "Words";
+  }
+
+  if (mode === "icons") {
+    return "Icons";
+  }
+
+  if (mode === "illustrations") {
+    return "Illustrations";
+  }
+
+  return "Mixed";
+}
+
+function buildMemorySymbols(mode: MemoryDeckMode, pairCount: number) {
+  if (mode === "words") {
+    return MEMORY_WORDS.slice(0, pairCount);
+  }
+
+  if (mode === "icons") {
+    return MEMORY_ICONS.slice(0, pairCount);
+  }
+
+  if (mode === "illustrations") {
+    return MEMORY_ILLUSTRATIONS.slice(0, pairCount);
+  }
+
+  const mixed: string[] = [];
+  for (let index = 0; index < pairCount; index += 1) {
+    const source =
+      index % 3 === 0
+        ? MEMORY_ICONS
+        : index % 3 === 1
+          ? MEMORY_WORDS
+          : MEMORY_ILLUSTRATIONS;
+    mixed.push(source[index]);
+  }
+  return mixed;
 }
 
 function generateFocusSprintRound(difficulty: ExerciseDifficulty, round: number) {
@@ -300,6 +443,7 @@ export default function GentleExercisesSection({
   const [memoryCards, setMemoryCards] = useState<MemoryCard[]>([]);
   const [selectedMemoryIds, setSelectedMemoryIds] = useState<number[]>([]);
   const [memoryMoves, setMemoryMoves] = useState(0);
+  const [memoryMode, setMemoryMode] = useState<MemoryDeckMode>("words");
 
   const [steadyTapTimes, setSteadyTapTimes] = useState<number[]>([]);
   const [steadyRemainingMs, setSteadyRemainingMs] = useState(30000);
@@ -310,6 +454,8 @@ export default function GentleExercisesSection({
   const [sequenceHighestLength, setSequenceHighestLength] = useState(0);
   const [sequenceShowing, setSequenceShowing] = useState(true);
   const [sequencePlaybackIndex, setSequencePlaybackIndex] = useState<number | null>(null);
+  const [sequenceTappedTile, setSequenceTappedTile] = useState<{ value: string; nonce: number } | null>(null);
+  const [sequenceAnswerState, setSequenceAnswerState] = useState<"idle" | "correct" | "incorrect">("idle");
 
   const [reactionState, setReactionState] = useState<ReactionState>("waiting");
   const [reactionTrial, setReactionTrial] = useState(1);
@@ -356,7 +502,23 @@ export default function GentleExercisesSection({
   );
   const selectedBest = selectedExerciseId ? bests[selectedExerciseId]?.[difficulty] ?? null : null;
   const limitReached = !hasPremiumAccess && (usage?.count ?? 0) >= FREE_DAILY_EXERCISE_LIMIT;
-  const visibleExercises = lowEnergyMode ? EXERCISES.slice(0, 3) : EXERCISES;
+  const visibleExercises = EXERCISES;
+
+  useEffect(() => {
+    if (!__DEV__) {
+      return;
+    }
+
+    console.log("[programs-exercises]", {
+      totalPrograms: EXERCISES.length,
+      filteredPrograms: visibleExercises.length,
+      visiblePrograms: visibleExercises.map((exercise) => exercise.title),
+      activeCategory: null,
+      activeFilter: lowEnergyMode ? "low-energy-mode" : "all",
+      premiumStatus: hasPremiumAccess,
+      lowEnergyMode,
+    });
+  }, [hasPremiumAccess, lowEnergyMode, visibleExercises]);
 
   useEffect(() => {
     let cancelled = false;
@@ -472,6 +634,7 @@ export default function GentleExercisesSection({
   const resetExerciseState = () => {
     setSelectedMemoryIds([]);
     setMemoryMoves(0);
+    setMemoryMode("words");
     setElapsedMs(0);
     setSteadyTapTimes([]);
     steadyCompletedRef.current = false;
@@ -480,6 +643,8 @@ export default function GentleExercisesSection({
     setSequenceHighestLength(0);
     setSequenceShowing(true);
     setSequencePlaybackIndex(null);
+    setSequenceTappedTile(null);
+    setSequenceAnswerState("idle");
     setReactionState("waiting");
     setReactionTrial(1);
     setReactionTimes([]);
@@ -499,9 +664,9 @@ export default function GentleExercisesSection({
   };
 
   const buildMemoryCards = (nextDifficulty = difficulty) => {
-    const symbols = getMemoryPairCount(nextDifficulty) === 8
-      ? MEMORY_SYMBOLS.slice(0, 8)
-      : MEMORY_SYMBOLS.slice(0, getMemoryPairCount(nextDifficulty));
+    const nextMode = pickRandom(MEMORY_DECK_MODES);
+    const symbols = buildMemorySymbols(nextMode, getMemoryPairCount(nextDifficulty));
+    setMemoryMode(nextMode);
     setMemoryCards(
       shuffle([...symbols, ...symbols]).map((label, index) => ({
         id: index,
@@ -720,6 +885,14 @@ export default function GentleExercisesSection({
       return;
     }
 
+    const tapMarker = { value: tile, nonce: Date.now() };
+    setSequenceTappedTile(tapMarker);
+    setTimeout(() => {
+      setSequenceTappedTile((current) =>
+        current && current.value === tapMarker.value && current.nonce === tapMarker.nonce ? null : current,
+      );
+    }, 220);
+
     const nextInput = [...sequenceInput, tile];
     setSequenceInput(nextInput);
 
@@ -728,6 +901,7 @@ export default function GentleExercisesSection({
     }
 
     const correct = nextInput.every((value, index) => value === sequenceValue[index]);
+    setSequenceAnswerState(correct ? "correct" : "incorrect");
     const config = getSequenceConfig(difficulty);
     const rememberedLength = correct ? sequenceRoundLength : Math.max(config.startLength - 1, sequenceRoundLength - 1);
     setSequenceHighestLength(Math.max(sequenceHighestLength, rememberedLength));
@@ -749,6 +923,8 @@ export default function GentleExercisesSection({
     setSequenceInput([]);
     setSequenceShowing(true);
     setSequencePlaybackIndex(null);
+    setSequenceTappedTile(null);
+    setSequenceAnswerState("idle");
     setStatus("Correct. Watch the next sequence.");
   };
 
@@ -793,9 +969,9 @@ export default function GentleExercisesSection({
     setReactionState("waiting");
   };
 
-  const handlePatternChoice = (index: number) => {
+  const handlePatternChoice = (choice: string) => {
     const config = getPatternConfig(difficulty);
-    const nextCorrect = patternCorrect + (index === patternData.answerIndex ? 1 : 0);
+    const nextCorrect = patternCorrect + (choice === patternData.answer ? 1 : 0);
     setPatternCorrect(nextCorrect);
 
     if (patternRound >= config.rounds) {
@@ -960,7 +1136,7 @@ export default function GentleExercisesSection({
           <AppText style={styles.exerciseInstruction}>Find the matching pairs.</AppText>
           <AppText style={styles.exerciseMeta}>{selectedExercise.purpose}</AppText>
           {renderProgressHeader(
-            `${getMemoryPairCount(difficulty)} pairs`,
+            `${getMemoryPairCount(difficulty)} pairs • ${getMemoryModeLabel(memoryMode)}`,
             `Time: ${formatDuration(elapsedMs)} • Moves: ${memoryMoves}`,
           )}
           <View style={styles.memoryGrid}>
@@ -1056,9 +1232,22 @@ export default function GentleExercisesSection({
                     key={item}
                     accessibilityRole="button"
                     onPress={() => handleSequenceInput(item)}
-                    style={({ pressed }) => [styles.choiceChip, pressed && styles.cardPressed]}
+                    style={({ pressed }) => [
+                      styles.choiceChip,
+                      sequenceTappedTile?.value === item && styles.choiceChipSelected,
+                      sequenceAnswerState === "correct" && sequenceTappedTile?.value === item && styles.choiceChipCorrect,
+                      sequenceAnswerState === "incorrect" && sequenceTappedTile?.value === item && styles.choiceChipIncorrect,
+                      pressed && styles.cardPressed,
+                    ]}
                   >
-                    <AppText style={styles.choiceChipText}>{item}</AppText>
+                    <AppText
+                      style={[
+                        styles.choiceChipText,
+                        sequenceTappedTile?.value === item && styles.choiceChipTextSelected,
+                      ]}
+                    >
+                      {item}
+                    </AppText>
                   </Pressable>
                 ))}
               </View>
@@ -1109,16 +1298,40 @@ export default function GentleExercisesSection({
       return (
         <View style={styles.exercisePanel}>
           <AppText style={styles.exerciseInstruction}>
-            Find the item that is different. Round {patternRound} of {config.rounds}
+            What comes next? Round {patternRound} of {config.rounds}
           </AppText>
           <AppText style={styles.exerciseMeta}>{selectedExercise.purpose}</AppText>
-          {renderProgressHeader(`${patternRound}/${config.rounds}`, `Correct so far: ${patternCorrect}/${config.rounds}`)}
+          {renderProgressHeader(`${patternRound}/${config.rounds} • ${patternData.modeLabel}`, `Correct so far: ${patternCorrect}/${config.rounds}`)}
+          <View style={styles.patternSequenceRow}>
+            {patternData.sequence.map((item, index) => (
+              <View
+                key={`${patternData.mode}-${index}-${item}`}
+                style={[
+                  styles.patternCard,
+                  difficulty === "medium" && styles.patternCardMedium,
+                  difficulty === "hard" && styles.patternCardHard,
+                ]}
+              >
+                <AppText style={styles.patternText}>{item}</AppText>
+              </View>
+            ))}
+            <View
+              style={[
+                styles.patternCard,
+                styles.patternQuestionCard,
+                difficulty === "medium" && styles.patternCardMedium,
+                difficulty === "hard" && styles.patternCardHard,
+              ]}
+            >
+              <AppText style={styles.patternText}>?</AppText>
+            </View>
+          </View>
           <View style={styles.patternGrid}>
-            {patternData.items.map((item, index) => (
+            {patternData.options.map((item) => (
               <Pressable
-                key={`${item}-${index}`}
+                key={`${patternData.mode}-option-${item}`}
                 accessibilityRole="button"
-                onPress={() => handlePatternChoice(index)}
+                onPress={() => handlePatternChoice(item)}
                 style={({ pressed }) => [
                   styles.patternCard,
                   difficulty === "medium" && styles.patternCardMedium,
@@ -1489,10 +1702,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  choiceChipSelected: {
+    backgroundColor: "#eaf3ff",
+    borderColor: "#5b8def",
+    transform: [{ scale: 1.03 }],
+  },
+  choiceChipCorrect: {
+    backgroundColor: "#e8f7ec",
+    borderColor: "#58a56a",
+  },
+  choiceChipIncorrect: {
+    backgroundColor: "#fbecec",
+    borderColor: "#d98282",
+  },
   choiceChipText: {
     color: "#1f2937",
     fontSize: 18,
     fontWeight: "800",
+  },
+  choiceChipTextSelected: {
+    color: "#2557a7",
   },
   reactionTarget: {
     alignSelf: "center",
@@ -1508,6 +1737,11 @@ const styles = StyleSheet.create({
     borderColor: "#7abf83",
   },
   patternGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  patternSequenceRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
@@ -1528,6 +1762,10 @@ const styles = StyleSheet.create({
   patternCardHard: {
     width: "22%",
     minHeight: 64,
+  },
+  patternQuestionCard: {
+    backgroundColor: "#fff6ee",
+    borderColor: "#f0d1b5",
   },
   patternText: {
     color: "#1f2937",

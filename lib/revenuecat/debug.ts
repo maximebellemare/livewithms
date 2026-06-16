@@ -1,4 +1,5 @@
 import appJson from "../../app.json";
+import { Platform } from "react-native";
 import { ENABLE_PREMIUM_DEBUG_TOOLS } from "../../features/premium/config";
 
 export const ENABLE_RC_DEBUG_PANEL = ENABLE_PREMIUM_DEBUG_TOOLS;
@@ -14,7 +15,7 @@ export type RevenueCatDebugProduct = {
 
 export type RevenueCatDebugSnapshot = {
   timestamp: string;
-  platform: "ios";
+  platform: "ios" | "android";
   appVersion: string;
   buildNumber: string;
   bundleIdentifier: string;
@@ -87,9 +88,9 @@ export function createBaseRevenueCatDebugSnapshot(input: {
 }) : RevenueCatDebugSnapshot {
   return {
     timestamp: new Date().toISOString(),
-    platform: "ios",
+    platform: Platform.OS === "android" ? "android" : "ios",
     appVersion: appJson.expo.version,
-    buildNumber: appJson.expo.ios.buildNumber,
+    buildNumber: Platform.OS === "android" ? String(appJson.expo.android?.versionCode ?? "android") : appJson.expo.ios.buildNumber,
     bundleIdentifier: input.bundleIdentifier,
     configured: false,
     loggedInAppUserId: null,

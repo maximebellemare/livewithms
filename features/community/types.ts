@@ -24,6 +24,7 @@ export type CommunityReactionSummary = {
 };
 
 export type CommunityActivityType = "reply" | "reaction" | "post";
+export type CommunityNotificationType = "reply_to_thread" | "reaction_to_post" | "reaction_to_reply";
 
 export type CommunityActivityItem = {
   id: string;
@@ -34,6 +35,7 @@ export type CommunityActivityItem = {
   category: CommunityCategoryId;
   actorDisplayName: string;
   preview: string;
+  notificationId?: string;
 };
 
 export type CommunityActivitySummary = {
@@ -81,6 +83,20 @@ export type CommunityBlock = {
   id: string;
   blocker_user_id: string;
   blocked_user_id: string;
+  created_at: string;
+};
+
+export type CommunityNotification = {
+  id: string;
+  recipient_user_id: string;
+  actor_user_id: string | null;
+  type: CommunityNotificationType;
+  post_id: string | null;
+  thread_id: string | null;
+  reaction: CommunityReactionType | null;
+  title: string | null;
+  body: string | null;
+  is_read: boolean;
   created_at: string;
 };
 

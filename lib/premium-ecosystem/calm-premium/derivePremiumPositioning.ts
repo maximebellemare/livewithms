@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 export type PremiumPlanPositioning = {
   title: string;
   subtitle: string;
@@ -59,6 +61,12 @@ export type PremiumPositioning = {
 };
 
 export function derivePremiumPositioning(): PremiumPositioning {
+  const isAndroid = Platform.OS === "android";
+  const storeName = isAndroid ? "Google Play" : "Apple";
+  const storePricingLabel = isAndroid ? "localized Play Store pricing" : "localized App Store pricing";
+  const storeSettingsLabel = isAndroid ? "Play Store settings" : "App Store settings";
+  const pricingRefreshLabel = isAndroid ? "Play Store refreshes pricing" : "App Store refreshes pricing";
+
   return {
     heroTitle: "Additional support for difficult days",
     heroSubtitle:
@@ -122,8 +130,8 @@ export function derivePremiumPositioning(): PremiumPositioning {
       "Monthly keeps support flexible. Yearly lowers the overall yearly cost and reduces renewal frequency.",
     trustTitle: "Billing and trust",
     trustLines: [
-      "Billing is handled securely through Apple with localized App Store pricing.",
-      "You can restore purchases anytime, and manage or cancel in your App Store settings.",
+      `Billing is handled securely through ${storeName} with ${storePricingLabel}.`,
+      `You can restore purchases anytime, and manage or cancel in your ${storeSettingsLabel}.`,
       "Your check-ins and personal data stay yours.",
     ],
     purchaseCta: "Continue with Premium",
@@ -134,7 +142,7 @@ export function derivePremiumPositioning(): PremiumPositioning {
     retryLabel: "Try again",
     loadingPricingTitle: "Bringing in current pricing",
     loadingPricingBody:
-      "This can take a moment while the App Store refreshes pricing.",
+      `This can take a moment while ${pricingRefreshLabel}.`,
     errorPricingTitle: "Premium details are taking a moment",
     errorPricingBody:
       "If pricing is still loading, try again later. The rest of the app still works normally.",
@@ -153,7 +161,7 @@ export function derivePremiumPositioning(): PremiumPositioning {
     inactiveProfileBody:
       "The free core experience stays intact. Premium adds deeper support, longer-term summaries, and more low-energy help.",
     activeProfileBody:
-      "Premium is active, and your plan is managed securely through Apple.",
+      `Premium is active, and your plan is managed securely through ${storeName}.`,
     profileNote:
       "Premium is optional and meant to reduce friction.",
     onboardingBody:

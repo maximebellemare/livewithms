@@ -10,9 +10,12 @@ import { preventOverfamiliarity } from "../../lib/humane-micro-moments/quiet-war
 import { preserveSubtleReliefMoments } from "../../lib/humane-micro-moments/non-performative-delight/preserveSubtleReliefMoments";
 type LoadingStateProps = {
   message?: string;
+  debugLabel?: string | null;
 };
 
-export default function LoadingState({ message = "Getting things ready..." }: LoadingStateProps) {
+const BUILD_MARKER = "ANDROID DEBUG BUILD: routegate-fix-v2";
+
+export default function LoadingState({ message = "Getting things ready...", debugLabel = null }: LoadingStateProps) {
   const calmEnvironment = useDerivedCalmEnvironment();
   const presentation = deriveStateSurfacePresentation(calmEnvironment);
   const fallback = deriveNonJudgmentalEmptyStates({ context: "loading" });
@@ -52,6 +55,8 @@ export default function LoadingState({ message = "Getting things ready..." }: Lo
             preventOverfamiliarity(`${message} ${fallback} ${warmth}`.trim()),
           )}
         </AppText>
+        <AppText style={styles.buildMarker}>{BUILD_MARKER}</AppText>
+        {debugLabel ? <AppText style={styles.debugLabel}>{debugLabel}</AppText> : null}
       </View>
     </View>
   );
@@ -97,6 +102,20 @@ const styles = StyleSheet.create({
   },
   messageSoftened: {
     opacity: 0.94,
+  },
+  buildMarker: {
+    color: colors.text,
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: "center",
+    fontWeight: "700",
+  },
+  debugLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: "center",
+    opacity: 0.9,
   },
   skeletonGroup: {
     width: "100%",

@@ -37,6 +37,15 @@ let hasLoggedProfileSchemaDiagnostic = false;
 let lastProfileSaveDebug: ProfileSaveDebug | null = null;
 const completedOnboardingUserIds = new Set<string>();
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
+    }),
+  ]);
+}
+
 export type ProfileSaveDebug = {
   writeMode: typeof PROFILE_WRITE_MODE;
   keyColumn: "user_id";
@@ -273,14 +282,31 @@ export const profileApi = {
       return getMockProfile();
     }
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select(PROFILE_SELECT)
-      .eq("user_id", userId)
-      .maybeSingle();
+    if (__DEV__) {
+      console.log("[startup] Profile load start", {
+        userId,
+      });
+    }
+
+    const { data, error } = await withTimeout(
+      supabase
+        .from("profiles")
+        .select(PROFILE_SELECT)
+        .eq("user_id", userId)
+        .maybeSingle(),
+      8000,
+      "Profile lookup",
+    );
 
     if (error) {
       await logProfileSchemaDiagnostic("profile_lookup", error);
+      if (__DEV__) {
+        console.error("[startup] Profile load failed", {
+          userId,
+          message: normalizeError(error).message,
+          ...getSupabaseErrorDetails(error),
+        });
+      }
       logger.warn("Profile lookup failed; using safe fallback", {
         userId,
         friendlyMessage: normalizeError(error).message,
@@ -290,7 +316,19 @@ export const profileApi = {
     }
 
     if (!data) {
+      if (__DEV__) {
+        console.log("[startup] Profile load missing, creating fallback", {
+          userId,
+        });
+      }
       return profileApi.createFallbackProfile(userId);
+    }
+
+    if (__DEV__) {
+      console.log("[startup] Profile load end", {
+        userId,
+        onboardingCompleted: Boolean((data as ProfileRow)?.onboarding_completed),
+      });
     }
 
     return normalizeProfile(data as ProfileRow, userId);
@@ -301,19 +339,23 @@ export const profileApi = {
       return getMockProfile();
     }
 
-    const { data, error, status, statusText } = await supabase
-      .from("profiles")
-      .upsert(
-        {
-          user_id: userId,
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: "user_id",
-        },
-      )
-      .select(PROFILE_SELECT)
-      .maybeSingle();
+    const { data, error, status, statusText } = await withTimeout(
+      supabase
+        .from("profiles")
+        .upsert(
+          {
+            user_id: userId,
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "user_id",
+          },
+        )
+        .select(PROFILE_SELECT)
+        .maybeSingle(),
+      8000,
+      "Profile auto-create",
+    );
 
     logRawProfileSaveResponse({
       context: "profile_auto_create",
@@ -325,12 +367,26 @@ export const profileApi = {
 
     if (error) {
       await logProfileSchemaDiagnostic("profile_auto_create", error);
+      if (__DEV__) {
+        console.error("[startup] Profile fallback create failed", {
+          userId,
+          message: normalizeError(error).message,
+          ...getSupabaseErrorDetails(error),
+        });
+      }
       logger.warn("Profile auto-create failed; using safe fallback", {
         userId,
         friendlyMessage: normalizeError(error).message,
         ...getSupabaseErrorDetails(error),
       });
       return buildFallbackProfile(userId);
+    }
+
+    if (__DEV__) {
+      console.log("[startup] Profile fallback create end", {
+        userId,
+        onboardingCompleted: Boolean((data as ProfileRow)?.onboarding_completed),
+      });
     }
 
     return normalizeProfile(data as ProfileRow, userId);

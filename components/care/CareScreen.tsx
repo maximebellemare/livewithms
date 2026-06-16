@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
 import { Alert, Clipboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
@@ -31,6 +31,13 @@ import {
 } from "../../features/medications/hooks";
 import { medicationsApi } from "../../features/medications/api";
 import type { Medication, MedicationInput } from "../../features/medications/types";
+import {
+  MEDICATION_DAY_OPTIONS,
+  type MedicationDay,
+  type MedicationScheduleType,
+  buildMedicationTakenKey,
+  getMedicationDoseEntriesForDate,
+} from "../../features/medications/schedule";
 import { getErrorMessage } from "../../lib/errors";
 import { logger } from "../../lib/logger";
 import { trackRetryTriggered } from "../../lib/events";
@@ -43,6 +50,7 @@ import {
   loadFoodAnalysisUsage,
   loadNutritionPreferences,
   loadSavedNutritionMeals,
+  normalizeNutritionState,
   removeSavedNutritionMeal,
   saveNutritionMeal,
   saveNutritionPreferences,
@@ -56,15 +64,13 @@ import {
   scheduleMedicationReminder,
 } from "../../features/reminders/notifications";
 
-const MEDICATION_FREQUENCY_OPTIONS = [
-  "Once daily",
-  "Twice daily",
-  "Three times daily",
-  "Every morning",
-  "Every evening",
-  "As needed",
-  "Weekly",
-  "Custom",
+const MEDICATION_SCHEDULE_OPTIONS: Array<{
+  value: MedicationScheduleType;
+  label: string;
+}> = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "as_needed", label: "As needed" },
 ] as const;
 
 const CARE_NOTE_CATEGORIES = [
@@ -407,6 +413,23 @@ const PREP_PREFERENCES = [
 const BUDGET_PREFERENCES = ["Budget-friendly", "Flexible", "Higher convenience"] as const;
 const FREE_FOOD_ANALYSIS_LIMIT = 3;
 
+function summarizeNutritionMealPlanShape(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return { exists: false };
+  }
+
+  const item = value as Record<string, unknown>;
+  return {
+    exists: true,
+    title: typeof item.title === "string" ? item.title : null,
+    dietStyle: typeof item.dietStyle === "string" ? item.dietStyle : null,
+    fitReasonsCount: Array.isArray(item.fitReasons) ? item.fitReasons.length : 0,
+    planDaysCount: Array.isArray(item.plan) ? item.plan.length : 0,
+    swapsCount: Array.isArray(item.swaps) ? item.swaps.length : 0,
+    groceryCategories: item.groceries && typeof item.groceries === "object" ? Object.keys(item.groceries as Record<string, unknown>).length : 0,
+  };
+}
+
 function getTodayDateString() {
   const now = new Date();
   const year = now.getFullYear();
@@ -511,14 +534,15 @@ function formatTimeForStorage(date: Date) {
   return `${hour}:${minute}`;
 }
 
-function getInitialFrequencyOption(frequency: string) {
-  if (!frequency) {
-    return "Once daily";
-  }
+function createDoseTimeDraft(time = "09:00", dose = "") {
+  return {
+    time,
+    dose,
+  };
+}
 
-  return MEDICATION_FREQUENCY_OPTIONS.includes(frequency as (typeof MEDICATION_FREQUENCY_OPTIONS)[number])
-    ? (frequency as (typeof MEDICATION_FREQUENCY_OPTIONS)[number])
-    : "Custom";
+function buildMedicationPickerDate(time: string) {
+  return buildPickerDateFromAppointment(getTodayDateString(), time);
 }
 
 function getNotePreview(note: string, maxLength = 110) {
@@ -533,52 +557,6 @@ function getNotePreview(note: string, maxLength = 110) {
 
 function formatTakenTime(isoDate: string) {
   return new Date(isoDate).toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function formatMedicationReminderTime(reminderTime: string | null | undefined) {
-  if (!reminderTime) {
-    return null;
-  }
-
-  const [hour, minute] = reminderTime.split(":");
-  if (!hour || !minute) {
-    return reminderTime;
-  }
-
-  const date = new Date();
-  date.setHours(Number(hour), Number(minute), 0, 0);
-
-  if (Number.isNaN(date.getTime())) {
-    return reminderTime;
-  }
-
-  return date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function getMedicationDueTimeLabel(medication: Medication) {
-  const reminderTime = formatMedicationReminderTime(medication.reminder_time);
-  if (reminderTime) {
-    return reminderTime;
-  }
-
-  const frequency = medication.frequency;
-  const normalized = frequency.toLowerCase();
-
-  if (normalized.includes("as needed") || normalized.includes("prn")) {
-    return null;
-  }
-
-  const hour = normalized.includes("evening") ? 19 : 9;
-  const date = new Date();
-  date.setHours(hour, 0, 0, 0);
-
-  return date.toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
   });
@@ -977,6 +955,17 @@ export function NutritionScreenContent() {
   const [pendingFoodImageUri, setPendingFoodImageUri] = useState<string | null>(null);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
+  const resetNutritionState = useCallback(() => {
+    setMealPlanGoal("Stable energy");
+    setDietStyle("Recommend one for me");
+    setMealPlanDislikes("");
+    setMealPlanAllergies("");
+    setSelectedNutritionFilters([]);
+    setMealPlanPrep("Quick meals");
+    setMealPlanBudget("Budget-friendly");
+    setAdaptiveMealPlan(null);
+  }, []);
+
   const filteredLowEnergyMeals = useMemo(() => {
     const activeFilters = selectedNutritionFilters.filter((filter) => filter !== "No preference");
 
@@ -1017,27 +1006,58 @@ export function NutritionScreenContent() {
     }
 
     void (async () => {
-      const preferences = await loadNutritionPreferences(user.id);
-      const savedPlans = await loadSavedNutritionMeals(user.id);
-      if (!cancelled) {
-        if (preferences) {
-          setMealPlanGoal(preferences.goal);
-          setDietStyle(preferences.dietStyle);
-          setMealPlanDislikes(preferences.dislikedFoods);
-          setSelectedNutritionFilters(preferences.dietaryFilters);
-          setMealPlanPrep(preferences.prepPreference);
-          setMealPlanBudget(preferences.budgetPreference);
-          setAdaptiveMealPlan(preferences.currentMealPlan as ReturnType<typeof buildAdaptiveMealPlan> | null);
+      try {
+        const preferences = await loadNutritionPreferences(user.id);
+        const savedPlans = await loadSavedNutritionMeals(user.id);
+        if (__DEV__) {
+          console.log("[nutrition] load state", {
+            userId: user.id,
+            savedNutritionPreferences: preferences,
+            savedMealPlanShape: summarizeNutritionMealPlanShape(preferences?.currentMealPlan ?? null),
+            savedPlansCount: savedPlans.length,
+            selectedDietStyle: preferences?.dietStyle ?? null,
+            dislikedFoods: preferences?.dislikedFoods ?? "",
+            dietaryPreferences: preferences?.dietaryFilters ?? [],
+          });
         }
-        setSavedMealPlans(savedPlans);
-        setPreferencesLoaded(true);
+
+        if (!cancelled) {
+          resetNutritionState();
+          if (preferences) {
+            const normalizedPreferences = normalizeNutritionState(preferences);
+            if (normalizedPreferences) {
+              setMealPlanGoal(normalizedPreferences.goal);
+              setDietStyle(normalizedPreferences.dietStyle);
+              setMealPlanDislikes(normalizedPreferences.dislikedFoods);
+              setSelectedNutritionFilters(normalizedPreferences.dietaryFilters);
+              setMealPlanPrep(normalizedPreferences.prepPreference);
+              setMealPlanBudget(normalizedPreferences.budgetPreference);
+              setAdaptiveMealPlan(normalizedPreferences.currentMealPlan as ReturnType<typeof buildAdaptiveMealPlan> | null);
+            }
+          }
+          setSavedMealPlans(savedPlans);
+          setPreferencesLoaded(true);
+        }
+      } catch (error) {
+        console.error("[nutrition] load failed", {
+          userId: user.id,
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+
+        if (!cancelled) {
+          resetNutritionState();
+          setSavedMealPlans([]);
+          setNutritionMessage("Nutrition preferences were reset to keep things working smoothly.");
+          setPreferencesLoaded(true);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [resetNutritionState, user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1969,6 +1989,7 @@ export function NutritionScreenContent() {
 }
 
 export default function CareScreen() {
+  const medicationNameInputRef = useRef<TextInput | null>(null);
   const { user } = useAuth();
   const appointmentsQuery = useAppointments(user?.id);
   const medicationsQuery = useMedications(user?.id);
@@ -1997,8 +2018,11 @@ export default function CareScreen() {
   const [notes, setNotes] = useState("");
   const [medicationName, setMedicationName] = useState("");
   const [medicationDosage, setMedicationDosage] = useState("");
-  const [medicationFrequency, setMedicationFrequency] = useState("");
-  const [selectedMedicationFrequencyOption, setSelectedMedicationFrequencyOption] = useState<(typeof MEDICATION_FREQUENCY_OPTIONS)[number]>("Once daily");
+  const [medicationScheduleType, setMedicationScheduleType] = useState<MedicationScheduleType>("daily");
+  const [medicationSelectedDays, setMedicationSelectedDays] = useState<MedicationDay[]>([]);
+  const [medicationDoseTimes, setMedicationDoseTimes] = useState<Array<{ time: string; dose: string }>>([createDoseTimeDraft()]);
+  const [activeMedicationDosePickerIndex, setActiveMedicationDosePickerIndex] = useState<number | null>(null);
+  const [medicationPickerDraftDate, setMedicationPickerDraftDate] = useState(() => buildMedicationPickerDate("09:00"));
   const [medicationNotes, setMedicationNotes] = useState("");
   const [showCareNoteForm, setShowCareNoteForm] = useState(false);
   const [editingCareNoteId, setEditingCareNoteId] = useState<string | null>(null);
@@ -2020,6 +2044,69 @@ export default function CareScreen() {
   useSlowScreenDiagnostics("care", isInitialLoading);
   const [showInactiveMedications, setShowInactiveMedications] = useState(false);
   const lowEnergyMode = useLowEnergyMode();
+  const careLoadWarnings = useMemo(() => {
+    const warnings: string[] = [];
+
+    if (appointmentsQuery.isError) {
+      warnings.push("Appointments could not refresh right now.");
+    }
+
+    if (medicationsQuery.isError) {
+      warnings.push("Medications could not refresh right now.");
+    }
+
+    if (careNotesQuery.isError) {
+      warnings.push("Care notes could not refresh right now.");
+    }
+
+    return warnings;
+  }, [appointmentsQuery.isError, medicationsQuery.isError, careNotesQuery.isError]);
+  const careLoadWarningMessage = useMemo(() => {
+    if (careLoadWarnings.length === 0) {
+      return null;
+    }
+
+    return `${careLoadWarnings.join(" ")} You can still use the rest of Care.`;
+  }, [careLoadWarnings]);
+
+  useEffect(() => {
+    if (!appointmentsQuery.isError) {
+      return;
+    }
+
+    const friendlyMessage = getErrorMessage(appointmentsQuery.error);
+    console.error("[care] load failed", appointmentsQuery.error);
+
+    if (friendlyMessage.toLowerCase().includes("save profile")) {
+      console.error("[care] profile save failed", appointmentsQuery.error);
+    }
+  }, [appointmentsQuery.error, appointmentsQuery.isError]);
+
+  useEffect(() => {
+    if (!medicationsQuery.isError) {
+      return;
+    }
+
+    const friendlyMessage = getErrorMessage(medicationsQuery.error);
+    console.error("[care] load failed", medicationsQuery.error);
+
+    if (friendlyMessage.toLowerCase().includes("save profile")) {
+      console.error("[care] profile save failed", medicationsQuery.error);
+    }
+  }, [medicationsQuery.error, medicationsQuery.isError]);
+
+  useEffect(() => {
+    if (!careNotesQuery.isError) {
+      return;
+    }
+
+    const friendlyMessage = getErrorMessage(careNotesQuery.error);
+    console.error("[care] load failed", careNotesQuery.error);
+
+    if (friendlyMessage.toLowerCase().includes("save profile")) {
+      console.error("[care] profile save failed", careNotesQuery.error);
+    }
+  }, [careNotesQuery.error, careNotesQuery.isError]);
 
   const upcomingAppointments = useMemo(() => {
     const items = (appointmentsQuery.data ?? []).filter((item) => item.appointment_date >= today);
@@ -2041,28 +2128,41 @@ export default function CareScreen() {
     [medications],
   );
   const nextAppointment = upcomingAppointments[0] ?? null;
+  const todayMedicationDoses = useMemo(
+    () =>
+      activeMedications.flatMap((medication) =>
+        getMedicationDoseEntriesForDate(medication, today).map((doseEntry) => ({
+          medication,
+          doseEntry,
+        })),
+      ),
+    [activeMedications, today],
+  );
   const takenMedicationCount = useMemo(
-    () => activeMedications.filter((medication) => medicationsTakenToday[medication.id]).length,
-    [activeMedications, medicationsTakenToday],
+    () => todayMedicationDoses.filter((entry) => medicationsTakenToday[entry.doseEntry.key]).length,
+    [medicationsTakenToday, todayMedicationDoses],
   );
   const nextDueMedication = useMemo(
     () =>
-      activeMedications.find((medication) => {
-        const dueTime = getMedicationDueTimeLabel(medication);
-        return dueTime && !medicationsTakenToday[medication.id];
-      }) ?? null,
-    [activeMedications, medicationsTakenToday],
+      todayMedicationDoses.find((entry) => !medicationsTakenToday[entry.doseEntry.key]) ?? null,
+    [medicationsTakenToday, todayMedicationDoses],
   );
-  const nextDueMedicationTime = nextDueMedication ? getMedicationDueTimeLabel(nextDueMedication) : null;
+  const nextDueMedicationTime = nextDueMedication?.doseEntry.label ?? null;
+  const trimmedMedicationName = medicationName.trim();
+  const medicationNameValidationMessage =
+    medicationErrorMessage === "Please enter a medication name." ||
+    medicationErrorMessage === "Medication name is required."
+      ? medicationErrorMessage
+      : null;
 
-  const persistMedicationTakenToday = useCallback((medicationId: string, takenAt: string | null) => {
+  const persistMedicationTakenToday = useCallback((medicationId: string, takenAt: string | null, scheduledTime?: string | null) => {
     if (!user?.id) {
       return;
     }
 
     const sync = takenAt
-      ? medicationsApi.markTakenToday(user.id, medicationId, today, takenAt)
-      : medicationsApi.unmarkTakenToday(user.id, medicationId, today);
+      ? medicationsApi.markTakenToday(user.id, medicationId, today, takenAt, scheduledTime)
+      : medicationsApi.unmarkTakenToday(user.id, medicationId, today, scheduledTime);
 
     void sync.catch((error) => {
       logger.warn("Medication taken state could not sync.", {
@@ -2076,11 +2176,12 @@ export default function CareScreen() {
       if (action.type === "medication-taken") {
         setMedicationsTakenToday((current) => {
           const takenAt = new Date().toISOString();
+          const takenKey = buildMedicationTakenKey(action.medicationId, action.scheduledTime);
           const next = {
             ...current,
-            [action.medicationId]: takenAt,
+            [takenKey]: takenAt,
           };
-          persistMedicationTakenToday(action.medicationId, takenAt);
+          persistMedicationTakenToday(action.medicationId, takenAt, action.scheduledTime);
           return next;
         });
         setMedicationMessage("Medication marked taken today.");
@@ -2140,45 +2241,51 @@ export default function CareScreen() {
         name: medication.name,
         active: medication.active,
         frequency: medication.frequency,
+        schedule_type: medication.schedule_type,
+        selected_days: medication.selected_days,
+        dose_times: medication.dose_times,
         reminder_time: medication.reminder_time ?? null,
       })),
       takenMedicationIds: Object.keys(medicationsTakenToday),
     });
   }, [medications, medicationsTakenToday, today]);
 
-  const toggleMedicationTakenToday = (medicationId: string) => {
+  const toggleMedicationTakenToday = (medicationId: string, scheduledTime?: string | null) => {
+    const takenKey = buildMedicationTakenKey(medicationId, scheduledTime);
     setMedicationsTakenToday((current) => {
-      if (current[medicationId]) {
+      if (current[takenKey]) {
         const next = { ...current };
-        delete next[medicationId];
-        persistMedicationTakenToday(medicationId, null);
+        delete next[takenKey];
+        persistMedicationTakenToday(medicationId, null, scheduledTime);
         return next;
       }
 
       const takenAt = new Date().toISOString();
       const next = {
         ...current,
-        [medicationId]: takenAt,
+        [takenKey]: takenAt,
       };
-      persistMedicationTakenToday(medicationId, takenAt);
+      persistMedicationTakenToday(medicationId, takenAt, scheduledTime);
       return next;
     });
   };
 
   const scheduleMedicationReminderQuietly = async (medication: Medication) => {
-    if (!medication.active || medication.frequency.toLowerCase().includes("as needed")) {
+    if (!medication.active || medication.schedule_type === "as_needed") {
       return;
     }
 
     try {
-      const identifier = await scheduleMedicationReminder({
+      const identifiers = await scheduleMedicationReminder({
         medicationId: medication.id,
         name: medication.name,
-        frequency: medication.frequency,
+        scheduleType: medication.schedule_type,
+        doseTimes: medication.dose_times,
+        selectedDays: medication.selected_days,
       });
 
-      if (identifier) {
-        setMedicationMessage(`Medication saved. Reminder scheduled for ${medication.frequency.toLowerCase()}.`);
+      if (identifiers.length > 0) {
+        setMedicationMessage(`Medication saved. Reminder schedule updated.`);
       }
     } catch {
       setMedicationMessage("Medication saved. Reminder setup was not available right now.");
@@ -2218,22 +2325,51 @@ export default function CareScreen() {
   const resetMedicationForm = () => {
     setMedicationName("");
     setMedicationDosage("");
-    setMedicationFrequency("");
-    setSelectedMedicationFrequencyOption("Once daily");
+    setMedicationScheduleType("daily");
+    setMedicationSelectedDays([]);
+    setMedicationDoseTimes([createDoseTimeDraft()]);
+    setActiveMedicationDosePickerIndex(null);
+    setMedicationPickerDraftDate(buildMedicationPickerDate("09:00"));
     setMedicationNotes("");
     setEditingMedicationId(null);
   };
 
-  const handleDateChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === "android" && event.type === "dismissed") {
+      setActivePicker(null);
+      return;
+    }
+
     if (!selectedDate) {
+      return;
+    }
+
+    if (Platform.OS === "android") {
+      setAppointmentPickerDate(selectedDate);
+      setPickerDraftDate(selectedDate);
+      setDate(selectedDate.toISOString().slice(0, 10));
+      setActivePicker(null);
       return;
     }
 
     setPickerDraftDate(selectedDate);
   };
 
-  const handleTimeChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+  const handleTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === "android" && event.type === "dismissed") {
+      setActivePicker(null);
+      return;
+    }
+
     if (!selectedDate) {
+      return;
+    }
+
+    if (Platform.OS === "android") {
+      setAppointmentPickerDate(selectedDate);
+      setPickerDraftDate(selectedDate);
+      setTime(formatTimeForStorage(selectedDate));
+      setActivePicker(null);
       return;
     }
 
@@ -2403,15 +2539,35 @@ export default function CareScreen() {
     setMedicationErrorMessage(null);
     setMedicationMessage(null);
 
-    const effectiveFrequency =
-      selectedMedicationFrequencyOption === "Custom"
-        ? medicationFrequency
-        : selectedMedicationFrequencyOption;
+    if (!trimmedMedicationName) {
+      setMedicationErrorMessage("Please enter a medication name.");
+      medicationNameInputRef.current?.focus();
+      return;
+    }
+
+    const normalizedDoseTimes = medicationDoseTimes
+      .map((item) => ({
+        time: item.time.trim(),
+        dose: item.dose.trim() || null,
+      }))
+      .filter((item) => item.time.length > 0);
+
+    if (medicationScheduleType !== "as_needed" && normalizedDoseTimes.length === 0) {
+      setMedicationErrorMessage("Add at least one dose time for this medication.");
+      return;
+    }
+
+    if (medicationScheduleType === "weekly" && medicationSelectedDays.length === 0) {
+      setMedicationErrorMessage("Choose at least one day for this medication schedule.");
+      return;
+    }
 
     const input: MedicationInput = {
-      name: medicationName,
+      name: trimmedMedicationName,
       dosage: medicationDosage || null,
-      frequency: effectiveFrequency,
+      schedule_type: medicationScheduleType,
+      selected_days: medicationSelectedDays,
+      dose_times: normalizedDoseTimes,
       notes: medicationNotes || null,
       active: editingMedicationId ? medications.find((item) => item.id === editingMedicationId)?.active ?? true : true,
     };
@@ -2435,6 +2591,7 @@ export default function CareScreen() {
       setMedicationMessage(editingMedicationId ? "Medication updated." : "Medication saved.");
       void scheduleMedicationReminderQuietly(savedMedication);
     } catch (error) {
+      console.error("[care] medication save failed", error);
       setMedicationErrorMessage(getErrorMessage(error));
     }
   };
@@ -2442,8 +2599,20 @@ export default function CareScreen() {
   const startEditingMedication = (medication: Medication) => {
     setMedicationName(medication.name);
     setMedicationDosage(medication.dosage ?? "");
-    setMedicationFrequency(medication.frequency);
-    setSelectedMedicationFrequencyOption(getInitialFrequencyOption(medication.frequency));
+    setMedicationScheduleType(medication.schedule_type);
+    setMedicationSelectedDays(medication.selected_days);
+    setMedicationDoseTimes(
+      medication.dose_times.length > 0
+        ? medication.dose_times.map((item) => ({
+            time: item.time,
+            dose: item.dose ?? "",
+          }))
+        : medication.schedule_type === "as_needed"
+          ? []
+          : [createDoseTimeDraft()],
+    );
+    setActiveMedicationDosePickerIndex(null);
+    setMedicationPickerDraftDate(buildMedicationPickerDate(medication.dose_times[0]?.time ?? "09:00"));
     setMedicationNotes(medication.notes ?? "");
     setEditingMedicationId(medication.id);
     setShowMedicationForm(true);
@@ -2497,15 +2666,107 @@ export default function CareScreen() {
     );
   };
 
-  const handleMedicationFrequencyOptionPress = (
-    option: (typeof MEDICATION_FREQUENCY_OPTIONS)[number],
-  ) => {
-    setSelectedMedicationFrequencyOption(option);
-    if (option !== "Custom") {
-      setMedicationFrequency(option);
-    } else {
-      setMedicationFrequency("");
+  const handleMedicationScheduleTypePress = (scheduleType: MedicationScheduleType) => {
+    setMedicationScheduleType(scheduleType);
+
+    if (scheduleType === "as_needed") {
+      setMedicationDoseTimes([]);
+      setMedicationSelectedDays([]);
+      return;
     }
+
+    if (scheduleType === "daily") {
+      setMedicationSelectedDays([]);
+    }
+
+    if (scheduleType === "weekly" && medicationSelectedDays.length === 0) {
+      setMedicationSelectedDays(["Sunday"]);
+    }
+
+    if (medicationDoseTimes.length === 0) {
+      setMedicationDoseTimes([createDoseTimeDraft()]);
+    }
+  };
+
+  const toggleMedicationDay = (day: MedicationDay) => {
+    setMedicationSelectedDays((current) =>
+      current.includes(day) ? current.filter((item) => item !== day) : [...current, day],
+    );
+  };
+
+  const updateMedicationDoseTime = (index: number, field: "time" | "dose", value: string) => {
+    setMedicationDoseTimes((current) =>
+      current.map((item, currentIndex) =>
+        currentIndex === index
+          ? {
+              ...item,
+              [field]: value,
+            }
+          : item,
+      ),
+    );
+  };
+
+  const addMedicationDoseTime = () => {
+    setMedicationDoseTimes((current) => [...current, createDoseTimeDraft()]);
+  };
+
+  const removeMedicationDoseTime = (index: number) => {
+    setMedicationDoseTimes((current) => current.filter((_, currentIndex) => currentIndex !== index));
+    setActiveMedicationDosePickerIndex((current) => {
+      if (current === null) {
+        return null;
+      }
+
+      if (current === index) {
+        return null;
+      }
+
+      if (current > index) {
+        return current - 1;
+      }
+
+      return current;
+    });
+  };
+
+  const openMedicationDosePicker = (index: number) => {
+    const currentTime = medicationDoseTimes[index]?.time ?? "09:00";
+    setMedicationPickerDraftDate(buildMedicationPickerDate(currentTime));
+    setActiveMedicationDosePickerIndex(index);
+  };
+
+  const closeMedicationDosePicker = () => {
+    setActiveMedicationDosePickerIndex(null);
+  };
+
+  const confirmMedicationDosePicker = () => {
+    if (activeMedicationDosePickerIndex === null) {
+      return;
+    }
+
+    updateMedicationDoseTime(activeMedicationDosePickerIndex, "time", formatTimeForStorage(medicationPickerDraftDate));
+    setActiveMedicationDosePickerIndex(null);
+  };
+
+  const handleMedicationDosePickerChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === "android" && event.type === "dismissed") {
+      setActiveMedicationDosePickerIndex(null);
+      return;
+    }
+
+    if (!selectedDate || activeMedicationDosePickerIndex === null) {
+      return;
+    }
+
+    if (Platform.OS === "android") {
+      updateMedicationDoseTime(activeMedicationDosePickerIndex, "time", formatTimeForStorage(selectedDate));
+      setMedicationPickerDraftDate(selectedDate);
+      setActiveMedicationDosePickerIndex(null);
+      return;
+    }
+
+    setMedicationPickerDraftDate(selectedDate);
   };
 
   const handleCareNoteSave = async () => {
@@ -2608,42 +2869,6 @@ export default function CareScreen() {
     return <LoadingState message="Getting your care details ready..." />;
   }
 
-  if (appointmentsQuery.isError) {
-    return (
-      <ErrorState
-        message={getErrorMessage(appointmentsQuery.error)}
-        onRetry={() => {
-          void trackRetryTriggered("care-appointments-query");
-          void appointmentsQuery.refetch();
-        }}
-      />
-    );
-  }
-
-  if (medicationsQuery.isError) {
-    return (
-      <ErrorState
-        message={getErrorMessage(medicationsQuery.error)}
-        onRetry={() => {
-          void trackRetryTriggered("care-medications-query");
-          void medicationsQuery.refetch();
-        }}
-      />
-    );
-  }
-
-  if (careNotesQuery.isError) {
-    return (
-      <ErrorState
-        message={getErrorMessage(careNotesQuery.error)}
-        onRetry={() => {
-          void trackRetryTriggered("care-notes-query");
-          void careNotesQuery.refetch();
-        }}
-      />
-    );
-  }
-
   return (
     <AppScreen
       eyebrow="Care"
@@ -2654,7 +2879,7 @@ export default function CareScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, lowEnergyMode.enabled && styles.contentLowEnergy]}
         showsVerticalScrollIndicator={false}
-        keyboardDismissMode="interactive"
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         keyboardShouldPersistTaps="handled"
       >
         {lowEnergyMode.enabled ? (
@@ -2662,6 +2887,25 @@ export default function CareScreen() {
             <AppText style={styles.lowEnergyBannerText}>
               Simplified layout is active.
             </AppText>
+          </View>
+        ) : null}
+
+        {careLoadWarningMessage ? (
+          <View style={styles.warningBanner}>
+            <AppText style={styles.warningBannerTitle}>Some care details could not sync yet.</AppText>
+            <AppText style={styles.warningBannerText}>{careLoadWarningMessage}</AppText>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                void trackRetryTriggered("care-load-warning-retry");
+                void appointmentsQuery.refetch();
+                void medicationsQuery.refetch();
+                void careNotesQuery.refetch();
+              }}
+              style={({ pressed }) => [styles.warningBannerButton, pressed && styles.warningBannerButtonPressed]}
+            >
+              <AppText style={styles.warningBannerButtonText}>Try again</AppText>
+            </Pressable>
           </View>
         ) : null}
 
@@ -2692,31 +2936,34 @@ export default function CareScreen() {
           <View style={styles.summaryCard}>
             <AppText style={styles.summaryLabel}>Today’s medications</AppText>
             <AppText style={styles.summaryBody}>
-              {formatMedicationTakenSummary(takenMedicationCount, activeMedications.length)}
+              {formatMedicationTakenSummary(takenMedicationCount, todayMedicationDoses.length)}
             </AppText>
-            {activeMedications.length === 0 ? (
-              <AppText style={styles.summaryHint}>Add a medication to track today’s schedule.</AppText>
+            {todayMedicationDoses.length === 0 ? (
+              <AppText style={styles.summaryHint}>
+                {activeMedications.length === 0
+                  ? "Add a medication to track today’s schedule."
+                  : "No medications are scheduled for today."}
+              </AppText>
             ) : (
               <View style={styles.todayMedicationList}>
-                {activeMedications.map((medication) => {
-                  const takenAt = medicationsTakenToday[medication.id];
-                  const dueTime = getMedicationDueTimeLabel(medication);
+                {todayMedicationDoses.map(({ medication, doseEntry }) => {
+                  const takenAt = medicationsTakenToday[doseEntry.key];
 
                   return (
-                    <View key={medication.id} style={styles.todayMedicationRow}>
+                    <View key={doseEntry.key} style={styles.todayMedicationRow}>
                       <View style={styles.todayMedicationCopy}>
                         <AppText style={styles.todayMedicationName}>{medication.name}</AppText>
-                        {medication.dosage ? (
-                          <AppText style={styles.todayMedicationDosage}>{medication.dosage}</AppText>
+                        {doseEntry.dose || medication.dosage ? (
+                          <AppText style={styles.todayMedicationDosage}>{doseEntry.dose ?? medication.dosage}</AppText>
                         ) : null}
                         <AppText style={[styles.todayMedicationStatus, takenAt && styles.todayMedicationStatusTaken]}>
-                          {takenAt ? "✓ Taken today" : dueTime ? `Due at ${dueTime}` : "Due today"}
+                          {takenAt ? "✓ Taken today" : `Due at ${doseEntry.label}`}
                         </AppText>
                       </View>
                       {takenAt ? null : (
                         <Pressable
                           accessibilityRole="button"
-                          onPress={() => toggleMedicationTakenToday(medication.id)}
+                          onPress={() => toggleMedicationTakenToday(medication.id, doseEntry.time)}
                           style={({ pressed }) => [styles.todayMedicationButton, pressed && styles.takenButtonPressed]}
                         >
                           <AppText style={styles.todayMedicationButtonText}>Mark as taken</AppText>
@@ -2729,7 +2976,7 @@ export default function CareScreen() {
             )}
             {nextDueMedication && nextDueMedicationTime ? (
               <AppText style={styles.summaryHint}>
-                Next due: {nextDueMedication.name} • {nextDueMedicationTime}
+                Next due: {nextDueMedication.medication.name} • {nextDueMedicationTime}
               </AppText>
             ) : null}
           </View>
@@ -2959,7 +3206,7 @@ export default function CareScreen() {
             <View style={styles.formHeader}>
               <View style={styles.formHeaderCopy}>
                 <AppText style={styles.title}>Today’s medications</AppText>
-              <AppText style={styles.body}>{formatMedicationTakenSummary(takenMedicationCount, activeMedications.length)}</AppText>
+              <AppText style={styles.body}>{formatMedicationTakenSummary(takenMedicationCount, todayMedicationDoses.length)}</AppText>
               </View>
             <AppButton
               label={showMedicationForm ? "Hide form" : "Add medication"}
@@ -2970,18 +3217,28 @@ export default function CareScreen() {
 
           {showMedicationForm ? (
             <View style={styles.formCard}>
+              <AppText style={styles.sectionLabel}>MEDICATION UI V2 - June 8</AppText>
               <AppText style={styles.formIntro}>
                 Start with the name and choose the closest schedule. You can keep the rest minimal.
               </AppText>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Name</AppText>
                 <TextInput
+                  ref={medicationNameInputRef}
                   value={medicationName}
-                  onChangeText={setMedicationName}
+                  onChangeText={(value) => {
+                    setMedicationName(value);
+                    if (medicationErrorMessage === "Please enter a medication name." || medicationErrorMessage === "Medication name is required.") {
+                      setMedicationErrorMessage(null);
+                    }
+                  }}
                   placeholder="Vitamin D"
                   placeholderTextColor="#9ca3af"
-                  style={styles.input}
+                  style={[styles.input, medicationNameValidationMessage && styles.inputError]}
                 />
+                {medicationNameValidationMessage ? (
+                  <AppText style={styles.errorText}>{medicationNameValidationMessage}</AppText>
+                ) : null}
               </View>
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Dosage</AppText>
@@ -2994,15 +3251,15 @@ export default function CareScreen() {
                 />
               </View>
               <View style={styles.fieldGroup}>
-                <AppText style={styles.fieldLabel}>Frequency</AppText>
+                <AppText style={styles.fieldLabel}>Schedule</AppText>
                 <View style={styles.frequencyOptions}>
-                  {MEDICATION_FREQUENCY_OPTIONS.map((option) => {
-                    const isSelected = selectedMedicationFrequencyOption === option;
+                  {MEDICATION_SCHEDULE_OPTIONS.map((option) => {
+                    const isSelected = medicationScheduleType === option.value;
 
                     return (
                       <Pressable
-                        key={option}
-                        onPress={() => handleMedicationFrequencyOptionPress(option)}
+                        key={option.value}
+                        onPress={() => handleMedicationScheduleTypePress(option.value)}
                         style={({ pressed }) => [
                           styles.frequencyChip,
                           isSelected && styles.frequencyChipSelected,
@@ -3015,23 +3272,97 @@ export default function CareScreen() {
                             isSelected && styles.frequencyChipTextSelected,
                           ]}
                         >
-                          {option}
+                          {option.label}
                         </AppText>
                       </Pressable>
                     );
                   })}
                 </View>
-                <AppText style={styles.helperText}>Choose the closest fit, or use Custom only if you need to.</AppText>
-                {selectedMedicationFrequencyOption === "Custom" ? (
-                  <TextInput
-                    value={medicationFrequency}
-                    onChangeText={setMedicationFrequency}
-                    placeholder="Describe the schedule"
-                    placeholderTextColor="#9ca3af"
-                    style={styles.input}
-                  />
-                ) : null}
+                <AppText style={styles.helperText}>
+                  Daily can use one or many times. Weekly only appears due on the days you choose.
+                </AppText>
               </View>
+              {medicationScheduleType === "weekly" ? (
+                <View style={styles.fieldGroup}>
+                  <AppText style={styles.fieldLabel}>Days</AppText>
+                  <View style={styles.frequencyOptions}>
+                    {MEDICATION_DAY_OPTIONS.map((day) => {
+                      const isSelected = medicationSelectedDays.includes(day);
+
+                      return (
+                        <Pressable
+                          key={day}
+                          onPress={() => toggleMedicationDay(day)}
+                          style={({ pressed }) => [
+                            styles.frequencyChip,
+                            isSelected && styles.frequencyChipSelected,
+                            pressed && styles.frequencyChipPressed,
+                          ]}
+                        >
+                          <AppText style={[styles.frequencyChipText, isSelected && styles.frequencyChipTextSelected]}>
+                            {day.slice(0, 3)}
+                          </AppText>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <AppText style={styles.helperText}>
+                    Select the days this medication should appear as due.
+                  </AppText>
+                </View>
+              ) : null}
+              {medicationScheduleType !== "as_needed" ? (
+                <View style={styles.fieldGroup}>
+                  <AppText style={styles.fieldLabel}>Dose times</AppText>
+                  <AppText style={styles.helperText}>
+                    Add one or more times. Each time can include an optional dose note like “1 pill”.
+                  </AppText>
+                  <View style={styles.list}>
+                    {medicationDoseTimes.map((doseTime, index) => (
+                      <View key={`dose-time-${index}`} style={styles.itemCard}>
+                        <View style={styles.fieldGroup}>
+                          <AppText style={styles.fieldLabel}>Dose {index + 1} time</AppText>
+                          <Pressable
+                            onPress={() => openMedicationDosePicker(index)}
+                            style={({ pressed }) => [
+                              styles.selectionField,
+                              pressed && styles.selectionFieldPressed,
+                            ]}
+                          >
+                            <AppText style={doseTime.time ? styles.selectionValue : styles.selectionPlaceholder}>
+                              {doseTime.time ? formatAppointmentTimeInput(doseTime.time) : "Choose a time"}
+                            </AppText>
+                          </Pressable>
+                        </View>
+                        <View style={styles.fieldGroup}>
+                          <AppText style={styles.fieldLabel}>Dose note</AppText>
+                          <TextInput
+                            value={doseTime.dose}
+                            onChangeText={(value) => updateMedicationDoseTime(index, "dose", value)}
+                            placeholder="1 pill"
+                            placeholderTextColor="#9ca3af"
+                            style={styles.input}
+                          />
+                        </View>
+                        <View style={styles.itemActions}>
+                          <AppButton
+                            label="Remove"
+                            onPress={() => removeMedicationDoseTime(index)}
+                            variant="secondary"
+                            disabled={medicationDoseTimes.length === 1}
+                          />
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                  <AppButton label="Add another time" onPress={addMedicationDoseTime} variant="secondary" />
+                </View>
+              ) : null}
+              {medicationScheduleType === "as_needed" ? (
+                <AppText style={styles.helperText}>
+                  As needed medications stay off the daily due list until you log them manually.
+                </AppText>
+              ) : null}
               <View style={styles.fieldGroup}>
                 <AppText style={styles.fieldLabel}>Notes</AppText>
                 <TextInput
@@ -3053,7 +3384,7 @@ export default function CareScreen() {
                       : "Save medication"
                 }
                 onPress={() => void handleMedicationSubmit()}
-                disabled={createMedication.isPending || updateMedication.isPending}
+                disabled={createMedication.isPending || updateMedication.isPending || trimmedMedicationName.length === 0}
               />
               {medicationErrorMessage ? <AppText style={styles.errorText}>{medicationErrorMessage}</AppText> : null}
             </View>
@@ -3070,11 +3401,11 @@ export default function CareScreen() {
           ) : (
             <View style={styles.list}>
               {activeMedications.map((medication) => {
-                const takenAt = medicationsTakenToday[medication.id];
-                const dueTime = getMedicationDueTimeLabel(medication);
+                const dueEntries = getMedicationDoseEntriesForDate(medication, today);
+                const isMedicationTakenToday = dueEntries.length > 0 && dueEntries.every((entry) => medicationsTakenToday[entry.key]);
 
                 return (
-                <View key={medication.id} style={[styles.itemCard, takenAt && styles.medicationTakenCard]}>
+                <View key={medication.id} style={[styles.itemCard, isMedicationTakenToday && styles.medicationTakenCard]}>
                   <View style={styles.medicationHeader}>
                     <View style={styles.itemHeaderCopy}>
                       <AppText style={styles.itemTitle}>{medication.name}</AppText>
@@ -3083,38 +3414,69 @@ export default function CareScreen() {
                         {medication.frequency}
                       </AppText>
                     </View>
-                    <AppText style={[styles.badge, takenAt ? styles.badgeTaken : styles.badgeActive]}>
-                      {takenAt ? "Taken today" : "Current"}
+                    <AppText style={[styles.badge, isMedicationTakenToday ? styles.badgeTaken : styles.badgeActive]}>
+                      {isMedicationTakenToday ? "Taken today" : "Current"}
                     </AppText>
                   </View>
                   {medication.notes ? <AppText style={styles.itemNotes}>{medication.notes}</AppText> : null}
                   <View style={styles.medicationStatusRow}>
-                    <AppText style={[styles.medicationStatusText, takenAt && styles.medicationStatusTextTaken]}>
-                      {takenAt ? "✓ Taken today" : dueTime ? `Due at ${dueTime}` : "Take as needed"}
+                    <AppText style={[styles.medicationStatusText, isMedicationTakenToday && styles.medicationStatusTextTaken]}>
+                      {medication.schedule_type === "as_needed"
+                        ? "Take as needed"
+                        : dueEntries.length > 0
+                          ? isMedicationTakenToday
+                            ? "✓ All scheduled doses marked taken today"
+                            : `${dueEntries.length} ${dueEntries.length === 1 ? "dose" : "doses"} scheduled today`
+                          : "Not scheduled today"}
                     </AppText>
                   </View>
-                  <View style={styles.adherenceRow}>
-                    <View style={styles.itemHeaderCopy}>
-                      <AppText style={styles.adherenceTitle}>
-                        {takenAt ? `Taken at ${formatTakenTime(takenAt)}` : dueTime ? `Next due: ${dueTime}` : "No fixed time"}
-                      </AppText>
-                      <AppText style={styles.adherenceBody}>Today only. Edit medication details for schedule changes.</AppText>
+                  {dueEntries.length > 0 ? (
+                    <View style={styles.list}>
+                      {dueEntries.map((entry) => {
+                        const takenAt = medicationsTakenToday[entry.key];
+
+                        return (
+                          <View key={entry.key} style={styles.adherenceRow}>
+                            <View style={styles.itemHeaderCopy}>
+                              <AppText style={styles.adherenceTitle}>
+                                {takenAt ? `Taken at ${formatTakenTime(takenAt)}` : `Due at ${entry.label}`}
+                              </AppText>
+                              <AppText style={styles.adherenceBody}>
+                                {entry.dose ?? medication.dosage ?? "Scheduled dose"}
+                              </AppText>
+                            </View>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`${takenAt ? "Undo taken status for" : "Mark taken for"} ${medication.name} at ${entry.label}`}
+                              onPress={() => toggleMedicationTakenToday(medication.id, entry.time)}
+                              style={({ pressed }) => [
+                                styles.takenButton,
+                                takenAt && styles.takenButtonActive,
+                                pressed && styles.takenButtonPressed,
+                              ]}
+                            >
+                              <AppText style={[styles.takenButtonText, takenAt && styles.takenButtonTextActive]}>
+                                {takenAt ? "Taken ✓" : "Mark as taken"}
+                              </AppText>
+                            </Pressable>
+                          </View>
+                        );
+                      })}
                     </View>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`${takenAt ? "Undo taken status for" : "Mark taken for"} ${medication.name}`}
-                      onPress={() => toggleMedicationTakenToday(medication.id)}
-                      style={({ pressed }) => [
-                        styles.takenButton,
-                        takenAt && styles.takenButtonActive,
-                        pressed && styles.takenButtonPressed,
-                      ]}
-                    >
-                      <AppText style={[styles.takenButtonText, takenAt && styles.takenButtonTextActive]}>
-                        {takenAt ? "Taken ✓" : "Mark as taken"}
-                      </AppText>
-                    </Pressable>
-                  </View>
+                  ) : (
+                    <View style={styles.adherenceRow}>
+                      <View style={styles.itemHeaderCopy}>
+                        <AppText style={styles.adherenceTitle}>
+                          {medication.schedule_type === "as_needed" ? "No fixed schedule" : medication.frequency}
+                        </AppText>
+                        <AppText style={styles.adherenceBody}>
+                          {medication.schedule_type === "as_needed"
+                            ? "Mark this when you take it, rather than on a daily schedule."
+                            : "This medication is active, but it is not due today."}
+                        </AppText>
+                      </View>
+                    </View>
+                  )}
                   <View style={styles.itemActions}>
                     <AppButton label="Edit" onPress={() => startEditingMedication(medication)} variant="secondary" />
                     <AppButton
@@ -3306,6 +3668,7 @@ export default function CareScreen() {
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
+      {Platform.OS === "ios" ? (
       <Modal
         visible={activePicker !== null}
         transparent
@@ -3339,6 +3702,56 @@ export default function CareScreen() {
           </View>
         </View>
       </Modal>
+      ) : null}
+      {Platform.OS === "ios" ? (
+      <Modal
+        visible={activeMedicationDosePickerIndex !== null}
+        transparent
+        animationType="slide"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+        onRequestClose={closeMedicationDosePicker}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Pressable onPress={closeMedicationDosePicker} style={styles.modalAction}>
+                <AppText style={styles.modalActionText}>Cancel</AppText>
+              </Pressable>
+              <AppText style={styles.modalTitle}>Choose a dose time</AppText>
+              <Pressable onPress={confirmMedicationDosePicker} style={styles.modalAction}>
+                <AppText style={styles.modalActionText}>Done</AppText>
+              </Pressable>
+            </View>
+            {activeMedicationDosePickerIndex !== null ? (
+              <DateTimePicker
+                value={medicationPickerDraftDate}
+                mode="time"
+                display="spinner"
+                onChange={handleMedicationDosePickerChange}
+                style={styles.modalPicker}
+              />
+            ) : null}
+          </View>
+        </View>
+      </Modal>
+      ) : null}
+      {Platform.OS === "android" && activePicker ? (
+        <DateTimePicker
+          value={pickerDraftDate}
+          mode={activePicker}
+          display="default"
+          onChange={activePicker === "date" ? handleDateChange : handleTimeChange}
+        />
+      ) : null}
+      {Platform.OS === "android" && activeMedicationDosePickerIndex !== null ? (
+        <DateTimePicker
+          value={medicationPickerDraftDate}
+          mode="time"
+          display="default"
+          onChange={handleMedicationDosePickerChange}
+        />
+      ) : null}
     </AppScreen>
   );
 }
@@ -3376,6 +3789,41 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     fontSize: 13,
     lineHeight: 19,
+  },
+  warningBanner: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f3dfd1",
+    backgroundColor: "#fff7f0",
+    padding: 16,
+    gap: 8,
+  },
+  warningBannerTitle: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "700",
+    color: "#8a4a17",
+  },
+  warningBannerText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#7c5a43",
+  },
+  warningBannerButton: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    backgroundColor: "#fff0e2",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  warningBannerButtonPressed: {
+    opacity: 0.84,
+  },
+  warningBannerButtonText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
+    color: "#9a4a11",
   },
   summaryGrid: {
     gap: 14,
@@ -3786,6 +4234,10 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: "#1f2937",
     minHeight: 52,
+  },
+  inputError: {
+    borderColor: "#dc2626",
+    backgroundColor: "#fff7f7",
   },
   selectionField: {
     borderRadius: 12,

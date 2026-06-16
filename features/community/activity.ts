@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { appSecureStore } from "../../lib/secure-store";
-import { fetchCommunityActivity } from "./api";
+import { fetchCommunityActivity, markCommunityNotificationsRead } from "./api";
 import type { CommunityActivitySummary, CommunityCategoryId } from "./types";
 
 const COMMUNITY_ACTIVITY_SEEN_KEY = "livewithms.community.seen";
@@ -67,6 +67,7 @@ export async function saveCommunityNotifiedActivityIds(userId: string, ids: stri
 
 export async function markCommunityActivitySeen(userId: string) {
   await appSecureStore.setItem(getSeenKey(userId), new Date().toISOString());
+  await markCommunityNotificationsRead({ userId });
   notifyCommunityActivityChanged();
 }
 

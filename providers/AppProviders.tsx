@@ -51,6 +51,16 @@ export default function AppProviders({ children }: PropsWithChildren) {
   const isFlushingQueuedSavesRef = useRef(false);
 
   useEffect(() => {
+    if (!__DEV__) {
+      return;
+    }
+
+    console.log("[startup] app startup", {
+      timestamp: new Date().toISOString(),
+    });
+  }, []);
+
+  useEffect(() => {
     void loadGrowthState().catch((error) => {
       logger.warn("Growth state preload failed", {
         error: error instanceof Error ? error.message : String(error),

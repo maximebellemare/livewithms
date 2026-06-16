@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -19,14 +19,17 @@ import AppText from "../../../../components/ui/AppText";
 import { colors, radii, shadows, spacing } from "../../../../components/ui/design";
 import {
   blockCommunityUser,
+  createCommunityNotification,
   createCommunityComment,
   createCommunityPost,
   fetchCommunityBlockedUserIds,
   fetchCommunityComments,
+  fetchCommunityPostById,
   fetchCommunityProfile,
   fetchCommunityPosts,
   fetchCommunityUsage,
   hideCommunityPost,
+  markCommunityNotificationsRead,
   reportCommunityComment,
   reportCommunityPost,
   toggleCommunityReaction,
@@ -204,6 +207,7 @@ function getSafeDisplayName(profileDisplayName?: string | null) {
 
 export default function CommunityScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ postId?: string | string[] }>();
   const { user, isAuthenticated } = useAuth();
   const premium = usePremium();
   const growth = useGrowthState();
@@ -252,6 +256,10 @@ export default function CommunityScreen() {
   const freePostLimitReached = !hasPremiumAccess && usage.postsToday >= FREE_DAILY_COMMUNITY_POST_LIMIT;
   const freeCommentLimitReached = !hasPremiumAccess && usage.commentsToday >= FREE_DAILY_COMMUNITY_COMMENT_LIMIT;
   const displayName = useMemo(() => getSafeDisplayName(profileDisplayName), [profileDisplayName]);
+  const routePostId = useMemo(() => {
+    const value = Array.isArray(params.postId) ? params.postId[0] : params.postId;
+    return typeof value === "string" ? value : null;
+  }, [params.postId]);
 
   const forceReturnToCommunityList = useCallback((reason: "reply-delete" | "thread-delete") => {
     const route = `${COMMUNITY_LIST_ROUTE}?refresh=${Date.now().toString()}`;
@@ -350,15 +358,45 @@ export default function CommunityScreen() {
     }, [loadCommunity, markCommunityActivityAsSeen, refreshCommunityActivity]),
   );
 
+  useEffect(() => {
+    if (!routePostId || loading) {
+      return;
+    }
+
+    const existingPost = posts.find((post) => post.id === routePostId);
+    if (existingPost) {
+      void openPost(existingPost);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const fetchedPost = await fetchCommunityPostById(routePostId, user?.id);
+        if (!fetchedPost) {
+          return;
+        }
+
+        setPosts((current) => dedupeThreads([fetchedPost, ...current]));
+        await openPost(fetchedPost);
+      } catch {
+        // Leave the user on the Community list if the thread cannot open.
+      }
+    })();
+  }, [loading, openPost, posts, routePostId, user?.id]);
+
   const openPost = useCallback(
     async (post: CommunityPost) => {
       setSelectedPost(post);
       setComments([]);
       if (user?.id) {
         await rememberCommunityCategory(user.id, post.category);
+        await markCommunityNotificationsRead({
+          userId: user.id,
+          threadId: post.id,
+        });
       }
       try {
-      const nextComments = await fetchCommunityComments(post.id, user?.id);
+        const nextComments = await fetchCommunityComments(post.id, user?.id);
         const visibleComments = dedupeComments(
           nextComments.filter((comment) => !blockedUserIds.has(comment.user_id)),
         );
@@ -503,6 +541,17 @@ export default function CommunityScreen() {
         category: selectedPost.category,
         body: trimmedBody,
       });
+      if (selectedPost.user_id !== user.id) {
+        void createCommunityNotification({
+          recipientUserId: selectedPost.user_id,
+          actorUserId: user.id,
+          type: "reply_to_thread",
+          postId: createdComment.id,
+          threadId: selectedPost.id,
+          title: "New reply in Community",
+          body: "Someone replied to your thread.",
+        });
+      }
       setCommentBody("");
       setComments((current) => [...current, createdComment]);
       setSelectedPost((current) =>
@@ -620,6 +669,18 @@ export default function CommunityScreen() {
 
       try {
         await toggleCommunityReaction({ userId: user.id, postId: post.id, reactionType });
+        if (post.user_id !== user.id) {
+          void createCommunityNotification({
+            recipientUserId: post.user_id,
+            actorUserId: user.id,
+            type: "reaction_to_post",
+            postId: post.id,
+            threadId: post.id,
+            reaction: reactionType,
+            title: "Someone reacted to your post",
+            body: "Your Community post received a reaction.",
+          });
+        }
       } catch (error) {
         if (__DEV__) {
           console.error("[community] reaction failed", error);
@@ -651,6 +712,18 @@ export default function CommunityScreen() {
 
       try {
         await toggleCommunityReaction({ userId: user.id, commentId: comment.id, reactionType });
+        if (comment.user_id !== user.id) {
+          void createCommunityNotification({
+            recipientUserId: comment.user_id,
+            actorUserId: user.id,
+            type: "reaction_to_reply",
+            postId: comment.id,
+            threadId: selectedPost.id,
+            reaction: reactionType,
+            title: "Someone reacted to your post",
+            body: "Your Community post received a reaction.",
+          });
+        }
       } catch (error) {
         if (__DEV__) {
           console.error("[community] reaction failed", error);

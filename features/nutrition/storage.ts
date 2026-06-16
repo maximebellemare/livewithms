@@ -25,6 +25,30 @@ const SAVED_NUTRITION_MEALS_PREFIX = "livewithms:nutrition:saved-meals";
 const NUTRITION_PREFERENCES_PREFIX = "livewithms:nutrition:preferences";
 const NUTRITION_FOOD_ANALYSIS_USAGE_PREFIX = "livewithms:nutrition:food-analysis-usage";
 
+type NormalizedMealEntry = {
+  type: string;
+  title: string;
+  prep: string;
+  prepTime: string;
+  lowEnergyOption: string;
+};
+
+type NormalizedMealDay = {
+  day: string;
+  meals: Array<string | NormalizedMealEntry>;
+};
+
+type NormalizedMealPlan = {
+  title: string;
+  dietStyle: string;
+  focus: string;
+  fitReasons: string[];
+  plan: NormalizedMealDay[];
+  swaps: string[];
+  groceries: Record<string, string[]>;
+  budget: string;
+};
+
 function normalizeGoal(value: unknown) {
   if (value === "More stable energy") {
     return "Stable energy";
@@ -69,6 +93,99 @@ function normalizePrepPreference(value: unknown) {
   return typeof value === "string" ? value : "Quick meals";
 }
 
+function normalizeStringArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(/[,;\n]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [] as string[];
+}
+
+function normalizeGroceries(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return {} as Record<string, string[]>;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([category, items]) => [
+      category,
+      normalizeStringArray(items),
+    ]),
+  );
+}
+
+function normalizeMealEntry(value: unknown): string | NormalizedMealEntry | null {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value;
+  }
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const item = value as Record<string, unknown>;
+  if (typeof item.type !== "string" || typeof item.title !== "string") {
+    return null;
+  }
+
+  return {
+    type: item.type,
+    title: item.title,
+    prep: typeof item.prep === "string" ? item.prep : "",
+    prepTime: typeof item.prepTime === "string" ? item.prepTime : "",
+    lowEnergyOption: typeof item.lowEnergyOption === "string" ? item.lowEnergyOption : "",
+  };
+}
+
+function normalizeMealPlanDay(value: unknown): NormalizedMealDay | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const item = value as Record<string, unknown>;
+  if (typeof item.day !== "string") {
+    return null;
+  }
+
+  const meals = Array.isArray(item.meals)
+    ? item.meals.map(normalizeMealEntry).filter((meal): meal is string | NormalizedMealEntry => Boolean(meal))
+    : [];
+
+  return {
+    day: item.day,
+    meals,
+  };
+}
+
+function normalizeCurrentMealPlan(value: unknown): NormalizedMealPlan | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const item = value as Record<string, unknown>;
+  const plan = Array.isArray(item.plan)
+    ? item.plan.map(normalizeMealPlanDay).filter((day): day is NormalizedMealDay => Boolean(day))
+    : [];
+
+  return {
+    title: typeof item.title === "string" ? item.title : "Meal plan",
+    dietStyle: typeof item.dietStyle === "string" ? item.dietStyle : "Recommend one for me",
+    focus: typeof item.focus === "string" ? item.focus : "Keep meals simple, supportive, and realistic for the day.",
+    fitReasons: normalizeStringArray(item.fitReasons),
+    plan,
+    swaps: normalizeStringArray(item.swaps),
+    groceries: normalizeGroceries(item.groceries),
+    budget: typeof item.budget === "string" ? item.budget : "Budget-friendly",
+  };
+}
+
 function getSavedMealsKey(userId: string) {
   return `${SAVED_NUTRITION_MEALS_PREFIX}:${userId}`;
 }
@@ -98,8 +215,43 @@ function normalizeSavedMeal(value: unknown): SavedNutritionMeal | null {
     category: item.category,
     goal: typeof item.goal === "string" ? item.goal : undefined,
     dietStyle: typeof item.dietStyle === "string" ? item.dietStyle : undefined,
-    plan: item.plan ?? null,
+    plan: normalizeCurrentMealPlan(item.plan),
     savedAt: typeof item.savedAt === "string" ? item.savedAt : new Date().toISOString(),
+  };
+}
+
+export function normalizeNutritionState(raw: unknown): NutritionPreferences | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const parsed = raw as Partial<NutritionPreferences> & {
+    dietaryPreferences?: unknown;
+    prepPreferences?: unknown;
+    currentPlan?: unknown;
+    dislikes?: unknown;
+  };
+
+  return {
+    goal: normalizeGoal(parsed.goal),
+    dietStyle: normalizeDietStyle(parsed.dietStyle),
+    dislikedFoods:
+      typeof parsed.dislikedFoods === "string"
+        ? parsed.dislikedFoods
+        : typeof parsed.dislikes === "string"
+          ? parsed.dislikes
+          : "",
+    dietaryFilters:
+      normalizeStringArray(parsed.dietaryFilters).length > 0
+        ? normalizeStringArray(parsed.dietaryFilters)
+        : normalizeStringArray(parsed.dietaryPreferences),
+    prepPreference: normalizePrepPreference(
+      parsed.prepPreference ??
+        (Array.isArray(parsed.prepPreferences) ? parsed.prepPreferences[0] : parsed.prepPreferences),
+    ),
+    budgetPreference: typeof parsed.budgetPreference === "string" ? parsed.budgetPreference : "Budget-friendly",
+    currentMealPlan: normalizeCurrentMealPlan(parsed.currentMealPlan ?? parsed.currentPlan),
+    updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : new Date().toISOString(),
   };
 }
 
@@ -146,23 +298,8 @@ export async function loadNutritionPreferences(userId: string): Promise<Nutritio
       return null;
     }
 
-    const parsed = JSON.parse(raw) as Partial<NutritionPreferences>;
-    if (!parsed || typeof parsed !== "object") {
-      return null;
-    }
-
-    return {
-      goal: normalizeGoal(parsed.goal),
-      dietStyle: normalizeDietStyle(parsed.dietStyle),
-      dislikedFoods: typeof parsed.dislikedFoods === "string" ? parsed.dislikedFoods : "",
-      dietaryFilters: Array.isArray(parsed.dietaryFilters)
-        ? parsed.dietaryFilters.filter((item): item is string => typeof item === "string")
-        : [],
-      prepPreference: normalizePrepPreference(parsed.prepPreference),
-      budgetPreference: typeof parsed.budgetPreference === "string" ? parsed.budgetPreference : "Budget-friendly",
-      currentMealPlan: parsed.currentMealPlan ?? null,
-      updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : new Date().toISOString(),
-    };
+    const parsed = JSON.parse(raw) as unknown;
+    return normalizeNutritionState(parsed);
   } catch {
     return null;
   }

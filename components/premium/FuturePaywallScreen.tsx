@@ -24,7 +24,7 @@ import { preventArtificialScarcity } from "../../lib/premium-ecosystem/sustainab
 import { isExpoGo } from "../../lib/revenueCatEnvironment";
 
 const PRIVACY_POLICY_URL = "https://www.livewithms.com/policies/privacy-policy";
-const TERMS_OF_USE_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
+const TERMS_OF_USE_URL = "https://www.livewithms.com/policies/terms-of-service";
 
 type FuturePaywallScreenProps = {
   onClose: () => void;
