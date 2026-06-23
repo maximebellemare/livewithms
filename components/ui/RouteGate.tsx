@@ -1,4 +1,4 @@
-import { PropsWithChildren, useEffect, useMemo, useRef } from "react";
+import { PropsWithChildren, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSegments } from "expo-router";
 import { useAuth } from "../../features/auth/hooks";
 import { useMyProfile } from "../../features/profile/hooks";
@@ -19,6 +19,7 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
   const segments = useSegments();
   const { isReady, isAuthenticated, session, user } = useAuth();
   const redirectInFlightRef = useRef<string | null>(null);
+  const [profileLoadTimedOut, setProfileLoadTimedOut] = useState(false);
   const shouldLoadProfile = isReady && isAuthenticated && !!user?.id;
   const profileQuery = useMyProfile(user?.id, shouldLoadProfile);
 
@@ -33,7 +34,8 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
         : "(app)";
 
   const onboardingCompleted = profileQuery.data?.onboarding_completed ?? false;
-  const profileReady = !isAuthenticated || !shouldLoadProfile || !profileQuery.isLoading;
+  const profileReady =
+    !isAuthenticated || !shouldLoadProfile || !profileQuery.isLoading || profileQuery.isError || profileLoadTimedOut;
   const sessionStatus = !isReady ? "loading" : session?.user?.id ? "authenticated" : "none";
   const shouldShowUnauthenticatedAppFlow = isReady && !isAuthenticated && (mode === "app" || mode === "onboarding");
   const buildDebugLabel = (currentStep: string) =>
@@ -45,12 +47,30 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
       `currentStep: ${currentStep}`,
     ].join("\n");
   const authenticatedTargetPath = useMemo(() => {
-    if (!isAuthenticated || profileQuery.isLoading) {
+    if (!isAuthenticated || !profileReady) {
       return null;
     }
 
     return getAllowedPath(mode, onboardingCompleted);
-  }, [isAuthenticated, mode, onboardingCompleted, profileQuery.isLoading]);
+  }, [isAuthenticated, mode, onboardingCompleted, profileReady]);
+
+  useEffect(() => {
+    if (!shouldLoadProfile || !profileQuery.isLoading) {
+      setProfileLoadTimedOut(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      console.error("[startup] Profile load timed out", {
+        userId: user?.id ?? null,
+        pathname,
+        mode,
+      });
+      setProfileLoadTimedOut(true);
+    }, 10000);
+
+    return () => clearTimeout(timeoutId);
+  }, [mode, pathname, profileQuery.isLoading, shouldLoadProfile, user?.id]);
 
   useEffect(() => {
     if (!shouldShowUnauthenticatedAppFlow) {
@@ -139,6 +159,7 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
     mode,
     pathname,
     profileQuery.isLoading,
+    profileLoadTimedOut,
     router,
     session,
     user?.id,
@@ -178,7 +199,7 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
     return <SignInScreen />;
   }
 
-  if (profileQuery.isLoading) {
+  if (profileQuery.isLoading && !profileLoadTimedOut) {
     if (__DEV__) {
       console.log("[startup] RouteGate loading state", {
         reason: "profile-loading",

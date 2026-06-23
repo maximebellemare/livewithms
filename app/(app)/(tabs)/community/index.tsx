@@ -246,6 +246,8 @@ export default function CommunityScreen() {
   const [recentlyPublishedPostId, setRecentlyPublishedPostId] = useState<string | null>(null);
   const publishFeedbackScale = useRef(new Animated.Value(0.96)).current;
   const publishFeedbackOpacity = useRef(new Animated.Value(0)).current;
+  const hasLoadedInitialCommunityRef = useRef(false);
+  const lastCommunityLoadAtRef = useRef(0);
 
   const hasPremiumAccess = premium.hasPremiumAccess;
   const {
@@ -337,6 +339,7 @@ export default function CommunityScreen() {
         setUsage(nextUsage);
         setMessage(null);
         setLoadFailed(false);
+        lastCommunityLoadAtRef.current = Date.now();
       } catch {
         setPosts(COMMUNITY_STARTER_POSTS);
         setLoadFailed(true);
@@ -348,9 +351,24 @@ export default function CommunityScreen() {
     [user?.id],
   );
 
+  useEffect(() => {
+    if (hasLoadedInitialCommunityRef.current) {
+      return;
+    }
+
+    hasLoadedInitialCommunityRef.current = true;
+    void loadCommunity("initial");
+  }, [loadCommunity]);
+
   useFocusEffect(
     useCallback(() => {
-      void loadCommunity("initial");
+      if (!hasLoadedInitialCommunityRef.current) {
+        hasLoadedInitialCommunityRef.current = true;
+        void loadCommunity("initial");
+      } else if (Date.now() - lastCommunityLoadAtRef.current > 300000) {
+        void loadCommunity("refresh");
+      }
+
       void (async () => {
         await refreshCommunityActivity();
         await markCommunityActivityAsSeen();

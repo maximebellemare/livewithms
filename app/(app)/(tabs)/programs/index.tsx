@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { Alert, Animated, Easing, Linking, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
+import { Alert, Animated, Easing, InteractionManager, Linking, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import GentleExercisesSection from "../../../../components/exercises/GentleExercisesSection";
 import AppButton from "../../../../components/ui/AppButton";
 import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
+import CalmSkeleton from "../../../../components/ui/CalmSkeleton";
 import ErrorState from "../../../../components/ui/ErrorState";
-import LoadingState from "../../../../components/ui/LoadingState";
 import { buildAdaptiveProfile } from "../../../../features/adaptive/logic";
 import { useAuth } from "../../../../features/auth/hooks";
 import { useCheckInHistory, useCheckInOverview } from "../../../../features/checkins/hooks";
@@ -941,6 +941,18 @@ export default function ProgramsScreen() {
   const [customWorkflowFields, setCustomWorkflowFields] = useState<Record<string, Record<string, boolean>>>({});
   const [exportingAppointmentSummary, setExportingAppointmentSummary] = useState(false);
   const [appointmentExportMessage, setAppointmentExportMessage] = useState<string | null>(null);
+  const [deferredProgramsReady, setDeferredProgramsReady] = useState(false);
+  const historyEntries = useMemo(() => historyQuery.data ?? [], [historyQuery.data]);
+  const overviewEntriesRaw = useMemo(() => overviewQuery.data ?? [], [overviewQuery.data]);
+  const programsLoading = (overviewQuery.isLoading && !overviewQuery.data) || (historyQuery.isLoading && !historyQuery.data);
+  const deferredHistoryEntries = useMemo(
+    () => (deferredProgramsReady ? historyEntries : []),
+    [deferredProgramsReady, historyEntries],
+  );
+  const deferredOverviewEntries = useMemo(
+    () => (deferredProgramsReady ? overviewEntriesRaw : []),
+    [deferredProgramsReady, overviewEntriesRaw],
+  );
 
   const selectedTool = useMemo(
     () => getProgramToolById(selectedToolId),
@@ -958,6 +970,18 @@ export default function ProgramsScreen() {
   useEffect(() => {
     markOpenedRef.current = programProgress.markOpened;
   }, [programProgress.markOpened]);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      startTransition(() => {
+        setDeferredProgramsReady(true);
+      });
+    });
+
+    return () => {
+      task.cancel?.();
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -1021,7 +1045,7 @@ export default function ProgramsScreen() {
     selectedToolId,
   ]);
 
-  const overviewEntries = useMemo(() => overviewQuery.data ?? [], [overviewQuery.data]);
+  const overviewEntries = useMemo(() => deferredOverviewEntries, [deferredOverviewEntries]);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const weeklyCheckIns = useMemo(
     () => getCheckInsInLastDays(overviewEntries, today, 7),
@@ -1030,10 +1054,10 @@ export default function ProgramsScreen() {
   const adaptiveProfile = useMemo(
     () =>
       applyLowEnergyModeOverride(
-        buildAdaptiveProfile(historyQuery.data ?? [], Math.min(7, historyQuery.data?.length ?? 0)),
+        buildAdaptiveProfile(deferredHistoryEntries, Math.min(7, deferredHistoryEntries.length)),
         lowEnergyMode.enabled,
       ),
-    [historyQuery.data, lowEnergyMode.enabled],
+    [deferredHistoryEntries, lowEnergyMode.enabled],
   );
   const hasLowEnergyAssist = useMemo(
     () =>
@@ -1051,11 +1075,11 @@ export default function ProgramsScreen() {
         featureEnabled: premium.premiumFeatureFlags.low_energy_assist,
         lowEnergyModeEnabled: lowEnergyMode.enabled,
         recentFatigueAverage:
-          typeof historyQuery.data?.[0]?.fatigue === "number" ? historyQuery.data?.[0]?.fatigue : null,
+          typeof deferredHistoryEntries[0]?.fatigue === "number" ? deferredHistoryEntries[0].fatigue : null,
         recentStressAverage:
-          typeof historyQuery.data?.[0]?.stress === "number" ? historyQuery.data?.[0]?.stress : null,
+          typeof deferredHistoryEntries[0]?.stress === "number" ? deferredHistoryEntries[0].stress : null,
         recentSleepAverage:
-          typeof historyQuery.data?.[0]?.sleep_hours === "number" ? historyQuery.data?.[0]?.sleep_hours : null,
+          typeof deferredHistoryEntries[0]?.sleep_hours === "number" ? deferredHistoryEntries[0].sleep_hours : null,
         fatigueTrend: adaptiveProfile.fatigueTrend,
         stressTrend: adaptiveProfile.stressTrend,
         interactionTolerance: adaptiveProfile.lowEnergyMode ? "reduced" : "steady",
@@ -1064,7 +1088,7 @@ export default function ProgramsScreen() {
       adaptiveProfile.fatigueTrend,
       adaptiveProfile.lowEnergyMode,
       adaptiveProfile.stressTrend,
-      historyQuery.data,
+      deferredHistoryEntries,
       lowEnergyMode.enabled,
       premium.hasPremiumAccess,
       premium.premiumFeatureFlags.low_energy_assist,
@@ -1144,7 +1168,7 @@ export default function ProgramsScreen() {
         fatigueTrend: adaptiveProfile.fatigueTrend,
         stressTrend: adaptiveProfile.stressTrend,
         recentSleepAverage:
-          typeof historyQuery.data?.[0]?.sleep_hours === "number" ? historyQuery.data[0].sleep_hours : null,
+          typeof deferredHistoryEntries[0]?.sleep_hours === "number" ? deferredHistoryEntries[0].sleep_hours : null,
         suggestedToolId: adaptiveProfile.suggestedProgram,
         timeOfDay: deriveToolkitTimeOfDay(new Date().getHours()),
       }),
@@ -1153,7 +1177,7 @@ export default function ProgramsScreen() {
       adaptiveProfile.lowEnergyMode,
       adaptiveProfile.stressTrend,
       adaptiveProfile.suggestedProgram,
-      historyQuery.data,
+      deferredHistoryEntries,
       lowEnergyAssist.active,
     ],
   );
@@ -1281,7 +1305,7 @@ export default function ProgramsScreen() {
         stressTrend: adaptiveProfile.stressTrend,
         fatigueTrend: adaptiveProfile.fatigueTrend,
         recentSleepAverage:
-          typeof historyQuery.data?.[0]?.sleep_hours === "number" ? historyQuery.data[0].sleep_hours : null,
+          typeof deferredHistoryEntries[0]?.sleep_hours === "number" ? deferredHistoryEntries[0].sleep_hours : null,
         lowEnergyMode: adaptiveProfile.lowEnergyMode,
         lowEnergyAssistActive: lowEnergyAssist.active,
       }),
@@ -1289,7 +1313,7 @@ export default function ProgramsScreen() {
       adaptiveProfile.fatigueTrend,
       adaptiveProfile.lowEnergyMode,
       adaptiveProfile.stressTrend,
-      historyQuery.data,
+      deferredHistoryEntries,
       lowEnergyAssist.active,
     ],
   );
@@ -1304,7 +1328,7 @@ export default function ProgramsScreen() {
     () =>
       deriveCognitiveSupport({
         brainFog:
-          typeof historyQuery.data?.[0]?.brain_fog === "number" ? historyQuery.data[0].brain_fog : null,
+          typeof deferredHistoryEntries[0]?.brain_fog === "number" ? deferredHistoryEntries[0].brain_fog : null,
         fatigueTrend: adaptiveProfile.fatigueTrend,
         stressTrend: adaptiveProfile.stressTrend,
         lowEnergyMode: adaptiveProfile.lowEnergyMode,
@@ -1316,7 +1340,7 @@ export default function ProgramsScreen() {
       adaptiveProfile.fatigueTrend,
       adaptiveProfile.lowEnergyMode,
       adaptiveProfile.stressTrend,
-      historyQuery.data,
+      deferredHistoryEntries,
       lowEnergyAssist.active,
       programProgress.progress.lastOpenedToolId,
       programProgress.progress.recentToolIds,
@@ -1335,7 +1359,7 @@ export default function ProgramsScreen() {
         stressTrend: adaptiveProfile.stressTrend,
         fatigueTrend: adaptiveProfile.fatigueTrend,
         brainFog:
-          typeof historyQuery.data?.[0]?.brain_fog === "number" ? historyQuery.data[0].brain_fog : null,
+          typeof deferredHistoryEntries[0]?.brain_fog === "number" ? deferredHistoryEntries[0].brain_fog : null,
         lowEnergyMode: adaptiveProfile.lowEnergyMode,
         lowEnergyAssistActive: lowEnergyAssist.active,
         recentToolIds: programProgress.progress.recentToolIds,
@@ -1345,7 +1369,7 @@ export default function ProgramsScreen() {
       adaptiveProfile.fatigueTrend,
       adaptiveProfile.lowEnergyMode,
       adaptiveProfile.stressTrend,
-      historyQuery.data,
+      deferredHistoryEntries,
       lowEnergyAssist.active,
       programProgress.progress.lastOpenedToolId,
       programProgress.progress.recentToolIds,
@@ -1364,7 +1388,7 @@ export default function ProgramsScreen() {
         fatigueTrend: adaptiveProfile.fatigueTrend,
         stressTrend: adaptiveProfile.stressTrend,
         brainFog:
-          typeof historyQuery.data?.[0]?.brain_fog === "number" ? historyQuery.data[0].brain_fog : null,
+          typeof deferredHistoryEntries[0]?.brain_fog === "number" ? deferredHistoryEntries[0].brain_fog : null,
         lowEnergyMode: adaptiveProfile.lowEnergyMode,
         lowEnergyAssistActive: lowEnergyAssist.active,
         recentToolIds: programProgress.progress.recentToolIds,
@@ -1374,7 +1398,7 @@ export default function ProgramsScreen() {
       adaptiveProfile.fatigueTrend,
       adaptiveProfile.lowEnergyMode,
       adaptiveProfile.stressTrend,
-      historyQuery.data,
+      deferredHistoryEntries,
       lowEnergyAssist.active,
       programProgress.progress.lastOpenedToolId,
       programProgress.progress.recentToolIds,
@@ -1393,7 +1417,7 @@ export default function ProgramsScreen() {
         fatigueTrend: adaptiveProfile.fatigueTrend,
         stressTrend: adaptiveProfile.stressTrend,
         brainFog:
-          typeof historyQuery.data?.[0]?.brain_fog === "number" ? historyQuery.data[0].brain_fog : null,
+          typeof deferredHistoryEntries[0]?.brain_fog === "number" ? deferredHistoryEntries[0].brain_fog : null,
         lowEnergyMode: adaptiveProfile.lowEnergyMode,
         lowEnergyAssistActive: lowEnergyAssist.active,
         recentToolIds: programProgress.progress.recentToolIds,
@@ -1403,7 +1427,7 @@ export default function ProgramsScreen() {
       adaptiveProfile.fatigueTrend,
       adaptiveProfile.lowEnergyMode,
       adaptiveProfile.stressTrend,
-      historyQuery.data,
+      deferredHistoryEntries,
       lowEnergyAssist.active,
       programProgress.progress.lastOpenedToolId,
       programProgress.progress.recentToolIds,
@@ -1422,7 +1446,7 @@ export default function ProgramsScreen() {
         fatigueTrend: adaptiveProfile.fatigueTrend,
         stressTrend: adaptiveProfile.stressTrend,
         brainFog:
-          typeof historyQuery.data?.[0]?.brain_fog === "number" ? historyQuery.data[0].brain_fog : null,
+          typeof deferredHistoryEntries[0]?.brain_fog === "number" ? deferredHistoryEntries[0].brain_fog : null,
         lowEnergyMode: adaptiveProfile.lowEnergyMode,
         lowEnergyAssistActive: lowEnergyAssist.active,
         recentToolIds: programProgress.progress.recentToolIds,
@@ -1432,7 +1456,7 @@ export default function ProgramsScreen() {
       adaptiveProfile.fatigueTrend,
       adaptiveProfile.lowEnergyMode,
       adaptiveProfile.stressTrend,
-      historyQuery.data,
+      deferredHistoryEntries,
       lowEnergyAssist.active,
       programProgress.progress.lastOpenedToolId,
       programProgress.progress.recentToolIds,
@@ -1451,7 +1475,7 @@ export default function ProgramsScreen() {
         fatigueTrend: adaptiveProfile.fatigueTrend,
         stressTrend: adaptiveProfile.stressTrend,
         brainFog:
-          typeof historyQuery.data?.[0]?.brain_fog === "number" ? historyQuery.data[0].brain_fog : null,
+          typeof deferredHistoryEntries[0]?.brain_fog === "number" ? deferredHistoryEntries[0].brain_fog : null,
         lowEnergyMode: adaptiveProfile.lowEnergyMode,
         lowEnergyAssistActive: lowEnergyAssist.active,
         recentToolIds: programProgress.progress.recentToolIds,
@@ -1461,7 +1485,7 @@ export default function ProgramsScreen() {
       adaptiveProfile.fatigueTrend,
       adaptiveProfile.lowEnergyMode,
       adaptiveProfile.stressTrend,
-      historyQuery.data,
+      deferredHistoryEntries,
       lowEnergyAssist.active,
       programProgress.progress.lastOpenedToolId,
       programProgress.progress.recentToolIds,
@@ -1480,8 +1504,8 @@ export default function ProgramsScreen() {
         fatigueTrend: adaptiveProfile.fatigueTrend,
         stressTrend: adaptiveProfile.stressTrend,
         recentSleepAverage:
-          typeof historyQuery.data?.[0]?.sleep_hours === "number" ? historyQuery.data[0].sleep_hours : null,
-        recentEntries: historyQuery.data ?? [],
+          typeof deferredHistoryEntries[0]?.sleep_hours === "number" ? deferredHistoryEntries[0].sleep_hours : null,
+        recentEntries: deferredHistoryEntries,
         lowEnergyMode: adaptiveProfile.lowEnergyMode,
         lowEnergyAssistActive: lowEnergyAssist.active,
       }),
@@ -1489,7 +1513,7 @@ export default function ProgramsScreen() {
       adaptiveProfile.fatigueTrend,
       adaptiveProfile.lowEnergyMode,
       adaptiveProfile.stressTrend,
-      historyQuery.data,
+      deferredHistoryEntries,
       lowEnergyAssist.active,
     ],
   );
@@ -1967,7 +1991,7 @@ export default function ProgramsScreen() {
       deriveTransitionSupport({
         fatigueTrend: adaptiveProfile.fatigueTrend,
         stressTrend: adaptiveProfile.stressTrend,
-        recentEntries: historyQuery.data ?? [],
+        recentEntries: deferredHistoryEntries,
         lowEnergyMode: adaptiveProfile.lowEnergyMode,
         lowEnergyAssistActive: lowEnergyAssist.active,
         disruptionDetected: routineDisruption.disrupted,
@@ -1978,7 +2002,7 @@ export default function ProgramsScreen() {
       adaptiveProfile.fatigueTrend,
       adaptiveProfile.lowEnergyMode,
       adaptiveProfile.stressTrend,
-      historyQuery.data,
+      deferredHistoryEntries,
       lowEnergyAssist.active,
       programProgress.progress.lastOpenedToolId,
       programProgress.progress.recentToolIds,
@@ -2030,7 +2054,7 @@ export default function ProgramsScreen() {
         fatigueTrend: adaptiveProfile.fatigueTrend,
         stressTrend: adaptiveProfile.stressTrend,
         recentSleepAverage:
-          typeof historyQuery.data?.[0]?.sleep_hours === "number" ? historyQuery.data[0].sleep_hours : null,
+          typeof deferredHistoryEntries[0]?.sleep_hours === "number" ? deferredHistoryEntries[0].sleep_hours : null,
         lowEnergyMode: adaptiveProfile.lowEnergyMode,
         lowEnergyAssistActive: lowEnergyAssist.active,
         recentToolIds: programProgress.progress.recentToolIds,
@@ -2040,7 +2064,7 @@ export default function ProgramsScreen() {
       adaptiveProfile.fatigueTrend,
       adaptiveProfile.lowEnergyMode,
       adaptiveProfile.stressTrend,
-      historyQuery.data,
+      deferredHistoryEntries,
       lowEnergyAssist.active,
       programProgress.progress.lastOpenedToolId,
       programProgress.progress.recentToolIds,
@@ -2362,10 +2386,6 @@ export default function ProgramsScreen() {
     }
   };
 
-  if ((overviewQuery.isLoading && !overviewQuery.data) || (historyQuery.isLoading && !historyQuery.data)) {
-    return <LoadingState message="Programs are settling in..." />;
-  }
-
   if (overviewQuery.isError) {
     return <ErrorState message="This section may need another moment." onRetry={() => void overviewQuery.refetch()} />;
   }
@@ -2422,6 +2442,18 @@ export default function ProgramsScreen() {
     );
   };
 
+  const renderProgramPlaceholders = (count: number) =>
+    Array.from({ length: count }, (_, index) => (
+      <View key={`program-placeholder-${index}`} style={styles.operationalToolCard}>
+        <View style={styles.placeholderStack}>
+          <CalmSkeleton height={18} width="56%" />
+          <CalmSkeleton height={14} width="82%" />
+          <CalmSkeleton height={14} width="90%" />
+          <CalmSkeleton height={14} width="44%" />
+        </View>
+      </View>
+    ));
+
   return (
     <AppScreen
       eyebrow="Programs"
@@ -2436,11 +2468,21 @@ export default function ProgramsScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {programsLoading ? (
+          <View style={styles.loadingBanner}>
+            <AppText style={styles.loadingBannerText}>Programs are loading now. Tools will settle in shortly.</AppText>
+          </View>
+        ) : null}
+
         <View style={styles.section}>
           <View style={styles.sectionHeaderText}>
             <AppText style={styles.sectionTitle}>Support tools</AppText>
           </View>
-          <View style={styles.sectionList}>{freeProgramTools.map((tool) => renderToolCard(tool))}</View>
+          <View style={styles.sectionList}>
+            {programsLoading || !deferredProgramsReady
+              ? renderProgramPlaceholders(3)
+              : freeProgramTools.map((tool) => renderToolCard(tool))}
+          </View>
         </View>
 
         <View
@@ -4009,6 +4051,21 @@ const styles = StyleSheet.create({
   },
   sectionList: {
     gap: 12,
+  },
+  loadingBanner: {
+    backgroundColor: "#fff7ed",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f2d2b6",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  loadingBannerText: {
+    color: "#9a5a2f",
+    lineHeight: 20,
+  },
+  placeholderStack: {
+    gap: 10,
   },
   toolCard: {
     backgroundColor: "#ffffff",

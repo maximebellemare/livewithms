@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { InteractionManager, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import CalmSkeleton from "../../../../components/ui/CalmSkeleton";
+import DailyCheckInCard from "../../../../components/today/DailyCheckInCard";
+import { getEmptyCheckInDraft, normalizeCheckInInput, type DailyCheckInDraft } from "../../../../components/today/checkInDraft";
 import CheckInDetailCard from "../../../../components/track/CheckInDetailCard";
 import CheckInHistoryList from "../../../../components/track/CheckInHistoryList";
 import AppButton from "../../../../components/ui/AppButton";
 import EmptyState from "../../../../components/ui/EmptyState";
 import ErrorState from "../../../../components/ui/ErrorState";
-import LoadingState from "../../../../components/ui/LoadingState";
 import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
 import { useAuth } from "../../../../features/auth/hooks";
+import { useTodaysCheckIn } from "../../../../features/checkins/hooks";
 import { useCoachPlan } from "../../../../features/coach-plans/hooks";
 import { useCheckInHistory, useSaveDailyCheckIn } from "../../../../features/checkins/hooks";
 import type { DailyCheckIn, DailyCheckInInput } from "../../../../features/checkins/types";
@@ -19,6 +22,15 @@ import { getErrorMessage } from "../../../../lib/errors";
 
 const QUERY_LIMIT = 30;
 const VISIBLE_HISTORY_LIMIT = 12;
+
+function getTodayDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
 
 function getPrimaryPattern(snapshot: TrackClaritySnapshot, entryCount: number) {
   const primary =
@@ -72,14 +84,57 @@ function buildInputFromCheckIn(item: DailyCheckIn): DailyCheckInInput {
   };
 }
 
+function buildDraftFromCheckIn(item: DailyCheckIn | null): DailyCheckInDraft {
+  if (!item) {
+    return getEmptyCheckInDraft();
+  }
+
+  return {
+    fatigue: item.fatigue,
+    pain: item.pain,
+    brain_fog: item.brain_fog,
+    mood: item.mood,
+    mobility: item.mobility,
+    stress: item.stress,
+    sleep_hours: item.sleep_hours == null ? "" : String(item.sleep_hours),
+    water_glasses: item.water_glasses == null ? "" : String(item.water_glasses),
+    notes: item.notes ?? "",
+  };
+}
+
 export default function TrackScreen() {
   const { user } = useAuth();
   const lowEnergyMode = useLowEnergyMode();
+  const today = useMemo(() => getTodayDateString(), []);
   const historyQuery = useCheckInHistory(user?.id, QUERY_LIMIT);
+  const todayCheckInQuery = useTodaysCheckIn(user?.id, today);
   const saveCheckIn = useSaveDailyCheckIn();
+  const [draft, setDraft] = useState<DailyCheckInDraft>(getEmptyCheckInDraft());
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(!lowEnergyMode.enabled);
   const [showMonthlyOverview, setShowMonthlyOverview] = useState(false);
+  const [deferredTrackInsightsReady, setDeferredTrackInsightsReady] = useState(false);
+  const todayEntry = todayCheckInQuery.data ?? null;
+  const historyItems = useMemo(() => historyQuery.data ?? [], [historyQuery.data]);
+  const todayCheckInLoading = todayCheckInQuery.isLoading && !todayCheckInQuery.data;
+  const historyLoading = historyQuery.isLoading && !historyQuery.data;
+  const historyEntriesForInsights = useMemo(
+    () => (deferredTrackInsightsReady ? historyItems : []),
+    [deferredTrackInsightsReady, historyItems],
+  );
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      startTransition(() => {
+        setDeferredTrackInsightsReady(true);
+      });
+    });
+
+    return () => {
+      task.cancel?.();
+    };
+  }, []);
 
   useEffect(() => {
     if (!historyQuery.data || historyQuery.data.length === 0) {
@@ -87,11 +142,16 @@ export default function TrackScreen() {
     }
   }, [historyQuery.data]);
 
-  const visibleItems = useMemo(() => (historyQuery.data ?? []).slice(0, VISIBLE_HISTORY_LIMIT), [historyQuery.data]);
-  const totalCheckIns = historyQuery.data?.length ?? 0;
+  useEffect(() => {
+    setDraft(buildDraftFromCheckIn(todayEntry));
+    setSaveState("idle");
+  }, [todayEntry]);
+
+  const visibleItems = useMemo(() => historyItems.slice(0, VISIBLE_HISTORY_LIMIT), [historyItems]);
+  const totalCheckIns = historyItems.length;
   const claritySnapshot = useMemo(
-    () => buildTrackClaritySnapshot(historyQuery.data ?? []),
-    [historyQuery.data],
+    () => buildTrackClaritySnapshot(historyEntriesForInsights),
+    [historyEntriesForInsights],
   );
   const primaryPattern = useMemo(
     () => getPrimaryPattern(claritySnapshot, totalCheckIns),
@@ -144,46 +204,77 @@ export default function TrackScreen() {
   const linkedTomorrowDate = selectedItem ? getNextDateString(selectedItem.date) : undefined;
   const linkedTomorrowPlanQuery = useCoachPlan(user?.id, linkedTomorrowDate);
 
+  const handleSaveCheckIn = async () => {
+    if (!user?.id || saveState === "saving") {
+      return;
+    }
+
+    setSaveState("saving");
+
+    try {
+      await saveCheckIn.mutateAsync({
+        userId: user.id,
+        date: today,
+        input: normalizeCheckInInput(draft),
+      });
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    }
+  };
+
   if (!user?.id) {
     return <ErrorState message="Your check-in history is available once you’re signed in." />;
   }
 
-  if (historyQuery.isLoading) {
-    return <LoadingState message="Bringing your history into view..." />;
-  }
-
-  if (historyQuery.isError) {
-    return (
-      <ErrorState
-        message={getErrorMessage(historyQuery.error)}
-        onRetry={() => void historyQuery.refetch()}
-      />
-    );
-  }
-
-  if (!visibleItems.length) {
-    return (
-      <EmptyState
-        title="Your check-ins will appear here when you’re ready"
-        message="Track will show trends and relationships once check-ins are available."
-        action={<AppButton label="Go to Today" onPress={() => router.push("/today")} />}
-      />
-    );
-  }
-
   return (
     <AppScreen
-      eyebrow="History and patterns"
+      eyebrow="Track and trends"
       title="Track"
-      subtitle="Review changes, relationships, and symptom trends over time."
+      subtitle="Log symptoms and body signals, then review what is changing over time."
     >
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.section}>
+          <DailyCheckInCard
+            draft={draft}
+            onChange={setDraft}
+            saveState={saveState}
+            onSave={() => void handleSaveCheckIn()}
+            saveMomentTitle={todayEntry ? "Check-in updated" : "Check-in saved"}
+            saveMomentBody="Track updated ✓"
+            saveFooterText="Trends update from this check-in."
+            onViewInsights={() => router.push("/track")}
+            supportMode={lowEnergyMode.enabled ? "low-energy" : "default"}
+            compressionMode={lowEnergyMode.enabled ? "reduced" : "standard"}
+          />
+          {todayCheckInLoading ? <AppText style={styles.loadingHint}>Today&apos;s check-in is loading now.</AppText> : null}
+          {todayCheckInQuery.isError ? (
+            <AppText style={styles.inlineWarning}>{getErrorMessage(todayCheckInQuery.error)}</AppText>
+          ) : null}
+        </View>
+
+        {!historyLoading && !visibleItems.length ? (
+          <EmptyState
+            title="Your entries will appear here when you’re ready"
+            message="Track will show recent entries and gentle trends after your first check-in."
+            action={<AppButton label="Back to Today" onPress={() => router.push("/today")} />}
+          />
+        ) : null}
+
         <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>Pattern view</AppText>
-          <AppText style={styles.heroSubtitle}>
-            {primaryPattern}
-          </AppText>
-          <AppText style={styles.heroCount}>{getDateCountLabel(historyQuery.data?.length ?? 0)}</AppText>
+          <AppText style={styles.heroTitle}>Trends and insights</AppText>
+          {historyLoading || !deferredTrackInsightsReady ? (
+            <View style={styles.placeholderStack}>
+              <CalmSkeleton height={16} width="88%" />
+              <CalmSkeleton height={16} width="74%" />
+              <CalmSkeleton height={14} width="40%" />
+            </View>
+          ) : (
+            <>
+              <AppText style={styles.heroSubtitle}>{primaryPattern}</AppText>
+              <AppText style={styles.heroCount}>{getDateCountLabel(totalCheckIns)}</AppText>
+            </>
+          )}
         </View>
 
         <View style={styles.sectionCard}>
@@ -191,7 +282,13 @@ export default function TrackScreen() {
           <AppText style={styles.sectionHelper}>
             Last 7 days compared with the week before.
           </AppText>
-          {claritySnapshot.recentChanges.length > 0 ? (
+          {historyLoading || !deferredTrackInsightsReady ? (
+            <View style={styles.placeholderStack}>
+              <CalmSkeleton height={14} width="92%" />
+              <CalmSkeleton height={14} width="86%" />
+              <CalmSkeleton height={14} width="72%" />
+            </View>
+          ) : claritySnapshot.recentChanges.length > 0 ? (
             <View style={styles.insightList}>
               {claritySnapshot.recentChanges.map((item) => (
                 <View key={item} style={styles.insightRow}>
@@ -205,14 +302,14 @@ export default function TrackScreen() {
           )}
         </View>
 
-        {claritySnapshot.fluctuationNote ? (
+        {claritySnapshot.fluctuationNote && !historyLoading && deferredTrackInsightsReady ? (
           <View style={styles.summaryCard}>
             <AppText style={styles.summaryKicker}>Trend stability</AppText>
             <AppText style={styles.summaryBody}>{claritySnapshot.fluctuationNote}</AppText>
           </View>
         ) : null}
 
-        {claritySnapshot.weeklySummary ? (
+        {claritySnapshot.weeklySummary && !historyLoading && deferredTrackInsightsReady ? (
           <View style={styles.sectionCard}>
             <AppText style={styles.sectionTitle}>{claritySnapshot.weeklySummary.title}</AppText>
             <AppText style={styles.sectionHelper}>{claritySnapshot.weeklySummary.body}</AppText>
@@ -226,7 +323,7 @@ export default function TrackScreen() {
           </View>
         ) : null}
 
-        {claritySnapshot.monthlySummary ? (
+        {claritySnapshot.monthlySummary && !historyLoading && deferredTrackInsightsReady ? (
           <View style={styles.sectionCard}>
             <Pressable
               onPress={() => setShowMonthlyOverview((current) => !current)}
@@ -250,7 +347,7 @@ export default function TrackScreen() {
           </View>
         ) : null}
 
-        {claritySnapshot.correlations.length > 0 ? (
+        {claritySnapshot.correlations.length > 0 && !historyLoading && deferredTrackInsightsReady ? (
           <View style={styles.sectionCard}>
             <AppText style={styles.sectionTitle}>Pattern connections</AppText>
             <AppText style={styles.sectionHelper}>
@@ -267,7 +364,7 @@ export default function TrackScreen() {
           </View>
         ) : null}
 
-        {claritySnapshot.whatSeemsToHelp.length > 0 ? (
+        {claritySnapshot.whatSeemsToHelp.length > 0 && !historyLoading && deferredTrackInsightsReady ? (
           <View style={styles.summaryCard}>
             <AppText style={styles.summaryKicker}>What improved</AppText>
             <View style={styles.insightList}>
@@ -281,29 +378,44 @@ export default function TrackScreen() {
           </View>
         ) : null}
 
-        <View style={styles.section}>
-          <Pressable
-            onPress={() => setShowHistory((current) => !current)}
-            style={({ pressed }) => [styles.expandRow, pressed && styles.filterChipPressed]}
-          >
-            <View style={styles.expandCopy}>
-              <AppText style={styles.sectionTitle}>Recent days</AppText>
-              <AppText style={styles.sectionHelper}>
-                Timeline of recent check-ins.
+        {historyQuery.isError ? (
+          <View style={styles.sectionCard}>
+            <AppText style={styles.inlineWarning}>{getErrorMessage(historyQuery.error)}</AppText>
+            <AppButton label="Try again" onPress={() => void historyQuery.refetch()} variant="secondary" />
+          </View>
+        ) : null}
+
+        {historyLoading || visibleItems.length > 0 ? (
+          <View style={styles.section}>
+            <Pressable
+              onPress={() => setShowHistory((current) => !current)}
+              style={({ pressed }) => [styles.expandRow, pressed && styles.filterChipPressed]}
+            >
+              <View style={styles.expandCopy}>
+                <AppText style={styles.sectionTitle}>Recent entries</AppText>
+                <AppText style={styles.sectionHelper}>
+                  Timeline of recent check-ins.
+                </AppText>
+              </View>
+              <AppText style={styles.expandLabel}>
+                {showHistory ? "Hide" : "Show"}
               </AppText>
-            </View>
-            <AppText style={styles.expandLabel}>
-              {showHistory ? "Hide" : "Show"}
-            </AppText>
-          </Pressable>
-          {showHistory ? (
-            <CheckInHistoryList
-              items={visibleItems}
-              selectedDate={selectedDate}
-              onSelectDate={(date) => setSelectedDate((current) => (current === date ? null : date))}
-            />
-          ) : null}
-        </View>
+            </Pressable>
+            {showHistory && historyLoading ? (
+              <View style={styles.placeholderStack}>
+                <CalmSkeleton height={52} width="100%" />
+                <CalmSkeleton height={52} width="100%" />
+                <CalmSkeleton height={52} width="100%" />
+              </View>
+            ) : showHistory ? (
+              <CheckInHistoryList
+                items={visibleItems}
+                selectedDate={selectedDate}
+                onSelectDate={(date) => setSelectedDate((current) => (current === date ? null : date))}
+              />
+            ) : null}
+          </View>
+        ) : null}
 
         {selectedItem && showHistory ? (
           <View style={styles.section}>
@@ -339,6 +451,19 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 12,
+  },
+  placeholderStack: {
+    gap: 10,
+  },
+  loadingHint: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#8b6a4f",
+  },
+  inlineWarning: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#9f1239",
   },
   heroCard: {
     backgroundColor: "#ffffff",

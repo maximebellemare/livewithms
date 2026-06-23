@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import {
   FlatList,
   KeyboardAvoidingView,
   LayoutChangeEvent,
   Linking,
+  InteractionManager,
   Platform,
   Pressable,
   ScrollView,
@@ -14,10 +15,10 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AppButton from "../../../../components/ui/AppButton";
+import CalmSkeleton from "../../../../components/ui/CalmSkeleton";
 import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
 import ErrorState from "../../../../components/ui/ErrorState";
-import LoadingState from "../../../../components/ui/LoadingState";
 import {
   buildReflectionStarter,
   buildReflectionPrompts,
@@ -30,7 +31,7 @@ import {
   deriveCoachFallbackState,
 } from "../../../../features/coach/refinement";
 import { useCoachMessages, useSendCoachMessage } from "../../../../features/coach-messages/hooks";
-import type { CoachMode } from "../../../../features/coach-messages/types";
+import type { CoachChatMessage, CoachMode } from "../../../../features/coach-messages/types";
 import { useCoachPlan, useSaveCoachPlan } from "../../../../features/coach-plans/hooks";
 import type { CoachPlanInput } from "../../../../features/coach-plans/types";
 import { useGrowthState } from "../../../../features/growth/hooks";
@@ -71,6 +72,14 @@ import { useCalmEnvironment } from "../../../../features/calm-environment/hooks"
 import { playSoundCue } from "../../../../features/sound-effects/player";
 
 const COACH_RETRY_COOLDOWN_MS = 8000;
+
+function getPerfTimestamp() {
+  if (typeof performance !== "undefined" && typeof performance.now === "function") {
+    return performance.now();
+  }
+
+  return Date.now();
+}
 
 const COACH_QUICK_STARTS: Array<{
   id: string;
@@ -173,6 +182,112 @@ function formatPlanDate(date: string) {
   });
 }
 
+function formatConversationDateLabel(date: string) {
+  const today = new Date();
+  const current = new Date(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}T12:00:00`);
+  const target = new Date(date);
+  const normalizedTarget = new Date(`${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}-${String(target.getDate()).padStart(2, "0")}T12:00:00`);
+  const diffDays = Math.round((current.getTime() - normalizedTarget.getTime()) / 86_400_000);
+
+  if (diffDays <= 0) {
+    return "Today";
+  }
+  if (diffDays === 1) {
+    return "Yesterday";
+  }
+  if (diffDays < 7) {
+    return `${diffDays} days ago`;
+  }
+
+  return target.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function buildConversationTitle(text: string) {
+  const trimmed = text.trim().replace(/\s+/g, " ");
+  if (!trimmed) {
+    return "Conversation";
+  }
+
+  const normalized = trimmed.endsWith(".") ? trimmed.slice(0, -1) : trimmed;
+  const sentenceCased = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  return sentenceCased.length > 52 ? `${sentenceCased.slice(0, 52).trimEnd()}…` : sentenceCased;
+}
+
+function buildConversationPreview(userMessage: CoachChatMessage, assistantMessage?: CoachChatMessage | null) {
+  const previewSource = assistantMessage?.content?.trim() || userMessage.content.trim();
+  return previewSource.length > 110 ? `${previewSource.slice(0, 110).trimEnd()}…` : previewSource;
+}
+
+function buildDynamicCoachPrompt(input: {
+  fatigueAverage: number | null;
+  stressAverage: number | null;
+  sleepAverage: number | null;
+  brainFogAverage: number | null;
+}) {
+  if (typeof input.fatigueAverage === "number" && input.fatigueAverage >= 3.2) {
+    return "I noticed fatigue has been higher recently. Does today feel connected to that?";
+  }
+
+  if (typeof input.brainFogAverage === "number" && input.brainFogAverage >= 2.5) {
+    return "You mentioned brain fog recently. Is that showing up today too?";
+  }
+
+  if (typeof input.sleepAverage === "number" && input.sleepAverage > 0 && input.sleepAverage < 6.8) {
+    return "Sleep has been less consistent lately. Has that affected today?";
+  }
+
+  if (typeof input.stressAverage === "number" && input.stressAverage <= 2.1) {
+    return "Stress has been lower recently. Has that continued?";
+  }
+
+  return "What feels heaviest, foggiest, or most important to sort through today?";
+}
+
+function buildEmotionalGpsObservations(input: {
+  recentEntries: DailyCheckIn[];
+  recentTodayPlans: TodayPlan[];
+  activeMedicationsCount: number;
+}) {
+  const lastSeven = input.recentEntries.slice(0, 7);
+  const observations: string[] = [];
+
+  const shorterSleepDays = lastSeven.filter((entry) => typeof entry.sleep_hours === "number" && entry.sleep_hours < 6.5);
+  const shorterSleepFatigueAverage = average(shorterSleepDays.map((entry) => entry.fatigue));
+  if (typeof shorterSleepFatigueAverage === "number" && shorterSleepFatigueAverage >= 3) {
+    observations.push("Fatigue often looks heavier after shorter sleep.");
+  }
+
+  const highStressDays = lastSeven.filter((entry) => typeof entry.stress === "number" && entry.stress >= 3);
+  const highStressBrainFogAverage = average(highStressDays.map((entry) => entry.brain_fog));
+  if (typeof highStressBrainFogAverage === "number" && highStressBrainFogAverage >= 2.5) {
+    observations.push("Brain fog seems more common on higher-stress days.");
+  }
+
+  const hydratedDays = lastSeven.filter((entry) => typeof entry.water_glasses === "number" && entry.water_glasses >= 6);
+  const hydratedFatigueAverage = average(hydratedDays.map((entry) => entry.fatigue));
+  if (hydratedDays.length >= 2 && typeof hydratedFatigueAverage === "number" && hydratedFatigueAverage <= 3) {
+    observations.push("Hydration days tend to line up with steadier energy.");
+  }
+
+  const quietEveningsCount = input.recentTodayPlans.filter((plan) =>
+    [plan.recoveryTonight, plan.whatHelped, plan.prepareTonight]
+      .filter((value): value is string => typeof value === "string")
+      .some((value) => /quiet|rest|sleep|lighter evening/i.test(value)),
+  ).length;
+  if (quietEveningsCount >= 2) {
+    observations.push("Quieter evenings seem to help the next day feel more manageable.");
+  }
+
+  if (input.activeMedicationsCount > 0) {
+    observations.push("Medication routines are part of the picture, so Coach can help you plan around them.");
+  }
+
+  return observations.slice(0, 4);
+}
+
 function buildCheckInInputForReflection(
   existingEntry: DailyCheckIn | null,
   reflection: string,
@@ -219,6 +334,7 @@ export default function CoachScreen() {
   const { user } = useAuth();
   const today = getDateString();
   const tomorrow = getDateString(1);
+  const screenStartRef = useRef(getPerfTimestamp());
   const profileQuery = useMyProfile(user?.id);
   const todayEntryQuery = useTodaysCheckIn(user?.id, today);
   const recentEntriesQuery = useCheckInHistory(user?.id, 14);
@@ -263,6 +379,7 @@ export default function CoachScreen() {
   const [retryCooldownUntil, setRetryCooldownUntil] = useState<number | null>(null);
   const [retryCooldownSeconds, setRetryCooldownSeconds] = useState(0);
   const [pendingToolScroll, setPendingToolScroll] = useState<GuidedPlanToolKey | null>(null);
+  const [deferredCoachDataReady, setDeferredCoachDataReady] = useState(false);
   const screenScrollRef = useRef<ScrollView>(null);
   const chatListRef = useRef<FlatList<ChatListItem>>(null);
   const pendingChatScrollTargetRef = useRef<string | null>(null);
@@ -277,11 +394,34 @@ export default function CoachScreen() {
   const lastTrackedAbandonedDraftRef = useRef<string | null>(null);
   const recordGrowthEventRef = useRef(growth.recordEvent);
   const timeOfDay = getTimeOfDay();
+  const showCoachHomeExtras = false;
+  useEffect(() => {
+    console.log("[perf][coach] shell rendered", {
+      durationMs: Math.round(getPerfTimestamp() - screenStartRef.current),
+    });
+  }, []);
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      startTransition(() => {
+        setDeferredCoachDataReady(true);
+        console.log("[perf][coach] deferred hydration started", {
+          durationMs: Math.round(getPerfTimestamp() - screenStartRef.current),
+        });
+      });
+    });
+
+    return () => {
+      task.cancel?.();
+    };
+  }, []);
 
   const todayEntry = todayEntryQuery.data ?? null;
   const latestEntry = recentEntriesQuery.data?.[0] ?? null;
   const coachEntry = todayEntry ?? latestEntry ?? null;
-  const coachMessages = useMemo(() => coachMessagesQuery.data ?? [], [coachMessagesQuery.data]);
+  const coachMessages = useMemo(
+    () => (deferredCoachDataReady ? coachMessagesQuery.data ?? [] : []),
+    [coachMessagesQuery.data, deferredCoachDataReady],
+  );
   const latestAssistantIndex = useMemo(
     () => {
       for (let index = coachMessages.length - 1; index >= 0; index -= 1) {
@@ -324,7 +464,10 @@ export default function CoachScreen() {
     return latestAssistantIndex;
   }, [chatItems, latestAssistantIndex, sendCoachMessage.isPending]);
   const chatTargetId = sendCoachMessage.isPending ? "pending-assistant" : latestAssistantMessageId;
-  const recentEntries = useMemo(() => recentEntriesQuery.data ?? [], [recentEntriesQuery.data]);
+  const recentEntries = useMemo(
+    () => (deferredCoachDataReady ? recentEntriesQuery.data ?? [] : []),
+    [deferredCoachDataReady, recentEntriesQuery.data],
+  );
   const activeMedications = useMemo(
     () => (medicationsQuery.data ?? []).filter((medication) => medication.active),
     [medicationsQuery.data],
@@ -336,12 +479,8 @@ export default function CoachScreen() {
       )[0] ?? null,
     [appointmentsQuery.data, today],
   );
-  const isInitialLoading =
-    (todayEntryQuery.isLoading && !todayEntryQuery.data) ||
-    (recentEntriesQuery.isLoading && !recentEntriesQuery.data) ||
-    (tomorrowPlanQuery.isLoading && !tomorrowPlanQuery.data);
   const isChatInitialLoading = coachMessagesQuery.isLoading && !coachMessagesQuery.data;
-  useSlowScreenDiagnostics("coach", isInitialLoading || isChatInitialLoading);
+  useSlowScreenDiagnostics("coach", !deferredCoachDataReady || isChatInitialLoading);
 
   useEffect(() => {
     let cancelled = false;
@@ -656,6 +795,7 @@ export default function CoachScreen() {
       mood: average(recentEntries.slice(0, 7).map((entry) => entry.mood)),
       stress: average(recentEntries.slice(0, 7).map((entry) => entry.stress)),
       sleep: average(recentEntries.slice(0, 7).map((entry) => entry.sleep_hours)),
+      brainFog: average(recentEntries.slice(0, 7).map((entry) => entry.brain_fog)),
     }),
     [recentEntries],
   );
@@ -880,6 +1020,72 @@ export default function CoachScreen() {
         ...operationalMemory.careContext,
       ].slice(0, effectiveLowEnergyConversationMode ? 2 : 4),
     [effectiveLowEnergyConversationMode, operationalMemory.careContext, operationalMemory.continuityObservations, operationalMemory.whatHelpedBefore],
+  );
+  const mainConversationPrompt = useMemo(
+    () =>
+      buildDynamicCoachPrompt({
+        fatigueAverage: recentAverages.fatigue,
+        stressAverage: recentAverages.stress,
+        sleepAverage: recentAverages.sleep,
+        brainFogAverage: recentAverages.brainFog,
+      }),
+    [recentAverages.brainFog, recentAverages.fatigue, recentAverages.sleep, recentAverages.stress],
+  );
+  const emotionalGpsItems = useMemo(
+    () =>
+      buildEmotionalGpsObservations({
+        recentEntries,
+        recentTodayPlans,
+        activeMedicationsCount: activeMedications.length,
+      }),
+    [activeMedications.length, recentEntries, recentTodayPlans],
+  );
+  const recentConversationSummaries = useMemo(
+    () =>
+      coachMessages
+        .map((message, index) => ({ message, index }))
+        .filter(({ message }) => message.role === "user")
+        .slice(-5)
+        .reverse()
+        .map(({ message, index }) => {
+          const assistantAfter =
+            coachMessages
+              .slice(index + 1)
+              .find((candidate) => candidate.role === "assistant") ?? null;
+          return {
+            id: message.id,
+            index,
+            title: buildConversationTitle(message.content),
+            dateLabel: formatConversationDateLabel(message.created_at),
+            preview: buildConversationPreview(message, assistantAfter),
+          };
+        }),
+    [coachMessages],
+  );
+  const quickPromptOptions = useMemo(
+    () => [
+      {
+        id: "today-fatigue",
+        title: "Help me understand today's fatigue.",
+        mode: "practical" as CoachMode,
+      },
+      {
+        id: "symptom-worry",
+        title: "I'm worried symptoms are getting worse.",
+        mode: "reflect" as CoachMode,
+      },
+      {
+        id: "appointment-help",
+        title: "Help me prepare for my appointment.",
+        mode: "practical" as CoachMode,
+      },
+      {
+        id: "low-energy-plan",
+        title: "Help me plan around low energy today.",
+        mode: "practical" as CoachMode,
+      },
+    ],
+    [],
   );
 
   const coachContext = useMemo(
@@ -1203,6 +1409,21 @@ export default function CoachScreen() {
     }
   }, [handleSendCoachMessage, retryCooldownSeconds, scrollToChatTarget, sendCoachMessage.isPending]);
 
+  const openConversationByMessageId = useCallback((messageId: string) => {
+    const targetIndex = chatItems.findIndex((item) => item.id === messageId);
+    if (targetIndex < 0) {
+      return;
+    }
+
+    setTimeout(() => {
+      chatListRef.current?.scrollToIndex({
+        index: targetIndex,
+        animated: true,
+        viewPosition: 0,
+      });
+    }, 80);
+  }, [chatItems]);
+
   const scrollToGuidedTool = useCallback((tool: GuidedPlanToolKey) => {
     const y = toolLayoutYRef.current[tool];
     if (typeof y !== "number") {
@@ -1319,10 +1540,6 @@ export default function CoachScreen() {
     return <ErrorState message="Coach is available once you’re signed in." />;
   }
 
-  if (isInitialLoading) {
-    return <LoadingState message="Loading Coach..." />;
-  }
-
   if (todayEntryQuery.isError) {
     return (
       <ErrorState
@@ -1354,7 +1571,7 @@ export default function CoachScreen() {
     <AppScreen
       eyebrow="Coach"
       title="Coach"
-      subtitle="Use Coach to organize thoughts, reduce overwhelm, and plan around difficult days."
+      subtitle="A calm place to organize thoughts, reduce overwhelm, and plan around difficult days."
     >
       <KeyboardAvoidingView
         style={styles.flex}
@@ -1367,6 +1584,170 @@ export default function CoachScreen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
+          <View style={styles.card}>
+            <AppText style={styles.contextLabel}>What&apos;s going on right now?</AppText>
+            <AppText style={styles.title}>{mainConversationPrompt}</AppText>
+            <AppText style={styles.supportNote}>
+              Coach does not replace professional medical care.
+            </AppText>
+            <View style={styles.fieldGroup}>
+              <View style={styles.voiceInputRow}>
+                <TextInput
+                  multiline
+                  value={chatInput}
+                  onChangeText={(next) => {
+                    setChatInput(next);
+                    if (chatError) {
+                      setChatError(null);
+                    }
+                    if (voiceMessage) {
+                      setVoiceMessage(null);
+                      setVoiceState("idle");
+                    }
+                  }}
+                  onFocus={() => {
+                    scrollToChatTarget(60);
+                  }}
+                  placeholder="Write a few words or use the mic. You can edit before sending."
+                  placeholderTextColor="#9ca3af"
+                  textAlignVertical="top"
+                  style={[styles.chatInput, styles.voiceTextInput]}
+                  editable={!hasReachedFreeCoachLimit}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={voiceState === "listening" ? "Stop voice input" : "Start voice input"}
+                  onPress={() => void handleVoiceInput()}
+                  disabled={voiceState === "processing" || hasReachedFreeCoachLimit}
+                  style={({ pressed }) => [
+                    styles.micButton,
+                    voiceState === "listening" && styles.micButtonActive,
+                    (pressed || voiceState === "listening") && styles.actionCardPressed,
+                  ]}
+                >
+                  <Ionicons
+                    name={voiceState === "listening" ? "stop" : "mic-outline"}
+                    size={21}
+                    color={voiceState === "listening" ? "#c25d10" : "#8b6a4f"}
+                  />
+                </Pressable>
+              </View>
+              {voiceMessage ? (
+                <View style={styles.voiceStateRow}>
+                  <AppText style={voiceState === "error" ? styles.errorText : styles.helperText}>{voiceMessage}</AppText>
+                  {voiceState === "error" ? (
+                    <Pressable onPress={openVoiceSettings} style={({ pressed }) => [styles.inlineLink, pressed && styles.actionCardPressed]}>
+                      <AppText style={styles.inlineLinkText}>Open Settings</AppText>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+            <AppButton
+              label={hasReachedFreeCoachLimit ? "See Premium" : sendCoachMessage.isPending ? "Talking it through..." : "Talk it through"}
+              onPress={() =>
+                hasReachedFreeCoachLimit
+                  ? router.push("/premium?source=coach-limit")
+                  : void handleSendCoachMessage()
+              }
+              disabled={sendCoachMessage.isPending || (!hasReachedFreeCoachLimit && chatInput.trim().length === 0)}
+            />
+            {hasReachedFreeCoachLimit ? (
+              <AppText style={styles.limitNote}>
+                Free AI Coach access refreshes daily. Premium keeps Coach available for deeper reflection.
+              </AppText>
+            ) : null}
+            {chatError ? (
+              <View style={styles.inlineState}>
+                <AppText style={styles.errorText}>{chatError}</AppText>
+                <AppText style={styles.body}>{fallbackState.body}</AppText>
+                {lastFailedMessage && !hasReachedFreeCoachLimit ? (
+                  <AppButton
+                    label={retryCooldownSeconds > 0 ? `Try again in ${retryCooldownSeconds}s` : "Try again"}
+                    variant="secondary"
+                    onPress={() => void handleSendCoachMessage(lastFailedMessage, { isRetry: true })}
+                    disabled={sendCoachMessage.isPending || retryCooldownSeconds > 0}
+                  />
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+
+          {emotionalGpsItems.length > 0 ? (
+            <View style={styles.card}>
+              <AppText style={styles.contextLabel}>What I&apos;m learning about you</AppText>
+              <View style={styles.contextMemoryList}>
+                {emotionalGpsItems.map((line) => (
+                  <View key={line} style={styles.contextMemoryRow}>
+                    <View style={styles.contextMemoryDot} />
+                    <AppText style={styles.contextMemoryText}>{line}</AppText>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : !deferredCoachDataReady ? (
+            <View style={styles.card}>
+              <AppText style={styles.contextLabel}>What I&apos;m learning about you</AppText>
+              <View style={styles.placeholderStack}>
+                <CalmSkeleton height={14} width="88%" />
+                <CalmSkeleton height={14} width="92%" />
+                <CalmSkeleton height={14} width="70%" />
+              </View>
+            </View>
+          ) : null}
+
+          <View style={styles.card}>
+            <AppText style={styles.title}>Recent conversations</AppText>
+            {!deferredCoachDataReady || isChatInitialLoading ? (
+              <View style={styles.placeholderStack}>
+                <CalmSkeleton height={18} width="62%" />
+                <CalmSkeleton height={14} width="90%" />
+                <CalmSkeleton height={18} width="54%" />
+                <CalmSkeleton height={14} width="84%" />
+              </View>
+            ) : recentConversationSummaries.length > 0 ? (
+              <View style={styles.quickActions}>
+                {recentConversationSummaries.map((conversation) => (
+                  <Pressable
+                    key={conversation.id}
+                    accessibilityRole="button"
+                    onPress={() => openConversationByMessageId(conversation.id)}
+                    style={({ pressed }) => [styles.quickStartCard, pressed && styles.actionCardPressed]}
+                  >
+                    <AppText style={styles.quickStartTitle}>{conversation.title}</AppText>
+                    <AppText style={styles.quickStartPrompt}>{conversation.dateLabel}</AppText>
+                    <AppText style={styles.quickStartBody}>{conversation.preview}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyChatCard}>
+                <AppText style={styles.emptyChatTitle}>Your conversations will appear here</AppText>
+                <AppText style={styles.body}>
+                  Once you talk with Coach, recent reflections will be easy to come back to.
+                </AppText>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.card}>
+            <AppText style={styles.title}>Quick prompts</AppText>
+            <View style={styles.quickActions}>
+              {quickPromptOptions.map((prompt) => (
+                <Pressable
+                  key={prompt.id}
+                  accessibilityRole="button"
+                  onPress={() => void handleQuickStart(prompt.id, prompt.title, prompt.mode)}
+                  style={({ pressed }) => [styles.quickStartCard, pressed && styles.actionCardPressed]}
+                >
+                  <AppText style={styles.quickStartTitle}>{prompt.title}</AppText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {showCoachHomeExtras ? (
+            <>
           <View style={styles.card}>
             <AppText style={styles.contextLabel}>Start a conversation</AppText>
             <AppText style={styles.title}>
@@ -1969,6 +2350,8 @@ export default function CoachScreen() {
             {planError ? <AppText style={styles.errorText}>{planError}</AppText> : null}
             </View>
           ) : null}
+            </>
+          ) : null}
 
         </ScrollView>
       </KeyboardAvoidingView>
@@ -2036,6 +2419,9 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "#4b5563",
     lineHeight: 21,
+  },
+  placeholderStack: {
+    gap: 12,
   },
   sourcesCard: {
     backgroundColor: "#ffffff",

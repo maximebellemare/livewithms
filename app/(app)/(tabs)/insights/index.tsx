@@ -1,1 +1,1 @@
-export { default } from "../../../../components/insights/InsightsScreen";
+export { default } from "../track/index";

@@ -6,8 +6,8 @@ import * as ImagePicker from "expo-image-picker";
 import AppButton from "../ui/AppButton";
 import AppScreen from "../ui/AppScreen";
 import AppText from "../ui/AppText";
+import CalmSkeleton from "../ui/CalmSkeleton";
 import ErrorState from "../ui/ErrorState";
-import LoadingState from "../ui/LoadingState";
 import {
   useAppointments,
   useCreateAppointment,
@@ -928,6 +928,20 @@ function buildAdaptiveMealPlan(input: {
     },
     budget: input.budgetPreference,
   };
+}
+
+function CareSectionPlaceholder({ lines = 3 }: { lines?: number }) {
+  return (
+    <View style={styles.placeholderStack}>
+      {Array.from({ length: lines }, (_, index) => (
+        <CalmSkeleton
+          key={`care-placeholder-${index}`}
+          height={index === 0 ? 18 : 14}
+          width={index === 0 ? "58%" : index === lines - 1 ? "70%" : "92%"}
+        />
+      ))}
+    </View>
+  );
 }
 
 export function NutritionScreenContent() {
@@ -2042,6 +2056,9 @@ export default function CareScreen() {
     (medicationsQuery.isLoading && !medicationsQuery.data) ||
     (careNotesQuery.isLoading && !careNotesQuery.data);
   useSlowScreenDiagnostics("care", isInitialLoading);
+  const appointmentsLoading = appointmentsQuery.isLoading && !appointmentsQuery.data;
+  const medicationsLoading = medicationsQuery.isLoading && !medicationsQuery.data;
+  const careNotesLoading = careNotesQuery.isLoading && !careNotesQuery.data;
   const [showInactiveMedications, setShowInactiveMedications] = useState(false);
   const lowEnergyMode = useLowEnergyMode();
   const careLoadWarnings = useMemo(() => {
@@ -2865,10 +2882,6 @@ export default function CareScreen() {
     return <ErrorState message="Care is available once you’re signed in." />;
   }
 
-  if (isInitialLoading) {
-    return <LoadingState message="Getting your care details ready..." />;
-  }
-
   return (
     <AppScreen
       eyebrow="Care"
@@ -2912,7 +2925,9 @@ export default function CareScreen() {
         <View style={styles.summaryGrid}>
           <View style={styles.summaryCard}>
             <AppText style={styles.summaryLabel}>Next appointment</AppText>
-            {nextAppointment ? (
+            {appointmentsLoading ? (
+              <CareSectionPlaceholder />
+            ) : nextAppointment ? (
               <>
                 <AppText style={styles.summaryTitle}>{nextAppointment.title}</AppText>
                 <AppText style={styles.summaryBody}>
@@ -2935,50 +2950,56 @@ export default function CareScreen() {
 
           <View style={styles.summaryCard}>
             <AppText style={styles.summaryLabel}>Today’s medications</AppText>
-            <AppText style={styles.summaryBody}>
-              {formatMedicationTakenSummary(takenMedicationCount, todayMedicationDoses.length)}
-            </AppText>
-            {todayMedicationDoses.length === 0 ? (
-              <AppText style={styles.summaryHint}>
-                {activeMedications.length === 0
-                  ? "Add a medication to track today’s schedule."
-                  : "No medications are scheduled for today."}
-              </AppText>
+            {medicationsLoading ? (
+              <CareSectionPlaceholder lines={4} />
             ) : (
-              <View style={styles.todayMedicationList}>
-                {todayMedicationDoses.map(({ medication, doseEntry }) => {
-                  const takenAt = medicationsTakenToday[doseEntry.key];
+              <>
+                <AppText style={styles.summaryBody}>
+                  {formatMedicationTakenSummary(takenMedicationCount, todayMedicationDoses.length)}
+                </AppText>
+                {todayMedicationDoses.length === 0 ? (
+                  <AppText style={styles.summaryHint}>
+                    {activeMedications.length === 0
+                      ? "Add a medication to track today’s schedule."
+                      : "No medications are scheduled for today."}
+                  </AppText>
+                ) : (
+                  <View style={styles.todayMedicationList}>
+                    {todayMedicationDoses.map(({ medication, doseEntry }) => {
+                      const takenAt = medicationsTakenToday[doseEntry.key];
 
-                  return (
-                    <View key={doseEntry.key} style={styles.todayMedicationRow}>
-                      <View style={styles.todayMedicationCopy}>
-                        <AppText style={styles.todayMedicationName}>{medication.name}</AppText>
-                        {doseEntry.dose || medication.dosage ? (
-                          <AppText style={styles.todayMedicationDosage}>{doseEntry.dose ?? medication.dosage}</AppText>
-                        ) : null}
-                        <AppText style={[styles.todayMedicationStatus, takenAt && styles.todayMedicationStatusTaken]}>
-                          {takenAt ? "✓ Taken today" : `Due at ${doseEntry.label}`}
-                        </AppText>
-                      </View>
-                      {takenAt ? null : (
-                        <Pressable
-                          accessibilityRole="button"
-                          onPress={() => toggleMedicationTakenToday(medication.id, doseEntry.time)}
-                          style={({ pressed }) => [styles.todayMedicationButton, pressed && styles.takenButtonPressed]}
-                        >
-                          <AppText style={styles.todayMedicationButtonText}>Mark as taken</AppText>
-                        </Pressable>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
+                      return (
+                        <View key={doseEntry.key} style={styles.todayMedicationRow}>
+                          <View style={styles.todayMedicationCopy}>
+                            <AppText style={styles.todayMedicationName}>{medication.name}</AppText>
+                            {doseEntry.dose || medication.dosage ? (
+                              <AppText style={styles.todayMedicationDosage}>{doseEntry.dose ?? medication.dosage}</AppText>
+                            ) : null}
+                            <AppText style={[styles.todayMedicationStatus, takenAt && styles.todayMedicationStatusTaken]}>
+                              {takenAt ? "✓ Taken today" : `Due at ${doseEntry.label}`}
+                            </AppText>
+                          </View>
+                          {takenAt ? null : (
+                            <Pressable
+                              accessibilityRole="button"
+                              onPress={() => toggleMedicationTakenToday(medication.id, doseEntry.time)}
+                              style={({ pressed }) => [styles.todayMedicationButton, pressed && styles.takenButtonPressed]}
+                            >
+                              <AppText style={styles.todayMedicationButtonText}>Mark as taken</AppText>
+                            </Pressable>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+                {nextDueMedication && nextDueMedicationTime ? (
+                  <AppText style={styles.summaryHint}>
+                    Next due: {nextDueMedication.medication.name} • {nextDueMedicationTime}
+                  </AppText>
+                ) : null}
+              </>
             )}
-            {nextDueMedication && nextDueMedicationTime ? (
-              <AppText style={styles.summaryHint}>
-                Next due: {nextDueMedication.medication.name} • {nextDueMedicationTime}
-              </AppText>
-            ) : null}
           </View>
 
         </View>
@@ -3112,7 +3133,9 @@ export default function CareScreen() {
           {message ? <AppText style={styles.successText}>{message}</AppText> : null}
 
           <AppText style={styles.sectionLabel}>Upcoming appointments</AppText>
-          {upcomingAppointments.length === 0 ? (
+          {appointmentsLoading ? (
+            <CareSectionPlaceholder lines={4} />
+          ) : upcomingAppointments.length === 0 ? (
             <View style={styles.emptyState}>
               <AppText style={styles.body}>No upcoming appointments saved yet.</AppText>
               <AppText style={styles.emptyHint}>Add a visit to keep it easy to find.</AppText>
@@ -3157,7 +3180,9 @@ export default function CareScreen() {
           )}
 
           <AppText style={styles.sectionLabel}>Past appointments</AppText>
-          {pastAppointments.length === 0 ? (
+          {appointmentsLoading ? (
+            <CareSectionPlaceholder lines={3} />
+          ) : pastAppointments.length === 0 ? (
             <View style={styles.emptyState}>
               <AppText style={styles.body}>No past appointments saved yet.</AppText>
               <AppText style={styles.emptyHint}>Completed visits will appear here.</AppText>
@@ -3393,7 +3418,9 @@ export default function CareScreen() {
           {medicationMessage ? <AppText style={styles.successText}>{medicationMessage}</AppText> : null}
 
           <AppText style={styles.sectionLabel}>Medication list</AppText>
-          {activeMedications.length === 0 ? (
+          {medicationsLoading ? (
+            <CareSectionPlaceholder lines={4} />
+          ) : activeMedications.length === 0 ? (
             <View style={styles.emptyState}>
               <AppText style={styles.body}>No medications scheduled today.</AppText>
               <AppText style={styles.emptyHint}>Add a medication to track dosage, schedule, and today’s taken status.</AppText>
@@ -3631,7 +3658,9 @@ export default function CareScreen() {
           {careNoteMessage ? <AppText style={styles.successText}>{careNoteMessage}</AppText> : null}
           {careNoteErrorMessage ? <AppText style={styles.errorText}>{careNoteErrorMessage}</AppText> : null}
 
-          {(careNotesQuery.data ?? []).length === 0 ? (
+          {careNotesLoading ? (
+            <CareSectionPlaceholder lines={4} />
+          ) : (careNotesQuery.data ?? []).length === 0 ? (
             <View style={styles.emptyState}>
               <AppText style={styles.body}>No care reminders saved yet.</AppText>
               <AppText style={styles.emptyHint}>
@@ -4470,6 +4499,9 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: "#c25d10",
     fontWeight: "600",
+  },
+  placeholderStack: {
+    gap: 10,
   },
   badge: {
     borderRadius: 999,

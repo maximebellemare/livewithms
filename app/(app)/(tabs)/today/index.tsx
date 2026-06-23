@@ -1,13 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { Animated, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Animated, InteractionManager, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import DailyCheckInCard, {
-  getEmptyCheckInDraft,
-  normalizeCheckInInput,
-  type DailyCheckInDraft,
-} from "../../../../components/today/DailyCheckInCard";
+import { getEmptyCheckInDraft, normalizeCheckInInput, type DailyCheckInDraft } from "../../../../components/today/checkInDraft";
+import AppButton from "../../../../components/ui/AppButton";
 import CalmSkeleton from "../../../../components/ui/CalmSkeleton";
 import ErrorState from "../../../../components/ui/ErrorState";
 import AppScreen from "../../../../components/ui/AppScreen";
@@ -116,6 +113,14 @@ function getTodayDateString() {
   const day = String(now.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function getPerfTimestamp() {
+  if (typeof performance !== "undefined" && typeof performance.now === "function") {
+    return performance.now();
+  }
+
+  return Date.now();
 }
 
 function getGreeting() {
@@ -786,55 +791,6 @@ function getDailyReflectionPrompt(todayEntry: DailyCheckIn | null, draft: DailyC
   );
 }
 
-function TodayLoadingShell({ today }: { today: string }) {
-    return (
-      <AppScreen
-        eyebrow="Daily check-in"
-        title="Today"
-        subtitle="Track energy, mood, stress, and symptoms."
-      >
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.overviewCard}>
-          <AppText style={styles.greeting}>{getGreeting()}</AppText>
-          <AppText style={styles.todayDate}>{formatLongDate(today)}</AppText>
-          <View style={styles.skeletonStack}>
-            <CalmSkeleton width="62%" height={20} radius={10} />
-            <CalmSkeleton width="92%" height={14} />
-            <CalmSkeleton width="76%" height={14} />
-          </View>
-        </View>
-
-        <View style={styles.infoCard}>
-          <View style={styles.skeletonStack}>
-            <CalmSkeleton width="34%" height={16} radius={10} />
-            <CalmSkeleton width="94%" height={12} />
-            <CalmSkeleton width="74%" height={12} />
-          </View>
-        </View>
-
-        <View style={styles.guidanceCard}>
-          <View style={styles.skeletonStack}>
-            <CalmSkeleton width="40%" height={18} radius={10} />
-            <CalmSkeleton width="88%" height={12} />
-            <CalmSkeleton width="68%" height={12} />
-          </View>
-          <View style={styles.skeletonMetricGrid}>
-            <CalmSkeleton width="100%" height={64} radius={18} />
-            <CalmSkeleton width="100%" height={64} radius={18} />
-            <CalmSkeleton width="100%" height={64} radius={18} />
-          </View>
-          <CalmSkeleton width="100%" height={56} radius={16} />
-        </View>
-      </ScrollView>
-    </AppScreen>
-  );
-}
-
 function getLowEnergyQuickActions(adaptiveProfile: ReturnType<typeof buildAdaptiveProfile>) {
   if (adaptiveProfile.brainFogTrend === "high") {
     return [
@@ -881,6 +837,7 @@ export default function TodayScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const today = getTodayDateString();
+  const screenStartRef = useRef(getPerfTimestamp());
   const todayFocusLine = useMemo(() => getTodayFocusLine(today), [today]);
   const profileQuery = useMyProfile(user?.id);
   const checkInQuery = useTodaysCheckIn(user?.id, today);
@@ -903,6 +860,7 @@ export default function TodayScreen() {
   const [medicationsTakenToday, setMedicationsTakenToday] = useState<Record<string, string>>({});
   const [recentSupportRecommendationIds, setRecentSupportRecommendationIds] = useState<string[]>([]);
   const [streakCelebration, setStreakCelebration] = useState<string | null>(null);
+  const [deferredInsightsReady, setDeferredInsightsReady] = useState(false);
   const streakCelebrationOpacity = useRef(new Animated.Value(0)).current;
   const streakCelebrationY = useRef(new Animated.Value(8)).current;
   const lastSavedSnapshotRef = useRef(getDraftSnapshot(getEmptyCheckInDraft()));
@@ -910,7 +868,30 @@ export default function TodayScreen() {
   const recentReflectionCardIdsRef = useRef<string[]>([]);
   const greeting = useMemo(() => getGreeting(), []);
   const currentHour = useMemo(() => new Date().getHours(), []);
+  useEffect(() => {
+    console.log("[perf][today] shell rendered", {
+      durationMs: Math.round(getPerfTimestamp() - screenStartRef.current),
+    });
+  }, []);
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      startTransition(() => {
+        setDeferredInsightsReady(true);
+        console.log("[perf][today] deferred hydration started", {
+          durationMs: Math.round(getPerfTimestamp() - screenStartRef.current),
+        });
+      });
+    });
+
+    return () => {
+      task.cancel?.();
+    };
+  }, []);
   const historyEntries = useMemo(() => historyQuery.data ?? [], [historyQuery.data]);
+  const historyEntriesForInsights = useMemo(
+    () => (deferredInsightsReady ? historyEntries : []),
+    [deferredInsightsReady, historyEntries],
+  );
   const activeMedications = useMemo(
     () => (medicationsQuery.data ?? []).filter((medication) => medication.active),
     [medicationsQuery.data],
@@ -944,7 +925,10 @@ export default function TodayScreen() {
   }, [nextAppointment, today]);
   const showAppointmentPrepShortcut =
     nextAppointmentDaysAway !== null && nextAppointmentDaysAway >= 0 && nextAppointmentDaysAway <= 7;
-  const longitudinalEntries = useMemo(() => mapCheckInsToLongitudinalEntries(historyEntries), [historyEntries]);
+  const longitudinalEntries = useMemo(
+    () => mapCheckInsToLongitudinalEntries(historyEntriesForInsights),
+    [historyEntriesForInsights],
+  );
   const longitudinalAnalysis = useMemo(() => analyzePatterns(longitudinalEntries), [longitudinalEntries]);
   const lifeContext = useMemo(() => buildLifeContextSnapshot(longitudinalEntries), [longitudinalEntries]);
   const overviewEntries = useMemo(() => overviewQuery.data ?? [], [overviewQuery.data]);
@@ -960,11 +944,14 @@ export default function TodayScreen() {
   const growth = useGrowthState({ totalCheckIns });
   const recentRangeEntries = useMemo(() => {
     const cutoff = getCutoffDate(7);
-    return historyEntries.filter((entry) => entry.date >= cutoff);
-  }, [historyEntries]);
-  const operationalObservation = useMemo(() => getOperationalObservation(recentRangeEntries), [recentRangeEntries]);
+    return historyEntriesForInsights.filter((entry) => entry.date >= cutoff);
+  }, [historyEntriesForInsights]);
+  const operationalObservation = useMemo(
+    () => (deferredInsightsReady ? getOperationalObservation(recentRangeEntries) : null),
+    [deferredInsightsReady, recentRangeEntries],
+  );
   const aiSummaryQuery = useAiInsightsSummary(recentRangeEntries, 7);
-  useSlowScreenDiagnostics("today", checkInQuery.isLoading);
+  useSlowScreenDiagnostics("today", checkInQuery.isLoading || !deferredInsightsReady);
   const previousEntry = useMemo(() => {
     return historyEntries.find((entry) => entry.date < today) ?? null;
   }, [historyEntries, today]);
@@ -976,11 +963,14 @@ export default function TodayScreen() {
     () => getRecentActionCard(growth.state?.recentActions ?? []),
     [growth.state?.recentActions],
   );
-  const baseAdaptiveProfile = useMemo(() => buildAdaptiveProfile(historyEntries, weeklyCheckIns), [historyEntries, weeklyCheckIns]);
+  const baseAdaptiveProfile = useMemo(
+    () => buildAdaptiveProfile(historyEntriesForInsights, weeklyCheckIns),
+    [historyEntriesForInsights, weeklyCheckIns],
+  );
   const personalizationMemory = usePersonalizationMemory({
     onboardingGoals: profileQuery.data?.goals ?? [],
     onboardingSymptoms: profileQuery.data?.symptoms ?? [],
-    recentEntries: historyEntries,
+    recentEntries: historyEntriesForInsights,
     adaptiveProfile: baseAdaptiveProfile,
     reminderSettings: {
       enabled: reminderSettings.enabled,
@@ -1000,10 +990,10 @@ export default function TodayScreen() {
   const adaptiveProfile = useMemo(
     () =>
       applyLowEnergyModeOverride(
-        buildAdaptiveProfile(historyEntries, weeklyCheckIns, personalizationMemory.memory),
+        buildAdaptiveProfile(historyEntriesForInsights, weeklyCheckIns, personalizationMemory.memory),
         lowEnergyMode.enabled,
       ),
-    [historyEntries, lowEnergyMode.enabled, personalizationMemory.memory, weeklyCheckIns],
+    [historyEntriesForInsights, lowEnergyMode.enabled, personalizationMemory.memory, weeklyCheckIns],
   );
   const hasAdaptiveSupport = useMemo(
     () =>
@@ -1043,19 +1033,19 @@ export default function TodayScreen() {
   );
   const recentAverages = useMemo(
     () => ({
-      fatigue: average(historyEntries.slice(0, 7).map((entry) => entry.fatigue)),
-      stress: average(historyEntries.slice(0, 7).map((entry) => entry.stress)),
-      sleep: average(historyEntries.slice(0, 7).map((entry) => entry.sleep_hours)),
+      fatigue: average(historyEntriesForInsights.slice(0, 7).map((entry) => entry.fatigue)),
+      stress: average(historyEntriesForInsights.slice(0, 7).map((entry) => entry.stress)),
+      sleep: average(historyEntriesForInsights.slice(0, 7).map((entry) => entry.sleep_hours)),
     }),
-    [historyEntries],
+    [historyEntriesForInsights],
   );
   const adaptiveDailyDashboard = useMemo(
     () =>
       getAdaptiveDailyDashboard({
         todayEntry,
         draft,
-        recentEntries: historyEntries,
-        recoveryStrategies: recentTodayPlans.map((plan) => plan.whatHelped),
+        recentEntries: historyEntriesForInsights,
+        recoveryStrategies: (deferredInsightsReady ? recentTodayPlans : []).map((plan) => plan.whatHelped),
         hasPremiumAccess: premium.hasPremiumAccess,
         programProgress: programProgress.progress,
         recentRecommendationIds: recentSupportRecommendationIds,
@@ -1072,7 +1062,7 @@ export default function TodayScreen() {
           todayPlan.whatHelped,
         ],
       }),
-    [currentHour, draft, historyEntries, premium.hasPremiumAccess, programProgress.progress, recentSupportRecommendationIds, recentTodayPlans, today, todayEntry, todayPlan, upcomingAppointments],
+    [currentHour, deferredInsightsReady, draft, historyEntriesForInsights, premium.hasPremiumAccess, programProgress.progress, recentSupportRecommendationIds, recentTodayPlans, today, todayEntry, todayPlan, upcomingAppointments],
   );
   const todayPlanPrioritySuggestions = useMemo(
     () =>
@@ -1627,36 +1617,6 @@ export default function TodayScreen() {
     [aiSummaryQuery.data?.summary, lifecycleProfile.stage, longitudinalAnalysis.adaptiveState.primary, reflectionFeed.length, todayEntry],
   );
   const visibleReflectionCards = useMemo(() => [], []);
-  const visibleQuickLinks = useMemo(
-    () =>
-      [
-        {
-          title: "Coach",
-          body: "Planning, reflection, energy support, and practical help.",
-          route: "/coach" as const,
-        },
-        {
-          title: "Programs",
-          body: "Guided tools for fatigue, recovery, overwhelm, and focus.",
-          route: "/programs" as const,
-        },
-        {
-          title: "Exercises",
-          body: "Short cognitive and focus exercises.",
-          route: "/programs?section=exercises" as const,
-        },
-        {
-          title: "Community",
-          body: "Read discussions and shared experiences from others with MS.",
-          route: "/community" as const,
-        },
-      ],
-    [],
-  );
-  const visibleQuickLinksQuiet = useMemo(
-    () => visibleQuickLinks,
-    [visibleQuickLinks],
-  );
   const attentionLoad = useMemo(
     () =>
       deriveAttentionLoad({
@@ -1665,7 +1625,7 @@ export default function TodayScreen() {
           (visibleReflectionCards.length > 0 ? 1 : 0) +
           (aiSummaryQuery.data?.summary ? 1 : 0) +
           (suggestedProgram ? 1 : 0),
-        actionCount: todayGuidance.actions.length + visibleQuickLinksQuiet.length,
+        actionCount: todayGuidance.actions.length,
         hasAiSummary: Boolean(aiSummaryQuery.data?.summary),
         hasReflectionCards: visibleReflectionCards.length > 0,
       }),
@@ -1673,7 +1633,6 @@ export default function TodayScreen() {
       aiSummaryQuery.data?.summary,
       suggestedProgram,
       todayGuidance.actions.length,
-      visibleQuickLinksQuiet.length,
       visibleReflectionCards.length,
     ],
   );
@@ -2107,10 +2066,6 @@ export default function TodayScreen() {
     return <ErrorState message="Today’s check-in is available once you’re signed in." />;
   }
 
-  if (checkInQuery.isLoading) {
-    return <TodayLoadingShell today={today} />;
-  }
-
   if (checkInQuery.isError) {
     return (
       <ErrorState
@@ -2211,28 +2166,38 @@ export default function TodayScreen() {
           </View>
         ) : null}
 
-        <DailyCheckInCard
-          draft={draft}
-          onChange={setDraft}
-          saveState={saveState}
-          onSave={() => void handleSaveCheckIn()}
-          saveMomentTitle={lastSaveQueued ? "Saved offline" : "Saved"}
-          saveMomentBody={lastSaveQueued ? "This check-in will sync when the connection returns." : "Check-in saved ✓"}
-          postSaveInsight={operationalObservation ?? undefined}
-          saveFooterText={lastSaveQueued ? "Waiting to sync." : "Saved."}
-          onViewInsights={() => router.push("/insights")}
-          supportMode={adaptiveProfile.lowEnergyMode ? "low-energy" : "default"}
-          compressionMode={energyAwareFlow.compressedCheckIn.enabled ? "reduced" : "standard"}
-          noteStarterLimit={Math.min(
-            adaptiveDefaults.noteStarterCount,
-            energyAwareFlow.compressedCheckIn.limitNoteStarters ? 2 : 3,
-          )}
-        />
+        <View style={styles.navCard}>
+          <AppText style={styles.navTitle}>Today&apos;s check-in</AppText>
+          <AppText style={styles.overviewSupportNote}>
+            {todayEntry
+              ? lastSaveQueued
+                ? "Today’s check-in is saved offline and will sync when the connection returns."
+                : "Log fatigue, mood, stress, symptoms, sleep, and anything important today."
+              : "Log fatigue, mood, stress, symptoms, sleep, and anything important today."}
+          </AppText>
+          {operationalObservation ? (
+            <View style={styles.infoCard}>
+              <AppText style={styles.infoTitle}>Recent pattern</AppText>
+              <AppText style={styles.infoBody}>{operationalObservation}</AppText>
+            </View>
+          ) : null}
+          <AppButton label="Start check-in" onPress={() => router.push("/track")} />
+        </View>
 
         <View style={styles.dailyIntelligenceCard}>
           <AppText style={styles.dailyIntelligenceLabel}>Today’s guidance</AppText>
-          <AppText style={styles.dailyIntelligenceTitle}>{adaptiveDailyDashboard.guidance}</AppText>
-          <AppText style={styles.dailyIntelligenceBody}>{adaptiveDailyDashboard.stateSummary}</AppText>
+          {deferredInsightsReady ? (
+            <>
+              <AppText style={styles.dailyIntelligenceTitle}>{adaptiveDailyDashboard.guidance}</AppText>
+              <AppText style={styles.dailyIntelligenceBody}>{adaptiveDailyDashboard.stateSummary}</AppText>
+            </>
+          ) : (
+            <View style={styles.guidancePlaceholderStack}>
+              <CalmSkeleton height={18} width="72%" />
+              <CalmSkeleton height={14} width="94%" />
+              <CalmSkeleton height={14} width="82%" />
+            </View>
+          )}
         </View>
 
         <View style={styles.todayPlanCard}>
@@ -2666,90 +2631,6 @@ export default function TodayScreen() {
           ) : null}
         </View>
 
-        <View style={styles.suggestedSupportCard}>
-          <AppText style={styles.navTitle}>Suggested support</AppText>
-          <View style={styles.suggestedSupportList}>
-            {adaptiveDailyDashboard.recommendations.map((recommendation) => (
-              <Pressable
-                key={recommendation.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${recommendation.title}`}
-                onPress={() => {
-                  setRecentSupportRecommendationIds((current) =>
-                    [recommendation.id, ...current.filter((id) => id !== recommendation.id)].slice(0, 6),
-                  );
-
-                  if (recommendation.tool) {
-                    router.push({
-                      pathname: "/(app)/(tabs)/programs",
-                      params: { tool: recommendation.tool.id },
-                    });
-                    return;
-                  }
-
-                  if (recommendation.route) {
-                    router.push(
-                      recommendation.params
-                        ? {
-                            pathname: recommendation.route as never,
-                            params: recommendation.params,
-                          }
-                        : (recommendation.route as never),
-                    );
-                  }
-                }}
-                style={({ pressed }) => [styles.suggestedSupportItem, pressed && styles.quickLinkPressed]}
-              >
-                <View style={styles.suggestedSupportCopy}>
-                  <AppText style={styles.suggestedSupportTitle}>{recommendation.title}</AppText>
-                  <AppText style={styles.suggestedSupportBody}>{recommendation.body}</AppText>
-                </View>
-                <AppText style={styles.suggestedSupportOpen}>Open</AppText>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {todayEntry ? (
-          <View style={styles.summaryCard}>
-            <AppText style={styles.navTitle}>Daily summary</AppText>
-            <View style={styles.summaryGrid}>
-              {visibleSummaryItems.map((item) => (
-                <View key={item.label} style={styles.summaryPill}>
-                  <AppText style={styles.summaryLabel}>{item.label}</AppText>
-                  <AppText style={styles.summaryValue}>{item.value}</AppText>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
-
-        <View style={styles.navCard}>
-          <AppText style={styles.navTitle}>Quick support</AppText>
-          <View style={styles.quickLinks}>
-            {visibleQuickLinksQuiet.map((link) => (
-              <Pressable
-                key={`${link.route}-${link.title}`}
-                onPress={() => router.push(link.route)}
-                style={({ pressed }) => [styles.quickLinkCard, pressed && styles.quickLinkPressed]}
-              >
-                <AppText style={styles.quickLinkTitle}>{link.title}</AppText>
-                <AppText style={styles.quickLinkBody}>{link.body}</AppText>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.todayReflectionCard}>
-          <AppText style={styles.navTitle}>Today’s reflection</AppText>
-          <AppText style={styles.todayReflectionPrompt}>{dailyReflectionPrompt}</AppText>
-          <Pressable
-            onPress={() => router.push("/coach")}
-            style={({ pressed }) => [styles.todayReflectionButton, pressed && styles.quickLinkPressed]}
-          >
-            <AppText style={styles.todayReflectionButtonText}>Reflect in Coach</AppText>
-          </Pressable>
-        </View>
       </ScrollView>
     </AppScreen>
   );
@@ -3388,6 +3269,10 @@ const styles = StyleSheet.create({
   },
   skeletonStack: {
     gap: 10,
+  },
+  guidancePlaceholderStack: {
+    gap: 10,
+    marginTop: 4,
   },
   skeletonMetricGrid: {
     gap: 12,

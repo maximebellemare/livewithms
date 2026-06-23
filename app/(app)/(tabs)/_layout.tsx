@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, Modal, Pressable, StyleSheet, View } from "react-native";
+import { AppState, InteractionManager, Modal, Pressable, StyleSheet, View } from "react-native";
 import AppText from "../../../components/ui/AppText";
 import { colors, radii, shadows, spacing } from "../../../components/ui/design";
 import { APP_TOUR_SLIDES } from "../../../features/app-tour/content";
@@ -28,16 +28,27 @@ import {
 export default function TabsLayout() {
   const router = useRouter();
   const { user } = useAuth();
-  const communityActivity = useCommunityActivity(user?.id);
+  const [navigationSettled, setNavigationSettled] = useState(false);
+  const communityActivity = useCommunityActivity(navigationSettled ? user?.id : undefined);
   const reminders = useReminderSettings();
-  const profileQuery = useMyProfile(user?.id, Boolean(user?.id));
   const hasHandledInitialCommunityActivityRef = useRef(false);
   const hasCheckedAppTourRef = useRef(false);
   const communityActivitySummary = communityActivity.summary;
   const refreshCommunityActivity = communityActivity.refresh;
   const [showAppTour, setShowAppTour] = useState(false);
   const [appTourIndex, setAppTourIndex] = useState(0);
+  const profileQuery = useMyProfile(navigationSettled ? user?.id : undefined, navigationSettled && Boolean(user?.id));
   const currentTourSlide = useMemo(() => APP_TOUR_SLIDES[appTourIndex] ?? APP_TOUR_SLIDES[0], [appTourIndex]);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      setNavigationSettled(true);
+    });
+
+    return () => {
+      task.cancel?.();
+    };
+  }, []);
 
   useEffect(() => {
     hasHandledInitialCommunityActivityRef.current = false;
@@ -114,31 +125,41 @@ export default function TabsLayout() {
   ]);
 
   useEffect(() => {
-    void maybeNotifyCommunityActivity();
-  }, [maybeNotifyCommunityActivity]);
-
-  useEffect(() => {
-    if (!user?.id || reminders.permissionStatus !== "granted") {
+    if (!navigationSettled) {
       return;
     }
 
-    void (async () => {
-      const pushToken = await getExpoPushToken();
-      if (!pushToken?.token) {
-        return;
-      }
+    void maybeNotifyCommunityActivity();
+  }, [maybeNotifyCommunityActivity, navigationSettled]);
 
-      try {
-        await upsertUserPushToken({
-          userId: user.id,
-          expoPushToken: pushToken.token,
-          platform: pushToken.platform,
-        });
-      } catch {
-        // Keep push token registration silent so the app still opens normally.
-      }
-    })();
-  }, [reminders.permissionStatus, user?.id]);
+  useEffect(() => {
+    if (!navigationSettled || !user?.id || reminders.permissionStatus !== "granted") {
+      return;
+    }
+
+    const task = InteractionManager.runAfterInteractions(() => {
+      void (async () => {
+        const pushToken = await getExpoPushToken();
+        if (!pushToken?.token) {
+          return;
+        }
+
+        try {
+          await upsertUserPushToken({
+            userId: user.id,
+            expoPushToken: pushToken.token,
+            platform: pushToken.platform,
+          });
+        } catch {
+          // Keep push token registration silent so the app still opens normally.
+        }
+      })();
+    });
+
+    return () => {
+      task.cancel?.();
+    };
+  }, [navigationSettled, reminders.permissionStatus, user?.id]);
 
   useEffect(() => {
     const removeListener = addAppNotificationResponseListener((response) => {
@@ -168,7 +189,9 @@ export default function TabsLayout() {
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") {
-        void refreshCommunityActivity();
+        InteractionManager.runAfterInteractions(() => {
+          void refreshCommunityActivity();
+        });
       }
     });
 
@@ -200,7 +223,7 @@ export default function TabsLayout() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (!user?.id || hasCheckedAppTourRef.current || profileQuery.isLoading) {
+    if (!navigationSettled || !user?.id || hasCheckedAppTourRef.current || profileQuery.isLoading) {
       return;
     }
     if (!profileQuery.data?.onboarding_completed) {
@@ -215,7 +238,7 @@ export default function TabsLayout() {
         setShowAppTour(true);
       }
     })();
-  }, [profileQuery.data?.onboarding_completed, profileQuery.isLoading, user?.id]);
+  }, [navigationSettled, profileQuery.data?.onboarding_completed, profileQuery.isLoading, user?.id]);
 
   useEffect(() => {
     const removeListener = addAppTourReplayListener(() => {
@@ -281,7 +304,7 @@ export default function TabsLayout() {
           options={{
             title: "Insights",
             tabBarLabel: "Insights",
-            href: "/insights",
+            href: null,
             tabBarIcon: ({ color, size, focused }) => (
               <Ionicons name={focused ? "bulb" : "bulb-outline"} color={color} size={size} />
             ),
