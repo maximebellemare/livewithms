@@ -18,7 +18,7 @@ import { useAppointments } from "../../features/appointments/hooks";
 import { useAuth } from "../../features/auth/hooks";
 import { useCheckInHistory, useTodaysCheckIn } from "../../features/checkins/hooks";
 import { getCheckInsInLastDays, getCurrentCheckInStreak } from "../../features/checkins/consistency";
-import { useCoachMessages, useSendCoachMessage } from "../../features/coach-messages/hooks";
+import { mergeCoachMessages, useCoachMessages, useSendCoachMessage } from "../../features/coach-messages/hooks";
 import type { CoachChatMessage, CoachContext, CoachMode } from "../../features/coach-messages/types";
 import { useMedications } from "../../features/medications/hooks";
 import { usePremium } from "../../features/premium/hooks";
@@ -103,15 +103,17 @@ export default function CoachChatScreen() {
   const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
   const [dailyCoachUsage, setDailyCoachUsage] = useState(0);
   const [isLoadingDailyCoachUsage, setIsLoadingDailyCoachUsage] = useState(true);
-  const [hasFocusedInitialMessage, setHasFocusedInitialMessage] = useState(false);
+  const [localConversationMessages, setLocalConversationMessages] = useState<CoachChatMessage[]>([]);
   const listRef = useRef<FlatList<ChatListItem>>(null);
   const hasAutoStartedRef = useRef(false);
+  const hasFocusedHistoryRef = useRef(false);
 
   const routeMessage = typeof params.message === "string" ? params.message : "";
   const routeMessageId = typeof params.messageId === "string" ? params.messageId : "";
   const routeTitle = typeof params.title === "string" ? params.title : "";
   const coachMode = normalizeMode(params.mode);
   const shouldAutostart = params.autostart === "1" && routeMessage.trim().length > 0;
+  const isFocusedHistoryConversation = routeMessageId.length > 0 && !shouldAutostart;
 
   useEffect(() => {
     let cancelled = false;
@@ -227,10 +229,14 @@ export default function CoachChatScreen() {
     ],
   );
 
-  const coachMessages = useMemo(() => coachMessagesQuery.data ?? [], [coachMessagesQuery.data]);
+  const persistedMessages = useMemo(() => coachMessagesQuery.data ?? [], [coachMessagesQuery.data]);
+  const displayedMessages = useMemo(
+    () => (isFocusedHistoryConversation ? persistedMessages : localConversationMessages),
+    [isFocusedHistoryConversation, localConversationMessages, persistedMessages],
+  );
   const chatItems = useMemo<ChatListItem[]>(
     () => [
-      ...coachMessages.map((message) => ({
+      ...displayedMessages.map((message) => ({
         id: message.id,
         role: message.role,
         content: message.content,
@@ -247,7 +253,7 @@ export default function CoachChatScreen() {
           ]
         : []),
     ],
-    [coachMessages, sendCoachMessage.isPending],
+    [displayedMessages, sendCoachMessage.isPending],
   );
 
   const conversationTitle = useMemo(() => {
@@ -257,31 +263,27 @@ export default function CoachChatScreen() {
     if (routeMessage.trim()) {
       return buildConversationTitle(routeMessage);
     }
-    const latestUserMessage = [...coachMessages].reverse().find((message) => message.role === "user");
-    return latestUserMessage ? buildConversationTitle(latestUserMessage.content) : "Coach conversation";
-  }, [coachMessages, routeMessage, routeTitle]);
+    if (isFocusedHistoryConversation) {
+      const targetIndex = persistedMessages.findIndex((message) => message.id === routeMessageId);
+      const targetMessage = targetIndex >= 0 ? persistedMessages[targetIndex] : null;
+      if (targetMessage?.role === "user") {
+        return buildConversationTitle(targetMessage.content);
+      }
+      const previousUser = targetIndex >= 0
+        ? [...persistedMessages.slice(0, targetIndex)].reverse().find((message) => message.role === "user")
+        : null;
+      if (previousUser) {
+        return buildConversationTitle(previousUser.content);
+      }
+    }
+    return "Coach conversation";
+  }, [isFocusedHistoryConversation, persistedMessages, routeMessage, routeMessageId, routeTitle]);
 
   const scrollToLatest = useCallback(() => {
     requestAnimationFrame(() => {
       listRef.current?.scrollToEnd({ animated: true });
     });
   }, []);
-
-  const scrollToMessageId = useCallback((messageId: string) => {
-    const targetIndex = chatItems.findIndex((item) => item.id === messageId);
-    if (targetIndex < 0) {
-      return false;
-    }
-
-    requestAnimationFrame(() => {
-      listRef.current?.scrollToIndex({
-        index: targetIndex,
-        animated: true,
-        viewPosition: 0.5,
-      });
-    });
-    return true;
-  }, [chatItems]);
 
   const handleSend = useCallback(async (messageOverride?: string) => {
     const nextMessage = (messageOverride ?? chatInput).trim();
@@ -299,19 +301,47 @@ export default function CoachChatScreen() {
     setChatError(null);
     setLastFailedMessage(null);
 
+    const optimisticMessage: CoachChatMessage = {
+      id: `local-user-${Date.now()}`,
+      user_id: user.id,
+      role: "user",
+      content: nextMessage,
+      created_at: new Date().toISOString(),
+    };
+
+    if (!isFocusedHistoryConversation) {
+      setLocalConversationMessages((existing) => mergeCoachMessages(existing, [optimisticMessage]));
+    }
+
     try {
-      await sendCoachMessage.mutateAsync({
+      const result = await sendCoachMessage.mutateAsync({
         message: nextMessage,
         context: coachContext,
         mode: coachMode,
       });
+
       if (!hasUnlimitedAiCoach) {
         const nextUsage = await incrementAiCoachUsage();
         setDailyCoachUsage(nextUsage.count);
       }
+
+      if (!isFocusedHistoryConversation) {
+        setLocalConversationMessages((existing) =>
+          mergeCoachMessages(
+            (existing ?? []).filter((message) => message.id !== optimisticMessage.id),
+            [result.userMessage, result.assistantMessage],
+          ),
+        );
+      }
+
       setChatInput("");
       scrollToLatest();
     } catch (error) {
+      if (!isFocusedHistoryConversation) {
+        setLocalConversationMessages((existing) =>
+          (existing ?? []).filter((message) => message.id !== optimisticMessage.id),
+        );
+      }
       setChatError("Coach had trouble responding. Try again.");
       setLastFailedMessage(nextMessage);
       console.error("[coach-chat] send failed", {
@@ -324,46 +354,57 @@ export default function CoachChatScreen() {
     coachMode,
     hasReachedFreeCoachLimit,
     hasUnlimitedAiCoach,
+    isFocusedHistoryConversation,
     scrollToLatest,
     sendCoachMessage,
     user?.id,
   ]);
 
   useEffect(() => {
-    if (!shouldAutostart || hasAutoStartedRef.current) {
-      return;
-    }
-
-    if (!user?.id || coachMessagesQuery.isLoading) {
+    if (!shouldAutostart || hasAutoStartedRef.current || !user?.id) {
       return;
     }
 
     hasAutoStartedRef.current = true;
     setChatInput(routeMessage);
     void handleSend(routeMessage);
-  }, [coachMessagesQuery.isLoading, handleSend, routeMessage, shouldAutostart, user?.id]);
-
-  useEffect(() => {
-    if (chatItems.length === 0) {
-      return;
-    }
-
-    if (routeMessageId && !hasFocusedInitialMessage && !shouldAutostart) {
-      const focused = scrollToMessageId(routeMessageId);
-      if (focused) {
-        setHasFocusedInitialMessage(true);
-        return;
-      }
-    }
-
-    scrollToLatest();
-  }, [chatItems.length, hasFocusedInitialMessage, routeMessageId, scrollToLatest, scrollToMessageId, shouldAutostart]);
+  }, [handleSend, routeMessage, shouldAutostart, user?.id]);
 
   useEffect(() => {
     if (!shouldAutostart && routeMessage.trim().length > 0) {
       setChatInput((current) => current || routeMessage);
     }
   }, [routeMessage, shouldAutostart]);
+
+  useEffect(() => {
+    if (!isFocusedHistoryConversation || hasFocusedHistoryRef.current || persistedMessages.length === 0) {
+      return;
+    }
+
+    const targetIndex = persistedMessages.findIndex((message) => message.id === routeMessageId);
+    if (targetIndex < 0) {
+      return;
+    }
+
+    hasFocusedHistoryRef.current = true;
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({
+        index: targetIndex,
+        animated: true,
+        viewPosition: 0.45,
+      });
+    });
+  }, [isFocusedHistoryConversation, persistedMessages, routeMessageId]);
+
+  useEffect(() => {
+    if (chatItems.length === 0) {
+      return;
+    }
+
+    if (!isFocusedHistoryConversation || sendCoachMessage.isPending) {
+      scrollToLatest();
+    }
+  }, [chatItems.length, isFocusedHistoryConversation, scrollToLatest, sendCoachMessage.isPending]);
 
   if (!user?.id) {
     return <ErrorState message="Coach is available once you’re signed in." />;
@@ -419,10 +460,12 @@ export default function CoachChatScreen() {
           contentContainerStyle={styles.listContent}
           data={chatItems}
           keyExtractor={(item) => item.id}
-          onContentSizeChange={scrollToLatest}
-          onScrollToIndexFailed={() => {
-            scrollToLatest();
+          onContentSizeChange={() => {
+            if (!isFocusedHistoryConversation || sendCoachMessage.isPending) {
+              scrollToLatest();
+            }
           }}
+          onScrollToIndexFailed={scrollToLatest}
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             item.kind === "pending" ? (
@@ -453,7 +496,7 @@ export default function CoachChatScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <AppText style={styles.emptyTitle}>Start a conversation</AppText>
+              <AppText style={styles.emptyTitle}>Start a new conversation</AppText>
               <AppText style={styles.emptyBody}>
                 Talk through fatigue, brain fog, stress, symptoms, planning, or appointments.
               </AppText>

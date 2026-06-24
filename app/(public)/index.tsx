@@ -41,9 +41,9 @@ export default function PublicIndexScreen() {
         <View style={styles.entryCard}>
           <View style={styles.cardHeader}>
             <AppText style={styles.cardEyebrow}>Welcome</AppText>
-            <AppText style={styles.cardTitle}>Open your support tools</AppText>
+            <AppText style={styles.cardTitle}>Sign in to continue</AppText>
             <AppText style={styles.cardSubtitle}>
-              Sign in to continue with check-ins, care details, reflections, and guided support.
+              Open your check-ins, care details, reflections, and guided support in one place.
             </AppText>
           </View>
 
@@ -57,7 +57,7 @@ export default function PublicIndexScreen() {
                 pressed && styles.primaryButtonPressed,
               ]}
             >
-              <AppText style={styles.primaryButtonText}>Continue to Sign In</AppText>
+              <AppText style={styles.primaryButtonText}>Sign In</AppText>
             </Pressable>
           </View>
 

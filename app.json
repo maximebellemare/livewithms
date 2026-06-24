@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.livewithms.app",
-      "buildNumber": "83",
+      "buildNumber": "84",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "LiveWithMS uses the camera when you choose to take a food photo for nutrition analysis.",
@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.livewithms.app",
-      "versionCode": 83
+      "versionCode": 84
     },
     "extra": {
       "eas": {

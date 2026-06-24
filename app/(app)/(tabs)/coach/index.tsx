@@ -31,7 +31,7 @@ import {
   deriveCoachFallbackState,
 } from "../../../../features/coach/refinement";
 import { useCoachMessages, useSendCoachMessage } from "../../../../features/coach-messages/hooks";
-import type { CoachChatMessage, CoachMode } from "../../../../features/coach-messages/types";
+import type { CoachMode } from "../../../../features/coach-messages/types";
 import { useCoachPlan, useSaveCoachPlan } from "../../../../features/coach-plans/hooks";
 import type { CoachPlanInput } from "../../../../features/coach-plans/types";
 import { useGrowthState } from "../../../../features/growth/hooks";
