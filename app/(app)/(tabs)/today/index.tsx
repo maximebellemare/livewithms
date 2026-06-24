@@ -36,7 +36,6 @@ import { derivePremiumAdaptiveHome } from "../../../../features/today/premium-ad
 import { derivePremiumCalmCompanionEnvironment } from "../../../../features/today/premium-calm-companion";
 import { useMyProfile } from "../../../../features/profile/hooks";
 import { useProgramProgress } from "../../../../features/programs/hooks";
-import { getTodayFocusLine } from "../../../../features/today/focus";
 import { buildTodayGuidance } from "../../../../features/today/guidance";
 import { loadRecentTodayPlans, loadTodayPlan, saveTodayPlan, type TodayPlan } from "../../../../features/today-plan/storage";
 import { derivePostCheckInMoment } from "../../../../features/today/post-check-in";
@@ -314,7 +313,7 @@ function getStreakLabel(streak: number, todayEntry: DailyCheckIn | null) {
     return `${streak}-day check-in streak 🎉`;
   }
 
-  return todayEntry ? "Check-in saved ✓" : "Start today's check-in";
+  return todayEntry ? "Check-in saved ✓" : "Ready when you are";
 }
 
 function getStreakCelebrationMessage(streak: number) {
@@ -431,48 +430,6 @@ function getSummaryItems(checkIn: DailyCheckIn) {
     ...(checkIn.mobility !== null ? [{ label: "Mobility", value: formatSummaryScaleValue(checkIn.mobility) }] : []),
     ...(checkIn.sleep_hours !== null ? [{ label: "Sleep", value: `${checkIn.sleep_hours}h` }] : []),
   ];
-}
-
-function getGentleFocus(checkIn: DailyCheckIn | null) {
-  if (!checkIn) {
-    return {
-      title: "Start with a quick check-in",
-      body: "A short check-in helps Coach feel more personal and gives Insights more to work with.",
-    };
-  }
-
-  if ((checkIn.fatigue ?? 0) >= 4) {
-    return {
-      title: "Protect your energy",
-      body: "Keep the day simple and save your energy for what matters most.",
-    };
-  }
-
-  if ((checkIn.stress ?? 0) >= 4) {
-    return {
-      title: "Calm your nervous system",
-      body: "A short reset or a quieter pace could help the day feel less loaded.",
-    };
-  }
-
-  if ((checkIn.mood ?? 5) <= 2) {
-    return {
-      title: "One small win",
-      body: "Choose one small thing that makes the next hour easier.",
-    };
-  }
-
-  if ((checkIn.sleep_hours ?? 99) < 6) {
-    return {
-      title: "Lower the pressure today",
-      body: "Poor sleep can change the whole feel of a day, so keep expectations lighter.",
-    };
-  }
-
-  return {
-    title: "Notice what helped",
-    body: "If today has more room in it, pay attention to what supported that feeling.",
-  };
 }
 
 function getOperationalObservation(entries: DailyCheckIn[]) {
@@ -838,7 +795,6 @@ export default function TodayScreen() {
   const insets = useSafeAreaInsets();
   const today = getTodayDateString();
   const screenStartRef = useRef(getPerfTimestamp());
-  const todayFocusLine = useMemo(() => getTodayFocusLine(today), [today]);
   const profileQuery = useMyProfile(user?.id);
   const checkInQuery = useTodaysCheckIn(user?.id, today);
   const historyQuery = useCheckInHistory(user?.id, 30);
@@ -956,7 +912,6 @@ export default function TodayScreen() {
     return historyEntries.find((entry) => entry.date < today) ?? null;
   }, [historyEntries, today]);
   const summaryItems = useMemo(() => (todayEntry ? getSummaryItems(todayEntry) : []), [todayEntry]);
-  const gentleFocus = useMemo(() => getGentleFocus(todayEntry), [todayEntry]);
   const milestone = useMemo(() => getMilestoneMessage(totalCheckIns), [totalCheckIns]);
   const wins = useMemo(() => getCareWins(overviewEntries).slice(0, 3), [overviewEntries]);
   const recentActionCard = useMemo(
@@ -2080,9 +2035,7 @@ export default function TodayScreen() {
 
   return (
     <AppScreen
-      eyebrow="Daily check-in"
       title="Today"
-      subtitle="Track energy, mood, stress, and symptoms."
     >
       <ScrollView
         contentContainerStyle={[
@@ -2118,16 +2071,7 @@ export default function TodayScreen() {
               <AppText style={styles.streakCelebrationText}>{streakCelebration}</AppText>
             </Animated.View>
           ) : null}
-          <AppText style={styles.overviewBody}>
-            {todayEntry
-              ? "Update it if something changes."
-              : "Start with a short check-in."}
-          </AppText>
-        </View>
-
-        <View style={styles.todayFocusCard}>
-          <AppText style={styles.todayFocusLabel}>Today’s focus</AppText>
-          <AppText style={styles.todayFocusText}>{todayFocusLine}</AppText>
+          {todayEntry ? <AppText style={styles.overviewBody}>Update it if something changes.</AppText> : null}
         </View>
 
         {historyQuery.isLoading && historyEntries.length === 0 ? (
@@ -2720,30 +2664,6 @@ const styles = StyleSheet.create({
   overviewBody: {
     color: "#4b5563",
     lineHeight: 22,
-  },
-  todayFocusCard: {
-    backgroundColor: "#fff3e7",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#f0d4bd",
-    borderLeftWidth: 4,
-    borderLeftColor: "#d97706",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 6,
-  },
-  todayFocusLabel: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "700",
-    color: "#b45309",
-    textTransform: "uppercase",
-  },
-  todayFocusText: {
-    color: "#7c3607",
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: "700",
   },
   dailyIntelligenceCard: {
     backgroundColor: "#f7faf9",

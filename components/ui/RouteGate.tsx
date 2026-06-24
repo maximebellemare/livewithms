@@ -1,9 +1,9 @@
 import { PropsWithChildren, useEffect, useMemo, useRef, useState } from "react";
+import * as SplashScreen from "expo-splash-screen";
 import { usePathname, useRouter, useSegments } from "expo-router";
 import { useAuth } from "../../features/auth/hooks";
 import { useMyProfile } from "../../features/profile/hooks";
 import { logger } from "../../lib/logger";
-import LoadingState from "./LoadingState";
 import { getAllowedPath, type RouteGateMode } from "./route-gate-logic";
 import SignInScreen from "../../app/(auth)/sign-in";
 
@@ -38,14 +38,6 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
     !isAuthenticated || !shouldLoadProfile || !profileQuery.isLoading || profileQuery.isError || profileLoadTimedOut;
   const sessionStatus = !isReady ? "loading" : session?.user?.id ? "authenticated" : "none";
   const shouldShowUnauthenticatedAppFlow = isReady && !isAuthenticated && (mode === "app" || mode === "onboarding");
-  const buildDebugLabel = (currentStep: string) =>
-    [
-      `authReady: ${String(isReady)}`,
-      `profileReady: ${String(profileReady)}`,
-      `appReady: ${String(isReady)}`,
-      `session: ${sessionStatus}`,
-      `currentStep: ${currentStep}`,
-    ].join("\n");
   const authenticatedTargetPath = useMemo(() => {
     if (!isAuthenticated || !profileReady) {
       return null;
@@ -165,77 +157,47 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
     user?.id,
   ]);
 
-  if (!isReady) {
-    if (__DEV__) {
-      console.log("[startup] RouteGate loading state", {
-        reason: "auth-not-ready",
-        authReady: isReady,
-        profileReady,
-        appReady: isReady,
-        sessionStatus,
-      });
+  const routeState =
+    !isReady
+      ? "booting"
+      : !isAuthenticated
+        ? mode === "auth"
+          ? "auth-children"
+          : mode === "public"
+            ? "public-children"
+            : "sign-in"
+        : profileQuery.isLoading && !profileLoadTimedOut
+          ? "booting"
+          : authenticatedTargetPath && pathname !== authenticatedTargetPath
+            ? "redirecting"
+            : activeGroup !== expectedGroup
+              ? "redirecting"
+              : "children";
+
+  useEffect(() => {
+    if (routeState === "booting" || routeState === "redirecting") {
+      return;
     }
-    return <LoadingState message="Restoring session..." debugLabel={buildDebugLabel("loading session")} />;
+
+    void SplashScreen.hideAsync().catch(() => {
+      // Ignore repeated hide attempts during fast route transitions.
+    });
+  }, [routeState]);
+
+  if (routeState === "booting" || routeState === "redirecting") {
+    return null;
   }
 
-  if (!isAuthenticated) {
-    if (mode === "app" || mode === "onboarding") {
-      console.log("[startup] navigation fallback rendered auth", {
-        pathname,
-        mode,
-      });
-      return <SignInScreen />;
-    }
-
-    if (mode === "auth") {
-      return <>{children}</>;
-    }
-
+  if (routeState === "sign-in") {
     console.log("[startup] navigation fallback rendered auth", {
       pathname,
       mode,
-      reason: activeGroup !== expectedGroup ? "public-group-mismatch" : "public-mode-fallback",
     });
     return <SignInScreen />;
   }
 
-  if (profileQuery.isLoading && !profileLoadTimedOut) {
-    if (__DEV__) {
-      console.log("[startup] RouteGate loading state", {
-        reason: "profile-loading",
-        authReady: isReady,
-        profileReady,
-        appReady: isReady,
-        sessionStatus,
-      });
-    }
-    return <LoadingState message="Loading profile..." debugLabel={buildDebugLabel("loading profile")} />;
-  }
-
-  if (authenticatedTargetPath && pathname !== authenticatedTargetPath) {
-    if (__DEV__) {
-      console.log("[startup] RouteGate loading state", {
-        reason: "redirecting-authenticated",
-        authReady: isReady,
-        profileReady,
-        appReady: isReady,
-        sessionStatus,
-      });
-    }
-    return <LoadingState message="Redirecting..." debugLabel={buildDebugLabel("waiting for navigation")} />;
-  }
-
-  if (activeGroup !== expectedGroup) {
-    if (__DEV__) {
-      console.log("[startup] RouteGate loading state", {
-        reason: "app-group-mismatch",
-        authReady: isReady,
-        profileReady,
-        appReady: isReady,
-        sessionStatus,
-      });
-    }
-    return <LoadingState message="Loading..." debugLabel={buildDebugLabel("waiting for navigation")} />;
+  if (routeState === "auth-children" || routeState === "public-children") {
+    return <>{children}</>;
   }
 
   if (__DEV__) {

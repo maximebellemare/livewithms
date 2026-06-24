@@ -531,7 +531,6 @@ export default function ProfileScreen() {
 
   return (
     <AppScreen
-      eyebrow="Settings"
       title="Profile"
       subtitle="Manage account, appearance, notifications, privacy, and support."
     >

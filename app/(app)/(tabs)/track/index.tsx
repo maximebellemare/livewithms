@@ -229,7 +229,6 @@ export default function TrackScreen() {
 
   return (
     <AppScreen
-      eyebrow="Track and trends"
       title="Track"
       subtitle="Log symptoms and body signals, then review what is changing over time."
     >

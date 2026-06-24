@@ -2884,7 +2884,6 @@ export default function CareScreen() {
 
   return (
     <AppScreen
-      eyebrow="Care"
       title="Care"
       subtitle="Organize medications, appointments, and important care notes."
     >

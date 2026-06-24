@@ -1569,7 +1569,6 @@ export default function CoachScreen() {
 
   return (
     <AppScreen
-      eyebrow="Coach"
       title="Coach"
       subtitle="A calm place to organize thoughts, reduce overwhelm, and plan around difficult days."
     >

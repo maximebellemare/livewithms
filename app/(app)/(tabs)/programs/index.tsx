@@ -2456,8 +2456,7 @@ export default function ProgramsScreen() {
 
   return (
     <AppScreen
-      eyebrow="Programs"
-      title="Support tools"
+      title="Programs & support tools"
       subtitle="Choose a tool for what you need right now."
     >
       <ScrollView
@@ -2475,9 +2474,6 @@ export default function ProgramsScreen() {
         ) : null}
 
         <View style={styles.section}>
-          <View style={styles.sectionHeaderText}>
-            <AppText style={styles.sectionTitle}>Support tools</AppText>
-          </View>
           <View style={styles.sectionList}>
             {programsLoading || !deferredProgramsReady
               ? renderProgramPlaceholders(3)
