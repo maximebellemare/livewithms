@@ -2071,7 +2071,6 @@ export default function TodayScreen() {
               <AppText style={styles.streakCelebrationText}>{streakCelebration}</AppText>
             </Animated.View>
           ) : null}
-          {todayEntry ? <AppText style={styles.overviewBody}>Update it if something changes.</AppText> : null}
         </View>
 
         {historyQuery.isLoading && historyEntries.length === 0 ? (

@@ -67,6 +67,7 @@ import { generateCalmWaitingCopy } from "../../../../lib/operational-calm/latenc
 import { useLowEnergyMode } from "../../../../features/low-energy-mode/hooks";
 import { startCoachVoiceInput, stopCoachVoiceInput } from "../../../../features/coach/voice-input";
 import { deriveCoachOperationalMemory } from "../../../../features/coach/operational-memory";
+import { buildCoachChatHref } from "../../../../features/coach/navigation";
 import { loadRecentTodayPlans, type TodayPlan } from "../../../../features/today-plan/storage";
 import { useCalmEnvironment } from "../../../../features/calm-environment/hooks";
 import { playSoundCue } from "../../../../features/sound-effects/player";
@@ -382,8 +383,12 @@ export default function CoachScreen() {
   const [deferredCoachDataReady, setDeferredCoachDataReady] = useState(false);
   const screenScrollRef = useRef<ScrollView>(null);
   const chatListRef = useRef<FlatList<ChatListItem>>(null);
+  const conversationCardYRef = useRef(0);
+  const chatThreadYRef = useRef<number | null>(null);
+  const chatInputRef = useRef<TextInput>(null);
   const pendingChatScrollTargetRef = useRef<string | null>(null);
   const lastPlayedAssistantMessageIdRef = useRef<string | null>(null);
+  const lastPendingBubbleIdRef = useRef<string | null>(null);
   const toolLayoutYRef = useRef<Partial<Record<GuidedPlanToolKey, number>>>({});
   const draftInputRef = useRef("");
   const voiceBaseInputRef = useRef("");
@@ -395,6 +400,7 @@ export default function CoachScreen() {
   const recordGrowthEventRef = useRef(growth.recordEvent);
   const timeOfDay = getTimeOfDay();
   const showCoachHomeExtras = false;
+  const showEmbeddedConversation = false;
   useEffect(() => {
     console.log("[perf][coach] shell rendered", {
       durationMs: Math.round(getPerfTimestamp() - screenStartRef.current),
@@ -419,8 +425,8 @@ export default function CoachScreen() {
   const latestEntry = recentEntriesQuery.data?.[0] ?? null;
   const coachEntry = todayEntry ?? latestEntry ?? null;
   const coachMessages = useMemo(
-    () => (deferredCoachDataReady ? coachMessagesQuery.data ?? [] : []),
-    [coachMessagesQuery.data, deferredCoachDataReady],
+    () => coachMessagesQuery.data ?? [],
+    [coachMessagesQuery.data],
   );
   const latestAssistantIndex = useMemo(
     () => {
@@ -456,14 +462,9 @@ export default function CoachScreen() {
     ],
     [coachMessages, sendCoachMessage.isPending],
   );
-  const chatTargetIndex = useMemo(() => {
-    if (sendCoachMessage.isPending) {
-      return chatItems.findIndex((item) => item.id === "pending-assistant");
-    }
-
-    return latestAssistantIndex;
-  }, [chatItems, latestAssistantIndex, sendCoachMessage.isPending]);
-  const chatTargetId = sendCoachMessage.isPending ? "pending-assistant" : latestAssistantMessageId;
+  const latestChatItem = chatItems.at(-1) ?? null;
+  const chatTargetIndex = latestChatItem ? chatItems.length - 1 : -1;
+  const chatTargetId = latestChatItem?.id ?? null;
   const recentEntries = useMemo(
     () => (deferredCoachDataReady ? recentEntriesQuery.data ?? [] : []),
     [deferredCoachDataReady, recentEntriesQuery.data],
@@ -574,17 +575,14 @@ export default function CoachScreen() {
 
     const timeout = setTimeout(() => {
       requestAnimationFrame(() => {
-        if (__DEV__) {
-          console.log("[coach-scroll]", {
-            latestAssistantId: latestAssistantMessageId,
-            latestAssistantIndex,
-            messageCount: chatItems.length,
-            target: "assistant-start",
-            targetId: chatTargetId,
-            targetIndex: chatTargetIndex,
-            scrollMethod: "flatlist-scrollToIndex",
-          });
-        }
+        console.log("[coach] scroll target id", {
+          latestAssistantId: latestAssistantMessageId,
+          latestAssistantIndex,
+          messageCount: chatItems.length,
+          targetId: chatTargetId,
+          targetIndex: chatTargetIndex,
+          scrollMethod: "flatlist-scrollToIndex",
+        });
 
         chatListRef.current?.scrollToIndex({
           index: chatTargetIndex,
@@ -597,20 +595,43 @@ export default function CoachScreen() {
     return () => clearTimeout(timeout);
   }, [chatItems.length, chatTargetId, chatTargetIndex, latestAssistantIndex, latestAssistantMessageId]);
 
-  const handleChatScrollToIndexFailed = useCallback((info: { index: number; highestMeasuredFrameIndex: number; averageItemLength: number }) => {
-    if (__DEV__) {
-      console.log("[coach-scroll]", {
-        latestAssistantId: latestAssistantMessageId,
-        latestAssistantIndex,
-        messageCount: chatItems.length,
-        target: "assistant-start",
-        targetId: chatTargetId,
-        targetIndex: info.index,
-        scrollMethod: "flatlist-scrollToIndex-failed",
-        highestMeasuredFrameIndex: info.highestMeasuredFrameIndex,
-        averageItemLength: info.averageItemLength,
+  const scrollToConversationSection = useCallback((focusInput = false) => {
+    requestAnimationFrame(() => {
+      screenScrollRef.current?.scrollTo({
+        y: Math.max(conversationCardYRef.current - 16, 0),
+        animated: true,
       });
+    });
+
+    if (focusInput) {
+      setTimeout(() => {
+        chatInputRef.current?.focus();
+      }, 140);
     }
+  }, []);
+
+  const scrollToConversationThread = useCallback(() => {
+    const targetY = chatThreadYRef.current ?? conversationCardYRef.current;
+
+    requestAnimationFrame(() => {
+      screenScrollRef.current?.scrollTo({
+        y: Math.max(targetY - 16, 0),
+        animated: true,
+      });
+    });
+  }, []);
+
+  const handleChatScrollToIndexFailed = useCallback((info: { index: number; highestMeasuredFrameIndex: number; averageItemLength: number }) => {
+    console.log("[coach] scroll target id", {
+      latestAssistantId: latestAssistantMessageId,
+      latestAssistantIndex,
+      messageCount: chatItems.length,
+      targetId: chatTargetId,
+      targetIndex: info.index,
+      scrollMethod: "flatlist-scrollToIndex-failed",
+      highestMeasuredFrameIndex: info.highestMeasuredFrameIndex,
+      averageItemLength: info.averageItemLength,
+    });
 
     chatListRef.current?.scrollToOffset({
       offset: Math.max(0, info.averageItemLength * info.index),
@@ -635,6 +656,23 @@ export default function CoachScreen() {
 
     return scrollToChatTarget(sendCoachMessage.isPending ? 80 : 120);
   }, [chatTargetId, chatTargetIndex, scrollToChatTarget, sendCoachMessage.isPending]);
+
+  useEffect(() => {
+    if (!sendCoachMessage.isPending) {
+      lastPendingBubbleIdRef.current = null;
+      return;
+    }
+
+    if (lastPendingBubbleIdRef.current === chatTargetId) {
+      return;
+    }
+
+    lastPendingBubbleIdRef.current = chatTargetId;
+    console.log("[coach] pending assistant bubble shown", {
+      targetId: chatTargetId,
+      messageCount: chatItems.length,
+    });
+  }, [chatItems.length, chatTargetId, sendCoachMessage.isPending]);
 
   useEffect(() => {
     if (!latestAssistantMessageId) {
@@ -1246,99 +1284,32 @@ export default function CoachScreen() {
     const nextMessage = (messageOverride ?? chatInput).trim();
     const selectedMode = options?.mode ?? coachMode;
 
-    if (
-      !nextMessage ||
-      !user?.id ||
-      sendCoachMessage.isPending ||
-      coachRequestInFlightRef.current ||
-      retryCooldownSeconds > 0
-    ) {
+    if (!user?.id || (!nextMessage && !messageOverride)) {
       return;
     }
 
     if (hasReachedFreeCoachLimit) {
-      setChatError(
-        "You’ve used today’s included AI Coach messages. Premium keeps Coach available for deeper reflection.",
-      );
-      setLastFailedMessage(nextMessage);
+      router.push("/premium?source=coach-limit");
       return;
     }
 
-    setChatError(null);
-    setLastFailedMessage(null);
-    const startedAt = Date.now();
-    const isRetry = options?.isRetry === true;
-    coachRequestInFlightRef.current = true;
-    scrollToChatTarget(40);
-    void playSoundCue("coach-send", calmEnvironment.soundEffects);
+    const href = buildCoachChatHref({
+      autostart: nextMessage.length > 0,
+      message: nextMessage,
+      mode: selectedMode,
+      title: nextMessage.length > 0 ? buildConversationTitle(nextMessage) : "Coach conversation",
+    });
 
-    if (isRetry) {
-      await trackRetryTriggered("ai-coach-send", {
-        mode: selectedMode,
-      });
-    }
-
-    try {
-      await sendCoachMessage.mutateAsync({
-        message: nextMessage,
-        context: coachContext,
-        mode: selectedMode,
-      });
-      await growth.recordEvent("ai_coach_message_sent", {
-        mode: selectedMode,
-      });
-      await growth.recordEvent("ai_coach_response_received", {
-        mode: selectedMode,
-        durationMs: Date.now() - startedAt,
-      });
-      if (Date.now() - startedAt > 7000) {
-        await growth.recordEvent("ai_coach_response_slow", {
-          mode: selectedMode,
-          durationMs: Date.now() - startedAt,
-        });
-      }
-      if (isRetry) {
-        await trackRetrySucceeded("ai-coach-send", {
-          mode: selectedMode,
-        });
-      }
-      if (!hasUnlimitedAiCoach) {
-        const nextUsage = await incrementAiCoachUsage();
-        setDailyCoachUsage(nextUsage.count);
-      }
-      await clearPendingReflection(user.id, "coach-chat");
+    router.push(href as never);
+    if (nextMessage.length > 0) {
       setChatInput("");
       hasTrackedAbandonRef.current = false;
       lastTrackedAbandonedDraftRef.current = null;
-      setRetryCooldownUntil(null);
-      scrollToChatTarget(100);
-    } catch (error) {
-      await growth.recordEvent("ai_coach_response_failed", {
-        mode: selectedMode,
-        category: categorizeError(error),
-      });
-      const messageText = getErrorMessage(error);
-      setChatError(
-        messageText === "AI Coach is temporarily unavailable."
-          ? "Coach could not respond right now. Please try again."
-          : messageText,
-      );
-      setLastFailedMessage(nextMessage);
-      setRetryCooldownUntil(Date.now() + COACH_RETRY_COOLDOWN_MS);
-    } finally {
-      coachRequestInFlightRef.current = false;
     }
   }, [
     chatInput,
-    coachContext,
     coachMode,
-    growth,
-    calmEnvironment.soundEffects,
     hasReachedFreeCoachLimit,
-    hasUnlimitedAiCoach,
-    retryCooldownSeconds,
-    scrollToChatTarget,
-    sendCoachMessage,
     user?.id,
   ]);
 
@@ -1398,31 +1369,28 @@ export default function CoachScreen() {
     setCoachMode(mode);
     setChatInput(prompt);
     setChatError(null);
+    scrollToConversationThread();
     setTimeout(() => {
       scrollToChatTarget(40);
-    }, 80);
+    }, 120);
 
     try {
       await handleSendCoachMessage(prompt, { mode });
+      scrollToConversationThread();
+      scrollToChatTarget(120);
     } finally {
       setActiveQuickActionId(null);
     }
-  }, [handleSendCoachMessage, retryCooldownSeconds, scrollToChatTarget, sendCoachMessage.isPending]);
+  }, [handleSendCoachMessage, retryCooldownSeconds, scrollToChatTarget, scrollToConversationThread, sendCoachMessage.isPending]);
 
-  const openConversationByMessageId = useCallback((messageId: string) => {
-    const targetIndex = chatItems.findIndex((item) => item.id === messageId);
-    if (targetIndex < 0) {
-      return;
-    }
-
-    setTimeout(() => {
-      chatListRef.current?.scrollToIndex({
-        index: targetIndex,
-        animated: true,
-        viewPosition: 0,
-      });
-    }, 80);
-  }, [chatItems]);
+  const openConversationByMessageId = useCallback((messageId: string, title?: string) => {
+    router.push(
+      buildCoachChatHref({
+        messageId,
+        title: title ?? "Coach conversation",
+      }) as never,
+    );
+  }, []);
 
   const scrollToGuidedTool = useCallback((tool: GuidedPlanToolKey) => {
     const y = toolLayoutYRef.current[tool];
@@ -1583,7 +1551,12 @@ export default function CoachScreen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-          <View style={styles.card}>
+          <View
+            style={styles.card}
+            onLayout={(event) => {
+              conversationCardYRef.current = event.nativeEvent.layout.y;
+            }}
+          >
             <AppText style={styles.contextLabel}>What&apos;s going on right now?</AppText>
             <AppText style={styles.title}>{mainConversationPrompt}</AppText>
             <AppText style={styles.supportNote}>
@@ -1592,6 +1565,7 @@ export default function CoachScreen() {
             <View style={styles.fieldGroup}>
               <View style={styles.voiceInputRow}>
                 <TextInput
+                  ref={chatInputRef}
                   multiline
                   value={chatInput}
                   onChangeText={(next) => {
@@ -1643,13 +1617,13 @@ export default function CoachScreen() {
               ) : null}
             </View>
             <AppButton
-              label={hasReachedFreeCoachLimit ? "See Premium" : sendCoachMessage.isPending ? "Talking it through..." : "Talk it through"}
+              label={hasReachedFreeCoachLimit ? "See Premium" : "Talk it through"}
               onPress={() =>
                 hasReachedFreeCoachLimit
                   ? router.push("/premium?source=coach-limit")
                   : void handleSendCoachMessage()
               }
-              disabled={sendCoachMessage.isPending || (!hasReachedFreeCoachLimit && chatInput.trim().length === 0)}
+              disabled={!hasReachedFreeCoachLimit && chatInput.trim().length === 0}
             />
             {hasReachedFreeCoachLimit ? (
               <AppText style={styles.limitNote}>
@@ -1670,6 +1644,98 @@ export default function CoachScreen() {
                 ) : null}
               </View>
             ) : null}
+            {showEmbeddedConversation ? isChatInitialLoading ? (
+              <View style={styles.inlineState}>
+                <AppText style={styles.body}>Loading your recent Coach messages…</AppText>
+              </View>
+            ) : coachMessagesQuery.isError ? (
+              <View style={styles.inlineState}>
+                <AppText style={styles.errorText}>
+                  Coach is having trouble loading right now. You can still send a message while things settle.
+                </AppText>
+                <AppButton
+                  label="Retry"
+                  variant="secondary"
+                  onPress={() => {
+                    void trackRetryTriggered("coach-messages-query");
+                    void coachMessagesQuery.refetch();
+                  }}
+                />
+              </View>
+            ) : chatItems.length > 0 ? (
+              <View
+                style={styles.chatShell}
+                onLayout={(event) => {
+                  chatThreadYRef.current = conversationCardYRef.current + event.nativeEvent.layout.y;
+                }}
+              >
+                <FlatList
+                  ref={chatListRef}
+                  style={styles.chatScrollView}
+                  contentContainerStyle={styles.chatContent}
+                  data={chatItems}
+                  keyExtractor={(item) => item.id}
+                  onScrollToIndexFailed={handleChatScrollToIndexFailed}
+                  onContentSizeChange={() => {
+                    scrollToConversationThread();
+                    chatListRef.current?.scrollToEnd({ animated: true });
+                  }}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                  renderItem={({ item }) => (
+                    item.kind === "pending" ? (
+                      <View
+                        style={[
+                          styles.messageBubble,
+                          styles.coachBubble,
+                          styles.generatingBubble,
+                        ]}
+                      >
+                        <AppText
+                          style={[
+                            styles.messageRole,
+                            styles.coachRole,
+                          ]}
+                        >
+                          Coach
+                        </AppText>
+                        <View style={styles.generatingDotsRow}>
+                          <View style={styles.generatingDot} />
+                          <View style={styles.generatingDot} />
+                          <View style={styles.generatingDot} />
+                        </View>
+                        <AppText style={[styles.messageText, styles.coachMessageText]}>{chatLoadingLabel}</AppText>
+                      </View>
+                    ) : (
+                      <View
+                        style={[
+                          styles.messageBubble,
+                          item.role === "assistant" ? styles.coachBubble : styles.userBubble,
+                        ]}
+                      >
+                        <AppText
+                          style={[
+                            styles.messageRole,
+                            item.role === "assistant" ? styles.coachRole : styles.userRole,
+                          ]}
+                        >
+                          {item.role === "assistant" ? "Coach" : "You"}
+                        </AppText>
+                        <AppText
+                          style={[
+                            styles.messageText,
+                            item.role === "assistant" ? styles.coachMessageText : styles.userMessageText,
+                          ]}
+                        >
+                          {item.content}
+                        </AppText>
+                      </View>
+                    )
+                  )}
+                />
+              </View>
+            ) : null : null}
           </View>
 
           {emotionalGpsItems.length > 0 ? (
@@ -1710,7 +1776,7 @@ export default function CoachScreen() {
                   <Pressable
                     key={conversation.id}
                     accessibilityRole="button"
-                    onPress={() => openConversationByMessageId(conversation.id)}
+                    onPress={() => openConversationByMessageId(conversation.id, conversation.title)}
                     style={({ pressed }) => [styles.quickStartCard, pressed && styles.actionCardPressed]}
                   >
                     <AppText style={styles.quickStartTitle}>{conversation.title}</AppText>

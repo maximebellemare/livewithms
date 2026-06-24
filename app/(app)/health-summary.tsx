@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { router } from "expo-router";
-import { Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
+import { InteractionManager, Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
 import { useAppointments } from "../../features/appointments/hooks";
 import { useAuth } from "../../features/auth/hooks";
 import { useCheckInHistory, useCheckInOverview } from "../../features/checkins/hooks";
@@ -9,8 +9,8 @@ import { useGrowthState } from "../../features/growth/hooks";
 import AppButton from "../../components/ui/AppButton";
 import AppScreen from "../../components/ui/AppScreen";
 import AppText from "../../components/ui/AppText";
+import CalmSkeleton from "../../components/ui/CalmSkeleton";
 import ErrorState from "../../components/ui/ErrorState";
-import LoadingState from "../../components/ui/LoadingState";
 import { exportHealthSummary } from "../../lib/exportHealthSummary";
 import { getErrorMessage } from "../../lib/errors";
 import { useLowEnergyMode } from "../../features/low-energy-mode/hooks";
@@ -194,6 +194,7 @@ export default function HealthSummaryScreen() {
   const [range, setRange] = useState<7 | 30>(7);
   const [isExportingPrintableSummary, setIsExportingPrintableSummary] = useState(false);
   const [exportFeedback, setExportFeedback] = useState<string | null>(null);
+  const [deferredSummaryReady, setDeferredSummaryReady] = useState(false);
   const historyQuery = useCheckInHistory(user?.id, 60);
   const overviewQuery = useCheckInOverview(user?.id);
   const medicationsQuery = useMedications(user?.id);
@@ -201,17 +202,42 @@ export default function HealthSummaryScreen() {
   const growth = useGrowthState({
     totalCheckIns: overviewQuery.data?.length ?? 0,
   });
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      startTransition(() => {
+        setDeferredSummaryReady(true);
+      });
+    });
+
+    return () => {
+      task.cancel?.();
+    };
+  }, []);
+
+  const historyData = useMemo(
+    () => (deferredSummaryReady ? historyQuery.data ?? [] : []),
+    [deferredSummaryReady, historyQuery.data],
+  );
+  const medicationsData = useMemo(
+    () => (deferredSummaryReady ? medicationsQuery.data ?? [] : []),
+    [deferredSummaryReady, medicationsQuery.data],
+  );
+  const appointmentsData = useMemo(
+    () => (deferredSummaryReady ? appointmentsQuery.data ?? [] : []),
+    [appointmentsQuery.data, deferredSummaryReady],
+  );
   const rangeEntries = useMemo(() => {
-    const entries = historyQuery.data ?? [];
+    const entries = historyData;
     const cutoff = getCutoffDate(range);
     return entries.filter((entry) => entry.date >= cutoff);
-  }, [historyQuery.data, range]);
+  }, [historyData, range]);
   const previousRangeEntries = useMemo(() => {
-    const entries = historyQuery.data ?? [];
+    const entries = historyData;
     const currentCutoff = getCutoffDate(range);
     const previousCutoff = getCutoffDate(range * 2);
     return entries.filter((entry) => entry.date >= previousCutoff && entry.date < currentCutoff);
-  }, [historyQuery.data, range]);
+  }, [historyData, range]);
   const sortedRangeEntries = useMemo(
     () => rangeEntries.slice().sort((left, right) => left.date.localeCompare(right.date)),
     [rangeEntries],
@@ -223,20 +249,20 @@ export default function HealthSummaryScreen() {
   const today = getTodayDateString();
   const consistencyLabel = getConsistencyLabel(rangeEntries.length, range);
   const activeMedicationsCount = useMemo(
-    () => (medicationsQuery.data ?? []).filter((medication) => medication.active).length,
-    [medicationsQuery.data],
+    () => medicationsData.filter((medication) => medication.active).length,
+    [medicationsData],
   );
   const activeMedications = useMemo(
-    () => (medicationsQuery.data ?? []).filter((medication) => medication.active).slice(0, 3),
-    [medicationsQuery.data],
+    () => medicationsData.filter((medication) => medication.active).slice(0, 3),
+    [medicationsData],
   );
   const upcomingAppointmentsCount = useMemo(
-    () => (appointmentsQuery.data ?? []).filter((appointment) => appointment.appointment_date >= today).length,
-    [appointmentsQuery.data, today],
+    () => appointmentsData.filter((appointment) => appointment.appointment_date >= today).length,
+    [appointmentsData, today],
   );
   const nextAppointment = useMemo(
     () =>
-      (appointmentsQuery.data ?? [])
+      appointmentsData
         .filter((appointment) => appointment.appointment_date >= today)
         .sort((left, right) => {
           const dateCompare = left.appointment_date.localeCompare(right.appointment_date);
@@ -246,7 +272,7 @@ export default function HealthSummaryScreen() {
 
           return (left.appointment_time ?? "").localeCompare(right.appointment_time ?? "");
         })[0] ?? null,
-    [appointmentsQuery.data, today],
+    [appointmentsData, today],
   );
   const fatigueAverage = average(rangeEntries.map((entry) => entry.fatigue));
   const moodAverage = average(rangeEntries.map((entry) => entry.mood));
@@ -582,10 +608,6 @@ export default function HealthSummaryScreen() {
     return <ErrorState message="Your health summary is available once you’re signed in." />;
   }
 
-  if (historyQuery.isLoading || overviewQuery.isLoading || medicationsQuery.isLoading || appointmentsQuery.isLoading) {
-    return <LoadingState message="Loading your summary..." />;
-  }
-
   if (historyQuery.isError) {
     return <ErrorState message={getErrorMessage(historyQuery.error)} onRetry={() => void historyQuery.refetch()} />;
   }
@@ -610,6 +632,13 @@ export default function HealthSummaryScreen() {
 
     router.replace("/profile");
   };
+
+  const isInitialLoading =
+    !deferredSummaryReady ||
+    historyQuery.isLoading ||
+    overviewQuery.isLoading ||
+    medicationsQuery.isLoading ||
+    appointmentsQuery.isLoading;
 
   return (
     <AppScreen
@@ -664,7 +693,33 @@ export default function HealthSummaryScreen() {
           <AppText style={styles.privacyText}>Exports are created only when you choose to share them.</AppText>
         </View>
 
-        {rangeEntries.length < 2 ? (
+        {isInitialLoading ? (
+          <>
+            <View style={styles.summaryCard}>
+              <AppText style={styles.sectionTitle}>Summary period</AppText>
+              <View style={styles.placeholderStack}>
+                <CalmSkeleton height={16} width="38%" />
+                <CalmSkeleton height={14} width="92%" />
+                <CalmSkeleton height={14} width="78%" />
+              </View>
+            </View>
+            <View style={styles.summaryCard}>
+              <AppText style={styles.sectionTitle}>Recent changes</AppText>
+              <View style={styles.placeholderStack}>
+                <CalmSkeleton height={14} width="90%" />
+                <CalmSkeleton height={14} width="84%" />
+                <CalmSkeleton height={14} width="72%" />
+              </View>
+            </View>
+            <View style={styles.summaryCard}>
+              <AppText style={styles.sectionTitle}>Pattern connections</AppText>
+              <View style={styles.placeholderStack}>
+                <CalmSkeleton height={14} width="88%" />
+                <CalmSkeleton height={14} width="81%" />
+              </View>
+            </View>
+          </>
+        ) : rangeEntries.length < 2 ? (
           <View style={styles.emptyCard}>
             <AppText style={styles.emptyTitle}>Add another check-in to compare changes</AppText>
             <AppText style={styles.emptyBody}>
@@ -964,6 +1019,9 @@ const styles = StyleSheet.create({
     borderColor: "#f1e1d4",
     padding: 18,
     gap: 14,
+  },
+  placeholderStack: {
+    gap: 10,
   },
   sectionTitle: {
     fontSize: 19,

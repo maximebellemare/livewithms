@@ -1,3 +1,4 @@
+import env from "../../lib/env";
 import { supabase } from "../../lib/supabase/client";
 import { logger } from "../../lib/logger";
 
@@ -11,38 +12,88 @@ export async function invokeAiFunction<T>(
   body: unknown,
   options: InvokeAiFunctionOptions = {},
 ): Promise<T> {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token ?? null;
+  const functionUrl = `${env.supabaseUrl}/functions/v1/${functionName}`;
+
   logger.info("AI function invoke", {
     functionName,
+    sessionExists: Boolean(sessionData.session),
+    accessTokenExists: Boolean(accessToken),
     ...(options.logContext ?? {}),
   });
 
-  const { data, error } = await supabase.functions.invoke(functionName, {
-    body,
+  console.log("[ai] invoke", {
+    functionName,
+    sessionExists: Boolean(sessionData.session),
+    accessTokenExists: Boolean(accessToken),
+    ...(options.logContext ?? {}),
   });
 
-  if (error) {
-    const details: Record<string, unknown> = {
+  if (sessionError) {
+    logger.error("AI function session lookup failed", {
       functionName,
-      errorName: error.name,
-      errorMessage: error.message,
+      errorName: sessionError.name,
+      errorMessage: sessionError.message,
       ...(options.logContext ?? {}),
-    };
-
-    const maybeContext = (error as { context?: unknown }).context;
-    if (maybeContext instanceof Response) {
-      details.status = maybeContext.status;
-      details.statusText = maybeContext.statusText;
-
-      try {
-        details.responseBody = await maybeContext.clone().text();
-      } catch {
-        details.responseBody = "Unable to read response body";
-      }
-    }
-
-    logger.error("AI function invoke failed", details);
+    });
+    console.error("[ai] session lookup failed", {
+      functionName,
+      errorName: sessionError.name,
+      errorMessage: sessionError.message,
+      ...(options.logContext ?? {}),
+    });
     throw new Error(options.unavailableMessage ?? "AI is temporarily unavailable.");
   }
 
-  return data as T;
+  let response: Response;
+
+  try {
+    response = await fetch(functionUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: env.supabaseAnonKey,
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    const details = {
+      functionName,
+      sessionExists: Boolean(sessionData.session),
+      accessTokenExists: Boolean(accessToken),
+      errorMessage: error instanceof Error ? error.message : String(error),
+      ...(options.logContext ?? {}),
+    };
+    logger.error("AI function network invoke failed", details);
+    console.error("[ai] invoke network failed", details);
+    throw new Error(options.unavailableMessage ?? "AI is temporarily unavailable.");
+  }
+
+  if (!response.ok) {
+    let responseBody = "";
+
+    try {
+      responseBody = await response.clone().text();
+    } catch {
+      responseBody = "Unable to read response body";
+    }
+
+    const details: Record<string, unknown> = {
+      functionName,
+      status: response.status,
+      statusText: response.statusText,
+      responseBody,
+      sessionExists: Boolean(sessionData.session),
+      accessTokenExists: Boolean(accessToken),
+      ...(options.logContext ?? {}),
+    };
+
+    logger.error("AI function invoke failed", details);
+    console.error("[ai] invoke failed", details);
+    throw new Error(options.unavailableMessage ?? "AI is temporarily unavailable.");
+  }
+
+  return (await response.json()) as T;
 }

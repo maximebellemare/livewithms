@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
-import { Alert, Clipboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
+import { Alert, Clipboard, InteractionManager, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import AppButton from "../ui/AppButton";
@@ -2218,6 +2218,17 @@ export default function CareScreen() {
       router.push("/health-summary");
     });
   }, [persistMedicationTakenToday]);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      router.prefetch?.("/health-summary");
+      router.prefetch?.("/nutrition");
+    });
+
+    return () => {
+      task.cancel?.();
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

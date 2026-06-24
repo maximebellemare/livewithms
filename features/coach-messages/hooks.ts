@@ -64,12 +64,26 @@ export function useSendCoachMessage(userId?: string) {
           ]),
       );
 
+      console.log("[coach] message appended locally", {
+        userId,
+        optimisticId,
+        contentLength: input.message.length,
+        mode: input.mode,
+      });
+
       return { optimisticId };
     },
     onSuccess: (data, _variables, context) => {
       if (!userId) {
         return;
       }
+
+      console.log("[coach] assistant response received", {
+        userId,
+        optimisticId: context?.optimisticId ?? null,
+        userMessageId: data.userMessage.id,
+        assistantMessageId: data.assistantMessage.id,
+      });
 
       queryClient.setQueryData<CoachChatMessage[]>(
         ["coach-messages", userId],
@@ -79,8 +93,13 @@ export function useSendCoachMessage(userId?: string) {
             [data.userMessage, data.assistantMessage],
           ),
       );
+
+      console.log("[coach] assistant message inserted", {
+        userId,
+        assistantMessageId: data.assistantMessage.id,
+      });
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (!userId || !context?.optimisticId) {
         return;
       }
@@ -89,6 +108,12 @@ export function useSendCoachMessage(userId?: string) {
         ["coach-messages", userId],
         (existing) => (existing ?? []).filter((message) => message.id !== context.optimisticId),
       );
+
+      console.error("[coach] assistant response failed", {
+        userId,
+        optimisticId: context.optimisticId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     },
   });
 }
