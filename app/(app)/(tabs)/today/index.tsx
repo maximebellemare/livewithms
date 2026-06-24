@@ -310,19 +310,19 @@ const DEFAULT_TOMORROW_SMALLER_OPTIONS = [
 
 function getStreakLabel(streak: number, todayEntry: DailyCheckIn | null) {
   if (streak > 0) {
-    return `${streak}-day check-in streak 🎉`;
+    return `🔥 ${streak}-day check-in streak`;
   }
 
-  return todayEntry ? "Check-in saved ✓" : "Ready when you are";
+  return todayEntry ? "You’re building a strong habit" : "Start your check-in streak today";
 }
 
 function getStreakCelebrationMessage(streak: number) {
   if (CHECK_IN_STREAK_MILESTONES.has(streak)) {
-    return `${streak} days in a row 🎉`;
+    return `Great job — you’ve checked in ${streak} days in a row`;
   }
 
   if (streak > 1) {
-    return "Nice consistency.";
+    return "You’re building a strong habit.";
   }
 
   return "Check-in saved.";
