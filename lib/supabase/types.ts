@@ -296,9 +296,41 @@ type ProfilesTable = {
   Relationships: [];
 };
 
+type AppVersionsTable = {
+  Row: {
+    app: string;
+    platform: string;
+    minimum_version: string | null;
+    recommended_version: string | null;
+    force_update: boolean | null;
+    message: string | null;
+    store_url: string | null;
+  };
+  Insert: {
+    app: string;
+    platform: string;
+    minimum_version?: string | null;
+    recommended_version?: string | null;
+    force_update?: boolean | null;
+    message?: string | null;
+    store_url?: string | null;
+  };
+  Update: {
+    app?: string;
+    platform?: string;
+    minimum_version?: string | null;
+    recommended_version?: string | null;
+    force_update?: boolean | null;
+    message?: string | null;
+    store_url?: string | null;
+  };
+  Relationships: [];
+};
+
 export type Database = Omit<GeneratedDatabase, "public"> & {
   public: Omit<GeneratedDatabase["public"], "Tables"> & {
     Tables: Omit<GeneratedDatabase["public"]["Tables"], "profiles"> & {
+      app_versions: AppVersionsTable;
       profiles: ProfilesTable;
       daily_checkins: DailyCheckInsTable;
       appointments: AppointmentsTable;

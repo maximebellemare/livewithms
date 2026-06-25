@@ -42,6 +42,7 @@ function buildGrowthState(overrides?: Partial<GrowthState>): GrowthState {
     recentActions: [],
     seenCelebrations: {},
     reviewPromptedAt: null,
+    reviewRequestedAt: null,
     ...overrides,
   };
 }

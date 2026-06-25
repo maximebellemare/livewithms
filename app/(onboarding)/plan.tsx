@@ -27,14 +27,22 @@ export default function SupportStyleScreen() {
   };
 
   const handleNext = async () => {
-    if (!selectedStyle || isSaving) {
+    if (isSaving) {
       return;
     }
 
     setIsSaving(true);
 
     try {
-      await persistOnboardingSupportStyle(selectedStyle);
+      const nextStyle = selectedStyle || "steady";
+      if (!selectedStyle) {
+        setDraft((current) => ({
+          ...current,
+          support_style: nextStyle,
+          low_energy_mode: false,
+        }));
+      }
+      await persistOnboardingSupportStyle(nextStyle);
       router.push("/complete");
     } finally {
       setIsSaving(false);
@@ -50,7 +58,7 @@ export default function SupportStyleScreen() {
       onBack={() => router.back()}
       onNext={handleNext}
       nextLabel="Continue"
-      nextDisabled={!selectedStyle || isSaving}
+      nextDisabled={isSaving}
       loading={isSaving}
     >
       <View style={styles.stack}>

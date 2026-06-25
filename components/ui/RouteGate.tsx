@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSegments } from "expo-router";
 import { useAuth } from "../../features/auth/hooks";
 import { useMyProfile } from "../../features/profile/hooks";
 import { logger } from "../../lib/logger";
+import AppUpdateGate from "./AppUpdateGate";
 import { getAllowedPath, type RouteGateMode } from "./route-gate-logic";
 import SignInScreen from "../../app/(auth)/sign-in";
 
@@ -193,11 +194,19 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
       pathname,
       mode,
     });
-    return <SignInScreen />;
+    return (
+      <AppUpdateGate app="livewithms" enabled={isReady}>
+        <SignInScreen />
+      </AppUpdateGate>
+    );
   }
 
   if (routeState === "auth-children" || routeState === "public-children") {
-    return <>{children}</>;
+    return (
+      <AppUpdateGate app="livewithms" enabled={isReady}>
+        {children}
+      </AppUpdateGate>
+    );
   }
 
   if (__DEV__) {
@@ -208,5 +217,9 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
       sessionStatus,
     });
   }
-  return <>{children}</>;
+  return (
+    <AppUpdateGate app="livewithms" enabled={isReady}>
+      {children}
+    </AppUpdateGate>
+  );
 }

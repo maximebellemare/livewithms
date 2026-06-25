@@ -4247,6 +4247,7 @@ export default function InsightsScreen() {
       existentialEmotionalLoad,
       insightClustering.maxCorrelations,
       lowEnergyAssist.cognitiveLoad.maxCorrelationCards,
+      metaOrchestration.adaptationIntensity,
       recursiveDistress,
       uncertaintySafety.trackingIntensity,
       visibleCorrelations,
@@ -4402,11 +4403,18 @@ export default function InsightsScreen() {
     }
 
     lastTrackedSummaryKeyRef.current = trackingKey;
-    void growth.recordEvent("ai_insight_generated", {
-      range,
-      entries: rangeEntries.length,
-    });
-  }, [aiSummaryQuery.data?.summary, growth.recordEvent, range, rangeEntries]);
+    void (async () => {
+      await growth.recordEvent("ai_insight_generated", {
+        range,
+        entries: rangeEntries.length,
+      });
+      if (range === 7) {
+        await growth.maybePromptForReview({
+          trigger: "weekly_insights_report",
+        });
+      }
+    })();
+  }, [aiSummaryQuery.data?.summary, growth, range, rangeEntries]);
 
   useEffect(() => {
     if (aiSummaryQuery.data?.source !== "fallback") {
@@ -4423,7 +4431,7 @@ export default function InsightsScreen() {
       range,
       entries: rangeEntries.length,
     });
-  }, [aiSummaryQuery.data?.source, growth.recordEvent, range, rangeEntries]);
+  }, [aiSummaryQuery.data?.source, growth, range, rangeEntries]);
 
   useEffect(() => {
     if (!rangeEntries.length) {
@@ -4440,7 +4448,7 @@ export default function InsightsScreen() {
       range,
       entries: rangeEntries.length,
     });
-  }, [growth.recordEvent, range, rangeEntries]);
+  }, [growth, range, rangeEntries]);
 
   const summaryFeedbackKey = aiSummaryQuery.data?.summary
     ? `${range}:${aiSummaryQuery.data.source}:${aiSummaryQuery.data.summary.slice(0, 48)}`

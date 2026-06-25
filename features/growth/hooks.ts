@@ -1,17 +1,24 @@
+import { Alert } from "react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as StoreReview from "expo-store-review";
 import type { AppEventName } from "../../lib/events";
 import { trackEvent } from "../../lib/events";
 import {
   addRecentAction,
+  canShowReviewPromptThisSession,
   getRetentionMetrics,
   incrementEventCount,
   isCelebrationAvailable,
   loadGrowthState,
   markCelebrationSeen as markCelebrationSeenInState,
   markReviewPrompted,
+  markReviewPromptShownInSession,
+  markReviewRequested,
+  markReviewSessionAsNegativeExperience,
   saveGrowthState,
+  shouldBlockReviewPromptForEvent,
   shouldPromptForReview,
+  type ReviewPromptTrigger,
 } from "./storage";
 import type { CelebrationKey, GrowthState } from "./types";
 
@@ -48,38 +55,98 @@ export function useGrowthState(options: { totalCheckIns?: number; reminderEnable
 
   const recordEvent = useCallback(async (eventName: AppEventName, metadata?: Record<string, unknown>) => {
     trackEvent(eventName, metadata);
+    if (shouldBlockReviewPromptForEvent(eventName)) {
+      markReviewSessionAsNegativeExperience();
+    }
     await persistState((current) => addRecentAction(incrementEventCount(current, eventName), eventName));
   }, [persistState]);
 
   const maybePromptForReview = useCallback(async (
     overrides?: Partial<{
+      trigger: ReviewPromptTrigger;
       totalCheckIns: number;
       reminderEnabled: boolean;
+      streak: number;
     }>,
   ) => {
-    const baseState = state ?? (await loadGrowthState());
+    const baseState = await loadGrowthState();
+    const trigger = overrides?.trigger ?? "helpful_feature_completed";
     const reviewTotalCheckIns = overrides?.totalCheckIns ?? totalCheckIns;
     const reviewReminderEnabled = overrides?.reminderEnabled ?? reminderEnabled;
+    const streak = overrides?.streak;
 
-    if (!shouldPromptForReview(baseState, { totalCheckIns: reviewTotalCheckIns, reminderEnabled: reviewReminderEnabled })) {
+    if (!canShowReviewPromptThisSession()) {
       return false;
     }
 
-    const isAvailable = await StoreReview.isAvailableAsync();
-    if (!isAvailable) {
+    if (!shouldPromptForReview(baseState, {
+      trigger,
+      totalCheckIns: reviewTotalCheckIns,
+      reminderEnabled: reviewReminderEnabled,
+      streak,
+    })) {
       return false;
     }
 
-    await StoreReview.requestReview();
     const nextState = markReviewPrompted(baseState);
     setState(nextState);
     await saveGrowthState(nextState);
+    markReviewPromptShownInSession();
     await trackEvent("review_prompt_shown", {
+      trigger,
       totalCheckIns: reviewTotalCheckIns,
       reminderEnabled: reviewReminderEnabled,
     });
-    return true;
-  }, [reminderEnabled, state, totalCheckIns]);
+
+    return new Promise<boolean>((resolve) => {
+      let settled = false;
+      const finish = (value: boolean) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve(value);
+      };
+
+      Alert.alert(
+        "Enjoying LiveWithMS?",
+        "If the app has been genuinely helpful, a quick rating would mean a lot.",
+        [
+          {
+            text: "Not now",
+            style: "cancel",
+            onPress: () => finish(false),
+          },
+          {
+            text: "Rate App",
+            onPress: () => {
+              void (async () => {
+                try {
+                  const isAvailable = await StoreReview.isAvailableAsync();
+                  if (!isAvailable) {
+                    finish(false);
+                    return;
+                  }
+
+                  await StoreReview.requestReview();
+                  const requestedState = markReviewRequested(await loadGrowthState());
+                  setState(requestedState);
+                  await saveGrowthState(requestedState);
+                  finish(true);
+                } catch {
+                  finish(false);
+                }
+              })();
+            },
+          },
+        ],
+        {
+          cancelable: true,
+          onDismiss: () => finish(false),
+        },
+      );
+    });
+  }, [reminderEnabled, totalCheckIns]);
 
   const markCelebrationSeen = useCallback(async (key: CelebrationKey) => {
     await persistState((current) => markCelebrationSeenInState(current, key));

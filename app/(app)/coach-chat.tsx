@@ -20,6 +20,7 @@ import { useCheckInHistory, useTodaysCheckIn } from "../../features/checkins/hoo
 import { getCheckInsInLastDays, getCurrentCheckInStreak } from "../../features/checkins/consistency";
 import { mergeCoachMessages, useCoachMessages, useSendCoachMessage } from "../../features/coach-messages/hooks";
 import type { CoachChatMessage, CoachContext, CoachMode } from "../../features/coach-messages/types";
+import { useGrowthState } from "../../features/growth/hooks";
 import { useMedications } from "../../features/medications/hooks";
 import { usePremium } from "../../features/premium/hooks";
 import { FREE_DAILY_AI_COACH_MESSAGES } from "../../features/premium/config";
@@ -93,6 +94,9 @@ export default function CoachChatScreen() {
   const today = getToday();
   const todayEntryQuery = useTodaysCheckIn(user?.id, today);
   const recentEntriesQuery = useCheckInHistory(user?.id, 14);
+  const growth = useGrowthState({
+    totalCheckIns: recentEntriesQuery.data?.length ?? 0,
+  });
   const profileQuery = useMyProfile(user?.id, Boolean(user?.id));
   const appointmentsQuery = useAppointments(user?.id);
   const medicationsQuery = useMedications(user?.id);
@@ -320,6 +324,18 @@ export default function CoachChatScreen() {
         mode: coachMode,
       });
 
+      await growth.recordEvent("ai_coach_message_sent", {
+        source: shouldAutostart ? "autostart" : "coach_chat",
+        mode: coachMode,
+      });
+      await growth.recordEvent("ai_coach_response_received", {
+        source: shouldAutostart ? "autostart" : "coach_chat",
+        mode: coachMode,
+      });
+      await growth.maybePromptForReview({
+        trigger: "coach_conversation_completed",
+      });
+
       if (!hasUnlimitedAiCoach) {
         const nextUsage = await incrementAiCoachUsage();
         setDailyCoachUsage(nextUsage.count);
@@ -342,6 +358,10 @@ export default function CoachChatScreen() {
           (existing ?? []).filter((message) => message.id !== optimisticMessage.id),
         );
       }
+      await growth.recordEvent("ai_coach_response_failed", {
+        source: shouldAutostart ? "autostart" : "coach_chat",
+        mode: coachMode,
+      });
       setChatError("Coach had trouble responding. Try again.");
       setLastFailedMessage(nextMessage);
       console.error("[coach-chat] send failed", {
@@ -352,11 +372,13 @@ export default function CoachChatScreen() {
     chatInput,
     coachContext,
     coachMode,
+    growth,
     hasReachedFreeCoachLimit,
     hasUnlimitedAiCoach,
     isFocusedHistoryConversation,
     scrollToLatest,
     sendCoachMessage,
+    shouldAutostart,
     user?.id,
   ]);
 

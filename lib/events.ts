@@ -1,4 +1,5 @@
 import { appSecureStore } from "./secure-store";
+import { markReviewSessionAsNegativeExperience, shouldBlockReviewPromptForEvent } from "../features/growth/storage";
 
 export type AppEventName =
   | "daily_open"
@@ -179,6 +180,10 @@ function scheduleFlush() {
 
 export async function trackEvent(name: AppEventName, metadata?: Record<string, unknown>) {
   try {
+    if (shouldBlockReviewPromptForEvent(name)) {
+      markReviewSessionAsNegativeExperience();
+    }
+
     const event: AnalyticsEvent = {
       id: buildEventId(),
       name,

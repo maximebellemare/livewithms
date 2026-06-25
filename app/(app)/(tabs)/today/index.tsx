@@ -2008,7 +2008,13 @@ export default function TodayScreen() {
         });
       }
       await growth.maybePromptForReview({
+        trigger: !todayEntry && totalCheckIns === 0
+          ? "first_check_in"
+          : !todayEntry && nextStreak > previousStreak
+            ? "streak_milestone"
+            : "helpful_feature_completed",
         totalCheckIns: todayEntry ? totalCheckIns : totalCheckIns + 1,
+        streak: nextStreak,
       });
       await clearCheckinDraft(user.id, today);
       setSaveState("saved");

@@ -4,12 +4,14 @@ import { StyleSheet, View } from "react-native";
 import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
 import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
+import { useGrowthState } from "../../features/growth/hooks";
 import { useOnboarding } from "../../features/onboarding/hooks";
 import { getPersonalizedOnboardingGuidance } from "../../features/onboarding/personalization";
 
 export default function CompleteScreen() {
   const router = useRouter();
   const { completeOnboarding, draft, isCompleting } = useOnboarding();
+  const growth = useGrowthState();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const guidance = getPersonalizedOnboardingGuidance(draft);
 
@@ -23,6 +25,9 @@ export default function CompleteScreen() {
     }
 
     setErrorMessage(null);
+    await growth.maybePromptForReview({
+      trigger: "onboarding_completed",
+    });
     router.replace("/today");
   };
 

@@ -11,6 +11,7 @@ import { PremiumProvider } from "../features/premium/hooks";
 import { appSecureStore } from "../lib/secure-store";
 import { trackDiagnosticEvent, trackEvent } from "../lib/events";
 import { flushQueuedCheckInSaves } from "../features/checkins/api";
+import { markReviewSessionAsNegativeExperience } from "../features/growth/storage";
 
 const DAILY_OPEN_TRACKING_KEY = "livewithms.analytics.daily-open";
 
@@ -26,6 +27,7 @@ class RootErrorBoundary extends React.Component<PropsWithChildren, { hasError: b
 
   componentDidCatch(error: Error) {
     logger.error("Uncaught root error", { error: error.message });
+    markReviewSessionAsNegativeExperience();
   }
 
   private handleRetry = () => {

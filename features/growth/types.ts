@@ -24,6 +24,7 @@ export type GrowthState = {
   }>;
   seenCelebrations: Partial<Record<CelebrationKey, boolean>>;
   reviewPromptedAt: string | null;
+  reviewRequestedAt: string | null;
 };
 
 export type RetentionMetrics = {

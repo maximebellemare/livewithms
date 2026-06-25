@@ -1954,7 +1954,9 @@ export default function ProgramsScreen() {
     void growth.recordEvent("program_completed", {
       toolId: tool.id,
     });
-    void growth.maybePromptForReview();
+    void growth.maybePromptForReview({
+      trigger: "helpful_feature_completed",
+    });
   };
 
   const resetCompletedToolState = (toolId: string) => {

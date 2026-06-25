@@ -35,10 +35,6 @@ export default function PrioritiesScreen() {
   };
 
   const handleNext = async () => {
-    if (!selectedPriorities.length) {
-      return;
-    }
-
     const goals = deriveGoalsFromPriorities(draft.symptoms);
     setDraft((current) => ({
       ...current,
@@ -65,7 +61,7 @@ export default function PrioritiesScreen() {
       onBack={() => router.back()}
       onNext={handleNext}
       nextLabel="Continue"
-      nextDisabled={!selectedPriorities.length || isSavingStep}
+      nextDisabled={isSavingStep}
       loading={isSavingStep}
       errorMessage={errorMessage}
     >

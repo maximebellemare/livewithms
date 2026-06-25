@@ -1,6 +1,9 @@
-import { ReactNode } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { ReactNode, useState } from "react";
+import { useRouter } from "expo-router";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../../features/auth/hooks";
+import { useSaveProfileStep } from "../../features/profile/hooks";
 import AppButton from "../ui/AppButton";
 import AppScreen from "../ui/AppScreen";
 import AppText from "../ui/AppText";
@@ -37,9 +40,34 @@ export default function OnboardingScaffold({
   children,
 }: OnboardingScaffoldProps) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { user } = useAuth();
+  const saveProfileStep = useSaveProfileStep();
+  const [escapeErrorMessage, setEscapeErrorMessage] = useState<string | null>(null);
+  const isFinishingLater = saveProfileStep.isPending;
+
+  const handleFinishSetupLater = async () => {
+    if (!user?.id || isFinishingLater) {
+      return;
+    }
+
+    setEscapeErrorMessage(null);
+
+    try {
+      await saveProfileStep.mutateAsync({
+        userId: user.id,
+        input: {
+          onboarding_completed: true,
+        },
+      });
+      router.replace("/today");
+    } catch {
+      setEscapeErrorMessage("Setup could not be finished right now. Please try again.");
+    }
+  };
 
   return (
-    <AppScreen title={title} subtitle={subtitle}>
+    <AppScreen>
       <KeyboardAvoidingView
         style={styles.keyboard}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -57,6 +85,10 @@ export default function OnboardingScaffold({
           showsVerticalScrollIndicator={false}
         >
           <StepProgress step={step} totalSteps={totalSteps} />
+          <View style={styles.header}>
+            <AppText style={styles.title}>{title}</AppText>
+            {subtitle ? <AppText style={styles.subtitle}>{subtitle}</AppText> : null}
+          </View>
           <View style={styles.body}>{children}</View>
         </ScrollView>
 
@@ -64,11 +96,12 @@ export default function OnboardingScaffold({
           style={[
             styles.footer,
             {
-              paddingBottom: Math.max(insets.bottom, 12),
+              paddingBottom: Math.max(insets.bottom + 6, 18),
             },
           ]}
         >
           {errorMessage ? <AppText style={styles.error}>{errorMessage}</AppText> : null}
+          {escapeErrorMessage ? <AppText style={styles.error}>{escapeErrorMessage}</AppText> : null}
           <View style={styles.actions}>
             {onBack ? <AppButton label={backLabel} onPress={onBack} disabled={loading} variant="secondary" /> : null}
             {onNext ? (
@@ -81,6 +114,25 @@ export default function OnboardingScaffold({
                 disabled={loading || nextDisabled}
               />
             ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={isFinishingLater ? "Finishing setup..." : "Finish setup later"}
+              onPress={() => {
+                if (loading || isFinishingLater) {
+                  return;
+                }
+                void handleFinishSetupLater();
+              }}
+              style={({ pressed }) => [
+                styles.finishLaterButton,
+                pressed && styles.finishLaterButtonPressed,
+                (loading || isFinishingLater) && styles.finishLaterButtonDisabled,
+              ]}
+            >
+              <AppText style={styles.finishLaterText}>
+                {isFinishingLater ? "Finishing setup..." : "Finish setup later"}
+              </AppText>
+            </Pressable>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -96,7 +148,22 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: spacing.screenX,
     paddingTop: 6,
+    paddingBottom: 28,
     gap: 20,
+  },
+  header: {
+    gap: 10,
+  },
+  title: {
+    fontSize: 32,
+    lineHeight: 40,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  subtitle: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.textMuted,
   },
   body: {
     gap: 20,
@@ -111,6 +178,25 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: 14,
+  },
+  finishLaterButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 42,
+    borderRadius: 16,
+    paddingVertical: 6,
+  },
+  finishLaterButtonPressed: {
+    opacity: 0.72,
+  },
+  finishLaterButtonDisabled: {
+    opacity: 0.56,
+  },
+  finishLaterText: {
+    color: colors.textWarm,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "600",
   },
   error: {
     color: colors.errorText,
