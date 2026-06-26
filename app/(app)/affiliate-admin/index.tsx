@@ -1,17 +1,17 @@
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Clipboard, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { router } from "expo-router";
-import AppButton from "../../components/ui/AppButton";
-import AppScreen from "../../components/ui/AppScreen";
-import AppText from "../../components/ui/AppText";
-import CalmSkeleton from "../../components/ui/CalmSkeleton";
-import ErrorState from "../../components/ui/ErrorState";
-import { colors, radii, shadows, spacing } from "../../components/ui/design";
-import { useIsAdmin } from "../../features/admin/hooks";
-import { useAuth } from "../../features/auth/hooks";
-import { useAffiliateDashboard, useSaveAffiliate } from "../../features/affiliate-admin/hooks";
-import type { AffiliateDashboardRow, AffiliateFormInput } from "../../features/affiliate-admin/types";
-import { getErrorMessage } from "../../lib/errors";
+import AppButton from "../../../components/ui/AppButton";
+import AppScreen from "../../../components/ui/AppScreen";
+import AppText from "../../../components/ui/AppText";
+import CalmSkeleton from "../../../components/ui/CalmSkeleton";
+import ErrorState from "../../../components/ui/ErrorState";
+import { colors, radii, shadows, spacing } from "../../../components/ui/design";
+import { useIsAdmin } from "../../../features/admin/hooks";
+import { useAuth } from "../../../features/auth/hooks";
+import { useAffiliateDashboard, useSaveAffiliate } from "../../../features/affiliate-admin/hooks";
+import type { AffiliateDashboardRow, AffiliateFormInput } from "../../../features/affiliate-admin/types";
+import { getErrorMessage } from "../../../lib/errors";
 
 const EMPTY_FORM: AffiliateFormInput = {
   name: "",

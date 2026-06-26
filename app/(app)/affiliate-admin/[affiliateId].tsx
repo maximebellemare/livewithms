@@ -1,16 +1,16 @@
 import { useMemo } from "react";
 import { Alert, Clipboard, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import AppButton from "../../components/ui/AppButton";
-import AppScreen from "../../components/ui/AppScreen";
-import AppText from "../../components/ui/AppText";
-import CalmSkeleton from "../../components/ui/CalmSkeleton";
-import ErrorState from "../../components/ui/ErrorState";
-import { colors, shadows, spacing } from "../../components/ui/design";
-import { useIsAdmin } from "../../features/admin/hooks";
-import { useAuth } from "../../features/auth/hooks";
-import { useAffiliateDetail, useMarkCommissionPaid } from "../../features/affiliate-admin/hooks";
-import { getErrorMessage } from "../../lib/errors";
+import AppButton from "../../../components/ui/AppButton";
+import AppScreen from "../../../components/ui/AppScreen";
+import AppText from "../../../components/ui/AppText";
+import CalmSkeleton from "../../../components/ui/CalmSkeleton";
+import ErrorState from "../../../components/ui/ErrorState";
+import { colors, shadows, spacing } from "../../../components/ui/design";
+import { useIsAdmin } from "../../../features/admin/hooks";
+import { useAuth } from "../../../features/auth/hooks";
+import { useAffiliateDetail, useMarkCommissionPaid } from "../../../features/affiliate-admin/hooks";
+import { getErrorMessage } from "../../../lib/errors";
 
 function formatCurrency(value: number, currency = "USD") {
   return new Intl.NumberFormat(undefined, {
