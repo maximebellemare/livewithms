@@ -33,6 +33,13 @@ type ProfileUpsertPayload = {
   updated_at: string;
 };
 
+type ProfileWriteResponse = {
+  data: unknown;
+  error: unknown;
+  status?: number | null;
+  statusText?: string | null;
+};
+
 let hasLoggedProfileSchemaDiagnostic = false;
 let lastProfileSaveDebug: ProfileSaveDebug | null = null;
 const completedOnboardingUserIds = new Set<string>();
@@ -261,6 +268,37 @@ function buildProfileUpsertPayload(userId: string, input: ProfileUpdateInput): P
   return payload;
 }
 
+async function updateExistingProfileRow(userId: string, payload: ProfileUpsertPayload): Promise<ProfileWriteResponse> {
+  const { data, error, status, statusText } = await supabase
+    .from("profiles")
+    .update(payload)
+    .eq("user_id", userId)
+    .select(PROFILE_SELECT)
+    .maybeSingle();
+
+  return {
+    data,
+    error,
+    status,
+    statusText,
+  };
+}
+
+async function insertProfileRow(payload: ProfileUpsertPayload): Promise<ProfileWriteResponse> {
+  const { data, error, status, statusText } = await supabase
+    .from("profiles")
+    .insert(payload)
+    .select(PROFILE_SELECT)
+    .maybeSingle();
+
+  return {
+    data,
+    error,
+    status,
+    statusText,
+  };
+}
+
 export type ProfileUpdateInput = Partial<{
   display_name: string | null;
   ms_type: string | null;
@@ -339,6 +377,11 @@ export const profileApi = {
       return getMockProfile();
     }
 
+    console.log("[profile] profile creation start", {
+      userId,
+      source: "createFallbackProfile",
+    });
+
     const { data, error, status, statusText } = await withTimeout(
       supabase
         .from("profiles")
@@ -367,6 +410,11 @@ export const profileApi = {
 
     if (error) {
       await logProfileSchemaDiagnostic("profile_auto_create", error);
+      console.error("[profile] profile creation failure", {
+        userId,
+        source: "createFallbackProfile",
+        ...getSupabaseErrorDetails(error),
+      });
       if (__DEV__) {
         console.error("[startup] Profile fallback create failed", {
           userId,
@@ -389,6 +437,11 @@ export const profileApi = {
       });
     }
 
+    console.log("[profile] profile creation success", {
+      userId,
+      source: "createFallbackProfile",
+    });
+
     return normalizeProfile(data as ProfileRow, userId);
   },
 
@@ -405,9 +458,12 @@ export const profileApi = {
     }
 
     const payload = buildProfileUpsertPayload(userId, input);
-    if (input.onboarding_completed === true) {
-      completedOnboardingUserIds.add(userId);
-    }
+
+    console.log("[profile] profile update start", {
+      userId,
+      payload,
+      writeMode: PROFILE_WRITE_MODE,
+    });
 
     if (__DEV__) {
       console.info("[profile] profile upsert payload", {
@@ -418,16 +474,30 @@ export const profileApi = {
       });
     }
 
-    const { data, error, status, statusText } = await supabase
-      .from("profiles")
-      .upsert(payload, {
-        onConflict: "user_id",
-      })
-      .select(PROFILE_SELECT)
-      .maybeSingle();
+    let writeResult = await updateExistingProfileRow(userId, payload);
+    let writeContext = "profile_update_existing";
+
+    if (!writeResult.error && !writeResult.data) {
+      console.log("[profile] profile update missing row, attempting insert", {
+        userId,
+      });
+      writeResult = await insertProfileRow(payload);
+      writeContext = "profile_insert_missing";
+
+      if (writeResult.error) {
+        const details = getSupabaseErrorDetails(writeResult.error);
+        const message = `${details.message} ${details.details ?? ""}`.toLowerCase();
+        if (message.includes("duplicate") || message.includes("already exists") || message.includes("23505")) {
+          writeResult = await updateExistingProfileRow(userId, payload);
+          writeContext = "profile_update_after_insert_conflict";
+        }
+      }
+    }
+
+    const { data, error, status, statusText } = writeResult;
 
     logRawProfileSaveResponse({
-      context: "profile_upsert",
+      context: writeContext,
       data,
       error,
       status,
@@ -437,6 +507,12 @@ export const profileApi = {
     if (error) {
       await logProfileSchemaDiagnostic("profile_upsert", error);
       const details = getSupabaseErrorDetails(error);
+      console.error("[profile] profile update failure", {
+        userId,
+        payload,
+        context: writeContext,
+        ...details,
+      });
       logger.error("Profile update failed", {
         userId,
         input: payload,
@@ -453,6 +529,15 @@ export const profileApi = {
 
       throw createProfileSaveError("Could not save profile. Please try again.", error);
     }
+
+    if (input.onboarding_completed === true) {
+      completedOnboardingUserIds.add(userId);
+    }
+
+    console.log("[profile] profile update success", {
+      userId,
+      context: writeContext,
+    });
 
     return normalizeProfile(data as ProfileRow, userId);
   },

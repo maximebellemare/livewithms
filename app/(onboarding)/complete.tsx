@@ -35,7 +35,7 @@ export default function CompleteScreen() {
     <OnboardingScaffold
       title="Ready to begin?"
       subtitle="Start with one short check-in. You can explore the rest when it helps."
-      step={8}
+      step={9}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
       onNext={handleNext}

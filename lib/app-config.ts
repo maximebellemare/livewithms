@@ -6,6 +6,7 @@ export const APP_CONFIG = {
     debugToolsEnabled: isDev,
     entitlement: "premium",
     freeDailyAiCoachMessages: 5,
+    regularTrialDays: 7,
     productIds: {
       monthly: "premium_monthly",
       yearly: "premium_yearly",
@@ -22,7 +23,7 @@ export const APP_CONFIG = {
   },
   onboarding: {
     variant: "default",
-    steps: ["welcome", "symptoms", "goals", "exercises", "community-intro", "care-intro", "plan", "complete"] as const,
+    steps: ["welcome", "symptoms", "goals", "exercises", "community-intro", "care-intro", "plan", "referral", "complete"] as const,
   },
   lifecycle: {
     firstWeekDays: 7,

@@ -8,6 +8,7 @@ export const FREE_DAILY_AI_COACH_MESSAGES = APP_CONFIG.premium.freeDailyAiCoachM
 export const PREMIUM_ENTITLEMENT = APP_CONFIG.premium.entitlement;
 
 export const PREMIUM_PRODUCT_IDS = APP_CONFIG.premium.productIds;
+export const PREMIUM_REGULAR_TRIAL_DAYS = APP_CONFIG.premium.regularTrialDays;
 
 export const PREMIUM_FEATURE_FLAGS = FEATURE_FLAGS.premium;
 
@@ -69,6 +70,3 @@ export const PREMIUM_FEATURE_DEFINITIONS = {
 export function isPremiumEnabled() {
   return ENABLE_SUBSCRIPTIONS;
 }
-
-// RevenueCat offering expected by the app: `default`
-// RevenueCat packages expected by the app: `$rc_monthly`, `$rc_annual`

@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Clipboard, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ReactNode, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, Clipboard, Modal, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import AppButton from "../../../components/ui/AppButton";
 import AppScreen from "../../../components/ui/AppScreen";
@@ -9,13 +9,21 @@ import ErrorState from "../../../components/ui/ErrorState";
 import { colors, radii, shadows, spacing } from "../../../components/ui/design";
 import { useIsAdmin } from "../../../features/admin/hooks";
 import { useAuth } from "../../../features/auth/hooks";
+import { generateAffiliatePromoCode, generateAffiliateSlug } from "../../../features/affiliate-admin/api";
 import { useAffiliateDashboard, useSaveAffiliate } from "../../../features/affiliate-admin/hooks";
-import type { AffiliateDashboardRow, AffiliateFormInput } from "../../../features/affiliate-admin/types";
+import type {
+  AffiliateDashboardClickEvent,
+  AffiliateDashboardPurchaseEvent,
+  AffiliateDashboardRow,
+  AffiliateFormInput,
+} from "../../../features/affiliate-admin/types";
 import { getErrorMessage } from "../../../lib/errors";
 
 const EMPTY_FORM: AffiliateFormInput = {
   name: "",
   email: "",
+  handle: "",
+  commissionPercent: "20",
   promoCode: "",
   referralSlug: "",
   status: "active",
@@ -43,6 +51,199 @@ function StatCard({
       <AppText style={styles.statLabel}>{label}</AppText>
       <AppText style={styles.statValue}>{value}</AppText>
       {helper ? <AppText style={styles.statHelper}>{helper}</AppText> : null}
+    </View>
+  );
+}
+
+function formatPercent(value: number | null) {
+  return value === null ? "—" : `${value}%`;
+}
+
+function formatDateLabel(value: string | null) {
+  if (!value) {
+    return "—";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "—";
+  }
+
+  return parsed.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatDateTimeLabel(value: string | null) {
+  if (!value) {
+    return "—";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "—";
+  }
+
+  return parsed.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+type RangeKey = "today" | "7d" | "30d" | "lifetime";
+type SortKey = "revenue" | "clicks" | "installs" | "name" | "newest";
+
+const RANGE_OPTIONS: Array<{ key: RangeKey; label: string }> = [
+  { key: "today", label: "Today" },
+  { key: "7d", label: "7 Days" },
+  { key: "30d", label: "30 Days" },
+  { key: "lifetime", label: "Lifetime" },
+];
+
+const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
+  { key: "revenue", label: "Revenue" },
+  { key: "clicks", label: "Clicks" },
+  { key: "installs", label: "Installs" },
+  { key: "newest", label: "Newest" },
+  { key: "name", label: "Name" },
+];
+
+function getRangeStart(range: RangeKey) {
+  const now = new Date();
+  const start = new Date(now);
+
+  if (range === "today") {
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+
+  if (range === "7d") {
+    start.setDate(start.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+
+  if (range === "30d") {
+    start.setDate(start.getDate() - 29);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+
+  return null;
+}
+
+function isWithinRange(value: string | null, range: RangeKey) {
+  if (range === "lifetime") {
+    return true;
+  }
+
+  if (!value) {
+    return false;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+
+  const start = getRangeStart(range);
+  if (!start) {
+    return true;
+  }
+
+  return parsed >= start;
+}
+
+function getMonthStart() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+function isOnOrAfter(value: string | null, start: Date) {
+  if (!value) {
+    return false;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+
+  return parsed >= start;
+}
+
+function SearchField({
+  value,
+  onChangeText,
+}: {
+  value: string;
+  onChangeText: (value: string) => void;
+}) {
+  return (
+    <View style={styles.searchCard}>
+      <AppText style={styles.fieldLabel}>Search affiliates</AppText>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder="Search by name, email, handle, code, or slug"
+        placeholderTextColor="#9ca3af"
+        style={styles.textInput}
+      />
+    </View>
+  );
+}
+
+function ChipGroup<T extends string>({
+  label,
+  options,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  options: Array<{ key: T; label: string }>;
+  selected: T;
+  onSelect: (value: T) => void;
+}) {
+  return (
+    <View style={styles.chipGroup}>
+      <AppText style={styles.fieldLabel}>{label}</AppText>
+      <View style={styles.chipWrap}>
+        {options.map((option) => {
+          const active = option.key === selected;
+          return (
+            <Pressable
+              key={option.key}
+              onPress={() => onSelect(option.key)}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+            >
+              <AppText style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                {option.label}
+              </AppText>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function SectionCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+}) {
+  return (
+    <View style={styles.tableCard}>
+      <AppText style={styles.sectionTitle}>{title}</AppText>
+      {subtitle ? <AppText style={styles.sectionBody}>{subtitle}</AppText> : null}
+      {children}
     </View>
   );
 }
@@ -75,11 +276,20 @@ function FormField({
   );
 }
 
+function shouldRegenerateGeneratedValue(currentValue: string, sourceName: string, generator: (value: string) => string) {
+  if (!currentValue.trim()) {
+    return true;
+  }
+
+  return currentValue.trim().toLowerCase() === generator(sourceName).toLowerCase();
+}
+
 function AffiliateEditorModal({
   visible,
   form,
   onClose,
   onChange,
+  onNameChange,
   onSave,
   isSaving,
 }: {
@@ -87,6 +297,7 @@ function AffiliateEditorModal({
   form: AffiliateFormInput;
   onClose: () => void;
   onChange: (next: AffiliateFormInput) => void;
+  onNameChange: (value: string) => void;
   onSave: () => void;
   isSaving: boolean;
 }) {
@@ -99,7 +310,7 @@ function AffiliateEditorModal({
           <FormField
             label="Name"
             value={form.name}
-            onChangeText={(value) => onChange({ ...form, name: value })}
+            onChangeText={onNameChange}
             placeholder="Affiliate name"
             autoCapitalize="words"
           />
@@ -108,6 +319,18 @@ function AffiliateEditorModal({
             value={form.email}
             onChangeText={(value) => onChange({ ...form, email: value })}
             placeholder="name@example.com"
+          />
+          <FormField
+            label="Instagram / TikTok handle"
+            value={form.handle}
+            onChangeText={(value) => onChange({ ...form, handle: value })}
+            placeholder="@creatorname"
+          />
+          <FormField
+            label="Commission %"
+            value={form.commissionPercent}
+            onChangeText={(value) => onChange({ ...form, commissionPercent: value.replace(/[^0-9.]/g, "") })}
+            placeholder="20"
           />
           <FormField
             label="Promo code"
@@ -145,10 +368,193 @@ export default function AffiliateAdminDashboardScreen() {
   const saveAffiliateMutation = useSaveAffiliate();
   const [editorVisible, setEditorVisible] = useState(false);
   const [form, setForm] = useState<AffiliateFormInput>(EMPTY_FORM);
+  const [selectedRange, setSelectedRange] = useState<RangeKey>("30d");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("revenue");
 
   const canOpenDashboard = adminQuery.data === true;
   const summary = dashboardQuery.data?.summary;
   const affiliateRows = useMemo(() => dashboardQuery.data?.affiliates ?? [], [dashboardQuery.data?.affiliates]);
+  const clickEvents = useMemo(() => dashboardQuery.data?.clickEvents ?? [], [dashboardQuery.data?.clickEvents]);
+  const installEvents = useMemo(() => dashboardQuery.data?.installEvents ?? [], [dashboardQuery.data?.installEvents]);
+  const purchaseEvents = useMemo(() => dashboardQuery.data?.purchaseEvents ?? [], [dashboardQuery.data?.purchaseEvents]);
+  const payoutEvents = useMemo(() => dashboardQuery.data?.payoutEvents ?? [], [dashboardQuery.data?.payoutEvents]);
+
+  const todayClicks = useMemo(
+    () => clickEvents.filter((event) => isWithinRange(event.createdAt, "today")).length,
+    [clickEvents],
+  );
+  const todayInstalls = useMemo(
+    () => installEvents.filter((event) => isWithinRange(event.createdAt, "today")).length,
+    [installEvents],
+  );
+  const todayPremiumSubscribers = useMemo(() => {
+    const todaysPurchases = purchaseEvents.filter((event) => isWithinRange(event.createdAt, "today"));
+    const uniqueUsers = new Set(todaysPurchases.map((event) => event.userId).filter((value): value is string => Boolean(value)));
+    return uniqueUsers.size > 0 ? uniqueUsers.size : todaysPurchases.length;
+  }, [purchaseEvents]);
+  const todayRevenue = useMemo(
+    () =>
+      purchaseEvents
+        .filter((event) => isWithinRange(event.createdAt, "today"))
+        .reduce((sum, event) => sum + event.amount, 0),
+    [purchaseEvents],
+  );
+  const monthlyRevenue = useMemo(() => {
+    const monthStart = getMonthStart();
+    return purchaseEvents
+      .filter((event) => isOnOrAfter(event.createdAt, monthStart))
+      .reduce((sum, event) => sum + event.amount, 0);
+  }, [purchaseEvents]);
+  const lifetimeRevenue = useMemo(
+    () => purchaseEvents.reduce((sum, event) => sum + event.amount, 0),
+    [purchaseEvents],
+  );
+  const pendingPayoutsAmount = useMemo(() => {
+    const payoutPending = payoutEvents
+      .filter((event) => (event.status || "").toLowerCase() !== "paid")
+      .reduce((sum, event) => sum + event.amount, 0);
+
+    return payoutPending > 0 ? payoutPending : summary?.totalPendingCommission ?? 0;
+  }, [payoutEvents, summary?.totalPendingCommission]);
+  const pendingPayoutsCount = useMemo(() => {
+    const payoutPending = payoutEvents.filter((event) => (event.status || "").toLowerCase() !== "paid").length;
+    return payoutPending > 0 ? payoutPending : summary?.pendingCommissionCount ?? 0;
+  }, [payoutEvents, summary?.pendingCommissionCount]);
+
+  const filteredClicks = useMemo(
+    () => clickEvents.filter((event) => isWithinRange(event.createdAt, selectedRange)),
+    [clickEvents, selectedRange],
+  );
+  const filteredInstalls = useMemo(
+    () => installEvents.filter((event) => isWithinRange(event.createdAt, selectedRange)),
+    [installEvents, selectedRange],
+  );
+  const filteredPurchases = useMemo(
+    () => purchaseEvents.filter((event) => isWithinRange(event.createdAt, selectedRange)),
+    [purchaseEvents, selectedRange],
+  );
+
+  const topAffiliates = useMemo(() => {
+    const byAffiliate = new Map<
+      string,
+      { affiliate: AffiliateDashboardRow; clicks: number; installs: number; revenue: number }
+    >();
+
+    for (const affiliate of affiliateRows) {
+      byAffiliate.set(affiliate.id, {
+        affiliate,
+        clicks: 0,
+        installs: 0,
+        revenue: 0,
+      });
+    }
+
+    for (const event of filteredClicks) {
+      if (!event.affiliateId || !byAffiliate.has(event.affiliateId)) continue;
+      byAffiliate.get(event.affiliateId)!.clicks += 1;
+    }
+
+    for (const event of filteredInstalls) {
+      if (!event.affiliateId || !byAffiliate.has(event.affiliateId)) continue;
+      byAffiliate.get(event.affiliateId)!.installs += 1;
+    }
+
+    for (const event of filteredPurchases) {
+      if (!event.affiliateId || !byAffiliate.has(event.affiliateId)) continue;
+      byAffiliate.get(event.affiliateId)!.revenue += event.amount;
+    }
+
+    return Array.from(byAffiliate.values())
+      .sort((a, b) => b.revenue - a.revenue || b.installs - a.installs || b.clicks - a.clicks)
+      .slice(0, 5);
+  }, [affiliateRows, filteredClicks, filteredInstalls, filteredPurchases]);
+
+  const topCampaigns = useMemo(() => {
+    const byCampaign = new Map<string, { label: string; clicks: number }>();
+
+    for (const event of filteredClicks) {
+      const label = event.campaign || event.source || event.medium || "Direct / Unknown";
+      const current = byCampaign.get(label) ?? { label, clicks: 0 };
+      current.clicks += 1;
+      byCampaign.set(label, current);
+    }
+
+    return Array.from(byCampaign.values())
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 5);
+  }, [filteredClicks]);
+
+  const newestAffiliates = useMemo(
+    () =>
+      [...affiliateRows]
+        .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
+        .slice(0, 5),
+    [affiliateRows],
+  );
+
+  const recentClicks = useMemo(() => filteredClicks.slice(0, 8), [filteredClicks]);
+  const recentPurchases = useMemo(() => filteredPurchases.slice(0, 8), [filteredPurchases]);
+
+  const visibleAffiliateRows = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const clickCounts = new Map<string, number>();
+    const installCounts = new Map<string, number>();
+    const revenueSums = new Map<string, number>();
+
+    for (const event of filteredClicks) {
+      if (!event.affiliateId) continue;
+      clickCounts.set(event.affiliateId, (clickCounts.get(event.affiliateId) ?? 0) + 1);
+    }
+
+    for (const event of filteredInstalls) {
+      if (!event.affiliateId) continue;
+      installCounts.set(event.affiliateId, (installCounts.get(event.affiliateId) ?? 0) + 1);
+    }
+
+    for (const event of filteredPurchases) {
+      if (!event.affiliateId) continue;
+      revenueSums.set(event.affiliateId, (revenueSums.get(event.affiliateId) ?? 0) + event.amount);
+    }
+
+    const rows = affiliateRows.filter((affiliate) => {
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const haystack = [
+        affiliate.name,
+        affiliate.email ?? "",
+        affiliate.handle ?? "",
+        affiliate.promoCode ?? "",
+        affiliate.referralSlug ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedSearch);
+    });
+
+    return rows.sort((a, b) => {
+      if (sortKey === "name") {
+        return a.name.localeCompare(b.name);
+      }
+
+      if (sortKey === "newest") {
+        return (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+      }
+
+      if (sortKey === "clicks") {
+        return (clickCounts.get(b.id) ?? 0) - (clickCounts.get(a.id) ?? 0);
+      }
+
+      if (sortKey === "installs") {
+        return (installCounts.get(b.id) ?? 0) - (installCounts.get(a.id) ?? 0);
+      }
+
+      return (revenueSums.get(b.id) ?? 0) - (revenueSums.get(a.id) ?? 0);
+    });
+  }, [affiliateRows, filteredClicks, filteredInstalls, filteredPurchases, searchQuery, sortKey]);
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
@@ -160,6 +566,8 @@ export default function AffiliateAdminDashboardScreen() {
       id: affiliate.id,
       name: affiliate.name,
       email: affiliate.email ?? "",
+      handle: affiliate.handle ?? "",
+      commissionPercent: affiliate.commissionPercent !== null ? String(affiliate.commissionPercent) : "",
       promoCode: affiliate.promoCode ?? "",
       referralSlug: affiliate.referralSlug ?? "",
       status: affiliate.status,
@@ -181,7 +589,31 @@ export default function AffiliateAdminDashboardScreen() {
 
   const handleCopy = (value: string) => {
     Clipboard.setString(value);
-    Alert.alert("Copied", "Referral link copied.");
+    Alert.alert("Copied", "Copied to clipboard.");
+  };
+
+  const handleShareInvite = (message: string) => {
+    void Share.share({
+      message,
+    }).catch((error) => {
+      Alert.alert("Unable to share invite", getErrorMessage(error));
+    });
+  };
+
+  const updateForm = (next: AffiliateFormInput) => {
+    setForm(next);
+  };
+
+  const handleNameChange = (value: string) => {
+    const shouldUpdatePromo = shouldRegenerateGeneratedValue(form.promoCode, form.name, generateAffiliatePromoCode);
+    const shouldUpdateSlug = shouldRegenerateGeneratedValue(form.referralSlug, form.name, generateAffiliateSlug);
+
+    updateForm({
+      ...form,
+      name: value,
+      promoCode: shouldUpdatePromo ? generateAffiliatePromoCode(value) : form.promoCode,
+      referralSlug: shouldUpdateSlug ? generateAffiliateSlug(value) : form.referralSlug,
+    });
   };
 
   if (adminQuery.isLoading) {
@@ -214,7 +646,8 @@ export default function AffiliateAdminDashboardScreen() {
         visible={editorVisible}
         form={form}
         onClose={() => setEditorVisible(false)}
-        onChange={setForm}
+        onChange={updateForm}
+        onNameChange={handleNameChange}
         onSave={handleSave}
         isSaving={saveAffiliateMutation.isPending}
       />
@@ -238,27 +671,133 @@ export default function AffiliateAdminDashboardScreen() {
         ) : summary ? (
           <>
             <View style={styles.statsGrid}>
-              <StatCard label="Total affiliates" value={String(summary.totalAffiliates)} />
-              <StatCard label="Total clicks" value={String(summary.totalClicks)} />
-              <StatCard label="Total installs" value={String(summary.totalInstalls)} />
+              <StatCard label="Today's clicks" value={String(todayClicks)} />
+              <StatCard label="Today's installs" value={String(todayInstalls)} />
+              <StatCard label="Today's Premium subscribers" value={String(todayPremiumSubscribers)} />
+              <StatCard label="Today's revenue" value={formatCurrency(todayRevenue)} />
+              <StatCard label="Monthly revenue" value={formatCurrency(monthlyRevenue)} />
+              <StatCard label="Lifetime revenue" value={formatCurrency(lifetimeRevenue)} />
               <StatCard
-                label="Pending commissions"
-                value={formatCurrency(summary.totalPendingCommission)}
-                helper={`${summary.pendingCommissionCount} pending`}
+                label="Pending payouts"
+                value={formatCurrency(pendingPayoutsAmount)}
+                helper={`${pendingPayoutsCount} awaiting payout`}
               />
               <StatCard
-                label="Paid commissions"
-                value={formatCurrency(summary.totalPaidCommission)}
-                helper={`${summary.paidCommissionCount} paid`}
+                label="Total affiliates"
+                value={String(summary.totalAffiliates)}
+                helper={`${summary.totalInstalls} installs • ${summary.totalClicks} clicks`}
               />
             </View>
 
-            <View style={styles.tableCard}>
-              <AppText style={styles.sectionTitle}>Affiliates</AppText>
-              <AppText style={styles.sectionBody}>
-                Each row rolls up clicks, installs, and commission totals into one calm view.
-              </AppText>
-              {affiliateRows.map((affiliate) => (
+            <ChipGroup label="Dashboard range" options={RANGE_OPTIONS} selected={selectedRange} onSelect={setSelectedRange} />
+
+            <SectionCard
+              title="Top affiliates"
+              subtitle="A quick view of the strongest partners in the selected range."
+            >
+              {topAffiliates.length === 0 ? (
+                <AppText style={styles.sectionBody}>No affiliate activity yet in this range.</AppText>
+              ) : (
+                topAffiliates.map(({ affiliate, clicks, installs, revenue }) => (
+                  <View key={affiliate.id} style={styles.summaryRow}>
+                    <View style={styles.summaryRowCopy}>
+                      <AppText style={styles.summaryRowTitle}>{affiliate.name}</AppText>
+                      <AppText style={styles.summaryRowMeta}>
+                        {clicks} clicks • {installs} installs • {formatPercent(affiliate.conversionRate)}
+                      </AppText>
+                    </View>
+                    <AppText style={styles.summaryRowValue}>{formatCurrency(revenue)}</AppText>
+                  </View>
+                ))
+              )}
+            </SectionCard>
+
+            <SectionCard
+              title="Top campaigns"
+              subtitle="Grouped from recent click source, medium, and campaign data."
+            >
+              {topCampaigns.length === 0 ? (
+                <AppText style={styles.sectionBody}>No campaign-tagged clicks yet in this range.</AppText>
+              ) : (
+                topCampaigns.map((campaign) => (
+                  <View key={campaign.label} style={styles.summaryRow}>
+                    <View style={styles.summaryRowCopy}>
+                      <AppText style={styles.summaryRowTitle}>{campaign.label}</AppText>
+                    </View>
+                    <AppText style={styles.summaryRowValue}>{campaign.clicks} clicks</AppText>
+                  </View>
+                ))
+              )}
+            </SectionCard>
+
+            <SectionCard
+              title="Newest affiliates"
+              subtitle="Recent creators added to the program."
+            >
+              {newestAffiliates.map((affiliate) => (
+                <View key={affiliate.id} style={styles.summaryRow}>
+                  <View style={styles.summaryRowCopy}>
+                    <AppText style={styles.summaryRowTitle}>{affiliate.name}</AppText>
+                    <AppText style={styles.summaryRowMeta}>
+                      {affiliate.email ?? affiliate.handle ?? "No contact details"}
+                    </AppText>
+                  </View>
+                  <AppText style={styles.summaryRowValue}>{formatDateLabel(affiliate.createdAt)}</AppText>
+                </View>
+              ))}
+            </SectionCard>
+
+            <SectionCard
+              title="Recent click activity"
+              subtitle="The latest affiliate traffic coming into LiveWithMS."
+            >
+              {recentClicks.length === 0 ? (
+                <AppText style={styles.sectionBody}>No click activity yet in this range.</AppText>
+              ) : (
+                recentClicks.map((event: AffiliateDashboardClickEvent) => (
+                  <View key={event.id} style={styles.activityRow}>
+                    <View style={styles.summaryRowCopy}>
+                      <AppText style={styles.summaryRowTitle}>{event.affiliateName}</AppText>
+                      <AppText style={styles.summaryRowMeta}>
+                        {(event.campaign || event.source || event.medium || "Direct / Unknown") +
+                          " • " +
+                          formatDateTimeLabel(event.createdAt)}
+                      </AppText>
+                    </View>
+                    <AppText style={styles.activityBadge}>{event.slug ?? "ref"}</AppText>
+                  </View>
+                ))
+              )}
+            </SectionCard>
+
+            <SectionCard
+              title="Recent purchases"
+              subtitle="Recent Premium purchase and renewal revenue attributed to affiliates."
+            >
+              {recentPurchases.length === 0 ? (
+                <AppText style={styles.sectionBody}>No purchases yet in this range.</AppText>
+              ) : (
+                recentPurchases.map((event: AffiliateDashboardPurchaseEvent) => (
+                  <View key={event.id} style={styles.activityRow}>
+                    <View style={styles.summaryRowCopy}>
+                      <AppText style={styles.summaryRowTitle}>{event.affiliateName}</AppText>
+                      <AppText style={styles.summaryRowMeta}>
+                        {formatDateTimeLabel(event.createdAt)} • {event.status}
+                      </AppText>
+                    </View>
+                    <AppText style={styles.summaryRowValue}>{formatCurrency(event.amount)}</AppText>
+                  </View>
+                ))
+              )}
+            </SectionCard>
+
+            <SectionCard
+              title="Affiliates"
+              subtitle="Search, sort, and review partner performance without leaving the dashboard."
+            >
+              <SearchField value={searchQuery} onChangeText={setSearchQuery} />
+              <ChipGroup label="Sort by" options={SORT_OPTIONS} selected={sortKey} onSelect={setSortKey} />
+              {visibleAffiliateRows.map((affiliate) => (
                 <View key={affiliate.id} style={styles.affiliateRow}>
                   <View style={styles.rowHeader}>
                     <View style={styles.rowTitleBlock}>
@@ -266,6 +805,9 @@ export default function AffiliateAdminDashboardScreen() {
                       <AppText style={styles.rowMeta}>
                         {affiliate.email ?? "No email"} • {affiliate.status}
                       </AppText>
+                      {affiliate.handle ? (
+                        <AppText style={styles.rowMeta}>{affiliate.handle}</AppText>
+                      ) : null}
                     </View>
                     <Pressable onPress={() => handleCopy(affiliate.referralLink)} style={styles.copyChip}>
                       <AppText style={styles.copyChipText}>Copy link</AppText>
@@ -274,16 +816,40 @@ export default function AffiliateAdminDashboardScreen() {
 
                   <View style={styles.metricGrid}>
                     <View style={styles.metricItem}>
+                      <AppText style={styles.metricLabel}>Commission</AppText>
+                      <AppText style={styles.metricValue}>{formatPercent(affiliate.commissionPercent)}</AppText>
+                    </View>
+                    <View style={styles.metricItem}>
                       <AppText style={styles.metricLabel}>Promo code</AppText>
                       <AppText style={styles.metricValue}>{affiliate.promoCode ?? "—"}</AppText>
                     </View>
                     <View style={styles.metricItem}>
+                      <AppText style={styles.metricLabel}>Conversion</AppText>
+                      <AppText style={styles.metricValue}>
+                        {affiliate.conversionRate === null ? "—" : `${affiliate.conversionRate}%`}
+                      </AppText>
+                    </View>
+                    <View style={styles.metricItem}>
                       <AppText style={styles.metricLabel}>Clicks</AppText>
-                      <AppText style={styles.metricValue}>{affiliate.clicks}</AppText>
+                      <AppText style={styles.metricValue}>
+                        {filteredClicks.filter((event) => event.affiliateId === affiliate.id).length}
+                      </AppText>
                     </View>
                     <View style={styles.metricItem}>
                       <AppText style={styles.metricLabel}>Installs</AppText>
-                      <AppText style={styles.metricValue}>{affiliate.installs}</AppText>
+                      <AppText style={styles.metricValue}>
+                        {filteredInstalls.filter((event) => event.affiliateId === affiliate.id).length}
+                      </AppText>
+                    </View>
+                    <View style={styles.metricItem}>
+                      <AppText style={styles.metricLabel}>Range revenue</AppText>
+                      <AppText style={styles.metricValue}>
+                        {formatCurrency(
+                          filteredPurchases
+                            .filter((event) => event.affiliateId === affiliate.id)
+                            .reduce((sum, event) => sum + event.amount, 0),
+                        )}
+                      </AppText>
                     </View>
                     <View style={styles.metricItem}>
                       <AppText style={styles.metricLabel}>Pending</AppText>
@@ -293,11 +859,30 @@ export default function AffiliateAdminDashboardScreen() {
                       <AppText style={styles.metricLabel}>Paid</AppText>
                       <AppText style={styles.metricValue}>{formatCurrency(affiliate.paidCommission)}</AppText>
                     </View>
+                    <View style={styles.metricItem}>
+                      <AppText style={styles.metricLabel}>Lifetime</AppText>
+                      <AppText style={styles.metricValue}>{formatCurrency(affiliate.lifetimeCommission)}</AppText>
+                    </View>
                   </View>
 
                   <AppText style={styles.referralLinkText}>{affiliate.referralLink}</AppText>
 
                   <View style={styles.rowActions}>
+                    <AppButton
+                      label="Copy promo code"
+                      onPress={() => handleCopy(affiliate.promoCode ?? "")}
+                      variant="secondary"
+                    />
+                    <AppButton
+                      label="Copy invite message"
+                      onPress={() => handleCopy(affiliate.inviteMessage)}
+                      variant="secondary"
+                    />
+                    <AppButton
+                      label="Share invite"
+                      onPress={() => handleShareInvite(affiliate.inviteMessage)}
+                      variant="secondary"
+                    />
                     <AppButton
                       label="Edit"
                       onPress={() => openEdit(affiliate)}
@@ -315,7 +900,10 @@ export default function AffiliateAdminDashboardScreen() {
                   </View>
                 </View>
               ))}
-            </View>
+              {visibleAffiliateRows.length === 0 ? (
+                <AppText style={styles.sectionBody}>No affiliates matched that search in this range.</AppText>
+              ) : null}
+            </SectionCard>
           </>
         ) : null}
       </ScrollView>
@@ -340,6 +928,38 @@ const styles = StyleSheet.create({
   },
   statsGrid: {
     gap: 12,
+  },
+  searchCard: {
+    gap: 8,
+  },
+  chipGroup: {
+    gap: 8,
+  },
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  filterChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#f1d3bc",
+    backgroundColor: "#fff7f0",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  filterChipActive: {
+    borderColor: "#fe781a",
+    backgroundColor: "#fff1e4",
+  },
+  filterChipText: {
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: "700",
+    color: "#b45309",
+  },
+  filterChipTextActive: {
+    color: "#8a2f08",
   },
   statCard: {
     borderRadius: 20,
@@ -386,6 +1006,62 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: colors.textMuted,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f2e6dc",
+    backgroundColor: "#fffaf6",
+    padding: 14,
+  },
+  summaryRowCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  summaryRowTitle: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  summaryRowMeta: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
+  },
+  summaryRowValue: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "700",
+    color: "#8a2f08",
+    textAlign: "right",
+  },
+  activityRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f2e6dc",
+    backgroundColor: "#ffffff",
+    padding: 14,
+  },
+  activityBadge: {
+    borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: "#fff2e3",
+    color: "#b45309",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
+    textTransform: "uppercase",
   },
   affiliateRow: {
     borderRadius: 18,

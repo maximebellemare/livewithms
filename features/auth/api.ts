@@ -35,18 +35,62 @@ export const authApi = {
     });
   },
   async signIn(email: string, password: string): Promise<AuthResult> {
-    const { error } = await supabase.auth.signInWithPassword({
+    console.log("[auth] signin start", {
       email,
-      password,
     });
+
+    const { error } = await withTimeout(
+      supabase.auth.signInWithPassword({
+        email,
+        password,
+      }),
+      12000,
+      "Supabase sign in",
+    );
+
+    if (error) {
+      console.error("[auth] signin failure", {
+        email,
+        message: error.message,
+        code: "code" in error ? error.code : undefined,
+        status: "status" in error ? error.status : undefined,
+      });
+    } else {
+      console.log("[auth] signin success", {
+        email,
+      });
+    }
 
     return { error };
   },
   async signUp(email: string, password: string): Promise<SignUpResult> {
-    const { data, error } = await supabase.auth.signUp({
+    console.log("[auth] signup start", {
       email,
-      password,
     });
+
+    const { data, error } = await withTimeout(
+      supabase.auth.signUp({
+        email,
+        password,
+      }),
+      15000,
+      "Supabase sign up",
+    );
+
+    if (error) {
+      console.error("[auth] signup failure", {
+        email,
+        message: error.message,
+        code: "code" in error ? error.code : undefined,
+        status: "status" in error ? error.status : undefined,
+      });
+    } else {
+      console.log("[auth] signup success", {
+        email,
+        hasSession: Boolean(data.session),
+        userId: data.user?.id ?? null,
+      });
+    }
 
     return {
       error,

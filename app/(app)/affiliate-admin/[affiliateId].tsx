@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Alert, Clipboard, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Clipboard, Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import AppButton from "../../../components/ui/AppButton";
 import AppScreen from "../../../components/ui/AppScreen";
@@ -37,6 +37,10 @@ function formatDateLabel(value: string | null) {
   });
 }
 
+function formatPercent(value: number | null) {
+  return value === null ? "—" : `${value}%`;
+}
+
 export default function AffiliateDetailScreen() {
   const params = useLocalSearchParams<{ affiliateId?: string | string[] }>();
   const affiliateId = Array.isArray(params.affiliateId) ? params.affiliateId[0] : params.affiliateId;
@@ -52,7 +56,13 @@ export default function AffiliateDetailScreen() {
 
   const handleCopy = (value: string) => {
     Clipboard.setString(value);
-    Alert.alert("Copied", "Referral link copied.");
+    Alert.alert("Copied", "Copied to clipboard.");
+  };
+
+  const handleShareInvite = (message: string) => {
+    void Share.share({ message }).catch((error) => {
+      Alert.alert("Unable to share invite", getErrorMessage(error));
+    });
   };
 
   const handleMarkPaid = (input: { commissionId: string; affiliateId: string; amount: number; currency: string }) => {
@@ -128,9 +138,14 @@ export default function AffiliateDetailScreen() {
         <View style={styles.card}>
           <AppText style={styles.sectionTitle}>Affiliate details</AppText>
           <AppText style={styles.metaText}>{affiliate.email ?? "No email"} • {affiliate.status}</AppText>
+          {affiliate.handle ? <AppText style={styles.metaText}>{affiliate.handle}</AppText> : null}
+          <AppText style={styles.metaText}>Commission: {formatPercent(affiliate.commissionPercent)}</AppText>
           <AppText style={styles.metaText}>Promo code: {affiliate.promoCode ?? "—"}</AppText>
           <AppText style={styles.referralLinkText}>{affiliate.referralLink}</AppText>
           <AppButton label="Copy referral link" onPress={() => handleCopy(affiliate.referralLink)} variant="secondary" />
+          <AppButton label="Copy promo code" onPress={() => handleCopy(affiliate.promoCode ?? "")} variant="secondary" />
+          <AppButton label="Copy invite message" onPress={() => handleCopy(affiliate.inviteMessage)} variant="secondary" />
+          <AppButton label="Share invite message" onPress={() => handleShareInvite(affiliate.inviteMessage)} variant="secondary" />
         </View>
 
         <View style={styles.card}>
@@ -164,7 +179,7 @@ export default function AffiliateDetailScreen() {
         </View>
 
         <View style={styles.card}>
-          <AppText style={styles.sectionTitle}>Commissions</AppText>
+          <AppText style={styles.sectionTitle}>Commission history</AppText>
           {commissions.length === 0 ? (
             <AppText style={styles.emptyText}>No commissions yet.</AppText>
           ) : (
@@ -208,7 +223,7 @@ export default function AffiliateDetailScreen() {
         </View>
 
         <View style={styles.card}>
-          <AppText style={styles.sectionTitle}>Payouts</AppText>
+          <AppText style={styles.sectionTitle}>Payout history</AppText>
           {payouts.length === 0 ? (
             <AppText style={styles.emptyText}>No payout rows yet.</AppText>
           ) : (

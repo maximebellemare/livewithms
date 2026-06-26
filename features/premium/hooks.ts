@@ -380,7 +380,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     setRevenueCatDebugSnapshot(revenueCatClient.getDebugSnapshot());
   }, [refreshPremiumStatus, subscriptionsEnabled, user?.id]);
 
-  const purchasePlan = useCallback<PremiumContextValue["purchasePlan"]>(async (plan) => {
+  const purchasePlan = useCallback<PremiumContextValue["purchasePlan"]>(async (plan, options) => {
     if (!subscriptionsEnabled || !user?.id) {
       return { success: false, message: "Premium purchases are not available in this build right now." };
     }
@@ -392,7 +392,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     setIsPurchasing(true);
 
     try {
-      const result = await revenueCatClient.purchasePlan(user.id, plan);
+      const result = await revenueCatClient.purchasePlan(user.id, plan, options);
       const nextStatus = getPremiumStatusFromCustomerInfo(result.customerInfo);
       setRevenueCatEntitlementActive(nextStatus === "active");
       setRevenueCatDebugSnapshot(revenueCatClient.getDebugSnapshot());

@@ -2,7 +2,7 @@ import env from "../env";
 import { normalizeError } from "../errors";
 import { logger } from "../logger";
 import { Platform } from "react-native";
-import type { PremiumPlan, PremiumOffering, PremiumOfferingPackage } from "../../features/premium/types";
+import type { PremiumPlan, PremiumOffering, PremiumOfferingPackage, PremiumPurchaseOptions } from "../../features/premium/types";
 import { shouldUseRevenueCatNativeStore } from "../revenueCatEnvironment";
 import {
   deriveOfferingsDiagnostics,
@@ -128,9 +128,30 @@ function mapOffering(offering: RevenueCatOffering | null): PremiumOffering | nul
   }
 
   return {
+    identifier: offering.identifier,
     monthly: mapPackage("monthly", findPackage(offering, "monthly")),
     yearly: mapPackage("yearly", findPackage(offering, "yearly")),
   };
+}
+
+function findOfferingByProductIdentifiers(
+  offerings: RevenueCatOfferings,
+  productIds: { monthly?: string | null; yearly?: string | null },
+) {
+  const wantedIds = [productIds.monthly, productIds.yearly]
+    .filter((value): value is string => Boolean(value && value.trim()))
+    .map((value) => value.trim());
+
+  if (wantedIds.length === 0) {
+    return null;
+  }
+
+  return (
+    Object.values(offerings.all ?? {}).find((candidate) => {
+      const availableProductIds = (candidate.availablePackages ?? []).map((pkg) => pkg.product.identifier);
+      return wantedIds.every((wantedId) => availableProductIds.includes(wantedId));
+    }) ?? null
+  );
 }
 
 export type RevenueCatPurchaseResult = {
@@ -288,6 +309,25 @@ export const revenueCatClient = {
     }
   },
 
+  async getOfferingByIdentifier(input: {
+    offeringIdentifier?: string | null;
+    productIds?: { monthly?: string | null; yearly?: string | null };
+  }) {
+    if (!shouldUseRevenueCatNativeStore()) {
+      return null;
+    }
+
+    const { default: Purchases } = await loadPurchasesModule();
+    const offerings = (await Purchases.getOfferings()) as RevenueCatOfferings;
+    const identifier = input.offeringIdentifier?.trim() ?? "";
+    const offeringByIdentifier = identifier ? offerings.all?.[identifier] ?? null : null;
+    const offeringByProducts = offeringByIdentifier
+      ? null
+      : findOfferingByProductIdentifiers(offerings, input.productIds ?? {});
+
+    return mapOffering((offeringByIdentifier ?? offeringByProducts) as RevenueCatOffering | null);
+  },
+
   async getCustomerInfo() {
     if (!shouldUseRevenueCatNativeStore()) {
       return {
@@ -318,21 +358,25 @@ export const revenueCatClient = {
     }
   },
 
-  async purchasePlan(userId: string, plan: PremiumPlan): Promise<RevenueCatPurchaseResult> {
+  async purchasePlan(userId: string, plan: PremiumPlan, options?: PremiumPurchaseOptions): Promise<RevenueCatPurchaseResult> {
     if (!shouldUseRevenueCatNativeStore()) {
       throw new Error("Premium purchases are not available in this testing environment.");
     }
 
     await revenueCatClient.configureRevenueCat(userId);
     const { default: Purchases } = await loadPurchasesModule();
-    const offerings = await Purchases.getOfferings();
-    const { selected: offering, source } = selectPreferredOffering(offerings as RevenueCatOfferings);
-    logRevenueCatDebug("[LIVEWITHMS_RC_OFFERINGS]", "purchase offering selected", {
-      requestedPlan: plan,
-      offeringSelectionSource: source,
-      ...deriveOfferingsDiagnostics(offerings as RevenueCatOfferings, offering as RevenueCatOffering | null),
-    });
-    const pkg = findPackage(offering, plan);
+    let pkg = (options?.packageOverride as RevenueCatPackage | undefined) ?? null;
+
+    if (!pkg) {
+      const offerings = await Purchases.getOfferings();
+      const { selected: offering, source } = selectPreferredOffering(offerings as RevenueCatOfferings);
+      logRevenueCatDebug("[LIVEWITHMS_RC_OFFERINGS]", "purchase offering selected", {
+        requestedPlan: plan,
+        offeringSelectionSource: source,
+        ...deriveOfferingsDiagnostics(offerings as RevenueCatOfferings, offering as RevenueCatOffering | null),
+      });
+      pkg = findPackage(offering, plan);
+    }
 
     if (!pkg) {
       throw new Error(`No ${plan} package is available in RevenueCat.`);

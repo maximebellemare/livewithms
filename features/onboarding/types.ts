@@ -12,6 +12,7 @@ export type OnboardingStep =
   | "care-intro"
   | "about-you"
   | "plan"
+  | "referral"
   | "trust"
   | "reminders"
   | "complete";

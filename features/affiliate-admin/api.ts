@@ -1,8 +1,12 @@
 import { supabase } from "../../lib/supabase/client";
 import type {
+  AffiliateDashboardClickEvent,
   AffiliateCommissionRow,
   AffiliateDashboardData,
   AffiliateDashboardRow,
+  AffiliateDashboardInstallEvent,
+  AffiliateDashboardPayoutEvent,
+  AffiliateDashboardPurchaseEvent,
   AffiliateDetailData,
   AffiliateFormInput,
   AffiliatePayoutRow,
@@ -31,6 +35,45 @@ const LIVEWITHMS_BASE_URL = "https://www.livewithms.com";
 
 function normalizeCode(value: string | null | undefined) {
   return value?.trim().toLowerCase() ?? "";
+}
+
+export function generateAffiliateSlug(value: string) {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return normalized || "livewithms-partner";
+}
+
+export function generateAffiliatePromoCode(value: string) {
+  const normalized = value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "");
+
+  return normalized.slice(0, 18) || "LIVEWITHMS";
+}
+
+function buildInviteMessage(input: {
+  referralLink: string;
+  promoCode: string | null;
+  commissionPercent: number | null;
+}) {
+  const commissionLine = input.commissionPercent !== null
+    ? `${input.commissionPercent}%`
+    : "your configured";
+
+  return [
+    "Welcome to the LiveWithMS Affiliate Program! Your personal referral link is:",
+    input.referralLink,
+    "",
+    `Your promo code is: ${input.promoCode ?? "—"}`,
+    "",
+    `You’ll earn ${commissionLine} commission on referred Premium subscriptions.`,
+  ].join("\n");
 }
 
 function isRecordLike(value: unknown): value is RecordLike {
@@ -95,6 +138,20 @@ function getAffiliateStatus(record: RecordLike) {
 
 function getAffiliatePromoCode(record: RecordLike) {
   return getFirstText(record, ["promo_code", "code", "referral_code", "slug"]);
+}
+
+function getAffiliateHandle(record: RecordLike) {
+  return getFirstText(record, [
+    "instagram_handle",
+    "tiktok_handle",
+    "social_handle",
+    "handle",
+    "creator_handle",
+  ]);
+}
+
+function getAffiliateCommissionPercent(record: RecordLike) {
+  return getFirstNumber(record, ["commission_percent", "commission_rate", "percentage"]);
 }
 
 function getReferralSlug(record: RecordLike) {
@@ -199,18 +256,35 @@ function buildDashboardRows(input: {
       const primaryReferralLink = referralLinks[0] ?? null;
       const promoCode = getAffiliatePromoCode(row);
       const referralSlug = primaryReferralLink ? getReferralSlug(primaryReferralLink) : promoCode;
+      const commissionPercent = getAffiliateCommissionPercent(row);
+      const pendingCommission = Number(((pendingSums.get(id) ?? 0)).toFixed(2));
+      const paidCommission = Number(((paidSums.get(id) ?? 0)).toFixed(2));
+      const lifetimeCommission = Number((pendingCommission + paidCommission).toFixed(2));
+      const clicks = clickCounts.get(id) ?? 0;
+      const installs = installCounts.get(id) ?? 0;
+      const referralLink = buildReferralLink(referralSlug, promoCode);
 
       const item: AffiliateDashboardRow = {
         id,
         name: getAffiliateName(row),
         email: getFirstText(row, ["email"]),
+        handle: getAffiliateHandle(row),
+        createdAt: getFirstText(row, ["created_at"]),
+        commissionPercent,
         promoCode,
         referralSlug,
-        referralLink: buildReferralLink(referralSlug, promoCode),
-        clicks: clickCounts.get(id) ?? 0,
-        installs: installCounts.get(id) ?? 0,
-        pendingCommission: Number(((pendingSums.get(id) ?? 0)).toFixed(2)),
-        paidCommission: Number(((paidSums.get(id) ?? 0)).toFixed(2)),
+        referralLink,
+        inviteMessage: buildInviteMessage({
+          referralLink,
+          promoCode,
+          commissionPercent,
+        }),
+        clicks,
+        installs,
+        pendingCommission,
+        paidCommission,
+        lifetimeCommission,
+        conversionRate: clicks > 0 ? Number(((installs / clicks) * 100).toFixed(1)) : null,
         pendingCommissionCount: pendingCounts.get(id) ?? 0,
         paidCommissionCount: paidCounts.get(id) ?? 0,
         status: getAffiliateStatus(row),
@@ -222,13 +296,154 @@ function buildDashboardRows(input: {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function buildAffiliateNameMap(affiliates: AffiliateDashboardRow[]) {
+  return new Map(affiliates.map((affiliate) => [affiliate.id, affiliate.name]));
+}
+
+function buildClickEvents(input: {
+  clickRows: RecordLike[];
+  referralLinkRows: RecordLike[];
+  affiliates: AffiliateDashboardRow[];
+}) {
+  const affiliateIdByReferralLinkId = new Map<string, string>();
+
+  for (const row of input.referralLinkRows) {
+    const affiliateId = asText(row.affiliate_id);
+    const linkId = asText(row.id);
+    if (affiliateId && linkId) {
+      affiliateIdByReferralLinkId.set(linkId, affiliateId);
+    }
+  }
+
+  const affiliateNameById = buildAffiliateNameMap(input.affiliates);
+
+  return input.clickRows
+    .map((row): AffiliateDashboardClickEvent | null => {
+      const id = asText(row.id);
+      if (!id) {
+        return null;
+      }
+
+      const affiliateId = asText(row.affiliate_id) ?? affiliateIdByReferralLinkId.get(asText(row.referral_link_id) ?? "") ?? null;
+
+      return {
+        id,
+        affiliateId,
+        affiliateName: affiliateId ? affiliateNameById.get(affiliateId) ?? "Unknown affiliate" : "Unknown affiliate",
+        slug: getFirstText(row, ["slug"]),
+        source: getFirstText(row, ["source"]),
+        medium: getFirstText(row, ["medium"]),
+        campaign: getFirstText(row, ["campaign"]),
+        referrer: getFirstText(row, ["referrer", "referrer_url"]),
+        createdAt: getFirstText(row, ["created_at"]),
+      };
+    })
+    .filter((row): row is AffiliateDashboardClickEvent => Boolean(row))
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+}
+
+function buildInstallEvents(input: {
+  installRows: RecordLike[];
+  affiliates: AffiliateDashboardRow[];
+}) {
+  const affiliateNameById = buildAffiliateNameMap(input.affiliates);
+
+  return input.installRows
+    .map((row): AffiliateDashboardInstallEvent | null => {
+      const id = asText(row.id);
+      if (!id) {
+        return null;
+      }
+
+      const affiliateId = asText(row.affiliate_id);
+
+      return {
+        id,
+        affiliateId,
+        affiliateName: affiliateId ? affiliateNameById.get(affiliateId) ?? "Unknown affiliate" : "Unknown affiliate",
+        platform: getFirstText(row, ["platform"]),
+        referralCode: getFirstText(row, ["referral_code"]),
+        createdAt: getFirstText(row, ["created_at"]),
+      };
+    })
+    .filter((row): row is AffiliateDashboardInstallEvent => Boolean(row))
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+}
+
+function buildPurchaseEvents(input: {
+  commissionRows: RecordLike[];
+  affiliates: AffiliateDashboardRow[];
+}) {
+  const affiliateNameById = buildAffiliateNameMap(input.affiliates);
+
+  return input.commissionRows
+    .map((row): AffiliateDashboardPurchaseEvent | null => {
+      const id = asText(row.id);
+      if (!id) {
+        return null;
+      }
+
+      const affiliateId = asText(row.affiliate_id);
+
+      return {
+        id,
+        affiliateId,
+        affiliateName: affiliateId ? affiliateNameById.get(affiliateId) ?? "Unknown affiliate" : "Unknown affiliate",
+        userId: getFirstText(row, ["user_id"]),
+        amount: getFirstNumber(row, ["amount", "price_in_purchased_currency"]) ?? 0,
+        commission: getFirstNumber(row, ["commission", "commission_amount"]) ?? 0,
+        currency: getCurrency(row),
+        status: getFirstText(row, ["status"]) ?? "pending",
+        revenuecatTransactionId: getFirstText(row, [
+          "revenuecat_transaction_id",
+          "transaction_id",
+          "store_transaction_id",
+        ]),
+        createdAt: getFirstText(row, ["created_at"]),
+      };
+    })
+    .filter((row): row is AffiliateDashboardPurchaseEvent => Boolean(row))
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+}
+
+function buildPayoutEvents(input: {
+  payoutRows: RecordLike[];
+  affiliates: AffiliateDashboardRow[];
+}) {
+  const affiliateNameById = buildAffiliateNameMap(input.affiliates);
+
+  return input.payoutRows
+    .map((row): AffiliateDashboardPayoutEvent | null => {
+      const id = asText(row.id);
+      if (!id) {
+        return null;
+      }
+
+      const affiliateId = asText(row.affiliate_id);
+
+      return {
+        id,
+        affiliateId,
+        affiliateName: affiliateId ? affiliateNameById.get(affiliateId) ?? "Unknown affiliate" : "Unknown affiliate",
+        amount: getFirstNumber(row, ["amount", "payout_amount"]) ?? 0,
+        currency: getCurrency(row),
+        status: getFirstText(row, ["status"]) ?? "paid",
+        createdAt: getFirstText(row, ["created_at"]),
+        paidAt: getFirstText(row, ["paid_at", "processed_at", "created_at"]),
+      };
+    })
+    .filter((row): row is AffiliateDashboardPayoutEvent => Boolean(row))
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+}
+
 export async function fetchAffiliateDashboard(): Promise<AffiliateDashboardData> {
-  const [affiliateRows, referralLinkRows, clickRows, installRows, commissionRows] = await Promise.all([
+  const [affiliateRows, referralLinkRows, clickRows, installRows, commissionRows, payoutRows] = await Promise.all([
     selectAll("affiliates"),
     selectAll("referral_links"),
     selectAll("affiliate_clicks"),
     selectAll("affiliate_installs"),
     selectAll("commissions"),
+    selectAll("affiliate_payouts"),
   ]);
 
   const affiliates = buildDashboardRows({
@@ -241,10 +456,28 @@ export async function fetchAffiliateDashboard(): Promise<AffiliateDashboardData>
 
   const totalPendingCommission = affiliates.reduce((sum, affiliate) => sum + affiliate.pendingCommission, 0);
   const totalPaidCommission = affiliates.reduce((sum, affiliate) => sum + affiliate.paidCommission, 0);
+  const totalLifetimeCommission = affiliates.reduce((sum, affiliate) => sum + affiliate.lifetimeCommission, 0);
   const totalClicks = affiliates.reduce((sum, affiliate) => sum + affiliate.clicks, 0);
   const totalInstalls = affiliates.reduce((sum, affiliate) => sum + affiliate.installs, 0);
   const pendingCommissionCount = affiliates.reduce((sum, affiliate) => sum + affiliate.pendingCommissionCount, 0);
   const paidCommissionCount = affiliates.reduce((sum, affiliate) => sum + affiliate.paidCommissionCount, 0);
+  const clickEvents = buildClickEvents({
+    clickRows,
+    referralLinkRows,
+    affiliates,
+  });
+  const installEvents = buildInstallEvents({
+    installRows,
+    affiliates,
+  });
+  const purchaseEvents = buildPurchaseEvents({
+    commissionRows,
+    affiliates,
+  });
+  const payoutEvents = buildPayoutEvents({
+    payoutRows,
+    affiliates,
+  });
 
   return {
     summary: {
@@ -253,10 +486,15 @@ export async function fetchAffiliateDashboard(): Promise<AffiliateDashboardData>
       totalInstalls,
       totalPendingCommission: Number(totalPendingCommission.toFixed(2)),
       totalPaidCommission: Number(totalPaidCommission.toFixed(2)),
+      totalLifetimeCommission: Number(totalLifetimeCommission.toFixed(2)),
       pendingCommissionCount,
       paidCommissionCount,
     },
     affiliates,
+    clickEvents,
+    installEvents,
+    purchaseEvents,
+    payoutEvents,
   };
 }
 
@@ -446,6 +684,9 @@ async function saveReferralLink(input: {
 export async function saveAffiliate(input: AffiliateFormInput) {
   const name = input.name.trim();
   const email = input.email.trim();
+  const handle = input.handle.trim();
+  const commissionPercentValue = input.commissionPercent.trim();
+  const commissionPercent = commissionPercentValue ? Number(commissionPercentValue) : null;
   const promoCode = normalizeCode(input.promoCode);
   const status = input.status.trim() || "active";
   const now = new Date().toISOString();
@@ -458,10 +699,34 @@ export async function saveAffiliate(input: AffiliateFormInput) {
     throw new Error("Promo code is required.");
   }
 
+  if (commissionPercentValue && !Number.isFinite(commissionPercent)) {
+    throw new Error("Commission % must be a valid number.");
+  }
+
+  const richAffiliatePayload = {
+    name,
+    email: email || null,
+    instagram_handle: handle || null,
+    commission_percent: commissionPercent,
+    promo_code: promoCode,
+    status,
+    updated_at: now,
+  };
+
+  const basicAffiliatePayload = {
+    name,
+    email: email || null,
+    promo_code: promoCode,
+    status,
+    updated_at: now,
+  };
+
   if (input.id) {
     const affiliate = await updateWithFallback("affiliates", input.id, [
-      { name, email: email || null, promo_code: promoCode, status, updated_at: now },
-      { name, email: email || null, promo_code: promoCode, status },
+      richAffiliatePayload,
+      { ...richAffiliatePayload, updated_at: undefined },
+      basicAffiliatePayload,
+      { ...basicAffiliatePayload, updated_at: undefined },
       { name, email: email || null, promo_code: promoCode },
     ]);
 
@@ -477,8 +742,10 @@ export async function saveAffiliate(input: AffiliateFormInput) {
   }
 
   const insertedAffiliate = await insertWithFallback("affiliates", [
-    { name, email: email || null, promo_code: promoCode, status, updated_at: now },
-    { name, email: email || null, promo_code: promoCode, status },
+    richAffiliatePayload,
+    { ...richAffiliatePayload, updated_at: undefined },
+    basicAffiliatePayload,
+    { ...basicAffiliatePayload, updated_at: undefined },
     { name, email: email || null, promo_code: promoCode },
   ]);
 

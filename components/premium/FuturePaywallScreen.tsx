@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import AppButton from "../ui/AppButton";
 import CalmSkeleton from "../ui/CalmSkeleton";
@@ -9,6 +9,7 @@ import PlanOptionCard from "./PlanOptionCard";
 import { useLowEnergyMode } from "../../features/low-energy-mode/hooks";
 import { usePremium } from "../../features/premium/hooks";
 import type { PremiumPlan } from "../../features/premium/types";
+import { PREMIUM_REGULAR_TRIAL_DAYS } from "../../features/premium/config";
 import { getLocalizedStorePrice } from "../../features/premium/display";
 import { trackEvent, trackRetryTriggered } from "../../lib/events";
 import { derivePremiumPositioning } from "../../lib/premium-ecosystem/calm-premium/derivePremiumPositioning";
@@ -66,6 +67,7 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
     premium.isLoading && !premium.currentOffering && !premium.offeringsErrorMessage;
   const monthlyPrice = expoGoPricingFallback ? "Monthly plan" : getLocalizedStorePrice(premium.currentOffering?.monthly);
   const yearlyPrice = expoGoPricingFallback ? "Yearly plan" : getLocalizedStorePrice(premium.currentOffering?.yearly);
+  const trialHeadline = useMemo(() => `${PREMIUM_REGULAR_TRIAL_DAYS} days free`, []);
   const purchaseLabel = premium.isPurchasing
     ? positioning.purchaseLoadingLabel
     : primaryPackage
@@ -133,6 +135,13 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
     <AppScreen title="LiveWithMS Premium" subtitle={positioning.screenSubtitle}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <PaywallHero />
+
+        <View style={styles.trialCard}>
+          <AppText style={styles.trialTitle}>{trialHeadline}</AppText>
+          <AppText style={styles.trialBody}>
+            {`New subscribers currently see the standard ${PREMIUM_REGULAR_TRIAL_DAYS}-day free trial when available.`}
+          </AppText>
+        </View>
 
         <View style={styles.valueCard}>
           <AppText style={styles.valueTitle}>{positioning.freeTierTitle}</AppText>
@@ -224,6 +233,9 @@ export default function FuturePaywallScreen({ onClose }: FuturePaywallScreenProp
                     : lowEnergyMode.enabled
                     ? "Monthly keeps support flexible. Yearly lowers the overall yearly cost and reduces renewal frequency."
                     : positioning.plansBody}
+              </AppText>
+              <AppText style={styles.comparisonBody}>
+                {`The current store configuration uses the standard ${PREMIUM_REGULAR_TRIAL_DAYS}-day free trial.`}
               </AppText>
               <View style={styles.pricingSnapshot}>
                 <View style={styles.pricingPill}>
@@ -330,6 +342,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 104,
     gap: 16,
+  },
+  trialCard: {
+    backgroundColor: "#fff7ef",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f0dcc7",
+    padding: 16,
+    gap: 8,
+  },
+  trialTitle: {
+    color: "#1f2937",
+    fontSize: 19,
+    fontWeight: "800",
+  },
+  trialBody: {
+    color: "#6b7280",
+    lineHeight: 21,
+  },
+  trialNote: {
+    color: "#8b5a2b",
+    lineHeight: 21,
   },
   valueCard: {
     backgroundColor: "#fffaf6",

@@ -31,6 +31,7 @@ export type PremiumOfferingPackage = {
 };
 
 export type PremiumOffering = {
+  identifier?: string | null;
   monthly: PremiumOfferingPackage | null;
   yearly: PremiumOfferingPackage | null;
 };
@@ -50,6 +51,10 @@ export type PremiumActionResult = {
   message?: string | null;
 };
 
+export type PremiumPurchaseOptions = {
+  packageOverride?: unknown;
+};
+
 export type PremiumContextValue = {
   subscriptionsEnabled: boolean;
   status: PremiumStatus;
@@ -65,7 +70,7 @@ export type PremiumContextValue = {
   debugPremiumOverrideActive: boolean;
   testerPremiumOverrideActive: boolean;
   revenueCatDebugSnapshot: RevenueCatDebugSnapshot;
-  purchasePlan: (plan: PremiumPlan) => Promise<PremiumActionResult>;
+  purchasePlan: (plan: PremiumPlan, options?: PremiumPurchaseOptions) => Promise<PremiumActionResult>;
   restorePurchases: () => Promise<PremiumActionResult>;
   refreshPremiumStatus: () => Promise<void>;
   refreshRevenueCatDiagnostics: () => Promise<void>;

@@ -97,9 +97,26 @@ export function useOnboarding() {
     }
 
     try {
+      console.log("[onboarding] step save start", {
+        userId: user.id,
+        payload: input,
+      });
       await saveProfileStep.mutateAsync({ userId: user.id, input });
+      console.log("[onboarding] step save success", {
+        userId: user.id,
+        payload: input,
+      });
       return true;
-    } catch {
+    } catch (error) {
+      const normalizedError = normalizeError(error);
+      console.error("[onboarding] step save failure", {
+        userId: user.id,
+        payload: input,
+        message: normalizedError.message,
+        code: normalizedError.code,
+        details: normalizedError.details,
+        hint: normalizedError.hint,
+      });
       return false;
     }
   }

@@ -2,6 +2,14 @@ export function getAuthErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
 
+    if (
+      message.includes("network request failed") ||
+      message.includes("failed to fetch") ||
+      message.includes("networkerror")
+    ) {
+      return "We couldn’t reach the server. Check your connection and try again.";
+    }
+
     if (message.includes("invalid login credentials")) {
       return "Invalid email or password.";
     }

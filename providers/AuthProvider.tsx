@@ -11,6 +11,7 @@ import {
 } from "../lib/dev-auth";
 import env from "../lib/env";
 import { logger } from "../lib/logger";
+import { profileApi } from "../features/profile/api";
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -64,6 +65,31 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       const result = await authApi.signUp(email, password);
       if (result.error) {
         logger.warn("Sign up failed", { error: result.error.message });
+        console.error("[auth] signup failed in provider", {
+          email,
+          message: result.error.message,
+        });
+        return result;
+      }
+
+      if (result.session?.user?.id) {
+        try {
+          console.log("[profile] profile creation start", {
+            userId: result.session.user.id,
+            source: "signup-bootstrap",
+          });
+          await profileApi.createFallbackProfile(result.session.user.id);
+          console.log("[profile] profile creation success", {
+            userId: result.session.user.id,
+            source: "signup-bootstrap",
+          });
+        } catch (error) {
+          console.error("[profile] profile creation failure", {
+            userId: result.session.user.id,
+            source: "signup-bootstrap",
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
       return result;
     },

@@ -43,7 +43,7 @@ export default function SupportStyleScreen() {
         }));
       }
       await persistOnboardingSupportStyle(nextStyle);
-      router.push("/complete");
+      router.push("/referral");
     } finally {
       setIsSaving(false);
     }
