@@ -12,6 +12,45 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
   ]);
 }
 
+function getAuthErrorMeta(error: unknown) {
+  const maybeError = error as {
+    message?: unknown;
+    code?: unknown;
+    status?: unknown;
+  };
+
+  const message = typeof maybeError?.message === "string" ? maybeError.message : "Unknown auth error";
+  const code = typeof maybeError?.code === "string" ? maybeError.code : undefined;
+  const status = typeof maybeError?.status === "number" ? maybeError.status : undefined;
+  const normalizedMessage = message.toLowerCase();
+
+  return {
+    message,
+    code,
+    status,
+    timedOut: normalizedMessage.includes("timed out") || normalizedMessage.includes("timeout"),
+    networkFailure:
+      normalizedMessage.includes("network request failed") ||
+      normalizedMessage.includes("failed to fetch") ||
+      normalizedMessage.includes("networkerror"),
+    duplicateEmail:
+      normalizedMessage.includes("already registered") ||
+      normalizedMessage.includes("already been registered") ||
+      normalizedMessage.includes("user already registered"),
+  };
+}
+
+function isRetryableSignUpError(error: unknown) {
+  const meta = getAuthErrorMeta(error);
+  return meta.timedOut || meta.networkFailure;
+}
+
+async function pause(ms: number) {
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export const authApi = {
   async getSession(): Promise<Session | null> {
     const { data, error } = await withTimeout(supabase.auth.getSession(), 8000, "Supabase session restore");
@@ -68,22 +107,84 @@ export const authApi = {
       email,
     });
 
-    const { data, error } = await withTimeout(
-      supabase.auth.signUp({
-        email,
-        password,
-      }),
-      15000,
-      "Supabase sign up",
-    );
+    const { data, error } = await withTimeout(supabase.auth.signUp({ email, password }), 15000, "Supabase sign up");
 
     if (error) {
+      const meta = getAuthErrorMeta(error);
       console.error("[auth] signup failure", {
         email,
-        message: error.message,
-        code: "code" in error ? error.code : undefined,
-        status: "status" in error ? error.status : undefined,
+        message: meta.message,
+        code: meta.code,
+        status: meta.status,
+        timedOut: meta.timedOut,
+        networkFailure: meta.networkFailure,
+        duplicateEmail: meta.duplicateEmail,
       });
+
+      if (isRetryableSignUpError(error)) {
+        console.log("[auth] signup recovery start", {
+          email,
+          strategy: "session-then-signin",
+        });
+
+        await pause(1200);
+
+        try {
+          const recoveredSession = await authApi.getCurrentSession();
+          if (recoveredSession?.user?.id) {
+            console.log("[auth] signup recovery success", {
+              email,
+              strategy: "session",
+              userId: recoveredSession.user.id,
+            });
+            return {
+              error: null,
+              session: recoveredSession,
+            };
+          }
+        } catch (sessionError) {
+          console.error("[auth] signup recovery session check failed", {
+            email,
+            message: sessionError instanceof Error ? sessionError.message : String(sessionError),
+          });
+        }
+
+        try {
+          const signInRecovery = await withTimeout(
+            supabase.auth.signInWithPassword({
+              email,
+              password,
+            }),
+            12000,
+            "Supabase sign up recovery sign in",
+          );
+
+          if (signInRecovery.error) {
+            const recoveryMeta = getAuthErrorMeta(signInRecovery.error);
+            console.error("[auth] signup recovery sign-in failed", {
+              email,
+              message: recoveryMeta.message,
+              code: recoveryMeta.code,
+              status: recoveryMeta.status,
+            });
+          } else if (signInRecovery.data.session) {
+            console.log("[auth] signup recovery success", {
+              email,
+              strategy: "sign-in",
+              userId: signInRecovery.data.session.user.id,
+            });
+            return {
+              error: null,
+              session: signInRecovery.data.session,
+            };
+          }
+        } catch (signInRecoveryError) {
+          console.error("[auth] signup recovery sign-in threw", {
+            email,
+            message: signInRecoveryError instanceof Error ? signInRecoveryError.message : String(signInRecoveryError),
+          });
+        }
+      }
     } else {
       console.log("[auth] signup success", {
         email,

@@ -80,6 +80,23 @@ function updateDebugSnapshot(updater: (snapshot: RevenueCatDebugSnapshot) => Rev
   debugSnapshot = updater(debugSnapshot);
 }
 
+function isRetryableRevenueCatError(error: unknown) {
+  const details = extractRevenueCatErrorDetails(error);
+  const message = `${details.message} ${details.underlyingMessage ?? ""}`.toLowerCase();
+  return (
+    message.includes("network") ||
+    message.includes("timed out") ||
+    message.includes("timeout") ||
+    message.includes("temporar")
+  );
+}
+
+async function pause(ms: number) {
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 async function loadPurchasesModule() {
   return import("react-native-purchases");
 }
@@ -169,50 +186,63 @@ export const revenueCatClient = {
       return;
     }
 
-    try {
-      const { default: Purchases, LOG_LEVEL } = await loadPurchasesModule();
-      const shouldConfigure = configuredApiKey !== env.revenueCatApiKey;
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      try {
+        const { default: Purchases, LOG_LEVEL } = await loadPurchasesModule();
+        const shouldConfigure = configuredApiKey !== env.revenueCatApiKey;
 
-      logRevenueCatDebug("[LIVEWITHMS_RC_DEBUG]", "configure", {
-        platform: Platform.OS,
-        maskedKey: debugSnapshot.maskedSdkKey,
-        bundleId: env.bundleIdentifier,
-        appVersion: debugSnapshot.appVersion,
-        buildNumber: debugSnapshot.buildNumber,
-        skippedBecauseAlreadyConfigured: !shouldConfigure,
-        hasAppUserId: Boolean(userId),
-      });
+        logRevenueCatDebug("[LIVEWITHMS_RC_DEBUG]", "configure", {
+          platform: Platform.OS,
+          maskedKey: debugSnapshot.maskedSdkKey,
+          bundleId: env.bundleIdentifier,
+          appVersion: debugSnapshot.appVersion,
+          buildNumber: debugSnapshot.buildNumber,
+          skippedBecauseAlreadyConfigured: !shouldConfigure,
+          hasAppUserId: Boolean(userId),
+          attempt,
+        });
 
-      if (shouldConfigure) {
-        await Purchases.setLogLevel(LOG_LEVEL.WARN);
-        await Purchases.configure({ apiKey: env.revenueCatApiKey, appUserID: userId });
-        configuredApiKey = env.revenueCatApiKey;
-        loggedInUserId = userId;
+        if (shouldConfigure) {
+          await Purchases.setLogLevel(LOG_LEVEL.WARN);
+          await Purchases.configure({ apiKey: env.revenueCatApiKey, appUserID: userId });
+          configuredApiKey = env.revenueCatApiKey;
+          loggedInUserId = userId;
+          updateDebugSnapshot((snapshot) => ({
+            ...snapshot,
+            timestamp: new Date().toISOString(),
+            configured: true,
+            loggedInAppUserId: userId,
+          }));
+        }
+
+        if (loggedInUserId !== userId) {
+          await Purchases.logIn(userId);
+          loggedInUserId = userId;
+          logger.info("RevenueCat user logged in", { hasUserId: true, attempt });
+        }
+
         updateDebugSnapshot((snapshot) => ({
           ...snapshot,
           timestamp: new Date().toISOString(),
           configured: true,
           loggedInAppUserId: userId,
         }));
-      }
+        return;
+      } catch (error) {
+        updateDebugSnapshot((snapshot) => withRevenueCatError(snapshot, error));
+        const details = extractRevenueCatErrorDetails(error);
+        logRevenueCatDebug("[LIVEWITHMS_RC_ERROR]", "configure failed", {
+          ...details,
+          attempt,
+          retryable: isRetryableRevenueCatError(error),
+        });
 
-      if (loggedInUserId !== userId) {
-        await Purchases.logIn(userId);
-        loggedInUserId = userId;
-        logger.info("RevenueCat user logged in", { hasUserId: true });
-      }
+        if (attempt >= 2 || !isRetryableRevenueCatError(error)) {
+          throw error;
+        }
 
-      updateDebugSnapshot((snapshot) => ({
-        ...snapshot,
-        timestamp: new Date().toISOString(),
-        configured: true,
-        loggedInAppUserId: userId,
-      }));
-    } catch (error) {
-      updateDebugSnapshot((snapshot) => withRevenueCatError(snapshot, error));
-      const details = extractRevenueCatErrorDetails(error);
-      logRevenueCatDebug("[LIVEWITHMS_RC_ERROR]", "configure failed", details);
-      throw error;
+        await pause(900);
+      }
     }
   },
 

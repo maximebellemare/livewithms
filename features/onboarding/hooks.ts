@@ -37,6 +37,26 @@ const EMPTY_CONSENT: ConsentState = {
   data_control: false,
 };
 
+async function pause(ms: number) {
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function shouldRetryProfileWrite(error: unknown) {
+  const normalizedError = normalizeError(error);
+  const message = normalizedError.message.toLowerCase();
+  const details = `${normalizedError.details ?? ""} ${normalizedError.hint ?? ""}`.toLowerCase();
+
+  return (
+    message.includes("network") ||
+    message.includes("timed out") ||
+    details.includes("network") ||
+    details.includes("timeout") ||
+    details.includes("temporar")
+  );
+}
+
 export function useOnboarding() {
   const { user } = useAuth();
   const profileQuery = useMyProfile(user?.id);
@@ -97,16 +117,39 @@ export function useOnboarding() {
     }
 
     try {
-      console.log("[onboarding] step save start", {
-        userId: user.id,
-        payload: input,
-      });
-      await saveProfileStep.mutateAsync({ userId: user.id, input });
-      console.log("[onboarding] step save success", {
-        userId: user.id,
-        payload: input,
-      });
-      return true;
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        try {
+          console.log("[onboarding] step save start", {
+            userId: user.id,
+            payload: input,
+            attempt,
+          });
+          await saveProfileStep.mutateAsync({ userId: user.id, input });
+          console.log("[onboarding] step save success", {
+            userId: user.id,
+            payload: input,
+            attempt,
+          });
+          return true;
+        } catch (error) {
+          const normalizedError = normalizeError(error);
+          console.error("[onboarding] step save failure", {
+            userId: user.id,
+            payload: input,
+            attempt,
+            message: normalizedError.message,
+            code: normalizedError.code,
+            details: normalizedError.details,
+            hint: normalizedError.hint,
+          });
+
+          if (attempt >= 2 || !shouldRetryProfileWrite(error)) {
+            return false;
+          }
+
+          await pause(700);
+        }
+      }
     } catch (error) {
       const normalizedError = normalizeError(error);
       console.error("[onboarding] step save failure", {
@@ -147,10 +190,48 @@ export function useOnboarding() {
         input,
       });
 
-      const payload = await completeOnboardingMutation.mutateAsync({
-        userId: user.id,
-        input,
-      });
+      let payload: Awaited<ReturnType<typeof completeOnboardingMutation.mutateAsync>> | null = null;
+      let success = false;
+
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        try {
+          console.log("[onboarding] completion save start", {
+            userId: user.id,
+            payload: input,
+            attempt,
+          });
+          payload = await completeOnboardingMutation.mutateAsync({
+            userId: user.id,
+            input,
+          });
+          console.log("[onboarding] completion save success", {
+            userId: user.id,
+            attempt,
+          });
+          success = true;
+          break;
+        } catch (error) {
+          const normalizedError = normalizeError(error);
+          console.error("[onboarding] completion save failure", {
+            userId: user.id,
+            attempt,
+            message: normalizedError.message,
+            code: normalizedError.code,
+            details: normalizedError.details,
+            hint: normalizedError.hint,
+          });
+
+          if (attempt >= 2 || !shouldRetryProfileWrite(error)) {
+            throw error;
+          }
+
+          await pause(700);
+        }
+      }
+
+      if (!success || !payload) {
+        throw new Error("Could not save profile. Please try again.");
+      }
 
       logger.info("Onboarding completion succeeded", {
         userId: user.id,

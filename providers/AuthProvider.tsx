@@ -15,6 +15,12 @@ import { profileApi } from "../features/profile/api";
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+async function pause(ms: number) {
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export default function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -73,22 +79,34 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
 
       if (result.session?.user?.id) {
-        try {
-          console.log("[profile] profile creation start", {
-            userId: result.session.user.id,
-            source: "signup-bootstrap",
-          });
-          await profileApi.createFallbackProfile(result.session.user.id);
-          console.log("[profile] profile creation success", {
-            userId: result.session.user.id,
-            source: "signup-bootstrap",
-          });
-        } catch (error) {
-          console.error("[profile] profile creation failure", {
-            userId: result.session.user.id,
-            source: "signup-bootstrap",
-            error: error instanceof Error ? error.message : String(error),
-          });
+        for (let attempt = 1; attempt <= 2; attempt += 1) {
+          try {
+            console.log("[profile] profile creation start", {
+              userId: result.session.user.id,
+              source: "signup-bootstrap",
+              attempt,
+            });
+            await profileApi.createFallbackProfile(result.session.user.id);
+            console.log("[profile] profile creation success", {
+              userId: result.session.user.id,
+              source: "signup-bootstrap",
+              attempt,
+            });
+            break;
+          } catch (error) {
+            console.error("[profile] profile creation failure", {
+              userId: result.session.user.id,
+              source: "signup-bootstrap",
+              attempt,
+              error: error instanceof Error ? error.message : String(error),
+            });
+
+            if (attempt >= 2) {
+              break;
+            }
+
+            await pause(800);
+          }
         }
       }
       return result;

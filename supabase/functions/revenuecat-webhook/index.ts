@@ -38,10 +38,38 @@ const getTransactionId = (event: RevenueCatEvent) =>
 const getRevenueAmount = (event: RevenueCatEvent) =>
   toFiniteNumber(event.price_in_purchased_currency) ?? toFiniteNumber(event.price);
 
+const normalizeAuthToken = (value: string | null) => {
+  if (!value) {
+    return "";
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  if (trimmed.toLowerCase().startsWith("bearer ")) {
+    return trimmed.slice(7).trim();
+  }
+
+  return trimmed;
+};
+
 serve(async (req) => {
   // Verify authorization (fail-closed: reject if secret is missing or mismatched)
   const authHeader = req.headers.get("Authorization");
-  if (!REVENUECAT_WEBHOOK_SECRET || authHeader !== REVENUECAT_WEBHOOK_SECRET) {
+  const normalizedHeader = normalizeAuthToken(authHeader);
+  const normalizedSecret = normalizeAuthToken(REVENUECAT_WEBHOOK_SECRET);
+  const authorizationMatches =
+    Boolean(normalizedSecret) && Boolean(normalizedHeader) && normalizedHeader === normalizedSecret;
+
+  console.log("[revenuecat-webhook] auth check", {
+    authorizationHeaderExists: Boolean(authHeader),
+    webhookSecretExists: Boolean(REVENUECAT_WEBHOOK_SECRET),
+    authorizationMatches,
+  });
+
+  if (!authorizationMatches) {
     return new Response("Unauthorized", { status: 401 });
   }
 

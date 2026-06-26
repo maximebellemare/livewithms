@@ -2,6 +2,7 @@ import { Platform } from "react-native";
 import env from "../../lib/env";
 import { appSecureStore } from "../../lib/secure-store";
 import { supabase } from "../../lib/supabase/client";
+import { profileApi } from "../profile/api";
 
 const PENDING_REFERRAL_KEY = "livewithms.pending-affiliate-referral";
 
@@ -244,6 +245,8 @@ async function getExistingProfileAffiliateId(userId: string) {
 }
 
 async function updateProfileAffiliate(userId: string, affiliateId: string) {
+  await profileApi.createFallbackProfile(userId);
+
   const payloads = [
     { affiliate_id: affiliateId },
     { affiliate_id: affiliateId, updated_at: new Date().toISOString() },

@@ -106,6 +106,12 @@ function isNetworkFailure(error: unknown) {
   return combined.includes("network request failed") || combined.includes("failed to fetch") || combined.includes("networkerror");
 }
 
+function isDuplicateProfileError(error: unknown) {
+  const details = getSupabaseErrorDetails(error);
+  const combined = `${details.message} ${details.details ?? ""} ${details.code ?? ""}`.toLowerCase();
+  return combined.includes("duplicate") || combined.includes("already exists") || combined.includes("23505");
+}
+
 function logRawProfileSaveResponse(input: {
   context: string;
   data: unknown;
@@ -382,26 +388,23 @@ export const profileApi = {
       source: "createFallbackProfile",
     });
 
-    const { data, error, status, statusText } = await withTimeout(
-      supabase
-        .from("profiles")
-        .upsert(
-          {
-            user_id: userId,
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: "user_id",
-          },
-        )
-        .select(PROFILE_SELECT)
-        .maybeSingle(),
-      8000,
-      "Profile auto-create",
-    );
+    const payload: ProfileUpsertPayload = {
+      user_id: userId,
+      updated_at: new Date().toISOString(),
+    };
+
+    let writeResult = await withTimeout(insertProfileRow(payload), 8000, "Profile auto-create");
+    let writeContext = "profile_auto_create_insert";
+
+    if (writeResult.error && isDuplicateProfileError(writeResult.error)) {
+      writeResult = await withTimeout(updateExistingProfileRow(userId, payload), 8000, "Profile auto-create recovery");
+      writeContext = "profile_auto_create_update";
+    }
+
+    const { data, error, status, statusText } = writeResult;
 
     logRawProfileSaveResponse({
-      context: "profile_auto_create",
+      context: writeContext,
       data,
       error,
       status,
@@ -440,6 +443,7 @@ export const profileApi = {
     console.log("[profile] profile creation success", {
       userId,
       source: "createFallbackProfile",
+      context: writeContext,
     });
 
     return normalizeProfile(data as ProfileRow, userId);
