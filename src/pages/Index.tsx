@@ -1,7 +1,27 @@
-import { useNavigate } from "react-router-dom";
+import { useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { getStoredReferral, appendReferralToUrl } from "@/lib/affiliate";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const activeReferral = useMemo(
+    () => searchParams.get("ref")?.trim().toLowerCase() || getStoredReferral(),
+    [searchParams],
+  );
+  const authPath = activeReferral ? `/auth?ref=${encodeURIComponent(activeReferral)}` : "/auth";
+  const googlePlayUrl = useMemo(
+    () =>
+      appendReferralToUrl(
+        import.meta.env.VITE_GOOGLE_PLAY_URL || "https://play.google.com/store/apps/details?id=com.livewithms.app",
+        activeReferral,
+      ),
+    [activeReferral],
+  );
+  const appStoreUrl = useMemo(
+    () => appendReferralToUrl(import.meta.env.VITE_APP_STORE_URL || "", activeReferral),
+    [activeReferral],
+  );
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 text-center">
@@ -14,11 +34,36 @@ const Index = () => {
           Your personal companion for living well with Multiple Sclerosis
         </p>
         <button
-          onClick={() => navigate("/auth")}
+          onClick={() => navigate(authPath)}
           className="mt-8 rounded-full bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground shadow-card transition-all hover:opacity-90 active:scale-[0.98]"
         >
           Get Started
         </button>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          {appStoreUrl ? (
+            <a
+              href={appStoreUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
+            >
+              App Store
+            </a>
+          ) : null}
+          <a
+            href={googlePlayUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
+          >
+            Google Play
+          </a>
+        </div>
+        {activeReferral ? (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Referred by <span className="font-medium text-foreground">{activeReferral}</span>
+          </p>
+        ) : null}
         <p className="mt-4 text-xs text-muted-foreground">
           Free · Private · Not medical advice
         </p>

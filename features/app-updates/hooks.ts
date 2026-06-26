@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { fetchRemoteAppVersion } from "./api";
-import { evaluateAppUpdateDecision } from "./logic";
-import { getCurrentAppVersion, getCurrentPlatform } from "./runtime";
+import { compareSemanticVersions, evaluateAppUpdateDecision } from "./logic";
+import { getCurrentAppRuntimeVersionSnapshot, getCurrentPlatform } from "./runtime";
 import type { AppUpdateDecision } from "./types";
+import env from "../../lib/env";
 
 type UseAppUpdateCheckOptions = {
   app: string;
@@ -30,15 +31,21 @@ export function useAppUpdateCheck({ app, enabled }: UseAppUpdateCheckOptions) {
     }
 
     const platform = getCurrentPlatform();
-    const currentVersion = getCurrentAppVersion();
+    const runtimeSnapshot = getCurrentAppRuntimeVersionSnapshot();
+    const currentVersion = runtimeSnapshot.appVersion;
 
-    if (__DEV__) {
-      console.log("[app-update] starting remote check", {
-        app,
-        platform,
-        currentVersion,
-      });
-    }
+    console.log("[app-update] starting remote check", {
+      app,
+      platform,
+      appVersion: runtimeSnapshot.appVersion,
+      buildNumber: runtimeSnapshot.buildNumber,
+      appVersionSource: runtimeSnapshot.appVersionSource,
+      buildNumberSource: runtimeSnapshot.buildNumberSource,
+      nativeApplicationVersion: runtimeSnapshot.nativeApplicationVersion,
+      nativeBuildVersion: runtimeSnapshot.nativeBuildVersion,
+      expoConfigVersion: runtimeSnapshot.expoConfigVersion,
+      supabaseProjectRef: env.supabaseProjectRef,
+    });
 
     if (!platform) {
       setDecision({
@@ -61,33 +68,39 @@ export function useAppUpdateCheck({ app, enabled }: UseAppUpdateCheckOptions) {
         }
 
         const nextDecision = evaluateAppUpdateDecision(currentVersion, config);
+        const minimumComparison =
+          currentVersion && config?.minimumVersion ? compareSemanticVersions(currentVersion, config.minimumVersion) : null;
+        const recommendedComparison =
+          currentVersion && config?.recommendedVersion ? compareSemanticVersions(currentVersion, config.recommendedVersion) : null;
         setDecision(nextDecision);
 
-        if (__DEV__) {
-          console.log("[app-update] remote check complete", {
-            app,
-            platform,
-            currentVersion,
-            decision: nextDecision.kind,
-            minimumVersion: config?.minimumVersion ?? null,
-            recommendedVersion: config?.recommendedVersion ?? null,
-            forceUpdate: config?.forceUpdate ?? false,
-          });
-        }
+        console.log("[app-update] remote check complete", {
+          app,
+          platform,
+          appVersion: runtimeSnapshot.appVersion,
+          buildNumber: runtimeSnapshot.buildNumber,
+          minimumVersion: config?.minimumVersion ?? null,
+          recommendedVersion: config?.recommendedVersion ?? null,
+          forceUpdate: config?.forceUpdate ?? false,
+          minimumComparison,
+          recommendedComparison,
+          comparisonResult: nextDecision.kind,
+          storeUrl: config?.storeUrl ?? null,
+        });
       })
       .catch((error) => {
         if (cancelled) {
           return;
         }
 
-        if (__DEV__) {
-          console.error("[app-update] remote check failed", {
-            app,
-            platform,
-            currentVersion,
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
+        console.error("[app-update] remote check failed", {
+          app,
+          platform,
+          appVersion: runtimeSnapshot.appVersion,
+          buildNumber: runtimeSnapshot.buildNumber,
+          message: error instanceof Error ? error.message : String(error),
+          supabaseProjectRef: env.supabaseProjectRef,
+        });
 
         setDecision({
           kind: "current",

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Linking, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { useCalmEnvironment } from "../../../../features/calm-environment/hooks";
+import { useIsAdmin } from "../../../../features/admin/hooks";
 import AppButton from "../../../../components/ui/AppButton";
 import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
@@ -212,6 +213,7 @@ async function openTrackedLink(
 
 export default function ProfileScreen() {
   const { user, isMockMode, signOut } = useAuth();
+  const isAdminQuery = useIsAdmin(user?.id);
   const deleteAccount = useDeleteAccount();
   const resetOnboarding = useSaveProfileStep();
   const reminders = useReminderSettings();
@@ -972,6 +974,9 @@ export default function ProfileScreen() {
         <View style={cardStyle}>
           <AppText style={styles.sectionKicker}>Support</AppText>
           <AppText style={styles.sectionTitle}>Support and legal</AppText>
+          {isAdminQuery.data ? (
+            <LinkRow label="Affiliate Dashboard" onPress={() => router.push("/affiliate-admin")} />
+          ) : null}
           <LinkRow label="App tour" onPress={requestAppTourReplay} />
           <LinkRow
             label="Contact Support"

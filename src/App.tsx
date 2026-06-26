@@ -29,6 +29,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import ThemeWrapper from "@/components/ThemeWrapper";
 import { markWebViewStable } from "@/lib/webview";
+import AffiliateReferralCapture from "@/components/AffiliateReferralCapture";
 import AppShell from "./components/AppShell";
 import AnimatedPage from "./components/AnimatedPage";
 
@@ -71,13 +72,15 @@ const RiskHistoryPage = lazy(() => import("./pages/RiskHistoryPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage"));
 const SuccessPage = lazy(() => import("./pages/SuccessPage"));
+const AffiliateRedirectPage = lazy(() => import("./pages/AffiliateRedirectPage"));
+const isCapacitorRuntime = typeof window !== "undefined" && "Capacitor" in window;
 
 const queryClient = new QueryClient();
 queryClient.setDefaultOptions({
   queries: {
     retry: (failureCount, error) => {
       if (error && typeof error === "object" && "status" in error) {
-        const status = (error as any).status;
+        const status = (error as { status?: number }).status;
         if (status === 401 || status === 403) return false;
       }
       return failureCount < 2;
@@ -126,6 +129,7 @@ const AnimatedRoutes = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={user ? <Navigate to="/today" replace /> : <AnimatedPage><Index /></AnimatedPage>} />
         <Route path="/auth" element={user ? <Navigate to="/today" replace /> : <AnimatedPage><AuthPage /></AnimatedPage>} />
+        <Route path="/ref/:refSlug" element={<LazyPage><AffiliateRedirectPage source="ref-path" /></LazyPage>} />
         <Route path="/reset-password" element={<LazyPage><ResetPasswordPage /></LazyPage>} />
         <Route path="/onboarding" element={<ProtectedRoute><LazyPage><OnboardingPage /></LazyPage></ProtectedRoute>} />
         <Route path="/today" element={<ProtectedRoute><LazyPage fallback={<TodaySkeleton />}><TodayPage /></LazyPage></ProtectedRoute>} />
@@ -159,6 +163,7 @@ const AnimatedRoutes = () => {
         <Route path="/risk-history" element={<ProtectedRoute><LazyPage><RiskHistoryPage /></LazyPage></ProtectedRoute>} />
         <Route path="/success" element={<ProtectedRoute><LazyPage><SuccessPage /></LazyPage></ProtectedRoute>} />
         <Route path="/unsubscribe" element={<LazyPage><UnsubscribePage /></LazyPage>} />
+        <Route path="/:refSlug" element={<LazyPage><AffiliateRedirectPage source="slug-path" /></LazyPage>} />
         <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
       </Routes>
     </AnimatePresence>
@@ -180,6 +185,7 @@ const AppRoutes = () => {
 
   return (
     <AppShell>
+      <AffiliateReferralCapture />
       <AnimatedRoutes />
     </AppShell>
   );
@@ -193,7 +199,7 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
-            {(window as any).Capacitor ? (
+            {isCapacitorRuntime ? (
               <MemoryRouter initialEntries={["/"]}>
                 <AuthProvider>
                   <AppRoutes />

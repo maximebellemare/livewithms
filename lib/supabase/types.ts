@@ -253,6 +253,7 @@ type PremiumOverridesTable = {
 type ProfilesTable = {
   Row: {
     user_id: string;
+    is_admin: boolean;
     username: string | null;
     display_name: string | null;
     onboarding_completed: boolean;
@@ -267,6 +268,7 @@ type ProfilesTable = {
   };
   Insert: {
     user_id: string;
+    is_admin?: boolean;
     username?: string | null;
     display_name?: string | null;
     onboarding_completed?: boolean;
@@ -281,6 +283,7 @@ type ProfilesTable = {
   };
   Update: {
     user_id?: string;
+    is_admin?: boolean;
     username?: string | null;
     display_name?: string | null;
     onboarding_completed?: boolean;

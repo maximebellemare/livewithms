@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import MedicalDisclaimerDialog from "@/components/MedicalDisclaimerDialog";
 import { friendlyError } from "@/lib/errorMessages";
+import { getReferralPrefill, normalizeReferral, storePendingReferralCode, storeReferral } from "@/lib/affiliate";
 
 type Mode = "signin" | "signup" | "forgot";
 
@@ -13,7 +15,8 @@ const AuthPage = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
- 
+  const [searchParams] = useSearchParams();
+  const [referralCode, setReferralCode] = useState(() => getReferralPrefill(searchParams.toString() ? `?${searchParams.toString()}` : ""));
 
   const { signIn, signUp, sendPasswordReset } = useAuth();
 
@@ -29,11 +32,13 @@ const AuthPage = () => {
         redirect_uri: redirectUri,
       });
       if (error) {
-        toast.error(friendlyError((error as any).message));
+        const message = error instanceof Error ? error.message : "Google sign-in failed.";
+        toast.error(friendlyError(message));
         setGoogleLoading(false);
       }
-    } catch (e: any) {
-      toast.error(friendlyError(e?.message));
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Google sign-in failed.";
+      toast.error(friendlyError(message));
       setGoogleLoading(false);
     }
   };
@@ -51,6 +56,11 @@ const AuthPage = () => {
         setMode("signin");
       }
     } else if (mode === "signup") {
+      const normalizedReferral = normalizeReferral(referralCode);
+      if (normalizedReferral) {
+        storePendingReferralCode(normalizedReferral);
+        storeReferral(normalizedReferral);
+      }
       const { error } = await signUp(email, password);
       if (error) {
         toast.error(friendlyError(error.message));
@@ -120,6 +130,18 @@ const AuthPage = () => {
                 />
               </div>
             )}
+            {mode === "signup" && (
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">Referral code <span className="text-muted-foreground font-normal">(optional)</span></label>
+                <input
+                  type="text"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  placeholder="Example: SARAH"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            )}
           </div>
 
           <button
@@ -139,39 +161,23 @@ const AuthPage = () => {
               <div className="flex-1 border-t border-border" />
             </div>
 
-            {/* Google Sign-In — hidden inside Capacitor, shown on web */}
-            {false && (
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              {mode === "signup" ? "Already have an account?" : "Don't have an account?"}{" "}
               <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={googleLoading}
-                className="flex w-full items-center justify-center gap-3 rounded-full border border-border bg-card py-3.5 text-sm font-semibold text-foreground shadow-soft transition-all hover:bg-secondary active:scale-[0.98] disabled:opacity-60 mb-3"
+                onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
+                className="font-medium text-primary hover:underline"
               >
-                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                  <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
-                  <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
-                  <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.548 0 9s.348 2.825.957 4.039l3.007-2.332z"/>
-                  <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
-                </svg>
-                {googleLoading ? "Signing in…" : "Continue with Google"}
+                {mode === "signup" ? "Sign In" : "Sign Up"}
               </button>
-            )}
+            </p>
+          </>
+        )}
 
-        {mode === "forgot" ? (
+        {mode === "forgot" && (
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Remember it?{" "}
             <button onClick={() => setMode("signin")} className="font-medium text-primary hover:underline">
               Sign In
-            </button>
-          </p>
-        ) : (
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            {mode === "signup" ? "Already have an account?" : "Don't have an account?"}{" "}
-            <button
-              onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
-              className="font-medium text-primary hover:underline"
-            >
-              {mode === "signup" ? "Sign In" : "Sign Up"}
             </button>
           </p>
         )}

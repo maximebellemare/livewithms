@@ -9,6 +9,7 @@ import { useUpdateProfile } from "@/hooks/useProfile";
 import PlanComparisonCard from "@/components/premium/PlanComparisonCard";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/errorMessages";
+import { attributeAffiliateInstall, getPendingReferralCode, getReferralPrefill, normalizeReferral, storePendingReferralCode, storeReferral } from "@/lib/affiliate";
 
 const msTypes = [
   { value: "RRMS", label: "RRMS", desc: "Relapsing-Remitting" },
@@ -115,6 +116,7 @@ const OnboardingPage = () => {
   const [country, setCountry] = useState("");
   const [ageRange, setAgeRange] = useState("");
   const [consents, setConsents] = useState<Record<string, boolean>>({});
+  const [referralCode, setReferralCode] = useState(() => getReferralPrefill() || getPendingReferralCode() || "");
 
   const allConsentsAccepted = consentItems.filter((c) => c.required).every((c) => consents[c.id]);
 
@@ -150,6 +152,16 @@ const OnboardingPage = () => {
 
       // Send welcome email (fire-and-forget)
       const { data: { user } } = await supabase.auth.getUser();
+      const normalizedReferral = normalizeReferral(referralCode);
+      if (normalizedReferral && user?.id) {
+        storePendingReferralCode(normalizedReferral);
+        storeReferral(normalizedReferral);
+        await attributeAffiliateInstall({
+          userId: user.id,
+          referralCode: normalizedReferral,
+        });
+      }
+
       if (user?.email) {
         supabase.functions.invoke("send-transactional-email", {
           body: {
@@ -162,8 +174,9 @@ const OnboardingPage = () => {
       }
 
       navigate("/today");
-    } catch (err: any) {
-      toast.error(friendlyError(err.message));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      toast.error(friendlyError(message));
     }
   };
 
@@ -503,6 +516,18 @@ const OnboardingPage = () => {
       >
         You can update any of these details later in your <strong>Profile</strong> settings.
       </motion.p>
+      <div className="mt-6 w-full max-w-sm text-left">
+        <label className="block text-sm font-medium text-foreground mb-1">
+          Referral code <span className="text-muted-foreground font-normal">(optional)</span>
+        </label>
+        <input
+          type="text"
+          value={referralCode}
+          onChange={(e) => setReferralCode(e.target.value)}
+          placeholder="Example: SARAH"
+          className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
+        />
+      </div>
     </div>,
   ];
 
