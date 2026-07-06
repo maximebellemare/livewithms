@@ -17,7 +17,7 @@ import {
   useCommunityActivity,
 } from "../../../features/community/activity";
 import { upsertUserPushToken } from "../../../features/community/api";
-import { useMyProfile } from "../../../features/profile/hooks";
+import { useMyProfile, useSaveProfileStep } from "../../../features/profile/hooks";
 import { useReminderSettings } from "../../../features/reminders/hooks";
 import {
   addAppNotificationResponseListener,
@@ -38,6 +38,7 @@ export default function TabsLayout() {
   const [showAppTour, setShowAppTour] = useState(false);
   const [appTourIndex, setAppTourIndex] = useState(0);
   const profileQuery = useMyProfile(navigationSettled ? user?.id : undefined, navigationSettled && Boolean(user?.id));
+  const saveProfileStep = useSaveProfileStep();
   const currentTourSlide = useMemo(() => APP_TOUR_SLIDES[appTourIndex] ?? APP_TOUR_SLIDES[0], [appTourIndex]);
 
   useEffect(() => {
@@ -217,10 +218,20 @@ export default function TabsLayout() {
   const closeAppTour = useCallback(async () => {
     if (user?.id) {
       await markAppTourSeen(user.id);
+      if (!profileQuery.data?.has_seen_app_tour) {
+        try {
+          await saveProfileStep.mutateAsync({
+            userId: user.id,
+            input: { has_seen_app_tour: true },
+          });
+        } catch {
+          // Keep the app tour dismissible even if the profile sync fails.
+        }
+      }
     }
     setShowAppTour(false);
     setAppTourIndex(0);
-  }, [user?.id]);
+  }, [profileQuery.data?.has_seen_app_tour, saveProfileStep, user?.id]);
 
   useEffect(() => {
     if (!navigationSettled || !user?.id || hasCheckedAppTourRef.current || profileQuery.isLoading) {
@@ -232,13 +243,35 @@ export default function TabsLayout() {
 
     hasCheckedAppTourRef.current = true;
     void (async () => {
-      const hasSeen = await loadHasSeenAppTour(user.id);
-      if (!hasSeen) {
-        setAppTourIndex(0);
-        setShowAppTour(true);
+      if (profileQuery.data?.has_seen_app_tour) {
+        await markAppTourSeen(user.id);
+        return;
       }
+
+      const hasSeen = await loadHasSeenAppTour(user.id);
+      if (hasSeen) {
+        try {
+          await saveProfileStep.mutateAsync({
+            userId: user.id,
+            input: { has_seen_app_tour: true },
+          });
+        } catch {
+          // If sync fails, keep the local seen state and avoid blocking the app.
+        }
+        return;
+      }
+
+      setAppTourIndex(0);
+      setShowAppTour(true);
     })();
-  }, [navigationSettled, profileQuery.data?.onboarding_completed, profileQuery.isLoading, user?.id]);
+  }, [
+    navigationSettled,
+    profileQuery.data?.has_seen_app_tour,
+    profileQuery.data?.onboarding_completed,
+    profileQuery.isLoading,
+    saveProfileStep,
+    user?.id,
+  ]);
 
   useEffect(() => {
     const removeListener = addAppTourReplayListener(() => {

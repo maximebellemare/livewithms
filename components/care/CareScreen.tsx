@@ -948,6 +948,7 @@ export function NutritionScreenContent() {
   const { user } = useAuth();
   const premium = usePremium();
   const growth = useGrowthState();
+  const scrollViewRef = useRef<ScrollView | null>(null);
   const [selectedNutritionFilters, setSelectedNutritionFilters] = useState<string[]>([]);
   const [nutritionMessage, setNutritionMessage] = useState<string | null>(null);
   const [foodSearchInput, setFoodSearchInput] = useState("");
@@ -971,8 +972,8 @@ export function NutritionScreenContent() {
   const [showNutritionPlanner, setShowNutritionPlanner] = useState(false);
   const [expandedMealPlanDays, setExpandedMealPlanDays] = useState<string[]>(["Day 1"]);
   const [showAllMealPlanDays, setShowAllMealPlanDays] = useState(false);
-  const [showLearnNutrition, setShowLearnNutrition] = useState(false);
-  const [expandedLearnCard, setExpandedLearnCard] = useState<string | null>(null);
+  const [mealPlanSectionY, setMealPlanSectionY] = useState(0);
+  const [groceryCopyFeedbackVisible, setGroceryCopyFeedbackVisible] = useState(false);
 
   const resetNutritionState = useCallback(() => {
     setMealPlanGoal("Stable energy");
@@ -984,64 +985,6 @@ export function NutritionScreenContent() {
     setMealPlanBudget("Budget-friendly");
     setAdaptiveMealPlan(null);
   }, []);
-
-  const filteredLowEnergyMeals = useMemo(() => {
-    const activeFilters = selectedNutritionFilters.filter((filter) => filter !== "No preference");
-
-    if (activeFilters.length === 0) {
-      return LOW_ENERGY_MEALS;
-    }
-
-    return LOW_ENERGY_MEALS.filter((meal) =>
-      activeFilters.every((filter) => meal.tags.includes(filter)),
-    );
-  }, [selectedNutritionFilters]);
-
-  const quickMealIdeaCards = useMemo(
-    () => [
-      {
-        id: "low-energy",
-        title: "Low-energy meals",
-        body: "Keep a few repeatable, low-prep meals ready for lower-energy days.",
-        examples: LOW_ENERGY_MEALS.slice(0, 2).map((meal) => meal.title).join(" • "),
-      },
-      {
-        id: "anti-inflammatory",
-        title: "Anti-inflammatory ideas",
-        body: "Lean on colorful plants, olive oil, beans, fish or plant proteins, and simple whole-food meals.",
-        examples: "Tuna and white bean bowl • Lentil soup batch",
-      },
-      {
-        id: "high-protein",
-        title: "High-protein simple meals",
-        body: "Protein plus fiber may help meals feel more filling and stable through the day.",
-        examples: "Greek yogurt plate • Egg and avocado toast",
-      },
-      {
-        id: "heat-friendly",
-        title: "Heat-friendly meals",
-        body: "Cool or no-cook options can be helpful when standing at the stove feels like too much.",
-        examples: "Hummus snack plate • Greek yogurt plate",
-      },
-    ],
-    [],
-  );
-
-  const learnNutritionCards = useMemo(
-    () => [
-      ...NUTRITION_BASICS.map((item) => ({
-        id: `basic-${item.title}`,
-        title: item.title,
-        body: item.body,
-      })),
-      ...DIET_APPROACHES.map((approach) => ({
-        id: `approach-${approach.title}`,
-        title: approach.title,
-        body: `${approach.emphasizes}\n\nMay be difficult: ${approach.difficult}\n\nMay fit: ${approach.useful}`,
-      })),
-    ],
-    [],
-  );
 
   const recommendedDietStyle = useMemo(
     () => chooseDietStyle(mealPlanGoal, dietStyle, selectedNutritionFilters, mealPlanPrep),
@@ -1232,20 +1175,43 @@ export function NutritionScreenContent() {
   const handleCopyGroceryList = (title: string, groceries: Record<string, string[]>) => {
     try {
       Clipboard.setString(formatGroceryListText(title, groceries));
-      setNutritionMessage("Grocery list copied ✓");
+      setNutritionMessage("Grocery list copied.");
+      setGroceryCopyFeedbackVisible(true);
+      setTimeout(() => {
+        setGroceryCopyFeedbackVisible(false);
+      }, 2000);
     } catch {
+      setGroceryCopyFeedbackVisible(false);
       setNutritionMessage("Grocery list could not be copied right now.");
     }
   };
 
-  const handleSaveCurrentMealPlan = async () => {
+  const getMealPlanSaveId = useCallback((plan: ReturnType<typeof buildAdaptiveMealPlan> | null, goal: string) => {
+    if (!plan) {
+      return null;
+    }
+
+    return `${plan.dietStyle}-${plan.plan.length}-day-${goal}`.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+  }, []);
+
+  const scrollToMealPlan = useCallback((message?: string) => {
+    InteractionManager.runAfterInteractions(() => {
+      scrollViewRef.current?.scrollTo({ y: Math.max(mealPlanSectionY - 24, 0), animated: true });
+      if (message) {
+        setNutritionMessage(message);
+      }
+    });
+  }, [mealPlanSectionY]);
+
+  const handleSaveCurrentMealPlan = useCallback(async () => {
     if (!user?.id || !adaptiveMealPlan || !premium.hasPremiumAccess) {
       return;
     }
 
     try {
+      const mealPlanId = getMealPlanSaveId(adaptiveMealPlan, mealPlanGoal);
       const nextSavedPlans = await saveNutritionMeal(user.id, {
-        id: `${adaptiveMealPlan.dietStyle}-${adaptiveMealPlan.plan.length}-day-${mealPlanGoal}`.toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
+        id: mealPlanId ?? `${Date.now()}`,
         title: adaptiveMealPlan.title,
         category: adaptiveMealPlan.dietStyle,
         goal: mealPlanGoal,
@@ -1253,11 +1219,11 @@ export function NutritionScreenContent() {
         plan: adaptiveMealPlan,
       });
       setSavedMealPlans(nextSavedPlans);
-      setNutritionMessage("Meal plan saved ✓");
+      setNutritionMessage("Meal plan saved.");
     } catch {
       setNutritionMessage("Meal plan could not be saved right now.");
     }
-  };
+  }, [adaptiveMealPlan, getMealPlanSaveId, mealPlanGoal, premium.hasPremiumAccess, user?.id]);
 
   const handleLoadSavedMealPlan = (savedPlan: SavedNutritionMeal) => {
     const nextPlan = savedPlan.plan as ReturnType<typeof buildAdaptiveMealPlan> | null;
@@ -1273,7 +1239,7 @@ export function NutritionScreenContent() {
     setShowNutritionPlanner(false);
     setExpandedMealPlanDays([firstDay]);
     setShowAllMealPlanDays(false);
-    setNutritionMessage("Saved meal plan loaded.");
+    scrollToMealPlan("Meal plan opened.");
   };
 
   const handleRemoveSavedMealPlan = async (savedPlanId: string) => {
@@ -1475,7 +1441,7 @@ export function NutritionScreenContent() {
     }
 
     if (showAllMealPlanDays) {
-      setExpandedMealPlanDays(adaptiveMealPlan.plan[0] ? [adaptiveMealPlan.plan[0].day] : []);
+      setExpandedMealPlanDays([]);
       setShowAllMealPlanDays(false);
       return;
     }
@@ -1491,7 +1457,27 @@ export function NutritionScreenContent() {
 
     setExpandedMealPlanDays(adaptiveMealPlan.plan[0] ? [adaptiveMealPlan.plan[0].day] : []);
     setShowAllMealPlanDays(false);
+    scrollToMealPlan("Showing Day 1 meals.");
   };
+
+  useEffect(() => {
+    if (!adaptiveMealPlan) {
+      setShowAllMealPlanDays(false);
+      return;
+    }
+
+    const allExpanded = adaptiveMealPlan.plan.every((day) => expandedMealPlanDays.includes(day.day));
+    setShowAllMealPlanDays(allExpanded);
+  }, [adaptiveMealPlan, expandedMealPlanDays]);
+
+  const currentMealPlanSaved = useMemo(() => {
+    const mealPlanId = getMealPlanSaveId(adaptiveMealPlan, mealPlanGoal);
+    if (!mealPlanId) {
+      return false;
+    }
+
+    return savedMealPlans.some((plan) => plan.id === mealPlanId);
+  }, [adaptiveMealPlan, getMealPlanSaveId, mealPlanGoal, savedMealPlans]);
 
   const handleShareAdaptiveGroceryList = async () => {
     if (!adaptiveMealPlan) {
@@ -1509,7 +1495,12 @@ export function NutritionScreenContent() {
   };
 
   const generatedMealPlanContent = adaptiveMealPlan ? (
-    <View style={styles.foodAnalysisCard}>
+    <View
+      style={styles.foodAnalysisCard}
+      onLayout={(event) => {
+        setMealPlanSectionY(event.nativeEvent.layout.y);
+      }}
+    >
       <View style={styles.medicationHeader}>
         <View style={styles.itemHeaderCopy}>
           <AppText style={styles.itemTitle}>{adaptiveMealPlan.title}</AppText>
@@ -1540,7 +1531,6 @@ export function NutritionScreenContent() {
       </View>
       {premium.hasPremiumAccess ? (
         <View style={styles.itemActions}>
-          <AppButton label="Copy grocery list" onPress={() => handleCopyGroceryList(`${adaptiveMealPlan.title} grocery list`, adaptiveMealPlan.groceries)} variant="secondary" />
           <AppButton label="Today's meals" onPress={handleViewCurrentPlan} variant="secondary" />
         </View>
       ) : null}
@@ -1627,12 +1617,20 @@ export function NutritionScreenContent() {
           <View style={styles.itemActions}>
             <AppButton label="Share grocery list" onPress={() => void handleShareAdaptiveGroceryList()} variant="secondary" />
             <AppButton
-              label="Copy grocery list"
+              label={groceryCopyFeedbackVisible ? "✓ Copied" : "Copy grocery list"}
               onPress={() => handleCopyGroceryList(`${adaptiveMealPlan.title} grocery list`, adaptiveMealPlan.groceries)}
               variant="secondary"
             />
-            <AppButton label="Save meal plan" onPress={() => void handleSaveCurrentMealPlan()} variant="secondary" />
+            <AppButton
+              label={currentMealPlanSaved ? "Meal plan saved ✓" : "Save this meal plan"}
+              onPress={() => void handleSaveCurrentMealPlan()}
+              variant="secondary"
+              disabled={currentMealPlanSaved}
+            />
           </View>
+          <AppText style={styles.emptyHint}>
+            {currentMealPlanSaved ? "Saved plans appear below." : "Save this meal plan to reopen it later from Saved Plans below."}
+          </AppText>
         </>
       ) : (
         <View style={styles.nutritionUpgradeCard}>
@@ -1646,7 +1644,7 @@ export function NutritionScreenContent() {
   ) : null;
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <ScrollView ref={scrollViewRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <View style={styles.card}>
         <View style={styles.formHeaderCopy}>
           <AppText style={styles.title}>Nutrition Support</AppText>
@@ -1802,12 +1800,6 @@ export function NutritionScreenContent() {
             <View style={styles.itemActions}>
               <AppButton label="View plan" onPress={handleViewCurrentPlan} variant="secondary" />
               <AppButton label="Change diet" onPress={() => setShowNutritionPlanner((current) => !current)} variant="secondary" />
-              <AppButton
-                label={mealPlanStatus === "generating" ? "Regenerating..." : "Regenerate plan"}
-                onPress={() => void handleGenerateAdaptiveMealPlan()}
-                variant="secondary"
-                disabled={mealPlanStatus === "generating"}
-              />
             </View>
           </View>
         ) : null}
@@ -1985,64 +1977,6 @@ export function NutritionScreenContent() {
         ) : null}
 
         {generatedMealPlanContent}
-
-        <View style={styles.nutritionSection}>
-          <AppText style={styles.sectionLabel}>Quick meal ideas</AppText>
-          <View style={styles.list}>
-            {quickMealIdeaCards.map((item) => (
-              <View key={item.id} style={styles.nutritionMealCard}>
-                <AppText style={styles.itemTitle}>{item.title}</AppText>
-                <AppText style={styles.itemNotes}>{item.body}</AppText>
-                <AppText style={styles.nutritionCardBody}>{item.examples}</AppText>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.nutritionSection}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setShowLearnNutrition((current) => !current)}
-            style={({ pressed }) => [styles.expandRow, pressed && styles.collapseRowPressed]}
-          >
-            <View style={styles.expandCopy}>
-              <AppText style={styles.sectionLabel}>Learn about nutrition approaches</AppText>
-              <AppText style={styles.nutritionCardBody}>
-                Mediterranean-style eating, anti-inflammatory basics, hydration, fiber, and diet approaches.
-              </AppText>
-            </View>
-            <AppText style={styles.expandLabel}>{showLearnNutrition ? "Hide" : "Show"}</AppText>
-          </Pressable>
-          {showLearnNutrition ? (
-            <View style={styles.list}>
-              {learnNutritionCards.map((item) => {
-                const isOpen = expandedLearnCard === item.id;
-                return (
-                  <View key={item.id} style={styles.nutritionApproachCard}>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => setExpandedLearnCard((current) => (current === item.id ? null : item.id))}
-                      style={({ pressed }) => [styles.expandRow, pressed && styles.collapseRowPressed]}
-                    >
-                      <View style={styles.expandCopy}>
-                        <AppText style={styles.itemTitle}>{item.title}</AppText>
-                      </View>
-                      <AppText style={styles.expandLabel}>{isOpen ? "Hide" : "Open"}</AppText>
-                    </Pressable>
-                    {isOpen ? (
-                      <>
-                        <AppText style={styles.nutritionDetailText}>{item.body}</AppText>
-                        <AppText style={styles.nutritionClinicianNote}>
-                          Nutrition changes may be helpful, but major shifts are worth discussing with your clinician or dietitian.
-                        </AppText>
-                      </>
-                    ) : null}
-                  </View>
-                );
-              })}
-            </View>
-          ) : null}
-        </View>
 
         {premium.hasPremiumAccess ? (
           <View style={styles.nutritionSection}>

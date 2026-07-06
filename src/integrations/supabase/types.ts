@@ -1708,6 +1708,7 @@ export type Database = {
           notify_push_enabled: boolean
           notify_thread_replies: boolean
           onboarding_completed: boolean
+          has_seen_app_tour: boolean
           pinned_metrics: string[]
           premium_started_at: string | null
           premium_until: string | null
@@ -1758,6 +1759,7 @@ export type Database = {
           notify_push_enabled?: boolean
           notify_thread_replies?: boolean
           onboarding_completed?: boolean
+          has_seen_app_tour?: boolean
           pinned_metrics?: string[]
           premium_started_at?: string | null
           premium_until?: string | null
@@ -1808,6 +1810,7 @@ export type Database = {
           notify_push_enabled?: boolean
           notify_thread_replies?: boolean
           onboarding_completed?: boolean
+          has_seen_app_tour?: boolean
           pinned_metrics?: string[]
           premium_started_at?: string | null
           premium_until?: string | null

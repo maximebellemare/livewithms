@@ -6,7 +6,7 @@ import { supabase } from "../../lib/supabase/client";
 import type { Profile } from "./types";
 
 const PROFILE_SELECT =
-  "user_id, onboarding_completed, display_name, ms_type, year_diagnosed, symptoms, goals, country, age_range, updated_at";
+  "user_id, onboarding_completed, has_seen_app_tour, display_name, ms_type, year_diagnosed, symptoms, goals, country, age_range, updated_at";
 export const PROFILE_WRITE_MODE = "user_id" as const;
 
 if (__DEV__) {
@@ -24,6 +24,7 @@ type ProfileUpsertPayload = {
   user_id: string;
   display_name?: string | null;
   onboarding_completed?: boolean;
+  has_seen_app_tour?: boolean;
   ms_type?: string | null;
   year_diagnosed?: string | null;
   symptoms?: string[];
@@ -198,6 +199,7 @@ function buildFallbackProfile(userId: string): Profile {
   return {
     user_id: userId,
     onboarding_completed: completedOnboardingUserIds.has(userId),
+    has_seen_app_tour: false,
     display_name: null,
     ms_type: null,
     year_diagnosed: null,
@@ -214,6 +216,7 @@ function normalizeProfile(data: ProfileRow | null | undefined, userId: string): 
     ...data,
     user_id: data?.user_id ?? userId,
     onboarding_completed: data?.onboarding_completed ?? completedOnboardingUserIds.has(userId),
+    has_seen_app_tour: data?.has_seen_app_tour ?? false,
     display_name: data?.display_name ?? null,
     symptoms: data?.symptoms ?? [],
     goals: data?.goals ?? [],
@@ -245,6 +248,10 @@ function buildProfileUpsertPayload(userId: string, input: ProfileUpdateInput): P
 
   if (hasProfileInput(input, "onboarding_completed") && input.onboarding_completed !== undefined) {
     payload.onboarding_completed = input.onboarding_completed;
+  }
+
+  if (hasProfileInput(input, "has_seen_app_tour") && input.has_seen_app_tour !== undefined) {
+    payload.has_seen_app_tour = input.has_seen_app_tour;
   }
 
   if (hasProfileInput(input, "ms_type")) {
@@ -314,6 +321,7 @@ export type ProfileUpdateInput = Partial<{
   country: string | null;
   age_range: string | null;
   onboarding_completed: boolean;
+  has_seen_app_tour: boolean;
 }>;
 
 export const profileApi = {

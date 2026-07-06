@@ -257,6 +257,7 @@ type ProfilesTable = {
     username: string | null;
     display_name: string | null;
     onboarding_completed: boolean;
+    has_seen_app_tour: boolean;
     ms_type: string | null;
     year_diagnosed: string | null;
     symptoms: string[];
@@ -272,6 +273,7 @@ type ProfilesTable = {
     username?: string | null;
     display_name?: string | null;
     onboarding_completed?: boolean;
+    has_seen_app_tour?: boolean;
     ms_type?: string | null;
     year_diagnosed?: string | null;
     symptoms?: string[];
@@ -287,6 +289,7 @@ type ProfilesTable = {
     username?: string | null;
     display_name?: string | null;
     onboarding_completed?: boolean;
+    has_seen_app_tour?: boolean;
     ms_type?: string | null;
     year_diagnosed?: string | null;
     symptoms?: string[];
