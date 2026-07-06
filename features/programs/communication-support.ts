@@ -95,7 +95,7 @@ export function deriveCommunicationSupport(input: CommunicationSupportInput): Co
     return {
       title: "Calmer support for difficult human moments",
       body: sanitizeCommunicationCopy(
-        "Premium includes calmer communication and relationship support during difficult periods, with lower-pressure ways to explain low energy, brain fog, or overwhelm.",
+        "This support includes calmer communication and relationship support during difficult periods, with lower-pressure ways to explain low energy, brain fog, or overwhelm.",
       ),
       phrases,
       surfacedToolIds,
@@ -107,7 +107,7 @@ export function deriveCommunicationSupport(input: CommunicationSupportInput): Co
   return {
     title: "Communication support that stays simple and humane",
     body: sanitizeCommunicationCopy(
-      "Premium includes calmer communication support when you want a simpler way to explain a difficult day, protect energy, or reduce social pressure.",
+      "This support includes calmer communication support when you want a simpler way to explain a difficult day, protect energy, or reduce social pressure.",
     ),
     phrases,
     surfacedToolIds,

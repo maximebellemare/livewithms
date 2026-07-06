@@ -87,7 +87,7 @@ export function deriveRecoveryRhythm(input: RecoveryRhythmInput): RecoveryRhythm
     return {
       title: "Calmer pacing for heavier stretches",
       body: sanitizeRecoveryCopy(
-        "Premium includes calmer pacing and recovery support during difficult periods, with gentle rhythm summaries and lower-pressure suggestions.",
+        "This support includes calmer pacing and recovery support during difficult periods, with gentle rhythm summaries and lower-pressure suggestions.",
       ),
       observations: observations.slice(0, 2),
       suggestions: suggestions.slice(0, 2),
@@ -98,7 +98,7 @@ export function deriveRecoveryRhythm(input: RecoveryRhythmInput): RecoveryRhythm
   return {
     title: "A steadier rhythm through unpredictable days",
     body: sanitizeRecoveryCopy(
-      "Premium includes calmer pacing and recovery support when you want a gentler view of how energy, stress, and rest may be interacting over time.",
+      "This support includes calmer pacing and recovery support when you want a gentler view of how energy, stress, and rest may be interacting over time.",
     ),
     observations: observations.slice(0, 3),
     suggestions: suggestions.slice(0, 2),

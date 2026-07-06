@@ -13,6 +13,7 @@ import env from "../lib/env";
 import { logger } from "../lib/logger";
 import { profileApi } from "../features/profile/api";
 import { ensureCreatorAffiliateLink } from "../features/creator/api";
+import { revenueCatClient } from "../lib/revenuecat/client";
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -159,6 +160,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
+    await revenueCatClient.resetUser();
     await authApi.signOut();
   }, [setDevMockState]);
 

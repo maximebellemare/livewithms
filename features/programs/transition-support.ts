@@ -132,8 +132,8 @@ export function deriveTransitionSupport(input: TransitionSupportInput): Transiti
       : "Staying steadier through shifting routines",
     body: sanitizeTransitionCopy(
       simplifyFurther
-        ? "Premium includes calmer support during travel, disrupted routines, and difficult transitions, with lower-pressure re-entry and smaller restart tools."
-        : "Premium includes calmer support during travel, disrupted routines, and difficult transitions when steadier pacing may help more than trying to hold everything together at once.",
+        ? "This support includes calmer support during travel, disrupted routines, and difficult transitions, with lower-pressure re-entry and smaller restart tools."
+        : "This support includes calmer support during travel, disrupted routines, and difficult transitions when steadier pacing may help more than trying to hold everything together at once.",
     ),
     summaries: summaries.slice(0, simplifyFurther ? 2 : 3),
     surfacedToolIds: dedupeToolIds(toolIds).filter((toolId): toolId is ProgramTool["id"] => Boolean(getProgramToolById(toolId))),

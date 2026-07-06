@@ -563,6 +563,16 @@ export const revenueCatClient = {
       logger.warn("RevenueCat logOut failed", { message: normalizedError.message });
     } finally {
       loggedInUserId = null;
+      updateDebugSnapshot((snapshot) => ({
+        ...snapshot,
+        timestamp: new Date().toISOString(),
+        loggedInAppUserId: null,
+        originalAppUserId: null,
+        activeEntitlementIdentifiers: [],
+        activeSubscriptionProductIdentifiers: [],
+        latestExpirationDate: null,
+        customerInfoLoaded: false,
+      }));
     }
   },
 };

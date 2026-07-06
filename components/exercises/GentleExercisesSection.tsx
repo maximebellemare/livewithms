@@ -142,13 +142,10 @@ function formatPreviousBest(
 
 function getUsageCopy(usage: ExerciseUsage | null, hasPremiumAccess: boolean) {
   if (hasPremiumAccess) {
-    return "Premium includes unlimited exercises.";
+    return "Exercises are ready whenever you need them.";
   }
 
-  const count = usage?.count ?? 0;
-  const remaining = Math.max(0, FREE_DAILY_EXERCISE_LIMIT - count);
-
-  return remaining > 0 ? `${remaining} free exercise available today.` : "You've used today's free exercise.";
+  return "Exercise access is waiting for your subscription to refresh.";
 }
 
 function getMemoryPairCount(difficulty: ExerciseDifficulty) {
@@ -491,7 +488,7 @@ export default function GentleExercisesSection({
     handledInitialExerciseRef.current = initialExerciseId;
     setSelectedExerciseId(exercise.id);
     setPhase(exercise.premiumOnly && !hasPremiumAccess ? "locked" : "ready");
-    setStatus(exercise.premiumOnly && !hasPremiumAccess ? "Premium includes unlimited exercise sessions." : null);
+    setStatus(exercise.premiumOnly && !hasPremiumAccess ? "This exercise opens once subscription access is active." : null);
     setSummary(null);
   }, [hasPremiumAccess, initialExerciseId]);
   const steadyCompletedRef = useRef(false);
@@ -716,7 +713,7 @@ export default function GentleExercisesSection({
     }
 
     if (limitReached) {
-      setStatus("Premium includes unlimited exercise sessions.");
+      setStatus("This exercise opens once subscription access is active.");
       return;
     }
 
@@ -731,7 +728,7 @@ export default function GentleExercisesSection({
     }
 
     if (!hasPremiumAccess) {
-      setStatus("Premium includes unlimited exercise sessions.");
+      setStatus("This exercise opens once subscription access is active.");
       return;
     }
 
@@ -749,7 +746,7 @@ export default function GentleExercisesSection({
     if (limitReached) {
       setSelectedExerciseId(exercise.id);
       setPhase("locked");
-      setStatus("Premium includes unlimited exercise sessions.");
+      setStatus("This exercise opens once subscription access is active.");
       return;
     }
 
@@ -1084,9 +1081,9 @@ export default function GentleExercisesSection({
     if (phase === "locked") {
       return (
         <View style={styles.resultCard}>
-          <AppText style={styles.resultTitle}>Premium includes unlimited exercise sessions.</AppText>
-          <AppText style={styles.resultBody}>You've used today's free exercise.</AppText>
-          <AppButton label="View Premium" onPress={() => router.push("/premium?source=exercises-limit")} variant="primary" />
+          <AppText style={styles.resultTitle}>Subscription required</AppText>
+          <AppText style={styles.resultBody}>Refresh or start your subscription to keep using exercises.</AppText>
+          <AppButton label="Start Premium" onPress={() => router.push("/premium?source=exercises-limit")} variant="primary" />
           <AppButton
             label="Try another exercise"
             onPress={() => {
@@ -1113,8 +1110,8 @@ export default function GentleExercisesSection({
           {hasPremiumAccess ? <AppButton label="Replay" onPress={replaySelectedExercise} variant="primary" /> : null}
           {!hasPremiumAccess ? (
             <>
-              <AppText style={styles.resultBody}>Replay is included with Premium.</AppText>
-              <AppButton label="View Premium" onPress={() => router.push("/premium?source=exercise-replay")} variant="primary" />
+              <AppText style={styles.resultBody}>Replay becomes available again once your subscription is active.</AppText>
+              <AppButton label="Start Premium" onPress={() => router.push("/premium?source=exercise-replay")} variant="primary" />
             </>
           ) : null}
           <AppButton
@@ -1416,7 +1413,7 @@ export default function GentleExercisesSection({
                 <AppText style={styles.exerciseTitle}>{exercise.title}</AppText>
                 <View style={styles.metaRow}>
                   <AppText style={styles.metaPill}>{exercise.durationLabel}</AppText>
-                  {isLocked ? <AppText style={styles.premiumPill}>Premium</AppText> : null}
+                  {isLocked ? <AppText style={styles.premiumPill}>Subscription</AppText> : null}
                 </View>
               </View>
               <AppText style={styles.exerciseDescription}>{exercise.description}</AppText>
@@ -1428,9 +1425,9 @@ export default function GentleExercisesSection({
 
       {limitReached && !hasPremiumAccess ? (
         <View style={styles.limitCard}>
-          <AppText style={styles.limitTitle}>You've used today's free exercise.</AppText>
-          <AppText style={styles.limitBody}>Premium includes unlimited exercises.</AppText>
-          <AppButton label="View Premium" onPress={() => router.push("/premium?source=exercises-limit")} variant="secondary" />
+          <AppText style={styles.limitTitle}>Subscription required</AppText>
+          <AppText style={styles.limitBody}>Exercise access opens once your subscription is active.</AppText>
+          <AppButton label="Start Premium" onPress={() => router.push("/premium?source=exercises-limit")} variant="secondary" />
         </View>
       ) : null}
 

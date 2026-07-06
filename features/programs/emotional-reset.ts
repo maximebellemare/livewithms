@@ -94,7 +94,7 @@ export function deriveEmotionalReset(input: EmotionalResetInput): EmotionalReset
     return {
       title: "Reset support for overloaded moments",
       body: sanitizeCopy(
-        "Premium includes calmer emotional reset and nervous-system recovery support during overwhelming periods, with quieter steps that help the next part of the day feel less sharp.",
+        "This support includes calmer emotional reset and nervous-system recovery support during overwhelming periods, with quieter steps that help the next part of the day feel less sharp.",
       ),
       surfacedToolIds,
       resetLines: [
@@ -110,7 +110,7 @@ export function deriveEmotionalReset(input: EmotionalResetInput): EmotionalReset
   return {
     title: "Calmer reset rituals for difficult moments",
     body: sanitizeCopy(
-      "Premium includes short decompression, lower-stimulation support, and gentler transition tools for moments that leave emotional carryover behind.",
+      "This support includes short decompression, lower-stimulation support, and gentler transition tools for moments that leave emotional carryover behind.",
     ),
     surfacedToolIds,
     resetLines: [

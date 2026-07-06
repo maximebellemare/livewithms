@@ -77,7 +77,7 @@ export function deriveCognitiveSupport(input: CognitiveSupportInput): CognitiveS
     return {
       title: "A calmer cognitive space for mentally heavy days",
       body: sanitizeCognitiveCopy(
-        "Premium includes brain-fog-friendly tools that reduce decisions, shrink the next hour, and keep the mental load lighter when thinking already feels expensive.",
+        "This support includes brain-fog-friendly tools that reduce decisions, shrink the next hour, and keep the mental load lighter when thinking already feels expensive.",
       ),
       surfacedToolIds,
       continuityLine,
@@ -89,7 +89,7 @@ export function deriveCognitiveSupport(input: CognitiveSupportInput): CognitiveS
     return {
       title: "Short support for mentally noisy moments",
       body: sanitizeCognitiveCopy(
-        "Premium includes calmer cognitive support and mentally lighter tools when there are too many thoughts competing at once.",
+        "This support includes calmer cognitive support and mentally lighter tools when there are too many thoughts competing at once.",
       ),
       surfacedToolIds,
       continuityLine,
@@ -100,7 +100,7 @@ export function deriveCognitiveSupport(input: CognitiveSupportInput): CognitiveS
   return {
     title: "Brain-fog-friendly support that stays low-pressure",
     body: sanitizeCognitiveCopy(
-      "Premium includes calmer cognitive support and brain-fog-friendly tools that stay brief, practical, and easy to leave when needed.",
+      "This support includes calmer cognitive support and brain-fog-friendly tools that stay brief, practical, and easy to leave when needed.",
     ),
     surfacedToolIds,
     continuityLine,

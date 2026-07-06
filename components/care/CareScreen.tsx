@@ -1258,12 +1258,12 @@ export function NutritionScreenContent() {
 
   const canUseFoodAnalysis = premium.hasPremiumAccess || foodAnalysisUsageCount < FREE_FOOD_ANALYSIS_LIMIT;
   const foodAnalysisUsageLabel = premium.hasPremiumAccess
-    ? "Premium includes unlimited food analysis."
+    ? "Food checks are ready whenever you need them."
     : `${Math.max(FREE_FOOD_ANALYSIS_LIMIT - foodAnalysisUsageCount, 0)} free analyses left today.`;
 
   const handleFoodAnalysis = async (value?: string, source: "search" | "photo" | "barcode" = "search") => {
     if (!canUseFoodAnalysis) {
-      setFoodAnalysisMessage("Premium includes unlimited food analysis and meal updates.");
+      setFoodAnalysisMessage("Nutrition tools are ready when you need another check.");
       router.push("/premium?source=nutrition-food-analysis");
       return;
     }
@@ -1299,7 +1299,7 @@ export function NutritionScreenContent() {
 
   const handlePhotoFoodAnalysis = async () => {
     if (!canUseFoodAnalysis) {
-      setFoodAnalysisMessage("Premium includes unlimited food analysis and meal updates.");
+      setFoodAnalysisMessage("Nutrition tools are ready when you need another check.");
       router.push("/premium?source=nutrition-food-analysis");
       return;
     }
@@ -1337,7 +1337,7 @@ export function NutritionScreenContent() {
 
   const handleUploadFoodPhoto = async () => {
     if (!canUseFoodAnalysis) {
-      setFoodAnalysisMessage("Premium includes unlimited food analysis and meal updates.");
+      setFoodAnalysisMessage("Nutrition tools are ready when you need another check.");
       router.push("/premium?source=nutrition-food-analysis");
       return;
     }
@@ -1380,7 +1380,7 @@ export function NutritionScreenContent() {
     }
 
     if (!premium.hasPremiumAccess && adaptiveMealPlan) {
-      setMealPlanError("Premium includes unlimited food analysis and meal updates.");
+      setMealPlanError("Your subscription needs to refresh before meal updates are available.");
       router.push("/premium?source=nutrition-meal-updates");
       return;
     }
@@ -1507,7 +1507,7 @@ export function NutritionScreenContent() {
           <AppText style={styles.itemMeta}>{mealPlanGoal}</AppText>
         </View>
         <AppText style={[styles.badge, premium.hasPremiumAccess ? styles.badgeActive : styles.badgeInactive]}>
-          {premium.hasPremiumAccess ? "Premium" : "Simple"}
+          {premium.hasPremiumAccess ? "Active plan" : "Preview"}
         </AppText>
       </View>
       <AppText style={styles.itemNotes}>{adaptiveMealPlan.focus}</AppText>
@@ -1635,9 +1635,9 @@ export function NutritionScreenContent() {
       ) : (
         <View style={styles.nutritionUpgradeCard}>
           <AppText style={styles.nutritionCardBody}>
-            Premium adds unlimited meal plans, unlimited food analysis, grocery lists, saved plans, and advanced swaps.
+            Nutrition support needs an active subscription before meal plans, grocery lists, and swaps can keep updating here.
           </AppText>
-          <AppButton label="View Premium" onPress={() => router.push("/premium?source=nutrition-meal-plan")} variant="secondary" />
+          <AppButton label="Start Premium" onPress={() => router.push("/premium?source=nutrition-meal-plan")} variant="secondary" />
         </View>
       )}
     </View>
@@ -1725,7 +1725,7 @@ export function NutritionScreenContent() {
             <AppText
               style={
                 foodAnalysisMessage.includes("could not") ||
-                foodAnalysisMessage.includes("Premium") ||
+                foodAnalysisMessage.includes("subscription") ||
                 foodAnalysisMessage.includes("needs camera")
                   ? styles.errorText
                   : styles.successText
@@ -1790,7 +1790,7 @@ export function NutritionScreenContent() {
                 <AppText style={styles.itemMeta}>Saved in this device</AppText>
               </View>
               <AppText style={[styles.badge, premium.hasPremiumAccess ? styles.badgeActive : styles.badgeInactive]}>
-                {premium.hasPremiumAccess ? "Premium" : "Simple"}
+                {premium.hasPremiumAccess ? "Current plan" : "Preview"}
               </AppText>
             </View>
             <AppText style={styles.nutritionCardBody}>You selected: {adaptiveMealPlan.dietStyle}</AppText>

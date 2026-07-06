@@ -62,7 +62,7 @@ export function deriveEmotionalRegulationToolkit(input: ToolkitInput): Emotional
     return {
       title: "A quieter support toolkit for heavier days",
       body: sanitizeToolkitCopy(
-        "Premium includes short grounding, pacing, and decompression tools that can keep the day lighter when everything feels expensive. Smaller support can still count.",
+        "This support includes short grounding, pacing, and decompression tools that can keep the day lighter when everything feels expensive. Smaller support can still count.",
       ),
       surfacedToolIds,
       categoryLabels,
@@ -73,7 +73,7 @@ export function deriveEmotionalRegulationToolkit(input: ToolkitInput): Emotional
     return {
       title: "Short support for overloaded moments",
       body: sanitizeToolkitCopy(
-        "Premium includes calmer nervous-system resets, lower-stimulation support, and smaller pacing tools for moments that feel too full at once. Not everything needs to be carried at the same intensity.",
+        "This support includes calmer nervous-system resets, lower-stimulation support, and smaller pacing tools for moments that feel too full at once. Not everything needs to be carried at the same intensity.",
       ),
       surfacedToolIds,
       categoryLabels,
@@ -84,7 +84,7 @@ export function deriveEmotionalRegulationToolkit(input: ToolkitInput): Emotional
     return {
       title: "Calmer support when rest has felt thinner",
       body: sanitizeToolkitCopy(
-        "Premium includes short evening decompression, lower-demand resets, and steadier pacing tools when rest has felt harder to hold onto. A quieter night can still begin without a full routine.",
+        "This support includes short evening decompression, lower-demand resets, and steadier pacing tools when rest has felt harder to hold onto. A quieter night can still begin without a full routine.",
       ),
       surfacedToolIds,
       categoryLabels,
@@ -95,7 +95,7 @@ export function deriveEmotionalRegulationToolkit(input: ToolkitInput): Emotional
     title: "A calmer toolkit for difficult moments",
     body: sanitizeToolkitCopy(
       ecosystem.recommendationLines[0] ??
-        "Premium includes grounding, overwhelm support, pacing resets, and cognitive decompression tools that stay brief and easy to leave when needed.",
+        "This support includes grounding, overwhelm support, pacing resets, and cognitive decompression tools that stay brief and easy to leave when needed.",
     ),
     surfacedToolIds,
     categoryLabels,

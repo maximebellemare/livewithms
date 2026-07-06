@@ -475,7 +475,7 @@ export default function CommunityScreen() {
       return;
     }
     if (freePostLimitReached) {
-      setMessage("Free community posting is limited today. Premium includes more posting room.");
+      setMessage("Community posting needs an active subscription right now.");
       return;
     }
 
@@ -545,7 +545,7 @@ export default function CommunityScreen() {
       return;
     }
     if (freeCommentLimitReached) {
-      setMessage("Free replies are limited today. Premium includes more posting room.");
+      setMessage("Replies need an active subscription right now.");
       return;
     }
 
@@ -1271,7 +1271,7 @@ export default function CommunityScreen() {
                   <AppText style={styles.limitText}>{commentBody.length}/{COMMENT_LIMIT}</AppText>
                   {!hasPremiumAccess ? (
                     <AppText style={styles.limitText}>
-                      {Math.max(0, FREE_DAILY_COMMUNITY_COMMENT_LIMIT - usage.commentsToday)} free replies left today
+                      Replying opens once subscription access is active.
                     </AppText>
                   ) : null}
                 </View>
@@ -1281,7 +1281,7 @@ export default function CommunityScreen() {
                   disabled={!safeTrim(commentBody) || savingComment || freeCommentLimitReached}
                 />
                 {freeCommentLimitReached ? (
-                  <AppButton label="View Premium" variant="secondary" onPress={() => router.push("/premium")} />
+                  <AppButton label="Start Premium" variant="secondary" onPress={() => router.push("/premium")} />
                 ) : null}
               </View>
             ) : null}
@@ -1353,7 +1353,7 @@ export default function CommunityScreen() {
                 </View>
                 {!hasPremiumAccess ? (
                   <AppText style={styles.limitText}>
-                    {Math.max(0, FREE_DAILY_COMMUNITY_POST_LIMIT - usage.postsToday)} free post left today
+                    Posting opens once subscription access is active.
                   </AppText>
                 ) : null}
                 <View style={styles.buttonStack}>
@@ -1364,7 +1364,7 @@ export default function CommunityScreen() {
                   />
                   <AppButton label="Cancel" variant="secondary" onPress={resetComposer} />
                   {freePostLimitReached ? (
-                    <AppButton label="View Premium" variant="secondary" onPress={() => router.push("/premium")} />
+                    <AppButton label="Start Premium" variant="secondary" onPress={() => router.push("/premium")} />
                   ) : null}
                 </View>
               </View>

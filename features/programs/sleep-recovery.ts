@@ -58,7 +58,7 @@ export function deriveSleepRecoverySupport(input: SleepRecoveryInput): SleepReco
     return {
       title: "A quieter way to end a heavier day",
       body: sanitizeSleepCopy(
-        "Premium includes calmer evening support, bedtime grounding, and lower-stimulation wind-down tools when the day has stayed loud for too long.",
+        "This support includes calmer evening support, bedtime grounding, and lower-stimulation wind-down tools when the day has stayed loud for too long.",
       ),
       surfacedToolIds,
       reflectionPrompts,
@@ -70,7 +70,7 @@ export function deriveSleepRecoverySupport(input: SleepRecoveryInput): SleepReco
     return {
       title: "Calmer support for nights that need less friction",
       body: sanitizeSleepCopy(
-        "Premium includes short decompression flows, gentle evening support, and quiet audio to help the night feel less demanding.",
+        "This support includes short decompression flows, gentle evening support, and quiet audio to help the night feel less demanding.",
       ),
       surfacedToolIds,
       reflectionPrompts,
@@ -81,7 +81,7 @@ export function deriveSleepRecoverySupport(input: SleepRecoveryInput): SleepReco
   return {
     title: "Evening support that stays low-pressure",
     body: sanitizeSleepCopy(
-      "Premium includes calmer evening support and nervous-system-friendly wind-down tools that stay brief, quiet, and easy to leave when needed.",
+      "This support includes calmer evening support and nervous-system-friendly wind-down tools that stay brief, quiet, and easy to leave when needed.",
     ),
     surfacedToolIds,
     reflectionPrompts,

@@ -158,11 +158,11 @@ export default function FuturePaywallScreen({
   const yearlyTrial = getTrialDetails(yearlyPackage);
   const monthlyTrial = getTrialDetails(monthlyPackage);
   const anyTrial = selectedPlanTrial ?? yearlyTrial ?? monthlyTrial;
-  const heroTitle = anyTrial?.days === 3 ? "Start your 3-day free trial" : "Unlock your personalized MS support plan";
+  const heroTitle = anyTrial?.days === 3 ? "Start your 3-day free trial" : "Start your personalized MS support plan";
   const heroSubtitle =
     "Track symptoms, notice patterns, talk things through with Coach, and stay organized with one calm plan for daily life with MS.";
   const heroBody =
-    "Premium includes full access to tracking, insights, Coach, nutrition support, brain games, doctor-visit prep, and community support.";
+    "Full access includes symptom tracking, insights, Coach, nutrition support, brain games, doctor-visit preparation, and community support.";
   const purchaseLabel = premium.isPurchasing
     ? selectedPlanTrial
       ? `Starting ${selectedPlanTrial.shortLabel.toLowerCase()}...`
@@ -174,7 +174,7 @@ export default function FuturePaywallScreen({
     ? `Cancel anytime before the trial ends to avoid being charged.`
     : "Subscription renews automatically unless canceled before renewal.";
   const blockedAccessCopy = requiredAccess
-    ? "LiveWithMS Premium is now required to continue. Start your trial or subscription to keep your tracking, Coach, nutrition, programs, and community support in one place."
+    ? "A LiveWithMS subscription is required to continue. Start your trial or subscription to keep your tracking, Coach, nutrition, programs, and community support in one place."
     : null;
 
   const handlePurchase = async () => {
@@ -260,13 +260,13 @@ export default function FuturePaywallScreen({
 
         {blockedAccessCopy ? (
           <View style={styles.requiredCard}>
-            <AppText style={styles.requiredTitle}>Premium is now required to continue</AppText>
+            <AppText style={styles.requiredTitle}>A subscription is required to continue</AppText>
             <AppText style={styles.requiredBody}>{blockedAccessCopy}</AppText>
           </View>
         ) : null}
 
         <View style={styles.benefitsCard}>
-          <AppText style={styles.sectionTitle}>What Premium unlocks</AppText>
+          <AppText style={styles.sectionTitle}>What full access includes</AppText>
           <View style={styles.bulletList}>
             {PREMIUM_BENEFITS.map((line) => (
               <AppText key={line} style={styles.bulletText}>• {line}</AppText>
@@ -276,7 +276,7 @@ export default function FuturePaywallScreen({
 
         {premium.hasPremiumAccess ? (
           <View style={styles.activeCard}>
-            <AppText style={styles.activeTitle}>Premium is active</AppText>
+            <AppText style={styles.activeTitle}>Subscription active</AppText>
             <AppText style={styles.activeBody}>
               Your subscription is active, so you can keep using the full LiveWithMS experience.
             </AppText>

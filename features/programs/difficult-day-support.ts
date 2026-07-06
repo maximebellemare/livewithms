@@ -83,7 +83,7 @@ export function deriveDifficultDaySupport(input: DifficultDaySupportInput): Diff
     return {
       title: "Support for days when functioning feels harder",
       body: sanitizeCopy(
-        "Premium includes quieter grounding, lower-demand support, and smaller survival-mode tools for days when everything feels like too much.",
+        "This support includes quieter grounding, lower-demand support, and smaller survival-mode tools for days when everything feels like too much.",
       ),
       surfacedToolIds,
       groundingLines: [
@@ -99,7 +99,7 @@ export function deriveDifficultDaySupport(input: DifficultDaySupportInput): Diff
   return {
     title: "Calmer support for heavier days",
     body: sanitizeCopy(
-      "Premium includes calmer support for heavier and lower-energy days, with practical tools that stay brief and easy to leave when needed.",
+      "This support includes calmer support for heavier and lower-energy days, with practical tools that stay brief and easy to leave when needed.",
     ),
     surfacedToolIds,
     groundingLines: [

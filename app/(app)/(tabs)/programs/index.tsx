@@ -2419,7 +2419,7 @@ export default function ProgramsScreen() {
           openTool(tool.id);
         }}
         accessibilityRole="button"
-        accessibilityLabel={isLocked ? title + ". Premium tool. View Premium." : "Open " + title}
+        accessibilityLabel={isLocked ? title + ". Subscription required. Start Premium." : "Open " + title}
         style={({ pressed }) => [
           styles.operationalToolCard,
           isSelected && styles.operationalToolCardSelected,
@@ -2431,14 +2431,14 @@ export default function ProgramsScreen() {
           <AppText style={styles.toolTitle}>{title}</AppText>
           <View style={styles.toolMetaLine}>
             <AppText style={styles.toolDuration}>{tool.durationLabel}</AppText>
-            {options.premium ? <AppText style={styles.toolPremiumLabel}>Premium</AppText> : null}
+            {options.premium ? <AppText style={styles.toolPremiumLabel}>Subscription</AppText> : null}
             {hasSavedSummary && !isLocked ? <AppText style={styles.toolUsedLabel}>Saved</AppText> : null}
           </View>
         </View>
         <AppText style={styles.toolWhenToUse}>{tool.whenToUse}</AppText>
         <AppText style={styles.toolOutcome}>{outcome}</AppText>
         <View style={styles.toolFooter}>
-          <AppText style={styles.toolOpenLabel}>{isLocked ? "View Premium" : isSelected ? "Open below" : "Open tool"}</AppText>
+          <AppText style={styles.toolOpenLabel}>{isLocked ? "Start Premium" : isSelected ? "Open below" : "Open tool"}</AppText>
         </View>
       </Pressable>
     );
@@ -2505,8 +2505,8 @@ export default function ProgramsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionHeaderText}>
-              <AppText style={styles.sectionTitle}>Premium tools</AppText>
-              <AppText style={styles.sectionSubtitle}>Additional support for fatigue, planning, sleep, and cognitive overload.</AppText>
+              <AppText style={styles.sectionTitle}>Guided support</AppText>
+              <AppText style={styles.sectionSubtitle}>More support for fatigue, planning, sleep, and cognitive overload.</AppText>
             </View>
           </View>
           <View style={styles.sectionList}>
@@ -2514,7 +2514,7 @@ export default function ProgramsScreen() {
           </View>
           {!hasGuidedPrograms ? (
             <AppButton
-              label="View Premium"
+              label="Start Premium"
               onPress={() => router.push("/premium?source=programs")}
               variant="secondary"
             />

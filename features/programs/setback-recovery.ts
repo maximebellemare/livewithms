@@ -102,8 +102,8 @@ export function deriveSetbackRecovery(input: SetbackRecoveryInput): SetbackRecov
       : "Gentle support after interruptions",
     body: sanitizeSetbackCopy(
       simplifyFurther
-        ? "Premium includes calmer support for restarting gently after difficult periods, with reduced-guilt re-entry and smaller next-step tools."
-        : "Premium includes calmer support for restarting gently after difficult periods when a quieter re-entry may help more than trying to rebuild everything at once.",
+        ? "This support includes calmer support for restarting gently after difficult periods, with reduced-guilt re-entry and smaller next-step tools."
+        : "This support includes calmer support for restarting gently after difficult periods when a quieter re-entry may help more than trying to rebuild everything at once.",
     ),
     supportLines: supportLines.slice(0, simplifyFurther ? 2 : 3),
     surfacedToolIds: dedupeToolIds(toolIds).filter((toolId): toolId is ProgramTool["id"] => Boolean(getProgramToolById(toolId))),

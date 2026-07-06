@@ -90,7 +90,7 @@ export function deriveMentalExhaustionSupport(input: MentalExhaustionInput): Men
     return {
       title: "Support for mentally depleted periods",
       body: sanitizeCopy(
-        "Premium includes calmer support for recovering after mentally exhausting periods, with lower-demand decompression and quieter pacing when everything feels depleted.",
+        "This support includes calmer support for recovering after mentally exhausting periods, with lower-demand decompression and quieter pacing when everything feels depleted.",
       ),
       surfacedToolIds,
       recoveryLines: [
@@ -106,7 +106,7 @@ export function deriveMentalExhaustionSupport(input: MentalExhaustionInput): Men
   return {
     title: "Calmer recovery for mentally draining days",
     body: sanitizeCopy(
-      "Premium includes cognitive decompression, lower-pressure recovery support, and quieter routines for days that leave your mind feeling emptied out.",
+      "This support includes cognitive decompression, lower-pressure recovery support, and quieter routines for days that leave your mind feeling emptied out.",
     ),
     surfacedToolIds,
     recoveryLines: [

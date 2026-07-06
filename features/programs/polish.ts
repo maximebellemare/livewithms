@@ -91,19 +91,19 @@ export function derivePremiumProgramsCopy(input: {
   if (input.lowEnergyMode || input.highFatigue) {
     return {
       title: "A deeper library for heavier days",
-      body: "Premium includes a deeper library of calming programs and low-energy support when the day needs less friction.",
+      body: "This support includes a deeper library of calming programs and low-energy support when the day needs less friction.",
     };
   }
 
   if (input.overwhelmed) {
     return {
       title: "More support when everything feels loud",
-      body: "Premium includes shorter overwhelm resets, energy-protection tools, and cognitive support for harder stretches.",
+      body: "This support includes shorter overwhelm resets, energy-protection tools, and cognitive support for harder stretches.",
     };
   }
 
   return {
     title: "A deeper library of calmer support",
-    body: "Premium includes more body resets, sleep support, brain fog tools, energy planning, and low-energy programs that stay short.",
+    body: "This support includes more body resets, sleep support, brain fog tools, energy planning, and low-energy programs that stay short.",
   };
 }

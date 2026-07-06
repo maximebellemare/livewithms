@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, Linking, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from "react-native";
+import { Alert, Animated, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { useCalmEnvironment } from "../../../../features/calm-environment/hooks";
 import { useIsAdmin } from "../../../../features/admin/hooks";
@@ -27,14 +27,14 @@ import { loadExerciseUsage, type ExerciseUsage } from "../../../../features/exer
 import { getErrorMessage } from "../../../../lib/errors";
 import { trackEvent } from "../../../../lib/events";
 import { requestAppTourReplay } from "../../../../features/app-tour/storage";
-import { derivePremiumPositioning } from "../../../../lib/premium-ecosystem/calm-premium/derivePremiumPositioning";
-import { derivePremiumValue } from "../../../../lib/premium-ecosystem/calm-premium/derivePremiumValue";
-import { preserveFreeUserDignity } from "../../../../lib/premium-ecosystem/calm-premium/preserveFreeUserDignity";
-import { preventEmotionalConversion } from "../../../../lib/premium-ecosystem/ethical-monetization/preventEmotionalConversion";
 
 const PRIVACY_POLICY_URL = "https://www.livewithms.com/policies/privacy-policy";
 const TERMS_OF_USE_URL = "https://www.livewithms.com/policies/terms-of-service";
 const SUPPORT_EMAIL_URL = "mailto:support@livewithms.com";
+const MANAGE_SUBSCRIPTION_URL =
+  Platform.OS === "ios"
+    ? "https://apps.apple.com/account/subscriptions"
+    : "https://play.google.com/store/account/subscriptions";
 function safeTrim(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -240,13 +240,7 @@ export default function ProfileScreen() {
     lowEnergyMode.enabled && styles.cardSimplified,
     darkMode && styles.cardDark,
   ];
-  const hasAdaptiveSupport = canAccessPremiumFeature("adaptive_support", {
-    subscriptionsEnabled: premium.subscriptionsEnabled,
-    hasPremiumAccess: premium.hasPremiumAccess,
-    premiumFeatureFlags: premium.premiumFeatureFlags,
-  });
-  const premiumPositioning = derivePremiumPositioning();
-  const premiumValue = derivePremiumValue();
+  const hasSubscriptionAccess = premium.revenueCatEntitlementActive;
   const [communityDisplayName, setCommunityDisplayName] = useState("");
   const [isSavingCommunityProfile, setIsSavingCommunityProfile] = useState(false);
   const [communityProfileError, setCommunityProfileError] = useState<string | null>(null);
@@ -533,6 +527,27 @@ export default function ProfileScreen() {
     })();
   };
 
+  const handleManageSubscription = async () => {
+    try {
+      await Linking.openURL(MANAGE_SUBSCRIPTION_URL);
+    } catch {
+      Alert.alert(
+        "Unable to open subscriptions",
+        Platform.OS === "ios"
+          ? "Open your Apple subscription settings to manage LiveWithMS."
+          : "Open your Google Play subscription settings to manage LiveWithMS.",
+      );
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    const result = await premium.restorePurchases();
+    Alert.alert(
+      result.success ? "Restore complete" : "Restore unavailable",
+      result.message ?? (result.success ? "Subscription restored." : "No active subscription was found."),
+    );
+  };
+
   return (
     <AppScreen
       title="Profile"
@@ -591,27 +606,21 @@ export default function ProfileScreen() {
 
         <View style={cardStyle}>
           <AppText style={styles.sectionKicker}>Premium</AppText>
-          <AppText style={styles.sectionTitle}>Premium</AppText>
+          <AppText style={styles.sectionTitle}>Subscription</AppText>
           <View style={styles.premiumCard}>
             <View style={styles.premiumHeader}>
               <View style={styles.premiumCopy}>
                 <AppText style={styles.premiumTitle}>
-                  {premium.hasPremiumAccess ? "Premium is active" : "LiveWithMS Premium"}
+                  {hasSubscriptionAccess ? "Subscription active" : "Subscription required"}
                 </AppText>
                 <AppText style={styles.premiumBody}>
-                  {premium.hasPremiumAccess
-                    ? hasAdaptiveSupport
-                      ? premiumPositioning.activeProfileBody
-                      : "Premium is active, and your plan is managed securely through Apple."
-                    : preserveFreeUserDignity(
-                        preventEmotionalConversion(
-                          premiumPositioning.inactiveProfileBody,
-                        ),
-                      )}
+                  {hasSubscriptionAccess
+                    ? `Your LiveWithMS subscription is active and managed securely through ${Platform.OS === "ios" ? "Apple" : "Google Play"}.`
+                    : "LiveWithMS now requires an active subscription to continue using the app. Start Premium or restore a previous purchase to keep going."}
                 </AppText>
               </View>
-              <AppText style={[styles.premiumBadge, premium.hasPremiumAccess && styles.premiumBadgeActive]}>
-                {premium.hasPremiumAccess ? "Active" : "Optional"}
+              <AppText style={[styles.premiumBadge, hasSubscriptionAccess && styles.premiumBadgeActive]}>
+                {hasSubscriptionAccess ? "Active" : "Required"}
               </AppText>
             </View>
             {__DEV__ && premium.debugPremiumOverrideActive ? (
@@ -669,23 +678,32 @@ export default function ProfileScreen() {
                 </AppText>
               </View>
             ) : null}
-            <View style={styles.premiumFeatureList}>
-              {premiumValue.lines.map((line) => (
-                <AppText key={line} style={styles.premiumFeatureText}>• {line}</AppText>
-              ))}
-            </View>
             <AppText style={styles.premiumNote}>
-              {premium.hasPremiumAccess
-                ? hasAdaptiveSupport
-                  ? "Premium includes adaptive support during difficult days. You can manage your plan anytime through Apple."
-                  : "You can manage your plan anytime through Apple."
-                : "Any subscription you choose is handled securely through Apple, with restore available whenever you need it."}
+              {hasSubscriptionAccess
+                ? "You can manage your subscription or restore purchases anytime from here."
+                : "If you already subscribed with this Apple ID or Google Play account, try Restore Purchases first."}
             </AppText>
-            <AppButton
-              label={premium.hasPremiumAccess ? "View Premium" : "Explore Premium"}
-              onPress={() => router.push("/premium?source=profile")}
-              variant="secondary"
-            />
+            <View style={styles.accountActions}>
+              {hasSubscriptionAccess ? (
+                <AppButton
+                  label="Manage subscription"
+                  onPress={() => void handleManageSubscription()}
+                  variant="secondary"
+                />
+              ) : (
+                <AppButton
+                  label="Start Premium"
+                  onPress={() => router.push("/premium?source=profile")}
+                  variant="secondary"
+                />
+              )}
+              <AppButton
+                label={premium.isRestoring ? "Restoring..." : "Restore purchases"}
+                onPress={() => void handleRestorePurchases()}
+                variant="secondary"
+                disabled={premium.isRestoring}
+              />
+            </View>
           </View>
         </View>
 

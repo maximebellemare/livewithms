@@ -1644,7 +1644,7 @@ export default function CoachScreen() {
               ) : null}
             </View>
             <AppButton
-              label={hasReachedFreeCoachLimit ? "See Premium" : "Talk it through"}
+              label={hasReachedFreeCoachLimit ? "Start Premium" : "Talk it through"}
               onPress={() =>
                 hasReachedFreeCoachLimit
                   ? router.push("/premium?source=coach-limit")
@@ -1654,7 +1654,7 @@ export default function CoachScreen() {
             />
             {hasReachedFreeCoachLimit ? (
               <AppText style={styles.limitNote}>
-                Free AI Coach access refreshes daily. Premium keeps Coach available for deeper reflection.
+                Coach needs an active subscription before a new conversation can continue.
               </AppText>
             ) : null}
             {chatError ? (
@@ -1916,17 +1916,17 @@ export default function CoachScreen() {
                 <AppText style={styles.usageTitle}>
                   {isLoadingDailyCoachUsage
                     ? "Checking your AI Coach access..."
-                    : `${remainingFreeMessages} of ${FREE_DAILY_AI_COACH_MESSAGES} included messages left today.`}
+                    : "Coach will open once subscription access is active."}
                 </AppText>
                 <AppText style={styles.usageBody}>
-                  Unlimited Coach conversations are included with Premium.
+                  Coach is available throughout your active subscription.
                 </AppText>
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => router.push("/premium?source=coach-context")}
                   style={({ pressed }) => [styles.premiumCtaButton, pressed && styles.actionCardPressed]}
                 >
-                  <AppText style={styles.premiumCtaText}>View Premium</AppText>
+                  <AppText style={styles.premiumCtaText}>Start Premium</AppText>
                 </Pressable>
               </View>
             ) : null}
@@ -2123,7 +2123,7 @@ export default function CoachScreen() {
             <AppButton
               label={
                 hasReachedFreeCoachLimit
-                  ? "See Premium"
+                  ? "Start Premium"
                   : sendCoachMessage.isPending
                     ? "Sending..."
                     : "Send message"
@@ -2166,7 +2166,7 @@ export default function CoachScreen() {
                   />
                 ) : null}
                 {hasReachedFreeCoachLimit ? (
-                  <AppButton label="See Premium" onPress={() => router.push("/premium?source=coach-limit")} />
+                  <AppButton label="Start Premium" onPress={() => router.push("/premium?source=coach-limit")} />
                 ) : null}
               </View>
             ) : null}

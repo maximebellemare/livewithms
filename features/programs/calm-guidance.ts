@@ -74,7 +74,7 @@ export function deriveCalmGuidance(input: CalmGuidanceInput): CalmGuidanceState 
     return {
       title: "Calmer guidance for heavy decision days",
       body: sanitizeGuidanceCopy(
-        "Premium includes lower-pressure planning support, simpler prioritization, and calmer pacing tools for days when too many decisions start competing at once.",
+        "This support includes lower-pressure planning support, simpler prioritization, and calmer pacing tools for days when too many decisions start competing at once.",
       ),
       prompts,
       surfacedToolIds,
@@ -86,7 +86,7 @@ export function deriveCalmGuidance(input: CalmGuidanceInput): CalmGuidanceState 
   return {
     title: "Low-pressure guidance for the day in front of you",
     body: sanitizeGuidanceCopy(
-      "Premium includes calmer daily guidance and low-pressure pacing support when you want a simpler perspective on what matters next.",
+      "This support includes calmer daily guidance and low-pressure pacing support when you want a simpler perspective on what matters next.",
     ),
     prompts,
     surfacedToolIds,

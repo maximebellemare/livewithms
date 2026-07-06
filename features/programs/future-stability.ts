@@ -96,8 +96,8 @@ export function deriveFutureStability(input: FutureStabilityInput): FutureStabil
       : "Calmer planning for uncertain weeks",
     body: sanitizeFuturePlanning(
       simplifyFurther
-        ? "Premium includes calmer planning and low-pressure future support during unpredictable periods, with shorter planning horizons and more flexible pacing."
-        : "Premium includes calmer planning and low-pressure future support when a gentler horizon feels more realistic than trying to map everything at once.",
+        ? "This support includes calmer planning and low-pressure future support during unpredictable periods, with shorter planning horizons and more flexible pacing."
+        : "This support includes calmer planning and low-pressure future support when a gentler horizon feels more realistic than trying to map everything at once.",
     ),
     planningLines: planningLines.slice(0, simplifyFurther ? 2 : 3),
     surfacedToolIds: dedupeToolIds(toolIds).filter((toolId): toolId is ProgramTool["id"] => Boolean(getProgramToolById(toolId))),

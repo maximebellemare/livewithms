@@ -471,7 +471,7 @@ export default function CoachChatScreen() {
             <AppText style={styles.usageTitle}>
               {isLoadingDailyCoachUsage
                 ? "Checking your AI Coach access..."
-                : `${remainingFreeMessages} of ${FREE_DAILY_AI_COACH_MESSAGES} included messages left today.`}
+                : "Coach will open once subscription access is active."}
             </AppText>
           </View>
         ) : null}

@@ -4813,10 +4813,10 @@ export default function InsightsScreen() {
               <View style={styles.premiumLockCard}>
                 <AppText style={styles.premiumLockTitle}>Premium pattern intelligence</AppText>
                 <AppText style={styles.premiumLockBody}>
-                  Premium adds deeper correlations, symptom clusters, recovery patterns, energy observations, and longer-term comparisons.
+                  Your subscription includes deeper correlations, symptom clusters, recovery patterns, energy observations, and longer-term comparisons.
                 </AppText>
                 <AppButton
-                  label="Explore Premium"
+                  label="View subscription"
                   onPress={() => router.push("/premium?source=insights")}
                   variant="secondary"
                 />
@@ -5057,9 +5057,9 @@ export default function InsightsScreen() {
 
             <View style={styles.aiCard}>
               <View style={styles.expandHeaderCopy}>
-                <AppText style={styles.takeawayTitle}>Premium summaries</AppText>
+                <AppText style={styles.takeawayTitle}>Weekly and monthly summaries</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes deeper weekly and monthly summaries.
+                  This support includes deeper weekly and monthly summaries.
                 </AppText>
               </View>
               {canShowPremiumReflections ? (
@@ -5085,12 +5085,12 @@ export default function InsightsScreen() {
                 </>
               ) : (
                 <View style={styles.premiumLockCard}>
-                  <AppText style={styles.premiumLockTitle}>Premium reflection summaries</AppText>
+                  <AppText style={styles.premiumLockTitle}>Reflection summaries</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes deeper weekly and monthly reflection summaries. The core insights view stays complete without them.
+                    This support includes deeper weekly and monthly reflection summaries. These summaries appear when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights")}
                     variant="secondary"
                   />
@@ -5102,7 +5102,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Stress and mood</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium compares logged stress, mood, sleep, and symptoms across time.
+                  This section compares logged stress, mood, sleep, and symptoms across time.
                 </AppText>
               </View>
               {canShowPremiumHumanClarity ? (
@@ -5111,10 +5111,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Stress and mood</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium compares logged stress, mood, sleep, and symptoms across time.
+                    This section compares logged stress, mood, sleep, and symptoms across time.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-human-clarity")}
                     variant="secondary"
                   />
@@ -5126,7 +5126,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Recovery patterns</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium looks for lower-symptom days and what they have in common.
+                  This section looks for lower-symptom days and what they have in common.
                 </AppText>
               </View>
               {canShowPremiumForwardStability ? (
@@ -5135,10 +5135,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Recovery patterns</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium looks for lower-symptom days and what they have in common.
+                    This section looks for lower-symptom days and what they have in common.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-forward-stability")}
                     variant="secondary"
                   />
@@ -5150,7 +5150,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Pacing observations</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium compares activity, rest, symptoms, and lower-energy days.
+                  This section compares activity, rest, symptoms, and lower-energy days.
                 </AppText>
               </View>
               {canShowPremiumMeaningfulLife ? (
@@ -5159,10 +5159,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Pacing observations</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium compares activity, rest, symptoms, and lower-energy days.
+                    This section compares activity, rest, symptoms, and lower-energy days.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-meaningful-life")}
                     variant="secondary"
                   />
@@ -5174,7 +5174,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Everyday life rebuilding</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer support for rebuilding everyday life gently after difficult periods.
+                  This support includes calmer support for rebuilding everyday life gently after difficult periods.
                 </AppText>
               </View>
               {canShowPremiumEverydayLifeRebuilding ? (
@@ -5183,10 +5183,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Everyday life rebuilding</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer support for rebuilding everyday life gently after difficult periods. The core insights view stays complete without it.
+                    This support includes calmer support for rebuilding everyday life gently after difficult periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-everyday-life")}
                     variant="secondary"
                   />
@@ -5198,7 +5198,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Reorientation</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer support for reconnecting with steadiness and direction during difficult periods.
+                  This support includes calmer support for reconnecting with steadiness and direction during difficult periods.
                 </AppText>
               </View>
               {canShowPremiumReorientationSupport ? (
@@ -5207,10 +5207,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Reorientation</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer support for reconnecting with steadiness and direction during difficult periods. The core insights view stays complete without it.
+                    This support includes calmer support for reconnecting with steadiness and direction during difficult periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-reorientation")}
                     variant="secondary"
                   />
@@ -5222,7 +5222,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Existential grounding</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer grounding and emotional steadiness during heavier or uncertain periods.
+                  This support includes calmer grounding and emotional steadiness during heavier or uncertain periods.
                 </AppText>
               </View>
               {canShowPremiumExistentialGrounding ? (
@@ -5231,10 +5231,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Existential grounding</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer grounding and emotional steadiness during heavier or uncertain periods. The core insights view stays complete without it.
+                    This support includes calmer grounding and emotional steadiness during heavier or uncertain periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-existential-grounding")}
                     variant="secondary"
                   />
@@ -5246,7 +5246,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>What still matters</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer reflection and support for reconnecting with what still matters.
+                  This support includes calmer reflection and support for reconnecting with what still matters.
                 </AppText>
               </View>
               {canShowPremiumMeaningSupport ? (
@@ -5255,10 +5255,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>What still matters</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer reflection and support for reconnecting with what still matters. The core insights view stays complete without it.
+                    This support includes calmer reflection and support for reconnecting with what still matters. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-meaning-support")}
                     variant="secondary"
                   />
@@ -5270,7 +5270,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Quiet confidence</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer emotional steadiness and support during difficult periods.
+                  This support includes calmer emotional steadiness and support during difficult periods.
                 </AppText>
               </View>
               {canShowPremiumQuietConfidence ? (
@@ -5279,10 +5279,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Quiet confidence</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer emotional steadiness and support during difficult periods. The core insights view stays complete without it.
+                    This support includes calmer emotional steadiness and support during difficult periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-quiet-confidence")}
                     variant="secondary"
                   />
@@ -5294,7 +5294,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Uncertainty support</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer support for navigating uncertainty and difficult periods.
+                  This support includes calmer support for navigating uncertainty and difficult periods.
                 </AppText>
               </View>
               {canShowPremiumUncertaintySupport ? (
@@ -5303,10 +5303,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Uncertainty support</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer support for navigating uncertainty and difficult periods. The core insights view stays complete without it.
+                    This support includes calmer support for navigating uncertainty and difficult periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-uncertainty-support")}
                     variant="secondary"
                   />
@@ -5318,7 +5318,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Nonlinearity support</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer support for navigating unpredictable periods with less internal pressure.
+                  This support includes calmer support for navigating unpredictable periods with less internal pressure.
                 </AppText>
               </View>
               {canShowPremiumNonlinearitySupport ? (
@@ -5327,10 +5327,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Nonlinearity support</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer support for navigating unpredictable periods with less internal pressure. The core insights view stays complete without it.
+                    This support includes calmer support for navigating unpredictable periods with less internal pressure. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-nonlinearity-support")}
                     variant="secondary"
                   />
@@ -5342,7 +5342,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Overload recovery</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer decompression and nervous-system recovery support after overwhelming days.
+                  This support includes calmer decompression and nervous-system recovery support after overwhelming days.
                 </AppText>
               </View>
               {canShowPremiumOverloadRecovery ? (
@@ -5351,10 +5351,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Overload recovery</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer decompression and nervous-system recovery support after overwhelming days. The core insights view stays complete without it.
+                    This support includes calmer decompression and nervous-system recovery support after overwhelming days. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-overload-recovery")}
                     variant="secondary"
                   />
@@ -5366,7 +5366,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Fear and panic recovery</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer grounding and support during overwhelming or fear-heavy moments.
+                  This support includes calmer grounding and support during overwhelming or fear-heavy moments.
                 </AppText>
               </View>
               {canShowPremiumFearRecovery ? (
@@ -5375,10 +5375,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Fear and panic recovery</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer grounding and support during overwhelming or fear-heavy moments. The core insights view stays complete without it.
+                    This support includes calmer grounding and support during overwhelming or fear-heavy moments. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-fear-recovery")}
                     variant="secondary"
                   />
@@ -5390,7 +5390,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Emotional overwhelm grounding</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer grounding and emotional steadiness support during overwhelming periods.
+                  This support includes calmer grounding and emotional steadiness support during overwhelming periods.
                 </AppText>
               </View>
               {canShowPremiumEmotionalCollapseSupport ? (
@@ -5399,10 +5399,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Emotional overwhelm grounding</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer grounding and emotional steadiness support during overwhelming periods. The core insights view stays complete without it.
+                    This support includes calmer grounding and emotional steadiness support during overwhelming periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-emotional-collapse-support")}
                     variant="secondary"
                   />
@@ -5414,7 +5414,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Trust in body and mind</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer grounding and support for rebuilding steadiness during unpredictable periods.
+                  This support includes calmer grounding and support for rebuilding steadiness during unpredictable periods.
                 </AppText>
               </View>
               {canShowPremiumSelfTrustStability ? (
@@ -5423,10 +5423,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Trust in body and mind</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer grounding and support for rebuilding steadiness during unpredictable periods. The core insights view stays complete without it.
+                    This support includes calmer grounding and support for rebuilding steadiness during unpredictable periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-self-trust-stability")}
                     variant="secondary"
                   />
@@ -5438,7 +5438,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Future fear recovery</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer grounding and support during fear-heavy or uncertain periods.
+                  This support includes calmer grounding and support during fear-heavy or uncertain periods.
                 </AppText>
               </View>
               {canShowPremiumFutureFearRecovery ? (
@@ -5447,10 +5447,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Future fear recovery</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer grounding and support during fear-heavy or uncertain periods. The core insights view stays complete without it.
+                    This support includes calmer grounding and support during fear-heavy or uncertain periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-future-fear-recovery")}
                     variant="secondary"
                   />
@@ -5462,7 +5462,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Identity and future fear</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer grounding and emotional steadiness during uncertain or fear-heavy periods.
+                  This support includes calmer grounding and emotional steadiness during uncertain or fear-heavy periods.
                 </AppText>
               </View>
               {canShowPremiumFutureFear ? (
@@ -5471,10 +5471,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Identity and future fear</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer grounding and emotional steadiness during uncertain or fear-heavy periods. The core insights view stays complete without it.
+                    This support includes calmer grounding and emotional steadiness during uncertain or fear-heavy periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-future-fear")}
                     variant="secondary"
                   />
@@ -5486,7 +5486,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Loss and grief</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer emotional grounding and support during difficult transitions and emotionally heavy periods.
+                  This support includes calmer emotional grounding and support during difficult transitions and emotionally heavy periods.
                 </AppText>
               </View>
               {canShowPremiumLossGriefSupport ? (
@@ -5495,10 +5495,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Loss and grief</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer emotional grounding and support during difficult transitions and emotionally heavy periods. The core insights view stays complete without it.
+                    This support includes calmer emotional grounding and support during difficult transitions and emotionally heavy periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-loss-grief")}
                     variant="secondary"
                   />
@@ -5510,7 +5510,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Flare-period support</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer support during heavier or symptom-intense periods.
+                  This support includes calmer support during heavier or symptom-intense periods.
                 </AppText>
               </View>
               {canShowPremiumFlareSupport ? (
@@ -5519,10 +5519,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Flare-period support</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer support during heavier or symptom-intense periods. The core insights view stays complete without it.
+                    This support includes calmer support during heavier or symptom-intense periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-flare-support")}
                     variant="secondary"
                   />
@@ -5534,7 +5534,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Emotional breathing room</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer grounding and support for reducing emotional overload and internal urgency.
+                  This support includes calmer grounding and support for reducing emotional overload and internal urgency.
                 </AppText>
               </View>
               {canShowPremiumBreathingRoomSupport ? (
@@ -5543,10 +5543,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Emotional breathing room</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer grounding and support for reducing emotional overload and internal urgency. The core insights view stays complete without it.
+                    This support includes calmer grounding and support for reducing emotional overload and internal urgency. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-breathing-room")}
                     variant="secondary"
                   />
@@ -5558,7 +5558,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Emotional spaciousness</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer emotional grounding and support for carrying difficult periods more gently.
+                  This support includes calmer emotional grounding and support for carrying difficult periods more gently.
                 </AppText>
               </View>
               {canShowPremiumEmotionalSpaciousness ? (
@@ -5567,10 +5567,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Emotional spaciousness</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer emotional grounding and support for carrying difficult periods more gently. The core insights view stays complete without it.
+                    This support includes calmer emotional grounding and support for carrying difficult periods more gently. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-emotional-spaciousness")}
                     variant="secondary"
                   />
@@ -5582,7 +5582,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Quiet hope</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer emotional recovery and grounding support during difficult periods.
+                  This support includes calmer emotional recovery and grounding support during difficult periods.
                 </AppText>
               </View>
               {canShowPremiumQuietHope ? (
@@ -5591,10 +5591,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Quiet hope</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer emotional recovery and grounding support during difficult periods. The core insights view stays complete without it.
+                    This support includes calmer emotional recovery and grounding support during difficult periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-quiet-hope")}
                     variant="secondary"
                   />
@@ -5606,7 +5606,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Emotional numbness grounding</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer grounding and gentle reconnection support during emotionally distant periods.
+                  This support includes calmer grounding and gentle reconnection support during emotionally distant periods.
                 </AppText>
               </View>
               {canShowPremiumEmotionalNumbness ? (
@@ -5615,10 +5615,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Emotional numbness grounding</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer grounding and gentle reconnection support during emotionally distant periods. The core insights view stays complete without it.
+                    This support includes calmer grounding and gentle reconnection support during emotionally distant periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-emotional-numbness")}
                     variant="secondary"
                   />
@@ -5630,7 +5630,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Return to yourself</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer support for reconnecting with yourself gently during difficult periods.
+                  This support includes calmer support for reconnecting with yourself gently during difficult periods.
                 </AppText>
               </View>
               {canShowPremiumSelfReconnectionSupport ? (
@@ -5639,10 +5639,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Return to yourself</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer support for reconnecting with yourself gently during difficult periods. The core insights view stays complete without it.
+                    This support includes calmer support for reconnecting with yourself gently during difficult periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-self-reconnection")}
                     variant="secondary"
                   />
@@ -5654,7 +5654,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Reconnecting with life</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer support for reconnecting with life gently after difficult periods.
+                  This support includes calmer support for reconnecting with life gently after difficult periods.
                 </AppText>
               </View>
               {canShowPremiumLifeReconnection ? (
@@ -5663,10 +5663,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Reconnecting with life</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer support for reconnecting with life gently after difficult periods. The core insights view stays complete without it.
+                    This support includes calmer support for reconnecting with life gently after difficult periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-life-reconnection")}
                     variant="secondary"
                   />
@@ -5678,7 +5678,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Isolation grounding</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer emotional grounding and low-pressure support during isolating periods.
+                  This support includes calmer emotional grounding and low-pressure support during isolating periods.
                 </AppText>
               </View>
               {canShowPremiumIsolationSupport ? (
@@ -5687,10 +5687,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Isolation grounding</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer emotional grounding and low-pressure support during isolating periods. The core insights view stays complete without it.
+                    This support includes calmer emotional grounding and low-pressure support during isolating periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-isolation-support")}
                     variant="secondary"
                   />
@@ -5702,7 +5702,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Identity continuity</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer support for staying connected to yourself during difficult or changing periods.
+                  This support includes calmer support for staying connected to yourself during difficult or changing periods.
                 </AppText>
               </View>
               {canShowPremiumIdentityContinuity ? (
@@ -5711,10 +5711,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Identity continuity</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer support for staying connected to yourself during difficult or changing periods. The core insights view stays complete without it.
+                    This support includes calmer support for staying connected to yourself during difficult or changing periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-identity-continuity")}
                     variant="secondary"
                   />
@@ -5726,7 +5726,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Self-forgiveness</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer emotional grounding and support for carrying difficult periods more gently.
+                  This support includes calmer emotional grounding and support for carrying difficult periods more gently.
                 </AppText>
               </View>
               {canShowPremiumSelfForgiveness ? (
@@ -5735,10 +5735,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Self-forgiveness</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer emotional grounding and support for carrying difficult periods more gently. The core insights view stays complete without it.
+                    This support includes calmer emotional grounding and support for carrying difficult periods more gently. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-self-forgiveness")}
                     variant="secondary"
                   />
@@ -5750,7 +5750,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Identity recovery</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer self-compassion and emotional recovery support during difficult periods.
+                  This support includes calmer self-compassion and emotional recovery support during difficult periods.
                 </AppText>
               </View>
               {canShowPremiumIdentityRecovery ? (
@@ -5759,10 +5759,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Identity recovery</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer self-compassion and emotional recovery support during difficult periods. The core insights view stays complete without it.
+                    This support includes calmer self-compassion and emotional recovery support during difficult periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-identity-recovery")}
                     variant="secondary"
                   />
@@ -5774,7 +5774,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Rebuilding after hard periods</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer support for rebuilding gently after difficult or overwhelming periods.
+                  This support includes calmer support for rebuilding gently after difficult or overwhelming periods.
                 </AppText>
               </View>
               {canShowPremiumRebuildingSupport ? (
@@ -5783,10 +5783,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Rebuilding after hard periods</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer support for rebuilding gently after difficult or overwhelming periods. The core insights view stays complete without it.
+                    This support includes calmer support for rebuilding gently after difficult or overwhelming periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-rebuilding-support")}
                     variant="secondary"
                   />
@@ -5798,7 +5798,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Long-term stability</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer long-term support for navigating life more gently during uncertain periods.
+                  This support includes calmer long-term support for navigating life more gently during uncertain periods.
                 </AppText>
               </View>
               {canShowPremiumLongTermStability ? (
@@ -5807,10 +5807,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Long-term stability</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer long-term support for navigating life more gently during uncertain periods. The core insights view stays complete without it.
+                    This support includes calmer long-term support for navigating life more gently during uncertain periods. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-long-term-stability")}
                     variant="secondary"
                   />
@@ -5822,7 +5822,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Setback stability</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer grounding and support during discouraging or difficult stretches.
+                  This support includes calmer grounding and support during discouraging or difficult stretches.
                 </AppText>
               </View>
               {canShowPremiumSetbackStability ? (
@@ -5831,10 +5831,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Setback stability</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer grounding and support during discouraging or difficult stretches. The core insights view stays complete without it.
+                    This support includes calmer grounding and support during discouraging or difficult stretches. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-setback-stability")}
                     variant="secondary"
                   />
@@ -5846,7 +5846,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Imperfect days</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer support for difficult and imperfect days.
+                  This support includes calmer support for difficult and imperfect days.
                 </AppText>
               </View>
               {canShowPremiumImperfectDays ? (
@@ -5855,10 +5855,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Imperfect days</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer support for difficult and imperfect days. The core insights view stays complete without it.
+                    This support includes calmer support for difficult and imperfect days. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-imperfect-days")}
                     variant="secondary"
                   />
@@ -5870,7 +5870,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Quiet community spaces</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes calmer community spaces and quieter support from people who understand.
+                  This support includes calmer community spaces and quieter support from people who understand.
                 </AppText>
               </View>
               {canShowPremiumCalmCommunity ? (
@@ -5879,10 +5879,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Quiet community spaces</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes calmer community spaces and quieter support from people who understand. The core insights view stays complete without it.
+                    This support includes calmer community spaces and quieter support from people who understand. This section appears when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights-calm-community")}
                     variant="secondary"
                   />
@@ -5894,7 +5894,7 @@ export default function InsightsScreen() {
               <View style={styles.expandHeaderCopy}>
                 <AppText style={styles.takeawayTitle}>Longer-term summaries</AppText>
                 <AppText style={styles.sectionBody}>
-                  Premium includes monthly, seasonal, and yearly summaries.
+                  This support includes monthly, seasonal, and yearly summaries.
                 </AppText>
               </View>
               {canShowPremiumContinuity ? (
@@ -5962,10 +5962,10 @@ export default function InsightsScreen() {
                 <View style={styles.premiumLockCard}>
                   <AppText style={styles.premiumLockTitle}>Longer-term summaries</AppText>
                   <AppText style={styles.premiumLockBody}>
-                    Premium includes deeper monthly, seasonal, and yearly summaries. The core insights view stays complete without them.
+                    This support includes deeper monthly, seasonal, and yearly summaries. These summaries appear when your subscription is active.
                   </AppText>
                   <AppButton
-                    label="Explore Premium"
+                    label="View subscription"
                     onPress={() => router.push("/premium?source=insights")}
                     variant="secondary"
                   />

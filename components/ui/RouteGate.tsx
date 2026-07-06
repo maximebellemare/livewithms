@@ -23,6 +23,7 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
   const { isReady, isAuthenticated, session, user } = useAuth();
   const premium = usePremium();
   const redirectInFlightRef = useRef<string | null>(null);
+  const premiumRouteDecisionRef = useRef<string | null>(null);
   const [profileLoadTimedOut, setProfileLoadTimedOut] = useState(false);
   const shouldLoadProfile = isReady && isAuthenticated && !!user?.id;
   const profileQuery = useMyProfile(user?.id, shouldLoadProfile);
@@ -46,7 +47,7 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
   const profileReady =
     !isAuthenticated || !shouldLoadProfile || !profileQuery.isLoading || profileQuery.isError || profileLoadTimedOut;
   const premiumReady = !shouldEnforcePremiumAccess || !premium.isLoading;
-  const requiresPremiumAccess = shouldEnforcePremiumAccess && !premium.hasPremiumAccess;
+  const requiresPremiumAccess = shouldEnforcePremiumAccess && !premium.revenueCatEntitlementActive;
   const sessionStatus = !isReady ? "loading" : session?.user?.id ? "authenticated" : "none";
   const shouldShowUnauthenticatedAppFlow = isReady && !isAuthenticated && (mode === "app" || mode === "onboarding");
   const authenticatedTargetPath = useMemo(() => {
@@ -113,6 +114,7 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
       onboardingCompleted,
       premiumLoading: premium.isLoading,
       hasPremiumAccess: premium.hasPremiumAccess,
+      revenueCatEntitlementActive: premium.revenueCatEntitlementActive,
       requiresPremiumAccess,
       sessionStatus,
     });
@@ -126,6 +128,7 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
     pathname,
     premium.hasPremiumAccess,
     premium.isLoading,
+    premium.revenueCatEntitlementActive,
     profileQuery.data,
     profileQuery.isLoading,
     requiresPremiumAccess,
@@ -237,6 +240,26 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
       premiumReady,
       hasPremiumAccess: premium.hasPremiumAccess,
       requiresPremiumAccess,
+    });
+  }
+
+  const premiumRouteDecisionSignature = JSON.stringify({
+    userId: user?.id ?? null,
+    pathname,
+    onboardingCompleted,
+    hasPremiumAccess: premium.hasPremiumAccess,
+    requiresPremiumAccess,
+  });
+
+  if (premiumRouteDecisionRef.current !== premiumRouteDecisionSignature) {
+    premiumRouteDecisionRef.current = premiumRouteDecisionSignature;
+    console.info("[premium-gate] route", {
+      userId: user?.id ?? null,
+      pathname,
+      onboardingCompleted,
+      hasPremiumAccess: premium.hasPremiumAccess,
+      requiresPremiumAccess,
+      finalDecision: requiresPremiumAccess ? "show_paywall" : "allow_app",
     });
   }
   return (
