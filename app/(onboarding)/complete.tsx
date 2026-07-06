@@ -16,7 +16,9 @@ export default function CompleteScreen() {
   const guidance = getPersonalizedOnboardingGuidance(draft);
 
   const handleNext = async () => {
-    if (isCompleting) return;
+    if (isCompleting) {
+      return;
+    }
 
     const ok = await completeOnboarding();
     if (!ok) {
@@ -33,29 +35,27 @@ export default function CompleteScreen() {
 
   return (
     <OnboardingScaffold
-      title="Ready to begin?"
-      subtitle="Start with one short check-in. You can explore the rest when it helps."
-      step={9}
+      title="You’re ready to begin."
+      subtitle="Start with one short check-in. The rest can stay available when it becomes useful."
+      step={10}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
       onNext={handleNext}
-      nextLabel="Begin first check-in"
+      nextLabel="Go to Today"
       loading={isCompleting}
       errorMessage={errorMessage}
     >
       <View style={styles.stack}>
         <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>{guidance.title}</AppText>
-          <AppText style={styles.heroBody}>
-            {guidance.body}
-          </AppText>
+          <AppText style={styles.heroTitle}>{guidance.nextPrimary}</AppText>
+          <AppText style={styles.heroBody}>{guidance.nextSecondary}</AppText>
         </View>
 
         <View style={styles.infoCard}>
           <AppText style={styles.infoTitle}>What happens next</AppText>
-          <AppText style={styles.infoBody}>You’ll land in Today for your first check-in.</AppText>
-          <AppText style={styles.infoBody}>Insights, tools, exercises, Care, Community, and Coach stay available from the tabs.</AppText>
-          <AppText style={styles.infoBody}>AI Coach is optional and does not replace professional care.</AppText>
+          <AppText style={styles.infoBody}>Today will guide your first check-in and daily overview.</AppText>
+          <AppText style={styles.infoBody}>Track, Coach, Care, Nutrition, Programs, and Community stay available from the main tabs.</AppText>
+          <AppText style={styles.infoBody}>AI support is optional and does not replace professional medical care.</AppText>
         </View>
       </View>
     </OnboardingScaffold>
@@ -67,16 +67,16 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   heroCard: {
-    backgroundColor: "#fff4ec",
-    borderRadius: 22,
+    backgroundColor: "#fff4ea",
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: "#f2d8c4",
-    padding: 18,
+    borderColor: "#f3d5bc",
+    padding: 22,
     gap: 8,
   },
   heroTitle: {
     fontSize: 24,
-    lineHeight: 32,
+    lineHeight: 31,
     fontWeight: "700",
     color: "#1f2937",
   },
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     backgroundColor: "#ffffff",
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,

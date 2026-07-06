@@ -27,6 +27,17 @@ export type PremiumOfferingPackage = {
   title: string;
   description: string;
   priceString: string;
+  subscriptionPeriod?: string | null;
+  introductoryOffer?: {
+    price: number | null;
+    priceString: string | null;
+    cycles: number | null;
+    period: string | null;
+    periodUnit: string | null;
+    periodNumberOfUnits: number | null;
+    isFreeTrial: boolean;
+  } | null;
+  freeTrialPeriod?: string | null;
   rawPackage: unknown;
 };
 

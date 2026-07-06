@@ -22,6 +22,12 @@ export type ReminderWindow = "morning" | "midday" | "evening";
 export type PersonalizationMemory = {
   onboardingGoals: string[];
   onboardingSymptoms: string[];
+  onboardingChallenges?: string[];
+  onboardingTrackingFocuses?: string[];
+  onboardingHelpFirst?: string[];
+  onboardingChallengesCustom?: string | null;
+  onboardingTrackingFocusesCustom?: string | null;
+  onboardingMotivationLevel?: "just-getting-started" | "somewhat-motivated" | "very-motivated" | null;
   onboardingSupportStyleOverride?: SupportStyle | null;
   onboardingPreferredDensityOverride?: PreferredDensity | null;
   onboardingComplexityToleranceOverride?: ComplexityTolerance | null;

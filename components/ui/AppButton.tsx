@@ -1,9 +1,10 @@
-import { Pressable, StyleSheet, Text } from "react-native";
+import { memo, useCallback, useMemo } from "react";
+import { Platform, Pressable, StyleSheet, Text } from "react-native";
 import { useDerivedCalmEnvironment } from "../../features/calm-environment/hooks";
-import { colors, radii, shadows } from "./design";
 import { deriveInteractionSoftness } from "../../lib/humane-micro-moments/calm-interactions/deriveInteractionSoftness";
-import { preventOverfamiliarity } from "../../lib/humane-micro-moments/quiet-warmth/preventOverfamiliarity";
 import { preventDopamineUX } from "../../lib/humane-micro-moments/non-performative-delight/preventDopamineUX";
+import { preventOverfamiliarity } from "../../lib/humane-micro-moments/quiet-warmth/preventOverfamiliarity";
+import { colors, radii, shadows } from "./design";
 
 type AppButtonProps = {
   label: string;
@@ -12,7 +13,7 @@ type AppButtonProps = {
   variant?: "primary" | "secondary";
 };
 
-export default function AppButton({
+function AppButton({
   label,
   onPress,
   disabled = false,
@@ -20,31 +21,66 @@ export default function AppButton({
 }: AppButtonProps) {
   const calmEnvironment = useDerivedCalmEnvironment();
   const softness = deriveInteractionSoftness({ emphasis: variant === "secondary" ? "soft" : "standard" });
-  const reducedMotion = calmEnvironment.motion.reducedMotion;
   const comfortMode = calmEnvironment.density.largerTapTargets;
+  const reduceActions = calmEnvironment.lowEnergyPresentation.reduceSimultaneousActions;
+  const pressedOpacity = useMemo(
+    () =>
+      calmEnvironment.motion.reducedMotion
+        ? Math.max(softness.buttonOpacityPressed, 0.9)
+        : softness.buttonOpacityPressed,
+    [calmEnvironment.motion.reducedMotion, softness.buttonOpacityPressed],
+  );
+  const pressedScale = useMemo(
+    () => (calmEnvironment.motion.motionScale < 1 ? 0.995 : 0.998),
+    [calmEnvironment.motion.motionScale],
+  );
+  const androidRipple = useMemo(
+    () =>
+      Platform.OS === "android"
+        ? {
+            color: variant === "secondary" ? "rgba(31, 41, 55, 0.08)" : "rgba(255, 255, 255, 0.18)",
+            borderless: false,
+          }
+        : undefined,
+    [variant],
+  );
+
+  const handlePress = useCallback(() => {
+    if (disabled) {
+      return;
+    }
+
+    onPress();
+  }, [disabled, onPress]);
+
+  const pressableStyle = useCallback(
+    ({ pressed }: { pressed: boolean }) => [
+      styles.button,
+      comfortMode && styles.buttonComfort,
+      reduceActions && styles.buttonLowEnergy,
+      variant === "secondary" && styles.buttonSecondary,
+      pressed &&
+        !disabled && [
+          styles.buttonPressed,
+          {
+            opacity: pressedOpacity,
+            transform: [{ scale: pressedScale }],
+          },
+        ],
+      disabled && styles.buttonDisabled,
+    ],
+    [comfortMode, disabled, pressedOpacity, pressedScale, reduceActions, variant],
+  );
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled }}
-      hitSlop={comfortMode ? 8 : 6}
-      onPress={onPress}
+      android_ripple={androidRipple}
       disabled={disabled}
-      style={({ pressed }) => [
-        styles.button,
-        comfortMode && styles.buttonComfort,
-        calmEnvironment.lowEnergyPresentation.reduceSimultaneousActions && styles.buttonLowEnergy,
-        variant === "secondary" && styles.buttonSecondary,
-        pressed &&
-          !disabled && [
-            styles.buttonPressed,
-            {
-              opacity: reducedMotion ? Math.max(softness.buttonOpacityPressed, 0.9) : softness.buttonOpacityPressed,
-              transform: [{ scale: calmEnvironment.motion.motionScale < 1 ? 0.995 : 0.998 }],
-            },
-          ],
-        disabled && styles.buttonDisabled,
-      ]}
+      hitSlop={comfortMode ? 8 : 6}
+      onPress={handlePress}
+      style={pressableStyle}
     >
       <Text style={[styles.label, variant === "secondary" && styles.labelSecondary]}>
         {preventDopamineUX(preventOverfamiliarity(label))}
@@ -98,3 +134,5 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
 });
+
+export default memo(AppButton);

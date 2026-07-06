@@ -24,7 +24,15 @@ declare module "react-native-purchases" {
       priceString: string;
       price?: number;
       currencyCode?: string;
-      subscriptionPeriod?: string;
+      subscriptionPeriod?: string | null;
+      introPrice?: {
+        price: number;
+        priceString: string;
+        cycles: number;
+        period: string;
+        periodUnit: string;
+        periodNumberOfUnits: number;
+      } | null;
     };
   };
 

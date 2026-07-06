@@ -2,43 +2,30 @@ import { useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
-import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
+import { ONBOARDING_FEATURE_HIGHLIGHTS, ONBOARDING_STEPS } from "../../features/onboarding/constants";
 
-const COMMUNITY_POINTS = [
-  "Practical questions and shared experiences",
-  "Categories for symptoms, care, work, and daily life",
-  "Reporting and moderation for safer discussions",
-];
+const FEATURE_SET = ONBOARDING_FEATURE_HIGHLIGHTS.slice(0, 5);
 
-export default function CommunityIntroScreen() {
+export default function FeatureEducationPrimaryScreen() {
   const router = useRouter();
 
   return (
     <OnboardingScaffold
-      title="Learn from shared experiences."
-      subtitle="Read practical discussions and connect with others living with MS."
-      step={5}
+      title="See what LiveWithMS can do for you."
+      subtitle="Each feature is designed to stay useful without asking you to do everything at once."
+      step={6}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
       onNext={() => router.push("/care-intro")}
       nextLabel="Continue"
     >
       <View style={styles.stack}>
-        <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>Community stays structured.</AppText>
-          <AppText style={styles.heroBody}>
-            It is designed for practical support, not endless scrolling.
-          </AppText>
-        </View>
-
-        <View style={styles.listCard}>
-          {COMMUNITY_POINTS.map((point) => (
-            <View key={point} style={styles.listRow}>
-              <View style={styles.dot} />
-              <AppText style={styles.listText}>{point}</AppText>
-            </View>
-          ))}
-        </View>
+        {FEATURE_SET.map((feature) => (
+          <View key={feature.id} style={styles.featureCard}>
+            <AppText style={styles.featureTitle}>{feature.title}</AppText>
+            <AppText style={styles.featureBody}>{feature.body}</AppText>
+          </View>
+        ))}
       </View>
     </OnboardingScaffold>
   );
@@ -46,48 +33,23 @@ export default function CommunityIntroScreen() {
 
 const styles = StyleSheet.create({
   stack: {
-    gap: 16,
+    gap: 14,
   },
-  heroCard: {
-    backgroundColor: "#fff4ec",
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#f2d8c4",
-    padding: 18,
-    gap: 8,
-  },
-  heroTitle: {
-    fontSize: 24,
-    lineHeight: 32,
-    fontWeight: "700",
-    color: "#1f2937",
-  },
-  heroBody: {
-    color: "#4b5563",
-    lineHeight: 22,
-  },
-  listCard: {
+  featureCard: {
     backgroundColor: "#ffffff",
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 12,
+    gap: 8,
   },
-  listRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
+  featureTitle: {
+    color: "#1f2937",
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "700",
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    marginTop: 8,
-    backgroundColor: "#d98641",
-  },
-  listText: {
-    flex: 1,
+  featureBody: {
     color: "#4b5563",
     lineHeight: 22,
   },

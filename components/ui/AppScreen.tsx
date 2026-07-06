@@ -28,6 +28,10 @@ export default function AppScreen({ children, eyebrow, title, subtitle }: AppScr
       ]}
       edges={["top", "bottom"]}
     >
+      <View pointerEvents="none" style={styles.backgroundDecor}>
+        <View style={[styles.backgroundOrb, styles.backgroundOrbPrimary, darkMode && styles.backgroundOrbPrimaryDark]} />
+        <View style={[styles.backgroundOrb, styles.backgroundOrbSecondary, darkMode && styles.backgroundOrbSecondaryDark]} />
+      </View>
       <View style={[styles.container, spacious && styles.containerSpacious]}>
         {eyebrow || title || subtitle ? (
           <View style={[styles.header, spacious && styles.headerSpacious]}>
@@ -53,6 +57,34 @@ const styles = StyleSheet.create({
   safeAreaDark: {
     backgroundColor: colors.pageDark,
   },
+  backgroundDecor: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: "hidden",
+  },
+  backgroundOrb: {
+    position: "absolute",
+    borderRadius: 999,
+  },
+  backgroundOrbPrimary: {
+    top: -110,
+    right: -88,
+    width: 320,
+    height: 320,
+    backgroundColor: colors.accentGlow,
+  },
+  backgroundOrbSecondary: {
+    top: 92,
+    left: -92,
+    width: 220,
+    height: 220,
+    backgroundColor: "rgba(255, 213, 175, 0.38)",
+  },
+  backgroundOrbPrimaryDark: {
+    backgroundColor: "rgba(254, 120, 26, 0.14)",
+  },
+  backgroundOrbSecondaryDark: {
+    backgroundColor: "rgba(255, 207, 168, 0.08)",
+  },
   container: {
     flex: 1,
     paddingTop: spacing.screenTop,
@@ -63,7 +95,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.screenX,
     gap: 12,
-    paddingBottom: 6,
+    paddingBottom: 10,
   },
   headerSpacious: {
     gap: 12,
@@ -83,6 +115,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
     lineHeight: 46,
     fontWeight: "800",
+    letterSpacing: -0.6,
     color: colors.text,
   },
   titleDark: {
@@ -95,6 +128,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: colors.textBody,
+    maxWidth: 620,
   },
   subtitleDark: {
     color: colors.textMutedDark,

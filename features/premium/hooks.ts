@@ -41,6 +41,16 @@ import {
 const PremiumContext = createContext<PremiumContextValue | undefined>(undefined);
 const PREMIUM_REFRESH_MIN_INTERVAL_MS = 20_000;
 const PREMIUM_REFRESH_RETRY_KEY = "premium-status-refresh";
+const PREMIUM_REVENUECAT_TIMEOUT_MS = 12_000;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
+    }),
+  ]);
+}
 
 export function PremiumProvider({ children }: PropsWithChildren) {
   const { user } = useAuth();
@@ -236,12 +246,20 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     }
 
     try {
-      await revenueCatClient.configureRevenueCat(user.id);
+      await withTimeout(
+        revenueCatClient.configureRevenueCat(user.id),
+        PREMIUM_REVENUECAT_TIMEOUT_MS,
+        "RevenueCat configure",
+      );
 
-      const [offering, customerInfo] = await Promise.all([
-        revenueCatClient.getCurrentOffering(),
-        revenueCatClient.getCustomerInfo(),
-      ]);
+      const [offering, customerInfo] = await withTimeout(
+        Promise.all([
+          revenueCatClient.getCurrentOffering(),
+          revenueCatClient.getCustomerInfo(),
+        ]),
+        PREMIUM_REVENUECAT_TIMEOUT_MS,
+        "RevenueCat offerings/customer info",
+      );
 
       setCurrentOffering(offering);
       setRevenueCatDebugSnapshot(revenueCatClient.getDebugSnapshot());

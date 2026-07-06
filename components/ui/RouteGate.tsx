@@ -2,8 +2,10 @@ import { PropsWithChildren, useEffect, useMemo, useRef, useState } from "react";
 import * as SplashScreen from "expo-splash-screen";
 import { usePathname, useRouter, useSegments } from "expo-router";
 import { useAuth } from "../../features/auth/hooks";
+import { usePremium } from "../../features/premium/hooks";
 import { useMyProfile } from "../../features/profile/hooks";
 import { logger } from "../../lib/logger";
+import { shouldUseRevenueCatNativeStore } from "../../lib/revenueCatEnvironment";
 import AppUpdateGate from "./AppUpdateGate";
 import { getAllowedPath, type RouteGateMode } from "./route-gate-logic";
 import SignInScreen from "../../app/(auth)/sign-in";
@@ -19,6 +21,7 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
   const pathname = usePathname();
   const segments = useSegments();
   const { isReady, isAuthenticated, session, user } = useAuth();
+  const premium = usePremium();
   const redirectInFlightRef = useRef<string | null>(null);
   const [profileLoadTimedOut, setProfileLoadTimedOut] = useState(false);
   const shouldLoadProfile = isReady && isAuthenticated && !!user?.id;
@@ -35,17 +38,24 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
         : "(app)";
 
   const onboardingCompleted = profileQuery.data?.onboarding_completed ?? false;
+  const shouldEnforcePremiumAccess =
+    isAuthenticated &&
+    onboardingCompleted &&
+    premium.subscriptionsEnabled &&
+    shouldUseRevenueCatNativeStore();
   const profileReady =
     !isAuthenticated || !shouldLoadProfile || !profileQuery.isLoading || profileQuery.isError || profileLoadTimedOut;
+  const premiumReady = !shouldEnforcePremiumAccess || !premium.isLoading;
+  const requiresPremiumAccess = shouldEnforcePremiumAccess && !premium.hasPremiumAccess;
   const sessionStatus = !isReady ? "loading" : session?.user?.id ? "authenticated" : "none";
   const shouldShowUnauthenticatedAppFlow = isReady && !isAuthenticated && (mode === "app" || mode === "onboarding");
   const authenticatedTargetPath = useMemo(() => {
-    if (!isAuthenticated || !profileReady) {
+    if (!isAuthenticated || !profileReady || !premiumReady) {
       return null;
     }
 
-    return getAllowedPath(mode, onboardingCompleted);
-  }, [isAuthenticated, mode, onboardingCompleted, profileReady]);
+    return getAllowedPath(mode, onboardingCompleted, { requiresPremiumAccess });
+  }, [isAuthenticated, mode, onboardingCompleted, premiumReady, profileReady, requiresPremiumAccess]);
 
   useEffect(() => {
     if (!shouldLoadProfile || !profileQuery.isLoading) {
@@ -101,6 +111,9 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
       profileLoading: profileQuery.isLoading,
       hasProfile: Boolean(profileQuery.data),
       onboardingCompleted,
+      premiumLoading: premium.isLoading,
+      hasPremiumAccess: premium.hasPremiumAccess,
+      requiresPremiumAccess,
       sessionStatus,
     });
   }, [
@@ -111,8 +124,11 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
     mode,
     onboardingCompleted,
     pathname,
+    premium.hasPremiumAccess,
+    premium.isLoading,
     profileQuery.data,
     profileQuery.isLoading,
+    requiresPremiumAccess,
     sessionStatus,
   ]);
 
@@ -133,7 +149,9 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
       targetPath = authenticatedTargetPath;
     }
 
-    if (!targetPath || pathname === targetPath) {
+    const targetPathname = targetPath?.split("?")[0] ?? null;
+
+    if (!targetPath || pathname === targetPathname) {
       redirectInFlightRef.current = null;
       return;
     }
@@ -151,6 +169,7 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
     isReady,
     mode,
     pathname,
+    premiumReady,
     profileQuery.isLoading,
     profileLoadTimedOut,
     router,
@@ -167,9 +186,9 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
           : mode === "public"
             ? "public-children"
             : "sign-in"
-        : profileQuery.isLoading && !profileLoadTimedOut
+        : (profileQuery.isLoading && !profileLoadTimedOut) || !premiumReady
           ? "booting"
-          : authenticatedTargetPath && pathname !== authenticatedTargetPath
+          : authenticatedTargetPath && pathname !== authenticatedTargetPath.split("?")[0]
             ? "redirecting"
             : activeGroup !== expectedGroup
               ? "redirecting"
@@ -215,6 +234,9 @@ export default function RouteGate({ children, mode }: RouteGateProps) {
       profileReady,
       appReady: isReady,
       sessionStatus,
+      premiumReady,
+      hasPremiumAccess: premium.hasPremiumAccess,
+      requiresPremiumAccess,
     });
   }
   return (

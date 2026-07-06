@@ -88,7 +88,7 @@ export default function ReferralScreen() {
     <OnboardingScaffold
       title="Supporting a creator?"
       subtitle="If someone recommended LiveWithMS, enter their code below so they receive credit if you become a Premium member."
-      step={8}
+      step={9}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={handleSkip}
       backLabel="Skip"

@@ -1,94 +1,92 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import OnboardingOptionSelector from "../../components/onboarding/OnboardingOptionSelector";
 import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
-import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
+import { ONBOARDING_STEPS, ONBOARDING_TRACKING_OPTIONS } from "../../features/onboarding/constants";
 import { useOnboarding } from "../../features/onboarding/hooks";
-import {
-  deriveGoalsFromPriorities,
-  getSelectedOnboardingPriorities,
-  ONBOARDING_PRIORITY_OPTIONS,
-  toggleOnboardingPriority,
-  type OnboardingPriorityKey,
-} from "../../features/onboarding/personalization";
-import { trackEvent } from "../../lib/events";
+import { persistOnboardingDraftSnapshot } from "../../features/onboarding/preferences";
+import { buildOnboardingSymptoms } from "../../features/onboarding/personalization";
 
-export default function PrioritiesScreen() {
+export default function TrackingFocusScreen() {
   const router = useRouter();
   const { draft, setDraft, saveStep, isSavingStep } = useOnboarding();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const selectedPriorities = getSelectedOnboardingPriorities(draft);
 
-  const handleSelect = (key: OnboardingPriorityKey) => {
+  const toggleOption = (value: string) => {
     setErrorMessage(null);
-    const nextDraft = toggleOnboardingPriority(draft, key);
-    const nextSelectedPriorities = getSelectedOnboardingPriorities(nextDraft);
-    const isSelected = nextSelectedPriorities.includes(key);
-    setDraft(nextDraft);
-    void trackEvent("onboarding_priority_selected", {
-      priority: key,
-      selected: isSelected,
-      selectedCount: nextSelectedPriorities.length,
-      selectedKeys: nextSelectedPriorities.join("|"),
-    });
+    setDraft((current) => ({
+      ...current,
+      tracking_focuses: current.tracking_focuses.includes(value)
+        ? current.tracking_focuses.filter((item) => item !== value)
+        : [...current.tracking_focuses, value],
+    }));
   };
 
   const handleNext = async () => {
-    const goals = deriveGoalsFromPriorities(draft.symptoms);
-    setDraft((current) => ({
-      ...current,
-      goals,
-    }));
+    if (isSavingStep) {
+      return;
+    }
+
+    const compiledSymptoms = buildOnboardingSymptoms(draft);
+    if (compiledSymptoms.length === 0) {
+      setErrorMessage("Choose at least one thing you want to track.");
+      return;
+    }
+
+    const nextDraft = {
+      ...draft,
+      symptoms: compiledSymptoms,
+    };
+    setDraft(nextDraft);
+    await persistOnboardingDraftSnapshot(nextDraft);
+
     const ok = await saveStep({
-      symptoms: draft.symptoms,
-      goals,
+      symptoms: compiledSymptoms,
     });
+
     if (!ok) {
       setErrorMessage("Could not save profile. Please try again.");
       return;
     }
 
-    router.push("/exercises");
+    setErrorMessage(null);
+    router.push("/plan");
   };
 
   return (
     <OnboardingScaffold
-      title="Support tools for difficult days."
-      subtitle="Use guided tools for fatigue, overwhelm, pacing, planning, and recovery."
+      title="What do you want to track most often?"
+      subtitle="LiveWithMS can start with the symptoms, body signals, and daily factors that matter most to you."
       step={3}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
       onNext={handleNext}
       nextLabel="Continue"
-      nextDisabled={isSavingStep}
       loading={isSavingStep}
       errorMessage={errorMessage}
     >
       <View style={styles.stack}>
         <View style={styles.infoCard}>
-          <AppText style={styles.infoTitle}>Choose what matters most right now.</AppText>
-          <AppText style={styles.infoBody}>This helps Today, Coach, Programs, and Insights start with more useful context.</AppText>
+          <AppText style={styles.infoTitle}>Track what is worth watching.</AppText>
+          <AppText style={styles.infoBody}>
+            You do not need to track everything. Choosing a few useful signals can make patterns easier to understand.
+          </AppText>
         </View>
-        <View style={styles.chipGrid}>
-          {ONBOARDING_PRIORITY_OPTIONS.map((option) => {
-            const isSelected = selectedPriorities.includes(option.key);
 
-            return (
-              <Pressable
-                key={option.key}
-                onPress={() => handleSelect(option.key)}
-                style={({ pressed }) => [
-                  styles.chip,
-                  isSelected && styles.chipSelected,
-                  pressed && styles.chipPressed,
-                ]}
-              >
-                <AppText style={[styles.chipLabel, isSelected && styles.chipLabelSelected]}>{option.title}</AppText>
-              </Pressable>
-            );
-          })}
-        </View>
+        <OnboardingOptionSelector
+          options={ONBOARDING_TRACKING_OPTIONS}
+          selected={draft.tracking_focuses}
+          onToggle={toggleOption}
+          customValue={draft.tracking_focuses_custom}
+          onCustomChange={(value) => {
+            setErrorMessage(null);
+            setDraft((current) => ({ ...current, tracking_focuses_custom: value }));
+          }}
+          customPlaceholder="Other thing to track"
+          helperText="Add anything you want to keep an eye on regularly."
+        />
       </View>
     </OnboardingScaffold>
   );
@@ -98,14 +96,9 @@ const styles = StyleSheet.create({
   stack: {
     gap: 16,
   },
-  chipGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
   infoCard: {
     backgroundColor: "#ffffff",
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
@@ -113,36 +106,12 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 18,
+    lineHeight: 24,
     fontWeight: "700",
     color: "#1f2937",
   },
   infoBody: {
-    color: "#4b5563",
+    color: "#6b7280",
     lineHeight: 22,
-  },
-  chip: {
-    minHeight: 50,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#ead9cb",
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    justifyContent: "center",
-  },
-  chipSelected: {
-    borderColor: "#e8a66f",
-    backgroundColor: "#fff4ea",
-  },
-  chipPressed: {
-    opacity: 0.84,
-  },
-  chipLabel: {
-    color: "#4b5563",
-    lineHeight: 20,
-    fontWeight: "600",
-  },
-  chipLabelSelected: {
-    color: "#b85b14",
   },
 });

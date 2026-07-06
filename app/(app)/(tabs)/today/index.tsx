@@ -2306,6 +2306,7 @@ export default function TodayScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.overviewCard}>
+          <View pointerEvents="none" style={styles.overviewGlow} />
           <AppText style={styles.todayDate}>
             {formatLongDate(today)}
             {todayEntry ? " • Check-in saved ✓" : ""}
@@ -3013,12 +3014,27 @@ const styles = StyleSheet.create({
     color: "#6b7280",
   },
   overviewCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: "#fff4e9",
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#f1e1d4",
-    padding: 18,
-    gap: 8,
+    borderColor: "#f2c8a7",
+    padding: 20,
+    gap: 10,
+    shadowColor: "rgba(120, 71, 29, 0.22)",
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
+  overviewGlow: {
+    position: "absolute",
+    top: -40,
+    right: -18,
+    width: 170,
+    height: 170,
+    borderRadius: 999,
+    backgroundColor: "rgba(255, 255, 255, 0.58)",
   },
   greeting: {
     fontSize: 14,
@@ -3028,7 +3044,8 @@ const styles = StyleSheet.create({
   },
   todayDate: {
     fontSize: 14,
-    color: "#6b7280",
+    color: "#8b5a2b",
+    fontWeight: "600",
   },
   streakPill: {
     alignSelf: "flex-start",
@@ -3077,12 +3094,17 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   dailyIntelligenceCard: {
-    backgroundColor: "#f7faf9",
-    borderRadius: 20,
+    backgroundColor: "#f3fbf7",
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#dce8e3",
+    borderColor: "#cfe3db",
     padding: 18,
-    gap: 8,
+    gap: 10,
+    shadowColor: "rgba(69, 107, 97, 0.12)",
+    shadowOpacity: 1,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
   },
   dailyIntelligenceLabel: {
     fontSize: 12,
@@ -3093,9 +3115,9 @@ const styles = StyleSheet.create({
   },
   dailyIntelligenceTitle: {
     color: "#1f2937",
-    fontSize: 19,
-    lineHeight: 26,
-    fontWeight: "700",
+    fontSize: 21,
+    lineHeight: 29,
+    fontWeight: "800",
   },
   dailyIntelligenceBody: {
     color: "#4b5563",
@@ -3103,10 +3125,10 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   todayPlanCard: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "#fffdfb",
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#ead9cb",
+    borderColor: "#efd7c4",
     padding: 18,
     gap: 14,
   },
@@ -3385,10 +3407,10 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   navCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
+    backgroundColor: "#fffdfb",
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#f1e1d4",
+    borderColor: "#efd7c4",
     padding: 18,
     gap: 12,
   },
@@ -3797,10 +3819,10 @@ const styles = StyleSheet.create({
     color: "#1f2937",
   },
   guidanceCard: {
-    backgroundColor: "#fffaf6",
+    backgroundColor: "#fff7f1",
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#f2dfcf",
+    borderColor: "#f0d4be",
     padding: 18,
     gap: 14,
   },

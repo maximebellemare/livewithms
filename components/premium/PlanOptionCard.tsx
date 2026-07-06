@@ -53,17 +53,22 @@ export default function PlanOptionCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSoft,
     padding: 18,
     gap: 16,
-    ...shadows.soft,
+    ...shadows.floating,
   },
   cardSelected: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accentSoft,
+    borderColor: colors.accentDeep,
+    backgroundColor: colors.surfaceAccent,
+    shadowColor: colors.accentGlow,
+    shadowOpacity: 1,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
   cardDisabled: {
     opacity: 0.92,
@@ -101,6 +106,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: radii.pill,
+    overflow: "hidden",
   },
   priceContainer: {
     width: "100%",

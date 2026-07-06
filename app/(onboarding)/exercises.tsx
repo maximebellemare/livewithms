@@ -4,20 +4,21 @@ import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
 import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
 
-const EXERCISE_POINTS = [
-  "Memory Match and Sequence Recall",
-  "Reaction Check and Pattern Spotting",
-  "Steady Tap and Focus Sprint",
-];
+const FLOW_STEPS = [
+  "Track symptoms, sleep, water, mood, energy, and habits",
+  "LiveWithMS organizes your information into one place",
+  "Patterns may become easier to notice over time",
+  "You can prepare clearer notes for yourself or your clinician",
+] as const;
 
-export default function ExercisesIntroScreen() {
+export default function TrackingValueScreen() {
   const router = useRouter();
 
   return (
     <OnboardingScaffold
-      title="Gentle cognitive and focus exercises."
-      subtitle="Short exercises designed for attention, memory, focus, and consistency."
-      step={4}
+      title="The more you track, the better your insights become."
+      subtitle="You do not need perfect data. A few consistent check-ins can still help you stay organized and notice useful patterns."
+      step={5}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
       onNext={() => router.push("/community-intro")}
@@ -25,19 +26,29 @@ export default function ExercisesIntroScreen() {
     >
       <View style={styles.stack}>
         <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>Short practice, no pressure.</AppText>
+          <AppText style={styles.heroTitle}>Simple in. Clearer out.</AppText>
           <AppText style={styles.heroBody}>
-            Exercises are calm, optional, and built without leaderboards or streak pressure.
+            LiveWithMS is designed to turn short daily tracking into something easier to understand later.
           </AppText>
         </View>
 
-        <View style={styles.listCard}>
-          {EXERCISE_POINTS.map((point) => (
-            <View key={point} style={styles.listRow}>
-              <View style={styles.dot} />
-              <AppText style={styles.listText}>{point}</AppText>
+        <View style={styles.flowCard}>
+          {FLOW_STEPS.map((line, index) => (
+            <View key={line} style={styles.flowRow}>
+              <View style={styles.stepBadge}>
+                <AppText style={styles.stepBadgeText}>{index + 1}</AppText>
+              </View>
+              <View style={styles.flowTextBlock}>
+                <AppText style={styles.flowText}>{line}</AppText>
+              </View>
             </View>
           ))}
+        </View>
+
+        <View style={styles.noteCard}>
+          <AppText style={styles.noteText}>
+            Insights may help you notice what appeared together over time, but they do not diagnose, treat, or replace clinical care.
+          </AppText>
         </View>
       </View>
     </OnboardingScaffold>
@@ -46,19 +57,19 @@ export default function ExercisesIntroScreen() {
 
 const styles = StyleSheet.create({
   stack: {
-    gap: 16,
+    gap: 18,
   },
   heroCard: {
-    backgroundColor: "#fff4ec",
-    borderRadius: 22,
+    backgroundColor: "#fff4ea",
+    borderRadius: 26,
     borderWidth: 1,
-    borderColor: "#f2d8c4",
-    padding: 18,
+    borderColor: "#f3d5bc",
+    padding: 20,
     gap: 8,
   },
   heroTitle: {
     fontSize: 24,
-    lineHeight: 32,
+    lineHeight: 30,
     fontWeight: "700",
     color: "#1f2937",
   },
@@ -66,29 +77,50 @@ const styles = StyleSheet.create({
     color: "#4b5563",
     lineHeight: 22,
   },
-  listCard: {
+  flowCard: {
     backgroundColor: "#ffffff",
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 12,
+    gap: 14,
   },
-  listRow: {
+  flowRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
   },
-  dot: {
-    width: 8,
-    height: 8,
+  stepBadge: {
+    width: 28,
+    height: 28,
     borderRadius: 999,
-    marginTop: 8,
-    backgroundColor: "#d98641",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff0e1",
+    borderWidth: 1,
+    borderColor: "#efc7a6",
   },
-  listText: {
+  stepBadgeText: {
+    color: "#b85b14",
+    fontWeight: "700",
+  },
+  flowTextBlock: {
     flex: 1,
+    paddingTop: 2,
+  },
+  flowText: {
     color: "#4b5563",
     lineHeight: 22,
+  },
+  noteCard: {
+    backgroundColor: "#fffaf6",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f1e1d4",
+    padding: 16,
+  },
+  noteText: {
+    color: "#8b6a4f",
+    lineHeight: 21,
   },
 });

@@ -37,12 +37,22 @@ describe("revenuecat debug snapshot", () => {
       [
         {
           identifier: "$rc_monthly",
+          packageType: "MONTHLY",
           product: {
             identifier: "premium_monthly",
             title: "Monthly",
             priceString: "$9.99",
             price: 9.99,
             currencyCode: "USD",
+            subscriptionPeriod: "P1M",
+            introPrice: {
+              price: 0,
+              priceString: "$0.00",
+              cycles: 1,
+              period: "P3D",
+              periodUnit: "DAY",
+              periodNumberOfUnits: 3,
+            },
           },
         },
       ],
@@ -51,6 +61,10 @@ describe("revenuecat debug snapshot", () => {
     expect(snapshot.productIdentifiers).toEqual(["premium_monthly"]);
     expect(snapshot.products[0]?.priceString).toBe("$9.99");
     expect(snapshot.products[0]?.currencyCode).toBe("USD");
+    expect(snapshot.products[0]?.packageType).toBe("MONTHLY");
+    expect(snapshot.products[0]?.subscriptionPeriod).toBe("P1M");
+    expect(snapshot.products[0]?.introductoryOffer?.period).toBe("P3D");
+    expect(snapshot.products[0]?.introductoryOffer?.periodNumberOfUnits).toBe(3);
   });
 
   it("marks empty packages with a clear debug error", () => {

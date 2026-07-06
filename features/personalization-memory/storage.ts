@@ -24,6 +24,12 @@ const DEFAULT_INTERACTION_STYLE_PROFILE: InteractionStyleProfile = {
 const EMPTY_MEMORY: PersonalizationMemory = {
   onboardingGoals: [],
   onboardingSymptoms: [],
+  onboardingChallenges: [],
+  onboardingTrackingFocuses: [],
+  onboardingHelpFirst: [],
+  onboardingChallengesCustom: null,
+  onboardingTrackingFocusesCustom: null,
+  onboardingMotivationLevel: null,
   onboardingSupportStyleOverride: null,
   onboardingPreferredDensityOverride: null,
   onboardingComplexityToleranceOverride: null,
@@ -76,6 +82,19 @@ export async function loadPersonalizationMemory(): Promise<PersonalizationMemory
       ...parsed,
       onboardingGoals: sanitizeStringArray(parsed.onboardingGoals, 6),
       onboardingSymptoms: sanitizeStringArray(parsed.onboardingSymptoms, 6),
+      onboardingChallenges: sanitizeStringArray(parsed.onboardingChallenges, 8),
+      onboardingTrackingFocuses: sanitizeStringArray(parsed.onboardingTrackingFocuses, 8),
+      onboardingHelpFirst: sanitizeStringArray(parsed.onboardingHelpFirst, 8),
+      onboardingChallengesCustom:
+        typeof parsed.onboardingChallengesCustom === "string" ? parsed.onboardingChallengesCustom : null,
+      onboardingTrackingFocusesCustom:
+        typeof parsed.onboardingTrackingFocusesCustom === "string" ? parsed.onboardingTrackingFocusesCustom : null,
+      onboardingMotivationLevel:
+        parsed.onboardingMotivationLevel === "just-getting-started" ||
+        parsed.onboardingMotivationLevel === "somewhat-motivated" ||
+        parsed.onboardingMotivationLevel === "very-motivated"
+          ? parsed.onboardingMotivationLevel
+          : null,
       preferredProgramTags: sanitizeStringArray(parsed.preferredProgramTags, 4) as PersonalizationMemory["preferredProgramTags"],
       preferredCheckinWindows: sanitizeStringArray(parsed.preferredCheckinWindows, 2) as PersonalizationMemory["preferredCheckinWindows"],
       interactionStyleProfile:
@@ -105,6 +124,9 @@ export async function savePersonalizationMemory(memory: PersonalizationMemory) {
       ...memory,
       onboardingGoals: memory.onboardingGoals.slice(0, 6),
       onboardingSymptoms: memory.onboardingSymptoms.slice(0, 6),
+      onboardingChallenges: (memory.onboardingChallenges ?? []).slice(0, 8),
+      onboardingTrackingFocuses: (memory.onboardingTrackingFocuses ?? []).slice(0, 8),
+      onboardingHelpFirst: (memory.onboardingHelpFirst ?? []).slice(0, 8),
       preferredProgramTags: (memory.preferredProgramTags ?? []).slice(0, 4),
       preferredCheckinWindows: (memory.preferredCheckinWindows ?? []).slice(0, 2),
     };

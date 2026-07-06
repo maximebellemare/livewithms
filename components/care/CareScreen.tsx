@@ -1645,7 +1645,7 @@ export function NutritionScreenContent() {
 
   return (
     <ScrollView ref={scrollViewRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-      <View style={styles.card}>
+      <View style={[styles.card, styles.heroCard]}>
         <View style={styles.formHeaderCopy}>
           <AppText style={styles.title}>Nutrition Support</AppText>
           <AppText style={styles.body}>Plan meals, check foods, and find simple nutrition ideas that support your day.</AppText>
@@ -3828,12 +3828,17 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   heroCard: {
-    backgroundColor: "#fff4ec",
-    borderRadius: 20,
+    backgroundColor: "#fff3e8",
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#f2d8c4",
-    padding: 18,
-    gap: 10,
+    borderColor: "#f1c8a7",
+    padding: 20,
+    gap: 12,
+    shadowColor: "rgba(120, 71, 29, 0.22)",
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
   },
   lowEnergyBanner: {
     borderRadius: 14,
@@ -3895,18 +3900,18 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   quickLinksCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
+    backgroundColor: "#fffdfb",
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#f1e1d4",
+    borderColor: "#efd7c4",
     padding: 18,
     gap: 14,
   },
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
+    backgroundColor: "#fffdfb",
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#f1e1d4",
+    borderColor: "#efd7c4",
     padding: 18,
     gap: 14,
   },
@@ -3916,10 +3921,11 @@ const styles = StyleSheet.create({
     color: "#1f2937",
   },
   heroTitle: {
-    fontSize: 22,
-    lineHeight: 30,
-    fontWeight: "700",
+    fontSize: 26,
+    lineHeight: 34,
+    fontWeight: "800",
     color: "#1f2937",
+    letterSpacing: -0.4,
   },
   body: {
     color: "#4b5563",
@@ -3939,10 +3945,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   nutritionPlannerCard: {
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#eadfd6",
-    backgroundColor: "#fffaf6",
+    borderColor: "#efd7c4",
+    backgroundColor: "#fff7f1",
     padding: 14,
     gap: 16,
   },
@@ -4068,18 +4074,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   nutritionMealCard: {
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#f3dfd1",
-    backgroundColor: "#fffaf6",
+    borderColor: "#efd7c4",
+    backgroundColor: "#fff8f2",
     padding: 14,
     gap: 10,
   },
   foodAnalysisCard: {
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#eadfd6",
-    backgroundColor: "#ffffff",
+    borderColor: "#efd7c4",
+    backgroundColor: "#fffdfb",
     padding: 14,
     gap: 12,
   },
@@ -4152,10 +4158,10 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   groceryListCard: {
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#eadfd6",
-    backgroundColor: "#ffffff",
+    borderColor: "#efd7c4",
+    backgroundColor: "#fff8f2",
     padding: 12,
     gap: 6,
   },

@@ -6,11 +6,21 @@ export const ENABLE_RC_DEBUG_PANEL = ENABLE_PREMIUM_DEBUG_TOOLS;
 
 export type RevenueCatDebugProduct = {
   packageIdentifier: string;
+  packageType: string | null;
   productIdentifier: string;
   title: string | null;
   priceString: string | null;
   price: number | null;
   currencyCode: string | null;
+  subscriptionPeriod: string | null;
+  introductoryOffer: {
+    price: number | null;
+    priceString: string | null;
+    cycles: number | null;
+    period: string | null;
+    periodUnit: string | null;
+    periodNumberOfUnits: number | null;
+  } | null;
 };
 
 export type RevenueCatDebugSnapshot = {
@@ -47,12 +57,22 @@ export type RevenueCatDebugSnapshot = {
 
 type RevenueCatDebugPackageLike = {
   identifier: string;
+  packageType?: string | null;
   product: {
     identifier: string;
     title?: string | null;
     priceString?: string | null;
     price?: number | null;
     currencyCode?: string | null;
+    subscriptionPeriod?: string | null;
+    introPrice?: {
+      price?: number | null;
+      priceString?: string | null;
+      cycles?: number | null;
+      period?: string | null;
+      periodUnit?: string | null;
+      periodNumberOfUnits?: number | null;
+    } | null;
   };
 };
 
@@ -127,11 +147,26 @@ export function withRevenueCatOfferings(
 ) {
   const products = packages.map((pkg) => ({
     packageIdentifier: pkg.identifier,
+    packageType: pkg.packageType ?? null,
     productIdentifier: pkg.product.identifier,
     title: pkg.product.title ?? null,
     priceString: pkg.product.priceString ?? null,
     price: typeof pkg.product.price === "number" ? pkg.product.price : null,
     currencyCode: pkg.product.currencyCode ?? null,
+    subscriptionPeriod: pkg.product.subscriptionPeriod ?? null,
+    introductoryOffer: pkg.product.introPrice
+      ? {
+          price: typeof pkg.product.introPrice.price === "number" ? pkg.product.introPrice.price : null,
+          priceString: pkg.product.introPrice.priceString ?? null,
+          cycles: typeof pkg.product.introPrice.cycles === "number" ? pkg.product.introPrice.cycles : null,
+          period: pkg.product.introPrice.period ?? null,
+          periodUnit: pkg.product.introPrice.periodUnit ?? null,
+          periodNumberOfUnits:
+            typeof pkg.product.introPrice.periodNumberOfUnits === "number"
+              ? pkg.product.introPrice.periodNumberOfUnits
+              : null,
+        }
+      : null,
   }));
 
   return {

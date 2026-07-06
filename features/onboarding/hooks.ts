@@ -7,6 +7,11 @@ import { trackDiagnosticEvent, trackEvent } from "../../lib/events";
 import { logger } from "../../lib/logger";
 import type { ConsentState, OnboardingDraft } from "./types";
 import {
+  buildOnboardingGoals,
+  buildOnboardingSymptoms,
+  hydrateChallengesFromSymptoms,
+  hydrateHelpFirstFromGoals,
+  hydrateTrackingFromSymptoms,
   getSelectedOnboardingFocus,
   getSelectedOnboardingFocuses,
   getSelectedOnboardingPriorities,
@@ -23,6 +28,12 @@ const EMPTY_DRAFT: OnboardingDraft = {
   year_diagnosed: "",
   symptoms: [],
   goals: [],
+  hardest_challenges: [],
+  hardest_challenges_custom: "",
+  tracking_focuses: [],
+  tracking_focuses_custom: "",
+  help_first: [],
+  motivation_level: "",
   country: "",
   age_range: "",
   support_style: "",
@@ -78,6 +89,11 @@ export function useOnboarding() {
       year_diagnosed: profile?.year_diagnosed ?? "",
       symptoms: profile?.symptoms ?? [],
       goals: profile?.goals ?? [],
+      hardest_challenges: hydrateChallengesFromSymptoms(profile?.symptoms ?? []).selected,
+      hardest_challenges_custom: hydrateChallengesFromSymptoms(profile?.symptoms ?? []).customText,
+      tracking_focuses: hydrateTrackingFromSymptoms(profile?.symptoms ?? []).selected,
+      tracking_focuses_custom: hydrateTrackingFromSymptoms(profile?.symptoms ?? []).customText,
+      help_first: hydrateHelpFirstFromGoals(profile?.goals ?? []),
       country: profile?.country ?? "",
       age_range: profile?.age_range ?? "",
     }));
@@ -102,6 +118,21 @@ export function useOnboarding() {
             }),
           low_energy_mode: lowEnergyMode.enabled,
           reminder_preference: reminderSettings.enabled ? "enable" : "skip",
+          hardest_challenges:
+            current.hardest_challenges.length > 0
+              ? current.hardest_challenges
+              : memory.onboardingChallenges ?? current.hardest_challenges,
+          hardest_challenges_custom:
+            current.hardest_challenges_custom || memory.onboardingChallengesCustom || "",
+          tracking_focuses:
+            current.tracking_focuses.length > 0
+              ? current.tracking_focuses
+              : memory.onboardingTrackingFocuses ?? current.tracking_focuses,
+          tracking_focuses_custom:
+            current.tracking_focuses_custom || memory.onboardingTrackingFocusesCustom || "",
+          help_first:
+            current.help_first.length > 0 ? current.help_first : memory.onboardingHelpFirst ?? current.help_first,
+          motivation_level: current.motivation_level || memory.onboardingMotivationLevel || "",
         }));
       },
     );
@@ -178,8 +209,8 @@ export function useOnboarding() {
       display_name: draft.display_name || null,
       ms_type: draft.ms_type || null,
       year_diagnosed: draft.year_diagnosed || null,
-      symptoms: draft.symptoms ?? [],
-      goals: draft.goals ?? [],
+      symptoms: buildOnboardingSymptoms(draft),
+      goals: buildOnboardingGoals(draft),
       country: draft.country || null,
       age_range: draft.age_range || null,
     };
@@ -287,6 +318,12 @@ export function useOnboarding() {
 function currentDraftDefaults(draft: OnboardingDraft): OnboardingDraft {
   return {
     ...EMPTY_DRAFT,
+    hardest_challenges: draft.hardest_challenges,
+    hardest_challenges_custom: draft.hardest_challenges_custom,
+    tracking_focuses: draft.tracking_focuses,
+    tracking_focuses_custom: draft.tracking_focuses_custom,
+    help_first: draft.help_first,
+    motivation_level: draft.motivation_level,
     support_style: draft.support_style,
     low_energy_mode: draft.low_energy_mode,
     reminder_preference: draft.reminder_preference,

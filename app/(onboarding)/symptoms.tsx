@@ -1,44 +1,92 @@
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { StyleSheet, View } from "react-native";
+import OnboardingOptionSelector from "../../components/onboarding/OnboardingOptionSelector";
 import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
-import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
+import { ONBOARDING_CHALLENGE_OPTIONS, ONBOARDING_STEPS } from "../../features/onboarding/constants";
+import { useOnboarding } from "../../features/onboarding/hooks";
+import { persistOnboardingDraftSnapshot } from "../../features/onboarding/preferences";
+import { buildOnboardingSymptoms } from "../../features/onboarding/personalization";
 
-const TRACKING_POINTS = [
-  "Energy, fatigue, mood, and stress",
-  "Sleep, hydration, symptoms, and recovery",
-  "Daily notes that can support clearer patterns",
-];
-
-export default function TrackingIntroScreen() {
+export default function ChallengesScreen() {
   const router = useRouter();
+  const { draft, setDraft, saveStep, isSavingStep } = useOnboarding();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const toggleOption = (value: string) => {
+    setErrorMessage(null);
+    setDraft((current) => ({
+      ...current,
+      hardest_challenges: current.hardest_challenges.includes(value)
+        ? current.hardest_challenges.filter((item) => item !== value)
+        : [...current.hardest_challenges, value],
+    }));
+  };
+
+  const handleNext = async () => {
+    if (isSavingStep) {
+      return;
+    }
+
+    const compiledSymptoms = buildOnboardingSymptoms(draft);
+    if (compiledSymptoms.length === 0) {
+      setErrorMessage("Choose at least one area that feels hardest right now.");
+      return;
+    }
+
+    const nextDraft = {
+      ...draft,
+      symptoms: compiledSymptoms,
+    };
+    setDraft(nextDraft);
+    await persistOnboardingDraftSnapshot(nextDraft);
+
+    const ok = await saveStep({
+      symptoms: compiledSymptoms,
+    });
+
+    if (!ok) {
+      setErrorMessage("Could not save profile. Please try again.");
+      return;
+    }
+
+    setErrorMessage(null);
+    router.push("/goals");
+  };
 
   return (
     <OnboardingScaffold
-      title="Understand your patterns over time."
-      subtitle="Track energy, mood, stress, sleep, symptoms, and recovery."
+      title="What feels hardest to manage with MS right now?"
+      subtitle="Choose more than one if you want. This helps LiveWithMS start with the right support."
       step={2}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
-      onNext={() => router.push("/goals")}
+      onNext={handleNext}
       nextLabel="Continue"
+      loading={isSavingStep}
+      errorMessage={errorMessage}
     >
       <View style={styles.stack}>
-        <View style={styles.heroCard}>
-          <AppText style={styles.heroTitle}>A short check-in is enough to begin.</AppText>
-          <AppText style={styles.heroBody}>
-            Insights become more useful as simple daily entries build context.
+        <View style={styles.infoCard}>
+          <AppText style={styles.infoTitle}>Start with what feels real today.</AppText>
+          <AppText style={styles.infoBody}>
+            These answers help shape Today, Coach, Programs, and the first patterns you see later.
           </AppText>
         </View>
 
-        <View style={styles.listCard}>
-          {TRACKING_POINTS.map((point) => (
-            <View key={point} style={styles.listRow}>
-              <View style={styles.dot} />
-              <AppText style={styles.listText}>{point}</AppText>
-            </View>
-          ))}
-        </View>
+        <OnboardingOptionSelector
+          options={ONBOARDING_CHALLENGE_OPTIONS}
+          selected={draft.hardest_challenges}
+          onToggle={toggleOption}
+          customValue={draft.hardest_challenges_custom}
+          onCustomChange={(value) => {
+            setErrorMessage(null);
+            setDraft((current) => ({ ...current, hardest_challenges_custom: value }));
+          }}
+          customPlaceholder="Other challenge"
+          helperText="You can add a custom challenge if something important is missing."
+        />
       </View>
     </OnboardingScaffold>
   );
@@ -48,47 +96,22 @@ const styles = StyleSheet.create({
   stack: {
     gap: 16,
   },
-  heroCard: {
-    backgroundColor: "#fff4ec",
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#f2d8c4",
-    padding: 18,
-    gap: 8,
-  },
-  heroTitle: {
-    fontSize: 24,
-    lineHeight: 32,
-    fontWeight: "700",
-    color: "#1f2937",
-  },
-  heroBody: {
-    color: "#4b5563",
-    lineHeight: 22,
-  },
-  listCard: {
+  infoCard: {
     backgroundColor: "#ffffff",
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 12,
+    gap: 6,
   },
-  listRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
+  infoTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "700",
+    color: "#1f2937",
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    marginTop: 8,
-    backgroundColor: "#d98641",
-  },
-  listText: {
-    flex: 1,
-    color: "#4b5563",
+  infoBody: {
+    color: "#6b7280",
     lineHeight: 22,
   },
 });

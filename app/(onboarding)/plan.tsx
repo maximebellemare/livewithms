@@ -1,99 +1,118 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import OnboardingOptionSelector from "../../components/onboarding/OnboardingOptionSelector";
 import OnboardingScaffold from "../../components/onboarding/OnboardingScaffold";
 import AppText from "../../components/ui/AppText";
-import { ONBOARDING_STEPS } from "../../features/onboarding/constants";
-import { useOnboarding } from "../../features/onboarding/hooks";
-import { persistOnboardingSupportStyle } from "../../features/onboarding/preferences";
 import {
-  ONBOARDING_SUPPORT_STYLE_OPTIONS,
-  type OnboardingSupportStyleKey,
-} from "../../features/onboarding/personalization";
+  ONBOARDING_HELP_FIRST_OPTIONS,
+  ONBOARDING_MOTIVATION_OPTIONS,
+  ONBOARDING_STEPS,
+} from "../../features/onboarding/constants";
+import { useOnboarding } from "../../features/onboarding/hooks";
+import { persistOnboardingDraftSnapshot } from "../../features/onboarding/preferences";
+import { buildOnboardingGoals } from "../../features/onboarding/personalization";
 
-export default function SupportStyleScreen() {
+export default function HelpFirstScreen() {
   const router = useRouter();
-  const { draft, setDraft } = useOnboarding();
-  const [isSaving, setIsSaving] = useState(false);
+  const { draft, setDraft, saveStep, isSavingStep } = useOnboarding();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const selectedStyle = draft.support_style;
-
-  const handleSelect = (key: OnboardingSupportStyleKey) => {
+  const toggleHelpFirst = (value: string) => {
+    setErrorMessage(null);
     setDraft((current) => ({
       ...current,
-      support_style: key,
-      low_energy_mode: key === "low-energy",
+      help_first: current.help_first.includes(value)
+        ? current.help_first.filter((item) => item !== value)
+        : [...current.help_first, value],
     }));
   };
 
   const handleNext = async () => {
-    if (isSaving) {
+    if (isSavingStep) {
       return;
     }
 
-    setIsSaving(true);
-
-    try {
-      const nextStyle = selectedStyle || "steady";
-      if (!selectedStyle) {
-        setDraft((current) => ({
-          ...current,
-          support_style: nextStyle,
-          low_energy_mode: false,
-        }));
-      }
-      await persistOnboardingSupportStyle(nextStyle);
-      router.push("/referral");
-    } finally {
-      setIsSaving(false);
+    const compiledGoals = buildOnboardingGoals(draft);
+    if (compiledGoals.length === 0) {
+      setErrorMessage("Choose at least one kind of help you want first.");
+      return;
     }
+
+    if (!draft.motivation_level) {
+      setErrorMessage("Choose how motivated you feel for the next 7 days.");
+      return;
+    }
+
+    const nextDraft = {
+      ...draft,
+      goals: compiledGoals,
+    };
+    setDraft(nextDraft);
+    await persistOnboardingDraftSnapshot(nextDraft);
+
+    const ok = await saveStep({
+      goals: compiledGoals,
+    });
+
+    if (!ok) {
+      setErrorMessage("Could not save profile. Please try again.");
+      return;
+    }
+
+    setErrorMessage(null);
+    router.push("/exercises");
   };
 
   return (
     <OnboardingScaffold
-      title="Choose your starting layout."
-      subtitle="Low-Energy Mode visibly simplifies the app. You can change this later in Profile."
-      step={7}
+      title="What would you like help with first?"
+      subtitle="This helps LiveWithMS emphasize the most useful tools first."
+      step={4}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={() => router.back()}
       onNext={handleNext}
       nextLabel="Continue"
-      nextDisabled={isSaving}
-      loading={isSaving}
+      loading={isSavingStep}
+      errorMessage={errorMessage}
     >
       <View style={styles.stack}>
-        {ONBOARDING_SUPPORT_STYLE_OPTIONS.map((option) => {
-          const isSelected = selectedStyle === option.key;
+        <OnboardingOptionSelector
+          title="Choose your first support areas"
+          description="You can choose more than one."
+          options={ONBOARDING_HELP_FIRST_OPTIONS}
+          selected={draft.help_first}
+          onToggle={toggleHelpFirst}
+        />
 
-          return (
-            <Pressable
-              key={option.key}
-              onPress={() => handleSelect(option.key)}
-              style={({ pressed }) => [
-                styles.optionCard,
-                isSelected && styles.optionCardSelected,
-                pressed && styles.optionCardPressed,
-              ]}
-            >
-              <View style={styles.optionHeader}>
-                <AppText style={styles.optionTitle}>{option.title}</AppText>
-                <View style={[styles.selectionBadge, isSelected && styles.selectionBadgeSelected]}>
-                  <AppText style={[styles.selectionBadgeText, isSelected && styles.selectionBadgeTextSelected]}>
-                    {isSelected ? "Selected" : "Choose"}
+        <View style={styles.sectionCard}>
+          <AppText style={styles.sectionTitle}>How motivated are you to track your health for the next 7 days?</AppText>
+          <View style={styles.motivationStack}>
+            {ONBOARDING_MOTIVATION_OPTIONS.map((option) => {
+              const isSelected = draft.motivation_level === option.key;
+
+              return (
+                <Pressable
+                  key={option.key}
+                  onPress={() => {
+                    setErrorMessage(null);
+                    setDraft((current) => ({ ...current, motivation_level: option.key }));
+                  }}
+                  style={({ pressed }) => [
+                    styles.motivationCard,
+                    isSelected && styles.motivationCardSelected,
+                    pressed && styles.motivationCardPressed,
+                  ]}
+                >
+                  <AppText style={[styles.motivationTitle, isSelected && styles.motivationTitleSelected]}>
+                    {option.title}
                   </AppText>
-                </View>
-              </View>
-              <AppText style={styles.optionBody}>{option.body}</AppText>
-              {option.key === "low-energy" ? (
-                <View style={styles.impactList}>
-                  <AppText style={styles.impactText}>Reduces visible suggestions</AppText>
-                  <AppText style={styles.impactText}>Shows fewer insight and exercise cards</AppText>
-                  <AppText style={styles.impactText}>Uses simplified layouts on heavier screens</AppText>
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        })}
+                  <AppText style={styles.motivationBody}>{option.body}</AppText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
       </View>
     </OnboardingScaffold>
   );
@@ -101,69 +120,51 @@ export default function SupportStyleScreen() {
 
 const styles = StyleSheet.create({
   stack: {
-    gap: 14,
+    gap: 18,
   },
-  optionCard: {
+  sectionCard: {
     backgroundColor: "#ffffff",
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "#f1e1d4",
     padding: 18,
-    gap: 6,
+    gap: 14,
   },
-  optionCardSelected: {
-    borderColor: "#e8a66f",
-    backgroundColor: "#fff9f4",
-  },
-  optionCardPressed: {
-    opacity: 0.86,
-  },
-  optionHeader: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 10,
-  },
-  optionTitle: {
+  sectionTitle: {
     fontSize: 18,
+    lineHeight: 24,
     fontWeight: "700",
     color: "#1f2937",
-    flex: 1,
   },
-  optionBody: {
-    color: "#4b5563",
-    lineHeight: 22,
+  motivationStack: {
+    gap: 12,
   },
-  impactList: {
-    gap: 4,
-    marginTop: 4,
-  },
-  impactText: {
-    color: "#6b7280",
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  selectionBadge: {
-    alignSelf: "flex-start",
-    borderRadius: 999,
+  motivationCard: {
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#ead9cb",
     backgroundColor: "#fffaf6",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    padding: 16,
+    gap: 6,
   },
-  selectionBadgeSelected: {
-    borderColor: "#e8a66f",
-    backgroundColor: "#fff0e2",
+  motivationCardSelected: {
+    borderColor: "#e88f4b",
+    backgroundColor: "#fff2e6",
   },
-  selectionBadgeText: {
-    fontSize: 12,
-    lineHeight: 16,
+  motivationCardPressed: {
+    opacity: 0.86,
+  },
+  motivationTitle: {
+    color: "#1f2937",
+    fontSize: 17,
+    lineHeight: 22,
     fontWeight: "700",
-    color: "#8b6a4f",
   },
-  selectionBadgeTextSelected: {
-    color: "#c25d10",
+  motivationTitleSelected: {
+    color: "#b85b14",
+  },
+  motivationBody: {
+    color: "#6b7280",
+    lineHeight: 21,
   },
 });

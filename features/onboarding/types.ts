@@ -23,6 +23,12 @@ export type OnboardingDraft = {
   year_diagnosed: string;
   symptoms: string[];
   goals: string[];
+  hardest_challenges: string[];
+  hardest_challenges_custom: string;
+  tracking_focuses: string[];
+  tracking_focuses_custom: string;
+  help_first: string[];
+  motivation_level: "just-getting-started" | "somewhat-motivated" | "very-motivated" | "";
   country: string;
   age_range: string;
   support_style: "short-simple" | "gentle-reflective" | "practical-structured" | "low-energy" | "";

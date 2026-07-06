@@ -542,7 +542,7 @@ export default function ProfileScreen() {
         contentContainerStyle={profileContentStyle}
         showsVerticalScrollIndicator={false}
       >
-        <View style={cardStyle}>
+        <View style={[cardStyle, styles.accountHeroCard]}>
           <AppText style={styles.sectionKicker}>Account</AppText>
           <AppText style={styles.sectionTitle}>Account</AppText>
           <View style={styles.accountRow}>
@@ -1023,12 +1023,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#111827",
   },
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 22,
+    backgroundColor: "#fffdfb",
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#f1e1d4",
+    borderColor: "#efd7c4",
     padding: 18,
     gap: 16,
+  },
+  accountHeroCard: {
+    backgroundColor: "#fff3e8",
+    borderColor: "#f1c8a7",
+    shadowColor: "rgba(120, 71, 29, 0.2)",
+    shadowOpacity: 1,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 7,
   },
   cardSimplified: {
     padding: 14,
@@ -1136,10 +1145,10 @@ const styles = StyleSheet.create({
   },
   premiumCard: {
     gap: 14,
-    borderRadius: 18,
-    backgroundColor: "#fffaf6",
+    borderRadius: 20,
+    backgroundColor: "#fff5eb",
     borderWidth: 1,
-    borderColor: "#f3dfd1",
+    borderColor: "#efcbb0",
     padding: 16,
   },
   premiumHeader: {
@@ -1153,8 +1162,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   premiumTitle: {
-    fontSize: 17,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "800",
     color: "#1f2937",
   },
   premiumBody: {
@@ -1163,7 +1172,7 @@ const styles = StyleSheet.create({
   },
   premiumBadge: {
     borderRadius: 999,
-    backgroundColor: "#fff0e5",
+    backgroundColor: "#ffffff",
     color: "#b45309",
     fontSize: 12,
     lineHeight: 16,

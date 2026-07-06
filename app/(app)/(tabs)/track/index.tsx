@@ -298,6 +298,7 @@ export default function TrackScreen() {
         ) : null}
 
         <View style={styles.heroCard}>
+          <View pointerEvents="none" style={styles.heroGlow} />
           <View style={styles.heroHeader}>
             <AppText style={styles.heroTitle}>At a glance</AppText>
             {!historyLoading && deferredTrackInsightsReady ? (
@@ -573,12 +574,27 @@ const styles = StyleSheet.create({
     color: "#9f1239",
   },
   heroCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 22,
+    overflow: "hidden",
+    backgroundColor: "#fff3e8",
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#f1e1d4",
-    padding: 18,
-    gap: 8,
+    borderColor: "#f1c8a7",
+    padding: 20,
+    gap: 10,
+    shadowColor: "rgba(120, 71, 29, 0.22)",
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
+  heroGlow: {
+    position: "absolute",
+    top: -42,
+    right: -20,
+    width: 170,
+    height: 170,
+    borderRadius: 999,
+    backgroundColor: "rgba(255, 255, 255, 0.58)",
   },
   heroHeader: {
     flexDirection: "row",
@@ -587,10 +603,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   heroTitle: {
-    fontSize: 28,
-    lineHeight: 36,
-    fontWeight: "700",
+    fontSize: 30,
+    lineHeight: 38,
+    fontWeight: "800",
     color: "#1f2937",
+    letterSpacing: -0.5,
   },
   heroSubtitle: {
     color: "#6b7280",
@@ -623,8 +640,9 @@ const styles = StyleSheet.create({
     flexBasis: "47%",
     flexGrow: 1,
     minWidth: 140,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.94)",
     padding: 12,
     gap: 4,
   },
@@ -676,10 +694,10 @@ const styles = StyleSheet.create({
     color: "#c25d10",
   },
   sectionCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
+    backgroundColor: "#fffdfb",
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#f1e1d4",
+    borderColor: "#efd7c4",
     padding: 18,
     gap: 12,
   },
@@ -715,10 +733,10 @@ const styles = StyleSheet.create({
     color: "#c25d10",
   },
   summaryCard: {
-    backgroundColor: "#fff7f2",
-    borderRadius: 20,
+    backgroundColor: "#fff7f0",
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#f2d3bd",
+    borderColor: "#efcbb0",
     padding: 18,
     gap: 8,
   },

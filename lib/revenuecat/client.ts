@@ -44,7 +44,15 @@ type RevenueCatPackage = {
     priceString: string;
     price?: number;
     currencyCode?: string;
-    subscriptionPeriod?: string;
+    subscriptionPeriod?: string | null;
+    introPrice?: {
+      price: number;
+      priceString: string;
+      cycles: number;
+      period: string;
+      periodUnit: string;
+      periodNumberOfUnits: number;
+    } | null;
   };
 };
 
@@ -106,13 +114,53 @@ function mapPackage(plan: PremiumPlan, pkg: RevenueCatPackage | null | undefined
     return null;
   }
 
+  const introOfferMetadata = deriveIntroOfferDebugMetadata(pkg);
+
   return {
     plan,
     identifier: pkg.product.identifier,
     title: pkg.product.title,
     description: pkg.product.description,
     priceString: pkg.product.priceString,
+    subscriptionPeriod: pkg.product.subscriptionPeriod ?? null,
+    introductoryOffer: introOfferMetadata.introOffer,
+    freeTrialPeriod: introOfferMetadata.freeTrialPeriod,
     rawPackage: pkg,
+  };
+}
+
+function deriveIntroOfferDebugMetadata(pkg: RevenueCatPackage) {
+  const introPrice = pkg.product.introPrice;
+
+  if (!introPrice) {
+    return {
+      hasIntroOffer: false,
+      introOffer: null,
+      freeTrialPeriod: null,
+    };
+  }
+
+  const normalizedPrice = typeof introPrice.price === "number" ? introPrice.price : null;
+  const isFreeTrial = normalizedPrice === 0;
+
+  return {
+    hasIntroOffer: true,
+    introOffer: {
+      price: normalizedPrice,
+      priceString: introPrice.priceString ?? null,
+      cycles: typeof introPrice.cycles === "number" ? introPrice.cycles : null,
+      period: introPrice.period ?? null,
+      periodUnit: introPrice.periodUnit ?? null,
+      periodNumberOfUnits:
+        typeof introPrice.periodNumberOfUnits === "number" ? introPrice.periodNumberOfUnits : null,
+      isFreeTrial,
+    },
+    freeTrialPeriod:
+      isFreeTrial && introPrice.period
+        ? introPrice.period
+        : isFreeTrial && introPrice.periodUnit && typeof introPrice.periodNumberOfUnits === "number"
+          ? `${introPrice.periodNumberOfUnits} ${introPrice.periodUnit}`
+          : null,
   };
 }
 
@@ -282,18 +330,23 @@ export const revenueCatClient = {
         platform: Platform.OS,
         count: packages.length,
       });
-      console.log("[revenuecat] packages", {
-        platform: Platform.OS,
-        packages: packages.map((pkg) => ({
-          packageIdentifier: pkg.identifier,
-          packageType: pkg.packageType ?? null,
-          productIdentifier: pkg.product.identifier,
-          title: pkg.product.title ?? null,
-          localizedPrice: pkg.product.priceString ?? null,
-          price: typeof pkg.product.price === "number" ? pkg.product.price : null,
-          currencyCode: pkg.product.currencyCode ?? null,
-        })),
-      });
+      if (__DEV__) {
+        console.log("[revenuecat] packages", {
+          platform: Platform.OS,
+          packages: packages.map((pkg) => ({
+            packageIdentifier: pkg.identifier,
+            packageType: pkg.packageType ?? null,
+            productIdentifier: pkg.product.identifier,
+            title: pkg.product.title ?? null,
+            localizedPrice: pkg.product.priceString ?? null,
+            price: typeof pkg.product.price === "number" ? pkg.product.price : null,
+            currencyCode: pkg.product.currencyCode ?? null,
+            subscriptionPeriod: pkg.product.subscriptionPeriod ?? null,
+            ...deriveIntroOfferDebugMetadata(pkg),
+            store: Platform.OS === "android" ? "google_play" : "app_store",
+          })),
+        });
+      }
       updateDebugSnapshot((snapshot) =>
         withRevenueCatOfferings(
           snapshot,
@@ -317,11 +370,15 @@ export const revenueCatClient = {
         {
           packages: packages.map((pkg) => ({
             packageIdentifier: pkg.identifier,
+            packageType: pkg.packageType ?? null,
             productIdentifier: pkg.product.identifier,
             title: pkg.product.title,
             priceString: pkg.product.priceString ?? "priceString missing",
             price: typeof pkg.product.price === "number" ? pkg.product.price : null,
             currencyCode: pkg.product.currencyCode ?? null,
+            subscriptionPeriod: pkg.product.subscriptionPeriod ?? null,
+            ...deriveIntroOfferDebugMetadata(pkg),
+            store: Platform.OS === "android" ? "google_play" : "app_store",
           })),
         },
       );

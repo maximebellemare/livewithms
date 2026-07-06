@@ -1579,7 +1579,7 @@ export default function CoachScreen() {
           keyboardDismissMode="on-drag"
         >
           <View
-            style={styles.card}
+            style={[styles.card, styles.heroCard]}
             onLayout={(event) => {
               conversationCardYRef.current = event.nativeEvent.layout.y;
             }}
@@ -1766,7 +1766,7 @@ export default function CoachScreen() {
           </View>
 
           {emotionalGpsItems.length > 0 ? (
-            <View style={styles.card}>
+            <View style={[styles.card, styles.focusCard]}>
               <AppText style={styles.contextLabel}>What I&apos;m learning about you</AppText>
               <View style={styles.contextMemoryList}>
                 {emotionalGpsItems.map((line) => (
@@ -1778,7 +1778,7 @@ export default function CoachScreen() {
               </View>
             </View>
           ) : !deferredCoachDataReady ? (
-            <View style={styles.card}>
+            <View style={[styles.card, styles.focusCard]}>
               <AppText style={styles.contextLabel}>What I&apos;m learning about you</AppText>
               <View style={styles.placeholderStack}>
                 <CalmSkeleton height={14} width="88%" />
@@ -1788,7 +1788,7 @@ export default function CoachScreen() {
             </View>
           ) : null}
 
-          <View style={styles.card}>
+          <View style={[styles.card, styles.focusCard]}>
             <AppText style={styles.title}>Quick prompts</AppText>
             <View style={styles.quickActions}>
               {quickPromptOptions.map((prompt) => (
@@ -2465,26 +2465,31 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   heroCard: {
-    backgroundColor: "#fff4ec",
-    borderRadius: 22,
+    backgroundColor: "#fff3e8",
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#f2d8c4",
+    borderColor: "#f1c8a7",
     padding: 20,
-    gap: 8,
+    gap: 10,
+    shadowColor: "rgba(120, 71, 29, 0.22)",
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
   },
   focusCard: {
-    backgroundColor: "#fffaf6",
+    backgroundColor: "#fff8f2",
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#f1e1d4",
+    borderColor: "#efd7c4",
     padding: 18,
     gap: 10,
   },
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
+    backgroundColor: "#fffdfb",
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#f1e1d4",
+    borderColor: "#efd7c4",
     padding: 18,
     gap: 14,
   },
@@ -2546,10 +2551,11 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   heroTitle: {
-    fontSize: 24,
-    lineHeight: 32,
-    fontWeight: "700",
+    fontSize: 28,
+    lineHeight: 36,
+    fontWeight: "800",
     color: "#1f2937",
+    letterSpacing: -0.4,
   },
   heroBody: {
     color: "#4b5563",
@@ -2705,10 +2711,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   quickStartCard: {
-    backgroundColor: "#fffaf6",
-    borderRadius: 18,
+    backgroundColor: "#fffdfb",
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#f3dfd1",
+    borderColor: "#efd7c4",
     padding: 16,
     gap: 8,
   },

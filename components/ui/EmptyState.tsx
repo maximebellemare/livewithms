@@ -56,11 +56,15 @@ const styles = StyleSheet.create({
     paddingVertical: 28,
     gap: 14,
     alignItems: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radii.cardLarge,
     borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.soft,
+    borderColor: colors.borderStrong,
+    shadowColor: "rgba(120, 71, 29, 0.18)",
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 7,
   },
   title: {
     fontSize: 20,
@@ -74,7 +78,7 @@ const styles = StyleSheet.create({
   },
   message: {
     textAlign: "center",
-    color: colors.textMuted,
+    color: colors.textBody,
     lineHeight: 24,
   },
   messageReducedWall: {
