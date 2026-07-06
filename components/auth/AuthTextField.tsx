@@ -1,5 +1,6 @@
 import { StyleSheet, TextInput, View } from "react-native";
 import AppText from "../ui/AppText";
+import { colors, radii, shadows } from "../ui/design";
 
 type AuthTextFieldProps = {
   label: string;
@@ -47,18 +48,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     fontWeight: "600",
-    color: "#374151",
+    color: colors.text,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 12,
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    minHeight: 54,
+    borderColor: colors.border,
+    borderRadius: radii.button,
+    backgroundColor: colors.surfaceRaised,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    minHeight: 58,
     fontSize: 16,
     lineHeight: 22,
-    color: "#111827",
+    color: colors.text,
+    ...shadows.soft,
   },
 });

@@ -62,7 +62,8 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: spacing.screenX,
-    gap: 10,
+    gap: 12,
+    paddingBottom: 6,
   },
   headerSpacious: {
     gap: 12,
@@ -71,9 +72,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "700",
-    letterSpacing: 0.4,
+    letterSpacing: 0.9,
     textTransform: "uppercase",
-    color: colors.textMuted,
+    color: colors.accentDeep,
   },
   eyebrowDark: {
     color: colors.textMutedDark,
@@ -81,7 +82,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 36,
     lineHeight: 46,
-    fontWeight: "700",
+    fontWeight: "800",
     color: colors.text,
   },
   titleDark: {
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     lineHeight: 24,
-    color: colors.textMuted,
+    color: colors.textBody,
   },
   subtitleDark: {
     color: colors.textMutedDark,
@@ -103,7 +104,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: 20,
+    paddingTop: 24,
   },
   contentSimplified: {
     paddingTop: 16,

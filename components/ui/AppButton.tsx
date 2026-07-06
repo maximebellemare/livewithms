@@ -58,10 +58,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderRadius: radii.button,
     minHeight: 58,
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
     paddingVertical: 17,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.accentDeep,
     ...shadows.soft,
   },
   buttonComfort: {
@@ -72,10 +74,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   buttonSecondary: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceAccent,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
-    shadowOpacity: 0,
+    borderColor: colors.borderStrong,
+    shadowColor: "transparent",
+    elevation: 0,
   },
   buttonPressed: {
     opacity: deriveInteractionSoftness({ emphasis: "standard" }).buttonOpacityPressed,
@@ -88,6 +91,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     fontWeight: "700",
+    letterSpacing: 0.15,
     textAlign: "center",
   },
   labelSecondary: {

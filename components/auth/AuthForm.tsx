@@ -4,6 +4,7 @@ import AppButton from "../ui/AppButton";
 import AppScreen from "../ui/AppScreen";
 import AppText from "../ui/AppText";
 import AuthTextField from "./AuthTextField";
+import { colors, radii, shadows, spacing } from "../ui/design";
 
 type AuthFormProps = {
   title: string;
@@ -48,7 +49,8 @@ export default function AuthForm({
 }: AuthFormProps) {
   return (
     <AppScreen title={title} subtitle={subtitle}>
-      <View style={styles.form}>
+      <View style={styles.card}>
+        <View style={styles.form}>
         {showEmail ? (
           <AuthTextField
             label="Email"
@@ -86,6 +88,7 @@ export default function AuthForm({
 
         <AppButton label={loading ? "Loading..." : submitLabel} onPress={() => void onSubmit()} disabled={loading} />
       </View>
+      </View>
 
       {footer}
     </AppScreen>
@@ -93,6 +96,15 @@ export default function AuthForm({
 }
 
 const styles = StyleSheet.create({
+  card: {
+    marginHorizontal: spacing.screenX,
+    borderRadius: radii.cardLarge,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.cardPadding,
+    ...shadows.floating,
+  },
   form: {
     gap: 12,
   },
