@@ -5,13 +5,18 @@ export type TodayPlan = {
   date: string;
   mainPriority: string;
   energyLevel: string;
-  staySmaller: string;
-  recoveryProtection: string;
+  staySmaller: string[];
+  staySmallerCustom: string;
+  recoveryProtection: string[];
+  recoveryProtectionCustom: string;
   tomorrowEnergy: string;
-  prepareTonight: string;
-  tomorrowSmaller: string;
+  prepareTonight: string[];
+  prepareTonightCustom: string;
+  tomorrowSmaller: string[];
+  tomorrowSmallerCustom: string;
   recoveryTonight: string;
-  whatHelped: string;
+  whatHelped: string[];
+  whatHelpedCustom: string;
   isComplete: boolean;
   createdAt: string;
   updatedAt: string;
@@ -27,19 +32,35 @@ function normalizeText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function normalizeTextList(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => normalizeText(entry))
+      .filter((entry, index, entries) => entry.length > 0 && entries.indexOf(entry) === index);
+  }
+
+  const normalized = normalizeText(value);
+  return normalized ? [normalized] : [];
+}
+
 function sanitizeTodayPlan(input: Partial<TodayPlan> | null | undefined, userId: string, date: string): TodayPlan {
   return {
     userId,
     date,
     mainPriority: normalizeText(input?.mainPriority),
     energyLevel: normalizeText(input?.energyLevel),
-    staySmaller: normalizeText(input?.staySmaller),
-    recoveryProtection: normalizeText(input?.recoveryProtection),
+    staySmaller: normalizeTextList(input?.staySmaller),
+    staySmallerCustom: normalizeText(input?.staySmallerCustom),
+    recoveryProtection: normalizeTextList(input?.recoveryProtection),
+    recoveryProtectionCustom: normalizeText(input?.recoveryProtectionCustom),
     tomorrowEnergy: normalizeText(input?.tomorrowEnergy),
-    prepareTonight: normalizeText(input?.prepareTonight),
-    tomorrowSmaller: normalizeText(input?.tomorrowSmaller),
+    prepareTonight: normalizeTextList(input?.prepareTonight),
+    prepareTonightCustom: normalizeText(input?.prepareTonightCustom),
+    tomorrowSmaller: normalizeTextList(input?.tomorrowSmaller),
+    tomorrowSmallerCustom: normalizeText(input?.tomorrowSmallerCustom),
     recoveryTonight: normalizeText(input?.recoveryTonight),
-    whatHelped: normalizeText(input?.whatHelped),
+    whatHelped: normalizeTextList(input?.whatHelped),
+    whatHelpedCustom: normalizeText(input?.whatHelpedCustom),
     isComplete: typeof input?.isComplete === "boolean" ? input.isComplete : false,
     createdAt: typeof input?.createdAt === "string" ? input.createdAt : new Date().toISOString(),
     updatedAt: typeof input?.updatedAt === "string" ? input.updatedAt : new Date().toISOString(),

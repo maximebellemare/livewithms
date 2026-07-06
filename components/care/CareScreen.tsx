@@ -968,6 +968,11 @@ export function NutritionScreenContent() {
   const [foodAnalysisMessage, setFoodAnalysisMessage] = useState<string | null>(null);
   const [pendingFoodImageUri, setPendingFoodImageUri] = useState<string | null>(null);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [showNutritionPlanner, setShowNutritionPlanner] = useState(false);
+  const [expandedMealPlanDays, setExpandedMealPlanDays] = useState<string[]>(["Day 1"]);
+  const [showAllMealPlanDays, setShowAllMealPlanDays] = useState(false);
+  const [showLearnNutrition, setShowLearnNutrition] = useState(false);
+  const [expandedLearnCard, setExpandedLearnCard] = useState<string | null>(null);
 
   const resetNutritionState = useCallback(() => {
     setMealPlanGoal("Stable energy");
@@ -991,6 +996,52 @@ export function NutritionScreenContent() {
       activeFilters.every((filter) => meal.tags.includes(filter)),
     );
   }, [selectedNutritionFilters]);
+
+  const quickMealIdeaCards = useMemo(
+    () => [
+      {
+        id: "low-energy",
+        title: "Low-energy meals",
+        body: "Keep a few repeatable, low-prep meals ready for lower-energy days.",
+        examples: LOW_ENERGY_MEALS.slice(0, 2).map((meal) => meal.title).join(" • "),
+      },
+      {
+        id: "anti-inflammatory",
+        title: "Anti-inflammatory ideas",
+        body: "Lean on colorful plants, olive oil, beans, fish or plant proteins, and simple whole-food meals.",
+        examples: "Tuna and white bean bowl • Lentil soup batch",
+      },
+      {
+        id: "high-protein",
+        title: "High-protein simple meals",
+        body: "Protein plus fiber may help meals feel more filling and stable through the day.",
+        examples: "Greek yogurt plate • Egg and avocado toast",
+      },
+      {
+        id: "heat-friendly",
+        title: "Heat-friendly meals",
+        body: "Cool or no-cook options can be helpful when standing at the stove feels like too much.",
+        examples: "Hummus snack plate • Greek yogurt plate",
+      },
+    ],
+    [],
+  );
+
+  const learnNutritionCards = useMemo(
+    () => [
+      ...NUTRITION_BASICS.map((item) => ({
+        id: `basic-${item.title}`,
+        title: item.title,
+        body: item.body,
+      })),
+      ...DIET_APPROACHES.map((approach) => ({
+        id: `approach-${approach.title}`,
+        title: approach.title,
+        body: `${approach.emphasizes}\n\nMay be difficult: ${approach.difficult}\n\nMay fit: ${approach.useful}`,
+      })),
+    ],
+    [],
+  );
 
   const recommendedDietStyle = useMemo(
     () => chooseDietStyle(mealPlanGoal, dietStyle, selectedNutritionFilters, mealPlanPrep),
@@ -1047,7 +1098,16 @@ export function NutritionScreenContent() {
               setMealPlanPrep(normalizedPreferences.prepPreference);
               setMealPlanBudget(normalizedPreferences.budgetPreference);
               setAdaptiveMealPlan(normalizedPreferences.currentMealPlan as ReturnType<typeof buildAdaptiveMealPlan> | null);
+              setShowNutritionPlanner(!(normalizedPreferences.currentMealPlan as ReturnType<typeof buildAdaptiveMealPlan> | null));
+              const firstDay = (normalizedPreferences.currentMealPlan as ReturnType<typeof buildAdaptiveMealPlan> | null)?.plan?.[0]?.day ?? "Day 1";
+              setExpandedMealPlanDays([firstDay]);
+              setShowAllMealPlanDays(false);
             }
+          }
+          if (!preferences || !normalizeNutritionState(preferences)?.currentMealPlan) {
+            setShowNutritionPlanner(true);
+            setExpandedMealPlanDays(["Day 1"]);
+            setShowAllMealPlanDays(false);
           }
           setSavedMealPlans(savedPlans);
           setPreferencesLoaded(true);
@@ -1062,6 +1122,9 @@ export function NutritionScreenContent() {
         if (!cancelled) {
           resetNutritionState();
           setSavedMealPlans([]);
+          setShowNutritionPlanner(true);
+          setExpandedMealPlanDays(["Day 1"]);
+          setShowAllMealPlanDays(false);
           setNutritionMessage("Nutrition preferences were reset to keep things working smoothly.");
           setPreferencesLoaded(true);
         }
@@ -1203,9 +1266,13 @@ export function NutritionScreenContent() {
       return;
     }
 
+    const firstDay = nextPlan.plan[0]?.day ?? "Day 1";
     setAdaptiveMealPlan(nextPlan);
     setMealPlanGoal(savedPlan.goal ?? mealPlanGoal);
     setDietStyle(savedPlan.dietStyle ?? nextPlan.dietStyle);
+    setShowNutritionPlanner(false);
+    setExpandedMealPlanDays([firstDay]);
+    setShowAllMealPlanDays(false);
     setNutritionMessage("Saved meal plan loaded.");
   };
 
@@ -1369,6 +1436,9 @@ export function NutritionScreenContent() {
         premium: premium.hasPremiumAccess,
       });
       setAdaptiveMealPlan(plan);
+      setShowNutritionPlanner(false);
+      setExpandedMealPlanDays(plan.plan[0] ? [plan.plan[0].day] : ["Day 1"]);
+      setShowAllMealPlanDays(false);
       await persistNutritionPreferences(plan);
       await growth.recordEvent("nutrition_meal_plan_generated", {
         premium: premium.hasPremiumAccess,
@@ -1389,7 +1459,38 @@ export function NutritionScreenContent() {
     const nextStyle = switchable[(currentIndex + 1) % switchable.length] ?? "Mediterranean-style";
     setDietStyle(nextStyle);
     setAdaptiveMealPlan(null);
+    setShowNutritionPlanner(true);
     setNutritionMessage(`Trying ${nextStyle}. Generate a plan when you are ready.`);
+  };
+
+  const toggleMealPlanDay = (dayLabel: string) => {
+    setExpandedMealPlanDays((current) =>
+      current.includes(dayLabel) ? current.filter((item) => item !== dayLabel) : [...current, dayLabel],
+    );
+  };
+
+  const handleToggleAllMealPlanDays = () => {
+    if (!adaptiveMealPlan) {
+      return;
+    }
+
+    if (showAllMealPlanDays) {
+      setExpandedMealPlanDays(adaptiveMealPlan.plan[0] ? [adaptiveMealPlan.plan[0].day] : []);
+      setShowAllMealPlanDays(false);
+      return;
+    }
+
+    setExpandedMealPlanDays(adaptiveMealPlan.plan.map((day) => day.day));
+    setShowAllMealPlanDays(true);
+  };
+
+  const handleViewCurrentPlan = () => {
+    if (!adaptiveMealPlan) {
+      return;
+    }
+
+    setExpandedMealPlanDays(adaptiveMealPlan.plan[0] ? [adaptiveMealPlan.plan[0].day] : []);
+    setShowAllMealPlanDays(false);
   };
 
   const handleShareAdaptiveGroceryList = async () => {
@@ -1425,32 +1526,68 @@ export function NutritionScreenContent() {
           <AppText key={reason} style={styles.nutritionPlanLine}>• {reason}</AppText>
         ))}
       </View>
-      {adaptiveMealPlan.plan.map((day) => (
-        <View key={day.day} style={styles.groceryListCard}>
-          <AppText style={styles.nutritionCardTitle}>{day.day}</AppText>
-          {day.meals.map((meal) =>
-            typeof meal === "string" ? (
-              <AppText key={meal} style={styles.nutritionPlanLine}>• {meal}</AppText>
-            ) : (
-              <View key={`${day.day}-${meal.type}-${meal.title}`} style={styles.mealInstructionCard}>
-                <AppText style={styles.nutritionCardTitle}>{meal.type}: {meal.title}</AppText>
+      <View style={styles.nutritionHeaderRow}>
+        <AppText style={styles.sectionLabel}>7-day adaptive meal plan</AppText>
+        {adaptiveMealPlan.plan.length > 1 ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={handleToggleAllMealPlanDays}
+            style={({ pressed }) => [styles.clearFiltersButton, pressed && styles.collapseRowPressed]}
+          >
+            <AppText style={styles.clearFiltersText}>{showAllMealPlanDays ? "Collapse all" : "Expand all"}</AppText>
+          </Pressable>
+        ) : null}
+      </View>
+      {premium.hasPremiumAccess ? (
+        <View style={styles.itemActions}>
+          <AppButton label="Copy grocery list" onPress={() => handleCopyGroceryList(`${adaptiveMealPlan.title} grocery list`, adaptiveMealPlan.groceries)} variant="secondary" />
+          <AppButton label="Today's meals" onPress={handleViewCurrentPlan} variant="secondary" />
+        </View>
+      ) : null}
+      {adaptiveMealPlan.plan.map((day, index) => {
+        const isExpanded = expandedMealPlanDays.includes(day.day);
+        const summary = typeof day.meals[0] === "string"
+          ? "Meals planned"
+          : `${day.meals.map((meal) => (typeof meal === "string" ? meal : meal.type)).slice(0, 3).join(", ")} planned`;
+        return (
+          <View key={day.day} style={styles.groceryListCard}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => toggleMealPlanDay(day.day)}
+              style={({ pressed }) => [styles.expandRow, pressed && styles.collapseRowPressed]}
+            >
+              <View style={styles.expandCopy}>
+                <AppText style={styles.nutritionCardTitle}>{day.day}</AppText>
                 <AppText style={styles.nutritionCardBody}>
-                  <AppText style={styles.nutritionDetailLabel}>Prep: </AppText>
-                  {meal.prep}
-                </AppText>
-                <AppText style={styles.nutritionCardBody}>
-                  <AppText style={styles.nutritionDetailLabel}>Prep time: </AppText>
-                  {meal.prepTime}
-                </AppText>
-                <AppText style={styles.nutritionCardBody}>
-                  <AppText style={styles.nutritionDetailLabel}>Low-energy option: </AppText>
-                  {meal.lowEnergyOption}
+                  {index === 0 ? "Open first by default so today's meals are easiest to find." : summary}
                 </AppText>
               </View>
-            ),
-          )}
-        </View>
-      ))}
+              <AppText style={styles.expandLabel}>{isExpanded ? "Hide" : "View"}</AppText>
+            </Pressable>
+            {isExpanded ? day.meals.map((meal) =>
+              typeof meal === "string" ? (
+                <AppText key={meal} style={styles.nutritionPlanLine}>• {meal}</AppText>
+              ) : (
+                <View key={`${day.day}-${meal.type}-${meal.title}`} style={styles.mealInstructionCard}>
+                  <AppText style={styles.nutritionCardTitle}>{meal.type}: {meal.title}</AppText>
+                  <AppText style={styles.nutritionCardBody}>
+                    <AppText style={styles.nutritionDetailLabel}>Prep: </AppText>
+                    {meal.prep}
+                  </AppText>
+                  <AppText style={styles.nutritionCardBody}>
+                    <AppText style={styles.nutritionDetailLabel}>Prep time: </AppText>
+                    {meal.prepTime}
+                  </AppText>
+                  <AppText style={styles.nutritionCardBody}>
+                    <AppText style={styles.nutritionDetailLabel}>Low-energy option: </AppText>
+                    {meal.lowEnergyOption}
+                  </AppText>
+                </View>
+              ),
+            ) : null}
+          </View>
+        );
+      })}
       <View style={styles.groceryListCard}>
         <AppText style={styles.nutritionCardTitle}>Meal swaps</AppText>
         {adaptiveMealPlan.swaps.map((swap) => (
@@ -1512,15 +1649,172 @@ export function NutritionScreenContent() {
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <View style={styles.card}>
         <View style={styles.formHeaderCopy}>
-          <AppText style={styles.title}>Nutrition</AppText>
-          <AppText style={styles.body}>Build a nutrition plan based on your goals and preferences.</AppText>
+          <AppText style={styles.title}>Nutrition Support</AppText>
+          <AppText style={styles.body}>Plan meals, check foods, and find simple nutrition ideas that support your day.</AppText>
           <AppText style={styles.nutritionDisclaimer}>
-            Nutrition information is for general wellness support and is not medical advice.
+            Nutrition information may support organization and daily planning, but it does not replace medical advice.
           </AppText>
         </View>
 
-        <View style={styles.nutritionPlannerCard}>
-          <AppText style={styles.sectionLabel}>Nutrition planner</AppText>
+        <View style={styles.foodAnalysisCard}>
+          <View style={styles.medicationHeader}>
+            <View style={styles.itemHeaderCopy}>
+              <AppText style={styles.itemTitle}>Is this inflammatory?</AppText>
+              <AppText style={styles.itemMeta}>Food check</AppText>
+            </View>
+            <AppText style={[styles.badge, styles.nutritionBadge]}>Useful tool</AppText>
+          </View>
+          <AppText style={styles.body}>
+            This can help you understand whether a food may be inflammatory. It does not replace medical advice.
+          </AppText>
+          <View style={styles.scannerModeRow}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void handlePhotoFoodAnalysis()}
+              style={({ pressed }) => [styles.scannerModePill, pressed && styles.collapseRowPressed]}
+            >
+              <AppText style={styles.scannerModePillText}>Take food photo</AppText>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void handleUploadFoodPhoto()}
+              style={({ pressed }) => [styles.scannerModePill, pressed && styles.collapseRowPressed]}
+            >
+              <AppText style={styles.scannerModePillText}>Upload photo</AppText>
+            </Pressable>
+            <View style={[styles.scannerModePill, styles.scannerModePillActive]}>
+              <AppText style={[styles.scannerModePillText, styles.scannerModePillTextActive]}>Search manually</AppText>
+            </View>
+          </View>
+          {pendingFoodImageUri ? (
+            <View style={styles.nutritionUpgradeCard}>
+              <AppText style={styles.nutritionCardBody}>
+                Image selected. Visual AI analysis is not available yet, so confirm the food name below to analyze it.
+              </AppText>
+            </View>
+          ) : null}
+          <AppText style={styles.emptyHint}>{foodAnalysisUsageLabel}</AppText>
+          <View style={styles.fieldGroup}>
+            <AppText style={styles.fieldLabel}>Food or product</AppText>
+            <TextInput
+              value={foodSearchInput}
+              onChangeText={setFoodSearchInput}
+              placeholder="Try chips, frozen pizza, protein bar..."
+              placeholderTextColor="#9ca3af"
+              style={styles.input}
+              returnKeyType="search"
+              onSubmitEditing={() => void handleFoodAnalysis()}
+            />
+          </View>
+          <View style={styles.frequencyOptions}>
+            {FOOD_SEARCH_SUGGESTIONS.map((suggestion) => (
+              <Pressable
+                key={suggestion}
+                onPress={() => void handleFoodAnalysis(suggestion)}
+                style={({ pressed }) => [styles.frequencyChip, pressed && styles.frequencyChipPressed]}
+              >
+                <AppText style={styles.frequencyChipText}>{suggestion}</AppText>
+              </Pressable>
+            ))}
+          </View>
+          <AppButton
+            label={foodAnalysisStatus === "analyzing" ? "Checking a food..." : "Check a food"}
+            onPress={() => void handleFoodAnalysis()}
+            variant="secondary"
+            disabled={foodAnalysisStatus === "analyzing"}
+          />
+          {foodAnalysisMessage ? (
+            <AppText
+              style={
+                foodAnalysisMessage.includes("could not") ||
+                foodAnalysisMessage.includes("Premium") ||
+                foodAnalysisMessage.includes("needs camera")
+                  ? styles.errorText
+                  : styles.successText
+              }
+            >
+              {foodAnalysisMessage}
+            </AppText>
+          ) : null}
+        </View>
+
+        {foodAnalysis ? (
+          <View style={styles.foodAnalysisCard}>
+            <View style={styles.medicationHeader}>
+              <View style={styles.itemHeaderCopy}>
+                <AppText style={styles.itemTitle}>{foodAnalysis.name}</AppText>
+                <AppText style={styles.itemMeta}>Food check result</AppText>
+              </View>
+              <AppText style={[styles.badge, styles.nutritionBadge]}>Educational</AppText>
+            </View>
+            <View style={styles.analysisMetricGrid}>
+              {[
+                ["Processing level", foodAnalysis.processing],
+                ["Likely inflammation impact", foodAnalysis.inflammation],
+                ["Energy stability", foodAnalysis.energy],
+                ["Sugar/protein/fiber balance", foodAnalysis.balance],
+              ].map(([title, body]) => (
+                <View key={title} style={styles.analysisMetricCard}>
+                  <AppText style={styles.nutritionCardTitle}>{title}</AppText>
+                  <AppText style={styles.nutritionCardBody}>{body}</AppText>
+                </View>
+              ))}
+            </View>
+            <AppText style={styles.itemNotes}>{foodAnalysis.guidance}</AppText>
+            <View style={styles.nutritionHeaderRow}>
+              <AppText style={styles.sectionLabel}>Better alternatives</AppText>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setShowEasierAlternatives((current) => !current)}
+                style={({ pressed }) => [styles.clearFiltersButton, pressed && styles.collapseRowPressed]}
+              >
+                <AppText style={styles.clearFiltersText}>{showEasierAlternatives ? "All options" : "Show easier"}</AppText>
+              </Pressable>
+            </View>
+            <View style={styles.list}>
+              {(showEasierAlternatives ? foodAnalysis.easyAlternatives : foodAnalysis.alternatives)
+                .slice(0, premium.hasPremiumAccess ? undefined : 3)
+                .map((alternative) => (
+                  <View key={alternative} style={styles.alternativeRow}>
+                    <AppText style={styles.alternativeBullet}>•</AppText>
+                    <AppText style={styles.alternativeText}>{alternative}</AppText>
+                  </View>
+                ))}
+            </View>
+          </View>
+        ) : null}
+
+        {adaptiveMealPlan ? (
+          <View style={styles.foodAnalysisCard}>
+            <View style={styles.medicationHeader}>
+              <View style={styles.itemHeaderCopy}>
+                <AppText style={styles.itemTitle}>Current plan</AppText>
+                <AppText style={styles.itemMeta}>Saved in this device</AppText>
+              </View>
+              <AppText style={[styles.badge, premium.hasPremiumAccess ? styles.badgeActive : styles.badgeInactive]}>
+                {premium.hasPremiumAccess ? "Premium" : "Simple"}
+              </AppText>
+            </View>
+            <AppText style={styles.nutritionCardBody}>You selected: {adaptiveMealPlan.dietStyle}</AppText>
+            <AppText style={styles.nutritionCardBody}>
+              Based on: {mealPlanGoal}, {mealPlanPrep.toLowerCase()}, {selectedNutritionFilters.filter((item) => item !== "No preference").join(", ") || "no extra filters"}.
+            </AppText>
+            <View style={styles.itemActions}>
+              <AppButton label="View plan" onPress={handleViewCurrentPlan} variant="secondary" />
+              <AppButton label="Change diet" onPress={() => setShowNutritionPlanner((current) => !current)} variant="secondary" />
+              <AppButton
+                label={mealPlanStatus === "generating" ? "Regenerating..." : "Regenerate plan"}
+                onPress={() => void handleGenerateAdaptiveMealPlan()}
+                variant="secondary"
+                disabled={mealPlanStatus === "generating"}
+              />
+            </View>
+          </View>
+        ) : null}
+
+        {(!adaptiveMealPlan || showNutritionPlanner) ? (
+          <View style={styles.nutritionPlannerCard}>
+            <AppText style={styles.sectionLabel}>{adaptiveMealPlan ? "Change nutrition plan" : "Nutrition planner"}</AppText>
           <View style={styles.nutritionStep}>
             <AppText style={styles.nutritionStepTitle}>1. What would you like nutrition support with?</AppText>
             <View style={styles.frequencyOptions}>
@@ -1675,8 +1969,10 @@ export function NutritionScreenContent() {
                     ? "Updating meal plan..."
                     : "Generating meal plan..."
                   : premium.hasPremiumAccess
-                    ? "Generate meal plan"
-                    : "Generate 1-day plan"
+                    ? adaptiveMealPlan
+                      ? "Regenerate plan"
+                      : "Build my nutrition plan"
+                    : "Build my nutrition plan"
               }
               onPress={() => void handleGenerateAdaptiveMealPlan()}
               variant="secondary"
@@ -1685,240 +1981,67 @@ export function NutritionScreenContent() {
             <AppButton label="Try another diet style" onPress={handleTryAnotherDietStyle} variant="secondary" />
           </View>
           {mealPlanError ? <AppText style={styles.errorText}>{mealPlanError}</AppText> : null}
-        </View>
+          </View>
+        ) : null}
 
         {generatedMealPlanContent}
 
         <View style={styles.nutritionSection}>
-          <AppText style={styles.sectionLabel}>Is this inflammatory?</AppText>
-          <AppText style={styles.body}>
-            Some foods may increase inflammation or energy crashes for some people. Check a food and get realistic swaps.
-          </AppText>
-          <View style={styles.scannerModeRow}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void handlePhotoFoodAnalysis()}
-              style={({ pressed }) => [styles.scannerModePill, pressed && styles.collapseRowPressed]}
-            >
-              <AppText style={styles.scannerModePillText}>Take food photo</AppText>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void handleUploadFoodPhoto()}
-              style={({ pressed }) => [styles.scannerModePill, pressed && styles.collapseRowPressed]}
-            >
-              <AppText style={styles.scannerModePillText}>Upload photo</AppText>
-            </Pressable>
-            <View style={[styles.scannerModePill, styles.scannerModePillActive]}>
-              <AppText style={[styles.scannerModePillText, styles.scannerModePillTextActive]}>Search manually</AppText>
-            </View>
+          <AppText style={styles.sectionLabel}>Quick meal ideas</AppText>
+          <View style={styles.list}>
+            {quickMealIdeaCards.map((item) => (
+              <View key={item.id} style={styles.nutritionMealCard}>
+                <AppText style={styles.itemTitle}>{item.title}</AppText>
+                <AppText style={styles.itemNotes}>{item.body}</AppText>
+                <AppText style={styles.nutritionCardBody}>{item.examples}</AppText>
+              </View>
+            ))}
           </View>
-          {pendingFoodImageUri ? (
-            <View style={styles.nutritionUpgradeCard}>
+        </View>
+
+        <View style={styles.nutritionSection}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setShowLearnNutrition((current) => !current)}
+            style={({ pressed }) => [styles.expandRow, pressed && styles.collapseRowPressed]}
+          >
+            <View style={styles.expandCopy}>
+              <AppText style={styles.sectionLabel}>Learn about nutrition approaches</AppText>
               <AppText style={styles.nutritionCardBody}>
-                Image selected. Visual AI analysis is not available yet, so confirm the food name below to analyze it.
+                Mediterranean-style eating, anti-inflammatory basics, hydration, fiber, and diet approaches.
               </AppText>
             </View>
-          ) : null}
-          <AppText style={styles.emptyHint}>
-            {foodAnalysisUsageLabel}
-          </AppText>
-          <View style={styles.fieldGroup}>
-            <AppText style={styles.fieldLabel}>Food or product</AppText>
-            <TextInput
-              value={foodSearchInput}
-              onChangeText={setFoodSearchInput}
-              placeholder="Try chips, frozen pizza, protein bar..."
-              placeholderTextColor="#9ca3af"
-              style={styles.input}
-              returnKeyType="search"
-              onSubmitEditing={() => void handleFoodAnalysis()}
-            />
-          </View>
-          <View style={styles.frequencyOptions}>
-            {FOOD_SEARCH_SUGGESTIONS.map((suggestion) => (
-              <Pressable
-                key={suggestion}
-                onPress={() => void handleFoodAnalysis(suggestion)}
-                style={({ pressed }) => [styles.frequencyChip, pressed && styles.frequencyChipPressed]}
-              >
-                <AppText style={styles.frequencyChipText}>{suggestion}</AppText>
-              </Pressable>
-            ))}
-          </View>
-          <AppButton
-            label={foodAnalysisStatus === "analyzing" ? "Analyzing food..." : "Analyze food"}
-            onPress={() => void handleFoodAnalysis()}
-            variant="secondary"
-            disabled={foodAnalysisStatus === "analyzing"}
-          />
-          {foodAnalysisMessage ? (
-            <AppText
-              style={
-                foodAnalysisMessage.includes("could not") ||
-                foodAnalysisMessage.includes("Premium") ||
-                foodAnalysisMessage.includes("needs camera")
-                  ? styles.errorText
-                  : styles.successText
-              }
-            >
-              {foodAnalysisMessage}
-            </AppText>
-          ) : null}
-        </View>
-
-        {foodAnalysis ? (
-          <View style={styles.foodAnalysisCard}>
-            <View style={styles.medicationHeader}>
-              <View style={styles.itemHeaderCopy}>
-                <AppText style={styles.itemTitle}>{foodAnalysis.name}</AppText>
-                <AppText style={styles.itemMeta}>Is this inflammatory?</AppText>
-              </View>
-              <AppText style={[styles.badge, styles.nutritionBadge]}>Educational</AppText>
-            </View>
-            <View style={styles.analysisMetricGrid}>
-              {[
-                ["Processing level", foodAnalysis.processing],
-                ["Likely inflammation impact", foodAnalysis.inflammation],
-                ["Energy stability", foodAnalysis.energy],
-                ["Sugar/protein/fiber balance", foodAnalysis.balance],
-              ].map(([title, body]) => (
-                <View key={title} style={styles.analysisMetricCard}>
-                  <AppText style={styles.nutritionCardTitle}>{title}</AppText>
-                  <AppText style={styles.nutritionCardBody}>{body}</AppText>
-                </View>
-              ))}
-            </View>
-            <AppText style={styles.itemNotes}>{foodAnalysis.guidance}</AppText>
-            <View style={styles.nutritionHeaderRow}>
-              <AppText style={styles.sectionLabel}>Better alternatives</AppText>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setShowEasierAlternatives((current) => !current)}
-                style={({ pressed }) => [styles.clearFiltersButton, pressed && styles.collapseRowPressed]}
-              >
-                <AppText style={styles.clearFiltersText}>{showEasierAlternatives ? "All options" : "Show easier"}</AppText>
-              </Pressable>
-            </View>
+            <AppText style={styles.expandLabel}>{showLearnNutrition ? "Hide" : "Show"}</AppText>
+          </Pressable>
+          {showLearnNutrition ? (
             <View style={styles.list}>
-              {(showEasierAlternatives ? foodAnalysis.easyAlternatives : foodAnalysis.alternatives)
-                .slice(0, premium.hasPremiumAccess ? undefined : 3)
-                .map((alternative) => (
-                  <View key={alternative} style={styles.alternativeRow}>
-                    <AppText style={styles.alternativeBullet}>•</AppText>
-                    <AppText style={styles.alternativeText}>{alternative}</AppText>
-                  </View>
-                ))}
-            </View>
-          </View>
-        ) : null}
-
-        <View style={styles.nutritionSection}>
-          <View style={styles.nutritionHeaderRow}>
-            <AppText style={styles.sectionLabel}>Low-energy meal ideas</AppText>
-            {selectedNutritionFilters.length > 0 ? (
-              <Pressable onPress={() => setSelectedNutritionFilters([])} style={({ pressed }) => [styles.clearFiltersButton, pressed && styles.collapseRowPressed]}>
-                <AppText style={styles.clearFiltersText}>Clear</AppText>
-              </Pressable>
-            ) : null}
-          </View>
-          <View style={styles.frequencyOptions}>
-            {NUTRITION_FILTERS.map((filter) => {
-              const isSelected = selectedNutritionFilters.includes(filter);
-              return (
-                <Pressable
-                  key={filter}
-                  onPress={() => toggleNutritionFilter(filter)}
-                  style={({ pressed }) => [
-                    styles.frequencyChip,
-                    isSelected && styles.frequencyChipSelected,
-                    pressed && styles.frequencyChipPressed,
-                  ]}
-                >
-                  <AppText style={[styles.frequencyChipText, isSelected && styles.frequencyChipTextSelected]}>{filter}</AppText>
-                </Pressable>
-              );
-            })}
-          </View>
-          <View style={styles.list}>
-            {filteredLowEnergyMeals.map((meal) => (
-              <View key={meal.id} style={styles.nutritionMealCard}>
-                <View style={styles.medicationHeader}>
-                  <View style={styles.itemHeaderCopy}>
-                    <AppText style={styles.itemTitle}>{meal.title}</AppText>
-                    <AppText style={styles.itemMeta}>{meal.category}</AppText>
-                  </View>
-                  <AppText style={[styles.badge, styles.nutritionBadge]}>Low energy</AppText>
-                </View>
-                <AppText style={styles.itemNotes}>{meal.details}</AppText>
-                <View style={styles.nutritionTagRow}>
-                  {meal.tags.slice(0, 4).map((tag) => (
-                    <AppText key={tag} style={styles.nutritionTag}>{tag}</AppText>
-                  ))}
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.nutritionSection}>
-          <AppText style={styles.sectionLabel}>Meal plans</AppText>
-          <View style={styles.nutritionMealCard}>
-            <View style={styles.medicationHeader}>
-              <View style={styles.itemHeaderCopy}>
-                <AppText style={styles.itemTitle}>{FREE_SAMPLE_MEAL_PLAN.title}</AppText>
-                <AppText style={styles.itemMeta}>Included</AppText>
-              </View>
-              <AppText style={[styles.badge, styles.badgeActive]}>Free</AppText>
-            </View>
-            {FREE_SAMPLE_MEAL_PLAN.meals.map((meal) => (
-              <AppText key={meal} style={styles.nutritionPlanLine}>• {meal}</AppText>
-            ))}
-          </View>
-          {PREMIUM_MEAL_PLANS.map((plan) => {
-            return (
-              <View key={plan.id} style={[styles.nutritionMealCard, !premium.hasPremiumAccess && styles.nutritionLockedCard]}>
-                <View style={styles.medicationHeader}>
-                  <View style={styles.itemHeaderCopy}>
-                    <AppText style={styles.itemTitle}>{plan.title}</AppText>
-                    <AppText style={styles.itemMeta}>{plan.category}</AppText>
-                  </View>
-                  <AppText style={[styles.badge, premium.hasPremiumAccess ? styles.badgeActive : styles.badgeInactive]}>Premium</AppText>
-                </View>
-                {premium.hasPremiumAccess ? (
-                  <>
-                    {plan.meals.map((meal) => (
-                      <AppText key={meal} style={styles.nutritionPlanLine}>• {meal}</AppText>
-                    ))}
-                    <View style={styles.groceryListCard}>
-                      <AppText style={styles.nutritionCardTitle}>Grocery support</AppText>
-                      {Object.entries(plan.groceries).map(([category, items]) => (
-                        <AppText key={category} style={styles.nutritionCardBody}>
-                          <AppText style={styles.nutritionDetailLabel}>{category}: </AppText>
-                          {items.join(", ")}
+              {learnNutritionCards.map((item) => {
+                const isOpen = expandedLearnCard === item.id;
+                return (
+                  <View key={item.id} style={styles.nutritionApproachCard}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setExpandedLearnCard((current) => (current === item.id ? null : item.id))}
+                      style={({ pressed }) => [styles.expandRow, pressed && styles.collapseRowPressed]}
+                    >
+                      <View style={styles.expandCopy}>
+                        <AppText style={styles.itemTitle}>{item.title}</AppText>
+                      </View>
+                      <AppText style={styles.expandLabel}>{isOpen ? "Hide" : "Open"}</AppText>
+                    </Pressable>
+                    {isOpen ? (
+                      <>
+                        <AppText style={styles.nutritionDetailText}>{item.body}</AppText>
+                        <AppText style={styles.nutritionClinicianNote}>
+                          Nutrition changes may be helpful, but major shifts are worth discussing with your clinician or dietitian.
                         </AppText>
-                      ))}
-                    </View>
-                    <View style={styles.itemActions}>
-                      <AppButton label="Share grocery list" onPress={() => void handleShareGroceryList(plan)} variant="secondary" />
-                      <AppButton
-                        label="Copy grocery list"
-                        onPress={() => handleCopyGroceryList(`${plan.title} grocery list`, plan.groceries)}
-                        variant="secondary"
-                      />
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <AppText style={styles.itemNotes}>
-                      Premium includes unlimited meal plans, unlimited food analysis, grocery lists, saved plans, and advanced swaps.
-                    </AppText>
-                    <AppButton label="View Premium" onPress={() => router.push("/premium?source=nutrition")} variant="secondary" />
-                  </>
-                )}
-              </View>
-            );
-          })}
+                      </>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
         </View>
 
         {premium.hasPremiumAccess ? (
@@ -1957,44 +2080,6 @@ export function NutritionScreenContent() {
             )}
           </View>
         ) : null}
-
-        <View style={styles.nutritionSection}>
-          <AppText style={styles.sectionLabel}>Nutrition basics</AppText>
-          <View style={styles.nutritionGrid}>
-            {NUTRITION_BASICS.map((item) => (
-              <View key={item.title} style={styles.nutritionInfoCard}>
-                <AppText style={styles.nutritionCardTitle}>{item.title}</AppText>
-                <AppText style={styles.nutritionCardBody}>{item.body}</AppText>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.nutritionSection}>
-          <AppText style={styles.sectionLabel}>Diet approaches</AppText>
-          <View style={styles.list}>
-            {DIET_APPROACHES.map((approach) => (
-              <View key={approach.title} style={styles.nutritionApproachCard}>
-                <AppText style={styles.itemTitle}>{approach.title}</AppText>
-                <AppText style={styles.nutritionDetailText}>
-                  <AppText style={styles.nutritionDetailLabel}>Emphasizes: </AppText>
-                  {approach.emphasizes}
-                </AppText>
-                <AppText style={styles.nutritionDetailText}>
-                  <AppText style={styles.nutritionDetailLabel}>May be difficult: </AppText>
-                  {approach.difficult}
-                </AppText>
-                <AppText style={styles.nutritionDetailText}>
-                  <AppText style={styles.nutritionDetailLabel}>May fit: </AppText>
-                  {approach.useful}
-                </AppText>
-                <AppText style={styles.nutritionClinicianNote}>
-                  Talk with a clinician or dietitian before making major diet changes.
-                </AppText>
-              </View>
-            ))}
-          </View>
-        </View>
 
         {nutritionMessage ? <AppText style={styles.successText}>{nutritionMessage}</AppText> : null}
       </View>

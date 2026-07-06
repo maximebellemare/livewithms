@@ -31,7 +31,7 @@ function getCheckInInsight(item: DailyCheckIn) {
   }
 
   if ((item.mood ?? 0) >= 4) {
-    return "You felt steadier on this day";
+    return "You felt more stable on this day";
   }
 
   return "Here’s how you checked in that day";

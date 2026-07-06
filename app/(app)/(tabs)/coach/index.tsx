@@ -273,11 +273,15 @@ function buildEmotionalGpsObservations(input: {
     observations.push("Hydration days tend to line up with steadier energy.");
   }
 
-  const quietEveningsCount = input.recentTodayPlans.filter((plan) =>
-    [plan.recoveryTonight, plan.whatHelped, plan.prepareTonight]
-      .filter((value): value is string => typeof value === "string")
-      .some((value) => /quiet|rest|sleep|lighter evening/i.test(value)),
-  ).length;
+  const quietEveningsCount = input.recentTodayPlans.filter((plan) => {
+    const quietEveningSources = [
+      plan.recoveryTonight,
+      serializeTodayPlanSelections(plan.whatHelped, plan.whatHelpedCustom),
+      serializeTodayPlanSelections(plan.prepareTonight, plan.prepareTonightCustom),
+    ];
+
+    return quietEveningSources.some((value) => /quiet|rest|sleep|lighter evening/i.test(value));
+  }).length;
   if (quietEveningsCount >= 2) {
     observations.push("Quieter evenings seem to help the next day feel more manageable.");
   }
@@ -287,6 +291,15 @@ function buildEmotionalGpsObservations(input: {
   }
 
   return observations.slice(0, 4);
+}
+
+function serializeTodayPlanSelections(values: string[] | string, customValue?: string) {
+  const entries = (Array.isArray(values) ? values : [values])
+    .concat(customValue ?? "")
+    .map((value) => value.trim())
+    .filter((value, index, all) => value.length > 0 && all.indexOf(value) === index);
+
+  return entries.join(" ");
 }
 
 function buildCheckInInputForReflection(
@@ -788,7 +801,14 @@ export default function CoachScreen() {
         programProgress: programProgress.progress,
         activeMedications,
         nextAppointment,
-        recentRecoveryStrategies: recentTodayPlans.map((plan) => plan.whatHelped),
+        recentRecoveryStrategies: recentTodayPlans.flatMap((plan) =>
+          [
+            ...plan.whatHelped,
+            plan.whatHelpedCustom,
+          ]
+            .map((value) => value.trim())
+            .filter((value, index, all) => value.length > 0 && all.indexOf(value) === index),
+        ),
       }),
     [activeMedications, adaptiveProfile, coachEntry, nextAppointment, programProgress.progress, recentEntries, recentTodayPlans],
   );
@@ -987,12 +1007,12 @@ export default function CoachScreen() {
       ...recentTodayPlans.map((plan) =>
         [
           plan.mainPriority,
-          plan.staySmaller,
+          serializeTodayPlanSelections(plan.staySmaller, plan.staySmallerCustom),
           plan.tomorrowEnergy,
-          plan.prepareTonight,
-          plan.tomorrowSmaller,
+          serializeTodayPlanSelections(plan.prepareTonight, plan.prepareTonightCustom),
+          serializeTodayPlanSelections(plan.tomorrowSmaller, plan.tomorrowSmallerCustom),
           plan.recoveryTonight,
-          plan.whatHelped,
+          serializeTodayPlanSelections(plan.whatHelped, plan.whatHelpedCustom),
         ].join(" "),
       ),
     ],
@@ -1011,7 +1031,14 @@ export default function CoachScreen() {
         programProgress: programProgress.progress,
         recentRecommendationIds: recentSupportRecommendationIds,
         upcomingAppointments: nextAppointment ? [nextAppointment] : [],
-        recoveryStrategies: recentTodayPlans.map((plan) => plan.whatHelped),
+        recoveryStrategies: recentTodayPlans.flatMap((plan) =>
+          [
+            ...plan.whatHelped,
+            plan.whatHelpedCustom,
+          ]
+            .map((value) => value.trim())
+            .filter((value, index, all) => value.length > 0 && all.indexOf(value) === index),
+        ),
         textInputs: relatedSupportTextInputs,
         baseRecommendations: [
           adaptiveProfile.suggestedProgram
@@ -1762,6 +1789,22 @@ export default function CoachScreen() {
           ) : null}
 
           <View style={styles.card}>
+            <AppText style={styles.title}>Quick prompts</AppText>
+            <View style={styles.quickActions}>
+              {quickPromptOptions.map((prompt) => (
+                <Pressable
+                  key={prompt.id}
+                  accessibilityRole="button"
+                  onPress={() => void handleQuickStart(prompt.id, prompt.title, prompt.mode)}
+                  style={({ pressed }) => [styles.quickStartCard, pressed && styles.actionCardPressed]}
+                >
+                  <AppText style={styles.quickStartTitle}>{prompt.title}</AppText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.card}>
             <AppText style={styles.title}>Recent conversations</AppText>
             {!deferredCoachDataReady || isChatInitialLoading ? (
               <View style={styles.placeholderStack}>
@@ -1793,22 +1836,6 @@ export default function CoachScreen() {
                 </AppText>
               </View>
             )}
-          </View>
-
-          <View style={styles.card}>
-            <AppText style={styles.title}>Quick prompts</AppText>
-            <View style={styles.quickActions}>
-              {quickPromptOptions.map((prompt) => (
-                <Pressable
-                  key={prompt.id}
-                  accessibilityRole="button"
-                  onPress={() => void handleQuickStart(prompt.id, prompt.title, prompt.mode)}
-                  style={({ pressed }) => [styles.quickStartCard, pressed && styles.actionCardPressed]}
-                >
-                  <AppText style={styles.quickStartTitle}>{prompt.title}</AppText>
-                </Pressable>
-              ))}
-            </View>
           </View>
 
           {showCoachHomeExtras ? (

@@ -305,7 +305,7 @@ function AffiliateEditorModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <AppScreen title={title} subtitle="Add the essentials first. You can refine details later.">
+      <AppScreen title={title} subtitle="Add the creator email, code, and referral link first. You can refine the rest later.">
         <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
           <FormField
             label="Name"
@@ -315,7 +315,7 @@ function AffiliateEditorModal({
             autoCapitalize="words"
           />
           <FormField
-            label="Email"
+            label="Creator email"
             value={form.email}
             onChangeText={(value) => onChange({ ...form, email: value })}
             placeholder="name@example.com"
@@ -874,12 +874,12 @@ export default function AffiliateAdminDashboardScreen() {
                       variant="secondary"
                     />
                     <AppButton
-                      label="Copy invite message"
+                      label="Copy creator invite"
                       onPress={() => handleCopy(affiliate.inviteMessage)}
                       variant="secondary"
                     />
                     <AppButton
-                      label="Share invite"
+                      label="Share creator invite"
                       onPress={() => handleShareInvite(affiliate.inviteMessage)}
                       variant="secondary"
                     />

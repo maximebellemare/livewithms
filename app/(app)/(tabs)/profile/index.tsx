@@ -3,6 +3,7 @@ import { Alert, Animated, Linking, Pressable, ScrollView, StyleSheet, Switch, Te
 import { router } from "expo-router";
 import { useCalmEnvironment } from "../../../../features/calm-environment/hooks";
 import { useIsAdmin } from "../../../../features/admin/hooks";
+import { useCreatorAccess } from "../../../../features/creator/hooks";
 import AppButton from "../../../../components/ui/AppButton";
 import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
@@ -214,6 +215,7 @@ async function openTrackedLink(
 export default function ProfileScreen() {
   const { user, isMockMode, signOut } = useAuth();
   const isAdminQuery = useIsAdmin(user?.id);
+  const creatorAccessQuery = useCreatorAccess(user?.id, user?.email);
   const deleteAccount = useDeleteAccount();
   const resetOnboarding = useSaveProfileStep();
   const reminders = useReminderSettings();
@@ -976,6 +978,9 @@ export default function ProfileScreen() {
           <AppText style={styles.sectionTitle}>Support and legal</AppText>
           {isAdminQuery.data ? (
             <LinkRow label="Affiliate Dashboard" onPress={() => router.push("/affiliate-admin")} />
+          ) : null}
+          {creatorAccessQuery.data ? (
+            <LinkRow label="Creator Dashboard" onPress={() => router.push("/creator-dashboard")} />
           ) : null}
           <LinkRow label="App tour" onPress={requestAppTourReplay} />
           <LinkRow

@@ -62,17 +62,17 @@ function buildInviteMessage(input: {
   promoCode: string | null;
   commissionPercent: number | null;
 }) {
-  const commissionLine = input.commissionPercent !== null
-    ? `${input.commissionPercent}%`
-    : "your configured";
-
   return [
-    "Welcome to the LiveWithMS Affiliate Program! Your personal referral link is:",
+    "Welcome to the LiveWithMS Creator Program ❤️",
+    "",
+    `Your creator code is: ${input.promoCode ?? "—"}`,
+    "",
+    "Your referral link is:",
     input.referralLink,
     "",
-    `Your promo code is: ${input.promoCode ?? "—"}`,
+    "When someone joins LiveWithMS using your code and becomes Premium, you’ll earn commission.",
     "",
-    `You’ll earn ${commissionLine} commission on referred Premium subscriptions.`,
+    "You can log into the LiveWithMS app with this email to view your Creator Dashboard.",
   ].join("\n");
 }
 
@@ -681,6 +681,45 @@ async function saveReferralLink(input: {
   await insertWithFallback("referral_links", insertPayloads);
 }
 
+async function saveAffiliateUser(input: {
+  affiliateId: string;
+  email: string;
+}) {
+  const normalizedEmail = input.email.trim().toLowerCase();
+  if (!normalizedEmail) {
+    return;
+  }
+
+  const affiliateUserRows = await selectAll("affiliate_users");
+  const existingRow = affiliateUserRows.find((row) => asText(row.affiliate_id) === input.affiliateId);
+  const existingEmail = existingRow ? normalizeCode(asText(existingRow.email)) : "";
+  const emailChanged = Boolean(existingRow) && existingEmail !== normalizedEmail;
+  const primaryUpdatePayload: Record<string, unknown> = {
+    email: normalizedEmail,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (emailChanged) {
+    primaryUpdatePayload.user_id = null;
+  }
+
+  const updatePayloads = [
+    primaryUpdatePayload,
+    { email: normalizedEmail },
+  ];
+  const insertPayloads = [
+    { affiliate_id: input.affiliateId, email: normalizedEmail, updated_at: new Date().toISOString() },
+    { affiliate_id: input.affiliateId, email: normalizedEmail },
+  ];
+
+  if (existingRow && asText(existingRow.id)) {
+    await updateWithFallback("affiliate_users", asText(existingRow.id) ?? "", updatePayloads);
+    return;
+  }
+
+  await insertWithFallback("affiliate_users", insertPayloads);
+}
+
 export async function saveAffiliate(input: AffiliateFormInput) {
   const name = input.name.trim();
   const email = input.email.trim();
@@ -737,6 +776,10 @@ export async function saveAffiliate(input: AffiliateFormInput) {
       existingLinkId: asText(existingLink?.id),
       referralSlug: input.referralSlug || promoCode,
     });
+    await saveAffiliateUser({
+      affiliateId: input.id,
+      email,
+    });
 
     return affiliate;
   }
@@ -757,6 +800,10 @@ export async function saveAffiliate(input: AffiliateFormInput) {
   await saveReferralLink({
     affiliateId,
     referralSlug: input.referralSlug || promoCode,
+  });
+  await saveAffiliateUser({
+    affiliateId,
+    email,
   });
 
   return insertedAffiliate;

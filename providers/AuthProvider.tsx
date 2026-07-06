@@ -12,6 +12,7 @@ import {
 import env from "../lib/env";
 import { logger } from "../lib/logger";
 import { profileApi } from "../features/profile/api";
+import { ensureCreatorAffiliateLink } from "../features/creator/api";
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -39,6 +40,14 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       supabaseProjectRef: env.supabaseProjectRef,
     });
   }, []);
+
+  useEffect(() => {
+    if (!env.isSupabaseConfigured || !user?.id || !user.email) {
+      return;
+    }
+
+    void ensureCreatorAffiliateLink(user.id, user.email);
+  }, [user?.email, user?.id]);
 
   const setDevMockState = useCallback((state: DevMockAuthState) => {
     setGlobalDevMockAuthState(state);

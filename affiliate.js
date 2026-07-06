@@ -2,6 +2,7 @@
   var SUPABASE_URL = "https://tmvpabvztdekmfsgoazx.supabase.co";
   var SUPABASE_PUBLISHABLE_KEY = "sb_publishable_qWqkelTv9lbhHNZwOGKKBQ_pl7jpkk7";
   var STORAGE_KEY = "livewithms_affiliate_ref";
+  var STORAGE_META_KEY = "livewithms_affiliate_ref_meta";
   var COOKIE_KEY = "livewithms_affiliate_ref";
   var COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
   var STORE_LINK_SELECTOR = 'a[href*="apps.apple.com"],a[href*="play.google.com"],a[href*="market://"]';
@@ -60,25 +61,87 @@
     }
   }
 
+  function readStorageMeta() {
+    try {
+      var raw = window.localStorage.getItem(STORAGE_META_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return null;
+      return parsed;
+    } catch (error) {
+      log("storage meta read failure", error);
+      return null;
+    }
+  }
+
+  function isStorageReferralFresh(meta) {
+    if (!meta || typeof meta !== "object") {
+      return false;
+    }
+
+    var capturedAt = typeof meta.capturedAt === "string" ? Date.parse(meta.capturedAt) : NaN;
+    if (!capturedAt || Number.isNaN(capturedAt)) {
+      return false;
+    }
+
+    return Date.now() - capturedAt <= COOKIE_MAX_AGE * 1000;
+  }
+
+  function clearStoredReferral() {
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(STORAGE_META_KEY);
+      log("localStorage referral cleared", {
+        key: STORAGE_KEY,
+      });
+    } catch (error) {
+      log("localStorage referral clear failure", error);
+    }
+
+    try {
+      document.cookie = COOKIE_KEY + "=; path=/; max-age=0; SameSite=Lax";
+      log("cookie referral cleared", {
+        key: COOKIE_KEY,
+      });
+    } catch (error) {
+      log("cookie referral clear failure", error);
+    }
+  }
+
   function getStoredReferral() {
     var localValue = null;
+    var localMeta = null;
 
     try {
       localValue = window.localStorage.getItem(STORAGE_KEY);
+      localMeta = readStorageMeta();
     } catch (error) {
       log("localStorage read failure", error);
     }
 
-    return localValue || readCookie();
+    if (localValue) {
+      if (isStorageReferralFresh(localMeta)) {
+        return localValue;
+      }
+
+      log("stored referral expired", {
+        key: STORAGE_KEY,
+      });
+      clearStoredReferral();
+    }
+
+    return readCookie();
   }
 
   function detectReferralFromQuery() {
     var searchParams = new URLSearchParams(window.location.search || "");
     var refValue = searchParams.get("ref");
     var affiliateValue = searchParams.get("affiliate");
+    var creatorValue = searchParams.get("creator");
 
     if (refValue) return normalizeReferral(refValue);
     if (affiliateValue) return normalizeReferral(affiliateValue);
+    if (creatorValue) return normalizeReferral(creatorValue);
     return "";
   }
 
@@ -107,6 +170,13 @@
 
     try {
       window.localStorage.setItem(STORAGE_KEY, normalizedReferral);
+      window.localStorage.setItem(
+        STORAGE_META_KEY,
+        JSON.stringify({
+          code: normalizedReferral,
+          capturedAt: new Date().toISOString(),
+        }),
+      );
       localStorageOk = window.localStorage.getItem(STORAGE_KEY) === normalizedReferral;
       log("localStorage write " + (localStorageOk ? "success" : "failure"), {
         key: STORAGE_KEY,
@@ -670,19 +740,10 @@
     }
 
     updateStoreLinks(normalizedReferral);
-
-    var affiliate = await resolveAffiliate(normalizedReferral);
-    if (!affiliate) {
-      log("no valid affiliate match", {
-        referral: normalizedReferral,
-      });
-      return;
-    }
-
-    createBanner(affiliate);
   }
 
   function runAffiliateCapture() {
+    removeExistingBanner();
     log("script loaded");
     log("current URL", window.location.href);
 

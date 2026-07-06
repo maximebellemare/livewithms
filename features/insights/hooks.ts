@@ -140,7 +140,7 @@ function buildTrendSummary(
     } else if (higherIsBetter) {
       summary =
         direction === "up"
-          ? `Lately, your ${label.toLowerCase()} has felt a little steadier.`
+          ? `Lately, your ${label.toLowerCase()} has felt a little more stable.`
           : `Lately, your ${label.toLowerCase()} has felt a little lower than usual.`;
     } else {
       summary =
@@ -367,7 +367,7 @@ function buildSleepFatigueInsight(entries30: DailyCheckIn[]): SleepFatigueInsigh
       lowSleepAverage,
       normalSleepAverage,
       sentence: getInsightDetailFallback(),
-      recommendation: "A steadier wind-down may help support your energy.",
+      recommendation: "A more consistent wind-down may help support your energy.",
     };
   }
 
@@ -382,7 +382,7 @@ function buildSleepFatigueInsight(entries30: DailyCheckIn[]): SleepFatigueInsigh
       lowSleepAverage,
       normalSleepAverage,
       sentence: getInsightDetailFallback(),
-      recommendation: "A steadier wind-down may help support your energy.",
+      recommendation: "A more consistent wind-down may help support your energy.",
     };
   }
 
@@ -392,7 +392,7 @@ function buildSleepFatigueInsight(entries30: DailyCheckIn[]): SleepFatigueInsigh
     lowSleepAverage,
     normalSleepAverage,
     sentence: `Fatigue tends to feel ${Math.abs(percentageDifference)}% ${direction} noticeable on lower-sleep days.`,
-    recommendation: "A steadier wind-down may help support your energy.",
+    recommendation: "A more consistent wind-down may help support your energy.",
   };
 }
 
@@ -483,7 +483,7 @@ function buildSleepMoodInsight(entries30: DailyCheckIn[]): SleepMoodInsight {
       lowSleepAverage,
       normalSleepAverage,
       sentence: getInsightDetailFallback(),
-      recommendation: "A steadier bedtime may help support your mood.",
+      recommendation: "A more consistent bedtime may help support your mood.",
     };
   }
 
@@ -498,7 +498,7 @@ function buildSleepMoodInsight(entries30: DailyCheckIn[]): SleepMoodInsight {
       lowSleepAverage,
       normalSleepAverage,
       sentence: getInsightDetailFallback(),
-      recommendation: "A steadier bedtime may help support your mood.",
+      recommendation: "A more consistent bedtime may help support your mood.",
     };
   }
 
@@ -508,7 +508,7 @@ function buildSleepMoodInsight(entries30: DailyCheckIn[]): SleepMoodInsight {
     lowSleepAverage,
     normalSleepAverage,
     sentence: `Mood tends to feel ${Math.abs(percentageDifference)}% ${direction} on lower-sleep days.`,
-    recommendation: "A steadier bedtime may help support your mood.",
+    recommendation: "A more consistent bedtime may help support your mood.",
   };
 }
 
@@ -541,7 +541,7 @@ function buildHydrationEnergyInsight(entries30: DailyCheckIn[]): HydrationEnergy
       lowHydrationAverage,
       goodHydrationAverage,
       sentence: getInsightDetailFallback(),
-      recommendation: "A steadier hydration rhythm may help support your energy.",
+      recommendation: "A more consistent hydration rhythm may help support your energy.",
     };
   }
 
@@ -555,7 +555,7 @@ function buildHydrationEnergyInsight(entries30: DailyCheckIn[]): HydrationEnergy
       lowHydrationAverage,
       goodHydrationAverage,
       sentence: getInsightDetailFallback(),
-      recommendation: "A steadier hydration rhythm may help support your energy.",
+      recommendation: "A more consistent hydration rhythm may help support your energy.",
     };
   }
 
@@ -567,8 +567,8 @@ function buildHydrationEnergyInsight(entries30: DailyCheckIn[]): HydrationEnergy
     sentence:
       Math.abs(percentageDifference) >= 10
         ? `Fatigue tends to feel ${Math.abs(percentageDifference)}% lighter on well-hydrated days.`
-        : "Energy tends to feel a little steadier on well-hydrated days.",
-    recommendation: "A steadier hydration rhythm may help support your energy.",
+        : "Energy tends to feel a little more stable on well-hydrated days.",
+    recommendation: "A more consistent hydration rhythm may help support your energy.",
   };
 }
 
@@ -653,15 +653,15 @@ function buildBestWorstDayInsight(entries30: DailyCheckIn[]): BestWorstDayInsigh
 
   const sentence =
     clues.length > 0
-      ? `Your steadier days often include ${clues.join(" and ")}.`
-      : "Some steadier days show a more stable balance of energy and mood.";
+      ? `Your more stable days often include ${clues.join(" and ")}.`
+      : "Some days show a more stable balance of energy and mood.";
 
   return {
     show: true,
     bestDay,
     worstDay,
     sentence,
-    recommendation: "If it feels useful, notice which conditions tend to feel steadier.",
+    recommendation: "If it feels useful, notice which conditions tend to feel more stable.",
   };
 }
 
@@ -718,7 +718,7 @@ function buildKeyTakeaway(entries: DailyCheckIn[], trends: TrendSummary[]): KeyT
   if (moodTrend?.direction === "up") {
     return {
       title: "Your key takeaway",
-      body: "Mood has looked a little steadier lately.",
+      body: "Mood has looked a little more stable lately.",
     };
   }
 

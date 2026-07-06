@@ -24,7 +24,7 @@ function getWeeklyHighlight(summary: WeeklySummary) {
   }
 
   if (summary.averageMood !== null && summary.averageMood >= 4) {
-    return "You seem to be finding a steadier rhythm in your mood lately.";
+    return "Your mood has looked a little more stable lately.";
   }
 
   if (summary.averageStress !== null && summary.averageStress >= 4) {
@@ -40,7 +40,7 @@ function getWeeklySuggestion(summary: WeeklySummary) {
   }
 
   if (summary.averageSleep !== null && summary.averageSleep < 7) {
-    return "A steadier bedtime routine may help you feel a little more supported.";
+    return "A more consistent bedtime routine may help you feel a little more supported.";
   }
 
   if (summary.averageStress !== null && summary.averageStress >= 4) {

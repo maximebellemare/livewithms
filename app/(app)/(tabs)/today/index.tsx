@@ -248,25 +248,35 @@ const CHECK_IN_STREAK_MILESTONES = new Set([3, 7, 14, 30, 60, 100]);
 type TodayPlanDraft = {
   mainPriority: string;
   energyLevel: string;
-  staySmaller: string;
-  recoveryProtection: string;
+  staySmaller: string[];
+  staySmallerCustom: string;
+  recoveryProtection: string[];
+  recoveryProtectionCustom: string;
   tomorrowEnergy: string;
-  prepareTonight: string;
-  tomorrowSmaller: string;
+  prepareTonight: string[];
+  prepareTonightCustom: string;
+  tomorrowSmaller: string[];
+  tomorrowSmallerCustom: string;
   recoveryTonight: string;
-  whatHelped: string;
+  whatHelped: string[];
+  whatHelpedCustom: string;
 };
 
 const EMPTY_TODAY_PLAN: TodayPlanDraft = {
   mainPriority: "",
   energyLevel: "",
-  staySmaller: "",
-  recoveryProtection: "",
+  staySmaller: [],
+  staySmallerCustom: "",
+  recoveryProtection: [],
+  recoveryProtectionCustom: "",
   tomorrowEnergy: "",
-  prepareTonight: "",
-  tomorrowSmaller: "",
+  prepareTonight: [],
+  prepareTonightCustom: "",
+  tomorrowSmaller: [],
+  tomorrowSmallerCustom: "",
   recoveryTonight: "",
-  whatHelped: "",
+  whatHelped: [],
+  whatHelpedCustom: "",
 };
 
 const DEFAULT_TODAY_PLAN_PRIORITIES = [
@@ -307,6 +317,137 @@ const DEFAULT_TOMORROW_SMALLER_OPTIONS = [
   "Social plans",
   "Decisions",
 ] as const;
+
+type MultiSelectPlanField = "staySmaller" | "recoveryProtection" | "prepareTonight" | "tomorrowSmaller" | "whatHelped";
+type MultiSelectPlanCustomField =
+  | "staySmallerCustom"
+  | "recoveryProtectionCustom"
+  | "prepareTonightCustom"
+  | "tomorrowSmallerCustom"
+  | "whatHelpedCustom";
+type TodayPlanSectionKey = "today" | "tomorrow" | "whatHelped";
+type TodayPlanSaveState = "idle" | "saving" | "saved";
+
+function normalizePlanList(values: string[]) {
+  return values
+    .map((value) => value.trim())
+    .filter((value, index, all) => value.length > 0 && all.indexOf(value) === index);
+}
+
+function joinPlanSelections(values: string[], customValue: string) {
+  return normalizePlanList([...values, customValue]).join(", ");
+}
+
+function normalizeEnergyLevel(value: string) {
+  switch (value.trim().toLowerCase()) {
+    case "mixed":
+      return "Medium";
+    case "steadier":
+      return "High";
+    case "low":
+      return "Low";
+    case "medium":
+      return "Medium";
+    case "high":
+      return "High";
+    default:
+      return value.trim();
+  }
+}
+
+function getTodayPlanSectionForField(field: keyof TodayPlanDraft): TodayPlanSectionKey {
+  switch (field) {
+    case "mainPriority":
+    case "energyLevel":
+    case "staySmaller":
+    case "staySmallerCustom":
+    case "recoveryProtection":
+    case "recoveryProtectionCustom":
+      return "today";
+    case "tomorrowEnergy":
+    case "prepareTonight":
+    case "prepareTonightCustom":
+    case "tomorrowSmaller":
+    case "tomorrowSmallerCustom":
+    case "recoveryTonight":
+      return "tomorrow";
+    case "whatHelped":
+    case "whatHelpedCustom":
+      return "whatHelped";
+    default:
+      return "today";
+  }
+}
+
+function migrateLegacyPlanSelections(
+  values: string[] | string,
+  customValue: string,
+  knownOptions: readonly string[],
+) {
+  const normalizedValues = normalizePlanList(Array.isArray(values) ? values : [values]);
+  const optionLookup = new Map(knownOptions.map((option) => [option.toLowerCase(), option]));
+  const selected: string[] = [];
+  const customParts = normalizePlanList([customValue]);
+
+  normalizedValues.forEach((value) => {
+    const matchedOption = optionLookup.get(value.toLowerCase());
+
+    if (matchedOption) {
+      selected.push(matchedOption);
+      return;
+    }
+
+    customParts.push(value);
+  });
+
+  return {
+    selected: normalizePlanList(selected),
+    custom: normalizePlanList(customParts).join(", "),
+  };
+}
+
+function migrateLegacyTodayPlan(savedPlan: TodayPlan) {
+  const staySmaller = migrateLegacyPlanSelections(
+    savedPlan.staySmaller,
+    savedPlan.staySmallerCustom,
+    DEFAULT_STAY_SMALLER_OPTIONS,
+  );
+  const recoveryProtection = migrateLegacyPlanSelections(
+    savedPlan.recoveryProtection,
+    savedPlan.recoveryProtectionCustom,
+    DEFAULT_RECOVERY_STRATEGIES,
+  );
+  const prepareTonight = migrateLegacyPlanSelections(
+    savedPlan.prepareTonight,
+    savedPlan.prepareTonightCustom,
+    DEFAULT_TOMORROW_PREP_OPTIONS,
+  );
+  const tomorrowSmaller = migrateLegacyPlanSelections(
+    savedPlan.tomorrowSmaller,
+    savedPlan.tomorrowSmallerCustom,
+    DEFAULT_TOMORROW_SMALLER_OPTIONS,
+  );
+  const whatHelped = migrateLegacyPlanSelections(
+    savedPlan.whatHelped,
+    savedPlan.whatHelpedCustom,
+    DEFAULT_RECOVERY_STRATEGIES,
+  );
+
+  return {
+    ...savedPlan,
+    energyLevel: normalizeEnergyLevel(savedPlan.energyLevel),
+    staySmaller: staySmaller.selected,
+    staySmallerCustom: staySmaller.custom,
+    recoveryProtection: recoveryProtection.selected,
+    recoveryProtectionCustom: recoveryProtection.custom,
+    prepareTonight: prepareTonight.selected,
+    prepareTonightCustom: prepareTonight.custom,
+    tomorrowSmaller: tomorrowSmaller.selected,
+    tomorrowSmallerCustom: tomorrowSmaller.custom,
+    whatHelped: whatHelped.selected,
+    whatHelpedCustom: whatHelped.custom,
+  };
+}
 
 function getStreakLabel(streak: number, todayEntry: DailyCheckIn | null) {
   if (streak > 0) {
@@ -811,7 +952,14 @@ export default function TodayScreen() {
   const [todayPlan, setTodayPlan] = useState<TodayPlanDraft>(EMPTY_TODAY_PLAN);
   const [savedTodayPlan, setSavedTodayPlan] = useState<TodayPlan | null>(null);
   const [recentTodayPlans, setRecentTodayPlans] = useState<TodayPlan[]>([]);
-  const [todayPlanSaveState, setTodayPlanSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [todayPlanSaveStates, setTodayPlanSaveStates] = useState<Record<TodayPlanSectionKey, TodayPlanSaveState>>({
+    today: "idle",
+    tomorrow: "idle",
+    whatHelped: "idle",
+  });
+  const [isTodayPlanExpanded, setIsTodayPlanExpanded] = useState(true);
+  const [isTomorrowPlanExpanded, setIsTomorrowPlanExpanded] = useState(true);
+  const [isWhatHelpedExpanded, setIsWhatHelpedExpanded] = useState(true);
   const [lastSaveQueued, setLastSaveQueued] = useState(false);
   const [medicationsTakenToday, setMedicationsTakenToday] = useState<Record<string, string>>({});
   const [recentSupportRecommendationIds, setRecentSupportRecommendationIds] = useState<string[]>([]);
@@ -1000,7 +1148,9 @@ export default function TodayScreen() {
         todayEntry,
         draft,
         recentEntries: historyEntriesForInsights,
-        recoveryStrategies: (deferredInsightsReady ? recentTodayPlans : []).map((plan) => plan.whatHelped),
+        recoveryStrategies: (deferredInsightsReady ? recentTodayPlans : []).flatMap((plan) =>
+          normalizePlanList([...plan.whatHelped, plan.whatHelpedCustom]),
+        ),
         hasPremiumAccess: premium.hasPremiumAccess,
         programProgress: programProgress.progress,
         recentRecommendationIds: recentSupportRecommendationIds,
@@ -1009,12 +1159,12 @@ export default function TodayScreen() {
         upcomingAppointments,
         textInputs: [
           todayPlan.mainPriority,
-          todayPlan.staySmaller,
+          joinPlanSelections(todayPlan.staySmaller, todayPlan.staySmallerCustom),
           todayPlan.tomorrowEnergy,
-          todayPlan.prepareTonight,
-          todayPlan.tomorrowSmaller,
+          joinPlanSelections(todayPlan.prepareTonight, todayPlan.prepareTonightCustom),
+          joinPlanSelections(todayPlan.tomorrowSmaller, todayPlan.tomorrowSmallerCustom),
           todayPlan.recoveryTonight,
-          todayPlan.whatHelped,
+          joinPlanSelections(todayPlan.whatHelped, todayPlan.whatHelpedCustom),
         ],
       }),
     [currentHour, deferredInsightsReady, draft, historyEntriesForInsights, premium.hasPremiumAccess, programProgress.progress, recentSupportRecommendationIds, recentTodayPlans, today, todayEntry, todayPlan, upcomingAppointments],
@@ -1722,7 +1872,14 @@ export default function TodayScreen() {
     if (!user?.id) {
       setTodayPlan(EMPTY_TODAY_PLAN);
       setSavedTodayPlan(null);
-      setTodayPlanSaveState("idle");
+      setTodayPlanSaveStates({
+        today: "idle",
+        tomorrow: "idle",
+        whatHelped: "idle",
+      });
+      setIsTodayPlanExpanded(true);
+      setIsTomorrowPlanExpanded(true);
+      setIsWhatHelpedExpanded(true);
       return;
     }
 
@@ -1738,25 +1895,41 @@ export default function TodayScreen() {
         return;
       }
 
-      setRecentTodayPlans(recentPlans);
-      setSavedTodayPlan(savedPlan);
+      const migratedSavedPlan = savedPlan ? migrateLegacyTodayPlan(savedPlan) : null;
+
+      const migratedRecentPlans = recentPlans.map((plan) => migrateLegacyTodayPlan(plan));
+
+      setRecentTodayPlans(migratedRecentPlans);
+      setSavedTodayPlan(migratedSavedPlan);
 
       setTodayPlan(
-        savedPlan
+        migratedSavedPlan
           ? {
-              mainPriority: savedPlan.mainPriority,
-              energyLevel: savedPlan.energyLevel,
-              staySmaller: savedPlan.staySmaller,
-              recoveryProtection: savedPlan.recoveryProtection,
-              tomorrowEnergy: savedPlan.tomorrowEnergy,
-              prepareTonight: savedPlan.prepareTonight,
-              tomorrowSmaller: savedPlan.tomorrowSmaller,
-              recoveryTonight: savedPlan.recoveryTonight,
-              whatHelped: savedPlan.whatHelped,
+              mainPriority: migratedSavedPlan.mainPriority,
+              energyLevel: migratedSavedPlan.energyLevel,
+              staySmaller: migratedSavedPlan.staySmaller,
+              staySmallerCustom: migratedSavedPlan.staySmallerCustom,
+              recoveryProtection: migratedSavedPlan.recoveryProtection,
+              recoveryProtectionCustom: migratedSavedPlan.recoveryProtectionCustom,
+              tomorrowEnergy: migratedSavedPlan.tomorrowEnergy,
+              prepareTonight: migratedSavedPlan.prepareTonight,
+              prepareTonightCustom: migratedSavedPlan.prepareTonightCustom,
+              tomorrowSmaller: migratedSavedPlan.tomorrowSmaller,
+              tomorrowSmallerCustom: migratedSavedPlan.tomorrowSmallerCustom,
+              recoveryTonight: migratedSavedPlan.recoveryTonight,
+              whatHelped: migratedSavedPlan.whatHelped,
+              whatHelpedCustom: migratedSavedPlan.whatHelpedCustom,
             }
           : EMPTY_TODAY_PLAN,
       );
-      setTodayPlanSaveState(savedPlan ? "saved" : "idle");
+      setTodayPlanSaveStates({
+        today: migratedSavedPlan ? "saved" : "idle",
+        tomorrow: migratedSavedPlan ? "saved" : "idle",
+        whatHelped: migratedSavedPlan ? "saved" : "idle",
+      });
+      setIsTodayPlanExpanded(!migratedSavedPlan);
+      setIsTomorrowPlanExpanded(!migratedSavedPlan);
+      setIsWhatHelpedExpanded(!migratedSavedPlan);
     })();
 
     return () => {
@@ -1848,37 +2021,91 @@ export default function TodayScreen() {
     });
   };
 
-  const updateTodayPlanField = (field: keyof TodayPlanDraft, value: string) => {
+  const updateTodayPlanField = (field: keyof TodayPlanDraft, value: string | string[]) => {
     setTodayPlan((current) => ({
       ...current,
       [field]: value,
     }));
-    setTodayPlanSaveState("idle");
+    const section = getTodayPlanSectionForField(field);
+    setTodayPlanSaveStates((current) => ({
+      ...current,
+      [section]: "idle",
+    }));
   };
 
-  const saveCurrentTodayPlan = async () => {
+  const toggleTodayPlanMultiSelect = (field: MultiSelectPlanField, value: string) => {
+    setTodayPlan((current) => {
+      const existing = current[field];
+      const nextValues = existing.includes(value)
+        ? existing.filter((entry) => entry !== value)
+        : [...existing, value];
+
+      return {
+        ...current,
+        [field]: normalizePlanList(nextValues),
+      };
+    });
+    const section = getTodayPlanSectionForField(field);
+    setTodayPlanSaveStates((current) => ({
+      ...current,
+      [section]: "idle",
+    }));
+  };
+
+  const updateTodayPlanCustomField = (field: MultiSelectPlanCustomField, value: string) => {
+    updateTodayPlanField(field, value);
+  };
+
+  const openTodayPlanEditor = (section: TodayPlanSectionKey) => {
+    if (section === "today") {
+      setIsTodayPlanExpanded(true);
+    } else if (section === "tomorrow") {
+      setIsTomorrowPlanExpanded(true);
+    } else {
+      setIsWhatHelpedExpanded(true);
+    }
+
+    setTodayPlanSaveStates((current) => ({
+      ...current,
+      [section]: "idle",
+    }));
+  };
+
+  const buildTodayPlanPayload = () => {
+    return {
+      userId: user?.id ?? "",
+      date: today,
+      mainPriority: todayPlan.mainPriority.trim(),
+      energyLevel: todayPlan.energyLevel.trim(),
+      staySmaller: normalizePlanList(todayPlan.staySmaller),
+      staySmallerCustom: todayPlan.staySmallerCustom.trim(),
+      recoveryProtection: normalizePlanList(todayPlan.recoveryProtection),
+      recoveryProtectionCustom: todayPlan.recoveryProtectionCustom.trim(),
+      tomorrowEnergy: todayPlan.tomorrowEnergy.trim(),
+      prepareTonight: normalizePlanList(todayPlan.prepareTonight),
+      prepareTonightCustom: todayPlan.prepareTonightCustom.trim(),
+      tomorrowSmaller: normalizePlanList(todayPlan.tomorrowSmaller),
+      tomorrowSmallerCustom: todayPlan.tomorrowSmallerCustom.trim(),
+      recoveryTonight: todayPlan.recoveryTonight.trim(),
+      whatHelped: normalizePlanList(todayPlan.whatHelped),
+      whatHelpedCustom: todayPlan.whatHelpedCustom.trim(),
+      isComplete: savedTodayPlan?.isComplete ?? false,
+      createdAt: savedTodayPlan?.createdAt ?? new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } satisfies TodayPlan;
+  };
+
+  const saveTodayPlanSection = async (section: TodayPlanSectionKey) => {
     if (!user?.id) {
       return;
     }
 
-    setTodayPlanSaveState("saving");
+    setTodayPlanSaveStates((current) => ({
+      ...current,
+      [section]: "saving",
+    }));
 
-    const nextPlan: TodayPlan = {
-      userId: user.id,
-      date: today,
-      mainPriority: todayPlan.mainPriority.trim(),
-      energyLevel: todayPlan.energyLevel.trim(),
-      staySmaller: todayPlan.staySmaller.trim(),
-      recoveryProtection: todayPlan.recoveryProtection.trim(),
-      tomorrowEnergy: todayPlan.tomorrowEnergy.trim(),
-      prepareTonight: todayPlan.prepareTonight.trim(),
-      tomorrowSmaller: todayPlan.tomorrowSmaller.trim(),
-      recoveryTonight: todayPlan.recoveryTonight.trim(),
-      whatHelped: todayPlan.whatHelped.trim(),
-      isComplete: savedTodayPlan?.isComplete ?? false,
-      createdAt: savedTodayPlan?.createdAt ?? new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const nextPlan = buildTodayPlanPayload();
 
     await saveTodayPlan(nextPlan);
     setSavedTodayPlan(nextPlan);
@@ -1886,15 +2113,30 @@ export default function TodayScreen() {
       mainPriority: nextPlan.mainPriority,
       energyLevel: nextPlan.energyLevel,
       staySmaller: nextPlan.staySmaller,
+      staySmallerCustom: nextPlan.staySmallerCustom,
       recoveryProtection: nextPlan.recoveryProtection,
+      recoveryProtectionCustom: nextPlan.recoveryProtectionCustom,
       tomorrowEnergy: nextPlan.tomorrowEnergy,
       prepareTonight: nextPlan.prepareTonight,
+      prepareTonightCustom: nextPlan.prepareTonightCustom,
       tomorrowSmaller: nextPlan.tomorrowSmaller,
+      tomorrowSmallerCustom: nextPlan.tomorrowSmallerCustom,
       recoveryTonight: nextPlan.recoveryTonight,
       whatHelped: nextPlan.whatHelped,
+      whatHelpedCustom: nextPlan.whatHelpedCustom,
     });
     setRecentTodayPlans((current) => [nextPlan, ...current.filter((plan) => plan.date !== today)].slice(0, 14));
-    setTodayPlanSaveState("saved");
+    setTodayPlanSaveStates((current) => ({
+      ...current,
+      [section]: "saved",
+    }));
+    if (section === "today") {
+      setIsTodayPlanExpanded(false);
+    } else if (section === "tomorrow") {
+      setIsTomorrowPlanExpanded(false);
+    } else {
+      setIsWhatHelpedExpanded(false);
+    }
     void Haptics.selectionAsync();
   };
 
@@ -1908,13 +2150,18 @@ export default function TodayScreen() {
       date: today,
       mainPriority: todayPlan.mainPriority.trim(),
       energyLevel: todayPlan.energyLevel.trim(),
-      staySmaller: todayPlan.staySmaller.trim(),
-      recoveryProtection: todayPlan.recoveryProtection.trim(),
+      staySmaller: normalizePlanList(todayPlan.staySmaller),
+      staySmallerCustom: todayPlan.staySmallerCustom.trim(),
+      recoveryProtection: normalizePlanList(todayPlan.recoveryProtection),
+      recoveryProtectionCustom: todayPlan.recoveryProtectionCustom.trim(),
       tomorrowEnergy: todayPlan.tomorrowEnergy.trim(),
-      prepareTonight: todayPlan.prepareTonight.trim(),
-      tomorrowSmaller: todayPlan.tomorrowSmaller.trim(),
+      prepareTonight: normalizePlanList(todayPlan.prepareTonight),
+      prepareTonightCustom: todayPlan.prepareTonightCustom.trim(),
+      tomorrowSmaller: normalizePlanList(todayPlan.tomorrowSmaller),
+      tomorrowSmallerCustom: todayPlan.tomorrowSmallerCustom.trim(),
       recoveryTonight: todayPlan.recoveryTonight.trim(),
-      whatHelped: todayPlan.whatHelped.trim(),
+      whatHelped: normalizePlanList(todayPlan.whatHelped),
+      whatHelpedCustom: todayPlan.whatHelpedCustom.trim(),
       isComplete: !(savedTodayPlan?.isComplete ?? false),
       createdAt: savedTodayPlan?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -1923,7 +2170,10 @@ export default function TodayScreen() {
     setSavedTodayPlan(nextPlan);
     setRecentTodayPlans((current) => [nextPlan, ...current.filter((plan) => plan.date !== today)].slice(0, 14));
     await saveTodayPlan(nextPlan);
-    setTodayPlanSaveState("saved");
+    setTodayPlanSaveStates((current) => ({
+      ...current,
+      today: "saved",
+    }));
     void Haptics.selectionAsync();
   };
 
@@ -2121,7 +2371,7 @@ export default function TodayScreen() {
             {todayEntry
               ? lastSaveQueued
                 ? "Today’s check-in is saved offline and will sync when the connection returns."
-                : "Log fatigue, mood, stress, symptoms, sleep, and anything important today."
+                : "Today’s check-in is saved. You can update it anytime if something changes."
               : "Log fatigue, mood, stress, symptoms, sleep, and anything important today."}
           </AppText>
           {operationalObservation ? (
@@ -2130,244 +2380,13 @@ export default function TodayScreen() {
               <AppText style={styles.infoBody}>{operationalObservation}</AppText>
             </View>
           ) : null}
-          <AppButton label="Start check-in" onPress={() => router.push("/track")} />
-        </View>
-
-        <View style={styles.dailyIntelligenceCard}>
-          <AppText style={styles.dailyIntelligenceLabel}>Today’s guidance</AppText>
-          {deferredInsightsReady ? (
-            <>
-              <AppText style={styles.dailyIntelligenceTitle}>{adaptiveDailyDashboard.guidance}</AppText>
-              <AppText style={styles.dailyIntelligenceBody}>{adaptiveDailyDashboard.stateSummary}</AppText>
-            </>
-          ) : (
-            <View style={styles.guidancePlaceholderStack}>
-              <CalmSkeleton height={18} width="72%" />
-              <CalmSkeleton height={14} width="94%" />
-              <CalmSkeleton height={14} width="82%" />
-            </View>
-          )}
+          <AppButton label={todayEntry ? "Update today’s check-in" : "Start check-in"} onPress={() => router.push("/track")} />
         </View>
 
         <View style={styles.todayPlanCard}>
-          <View style={styles.todayPlanHeader}>
-            <View style={styles.todayPlanHeaderCopy}>
-              <AppText style={styles.navTitle}>Today plan</AppText>
-              <AppText style={styles.todayPlanSubtitle}>One realistic focus, one thing to keep smaller.</AppText>
-            </View>
-            <View style={styles.todayPlanHeaderActions}>
-              {savedTodayPlan ? (
-                <Pressable
-                  onPress={() => void toggleTodayPlanComplete()}
-                  style={({ pressed }) => [
-                    styles.todayPlanSecondaryButton,
-                    savedTodayPlan.isComplete && styles.todayPlanSecondaryButtonComplete,
-                    pressed && styles.quickLinkPressed,
-                  ]}
-                >
-                  <AppText
-                    style={[
-                      styles.todayPlanSecondaryButtonText,
-                      savedTodayPlan.isComplete && styles.todayPlanSecondaryButtonTextComplete,
-                    ]}
-                  >
-                    {savedTodayPlan.isComplete ? "Done for today" : "Mark done"}
-                  </AppText>
-                </Pressable>
-              ) : null}
-              <Pressable
-                onPress={() => void saveCurrentTodayPlan()}
-                disabled={todayPlanSaveState === "saving"}
-                style={({ pressed }) => [
-                  styles.todayPlanSaveButton,
-                  todayPlanSaveState === "saved" && styles.todayPlanSaveButtonSaved,
-                  pressed && styles.quickLinkPressed,
-                ]}
-              >
-                <AppText
-                  style={[
-                    styles.todayPlanSaveButtonText,
-                    todayPlanSaveState === "saved" && styles.todayPlanSaveButtonTextSaved,
-                  ]}
-                >
-                  {getTodayPlanSaveLabel(todayPlanSaveState)}
-                </AppText>
-              </Pressable>
-            </View>
-          </View>
-
-          {savedTodayPlan ? (
-            <View style={styles.todayPlanSavedCard}>
-              <View style={styles.todayPlanSavedHeader}>
-                <AppText style={styles.todayPlanSavedTitle}>Saved for today</AppText>
-                <AppText style={styles.todayPlanSavedMeta}>
-                  {savedTodayPlan.isComplete ? "Done for today" : `Updated ${new Date(savedTodayPlan.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`}
-                </AppText>
-              </View>
-              {savedTodayPlan.mainPriority ? (
-                <AppText style={styles.todayPlanSavedLine}>Main priority: {savedTodayPlan.mainPriority}</AppText>
-              ) : null}
-              {savedTodayPlan.energyLevel ? (
-                <AppText style={styles.todayPlanSavedLine}>Energy today: {savedTodayPlan.energyLevel}</AppText>
-              ) : null}
-              {savedTodayPlan.staySmaller ? (
-                <AppText style={styles.todayPlanSavedLine}>Keep smaller: {savedTodayPlan.staySmaller}</AppText>
-              ) : null}
-              {savedTodayPlan.recoveryProtection ? (
-                <AppText style={styles.todayPlanSavedLine}>Recovery support: {savedTodayPlan.recoveryProtection}</AppText>
-              ) : null}
-              {savedTodayPlan.prepareTonight ? (
-                <AppText style={styles.todayPlanSavedLine}>Prepare tonight: {savedTodayPlan.prepareTonight}</AppText>
-              ) : null}
-            </View>
-          ) : null}
-
-          <View style={styles.todayPlanSection}>
-            <AppText style={styles.todayPlanLabel}>Main priority</AppText>
-            <AppText style={styles.todayPlanPrompt}>What matters most today?</AppText>
-            <TextInput
-              value={todayPlan.mainPriority}
-              onChangeText={(value) => updateTodayPlanField("mainPriority", value)}
-              placeholder="One main focus"
-              placeholderTextColor="#9ca3af"
-              multiline
-              textAlignVertical="top"
-              style={styles.todayPlanInput}
-            />
-            <View style={styles.todayPlanChipRow}>
-              {todayPlanPrioritySuggestions.map((suggestion) => (
-                <Pressable
-                  key={suggestion}
-                  onPress={() => updateTodayPlanField("mainPriority", suggestion)}
-                  style={({ pressed }) => [
-                    styles.todayPlanChip,
-                    todayPlan.mainPriority === suggestion && styles.todayPlanChipSelected,
-                    pressed && styles.quickLinkPressed,
-                  ]}
-                >
-                  <AppText
-                    style={[
-                      styles.todayPlanChipText,
-                      todayPlan.mainPriority === suggestion && styles.todayPlanChipTextSelected,
-                    ]}
-                  >
-                    {suggestion}
-                  </AppText>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.todayPlanSection}>
-            <AppText style={styles.todayPlanLabel}>Energy today</AppText>
-            <AppText style={styles.todayPlanPrompt}>What does energy look like today?</AppText>
-            <TextInput
-              value={todayPlan.energyLevel}
-              onChangeText={(value) => updateTodayPlanField("energyLevel", value)}
-              placeholder="Low, mixed, steady, or a short note"
-              placeholderTextColor="#9ca3af"
-              multiline
-              textAlignVertical="top"
-              style={styles.todayPlanInput}
-            />
-            <View style={styles.todayPlanChipRow}>
-              {["Low", "Mixed", "Steadier"].map((suggestion) => (
-                <Pressable
-                  key={suggestion}
-                  onPress={() => updateTodayPlanField("energyLevel", suggestion)}
-                  style={({ pressed }) => [
-                    styles.todayPlanChip,
-                    todayPlan.energyLevel === suggestion && styles.todayPlanChipSelected,
-                    pressed && styles.quickLinkPressed,
-                  ]}
-                >
-                  <AppText
-                    style={[
-                      styles.todayPlanChipText,
-                      todayPlan.energyLevel === suggestion && styles.todayPlanChipTextSelected,
-                    ]}
-                  >
-                    {suggestion}
-                  </AppText>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.todayPlanSection}>
-            <AppText style={styles.todayPlanLabel}>Keep smaller</AppText>
-            <AppText style={styles.todayPlanPrompt}>What can stay lighter today?</AppText>
-            <TextInput
-              value={todayPlan.staySmaller}
-              onChangeText={(value) => updateTodayPlanField("staySmaller", value)}
-              placeholder="Errands, screen time, workload, stimulation..."
-              placeholderTextColor="#9ca3af"
-              multiline
-              textAlignVertical="top"
-              style={styles.todayPlanInput}
-            />
-            <View style={styles.todayPlanChipRow}>
-              {DEFAULT_STAY_SMALLER_OPTIONS.map((suggestion) => (
-                <Pressable
-                  key={suggestion}
-                  onPress={() => updateTodayPlanField("staySmaller", suggestion)}
-                  style={({ pressed }) => [
-                    styles.todayPlanChip,
-                    todayPlan.staySmaller === suggestion && styles.todayPlanChipSelected,
-                    pressed && styles.quickLinkPressed,
-                  ]}
-                >
-                  <AppText
-                    style={[
-                      styles.todayPlanChipText,
-                      todayPlan.staySmaller === suggestion && styles.todayPlanChipTextSelected,
-                    ]}
-                  >
-                    {suggestion}
-                  </AppText>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.todayPlanSection}>
-            <AppText style={styles.todayPlanLabel}>Recovery support</AppText>
-            <AppText style={styles.todayPlanPrompt}>What helps protect energy today?</AppText>
-            <TextInput
-              value={todayPlan.recoveryProtection}
-              onChangeText={(value) => updateTodayPlanField("recoveryProtection", value)}
-              placeholder="Recovery break, quieter evening, hydration..."
-              placeholderTextColor="#9ca3af"
-              multiline
-              textAlignVertical="top"
-              style={styles.todayPlanInput}
-            />
-            <View style={styles.todayPlanChipRow}>
-              {DEFAULT_RECOVERY_STRATEGIES.map((suggestion) => (
-                <Pressable
-                  key={suggestion}
-                  onPress={() => updateTodayPlanField("recoveryProtection", suggestion)}
-                  style={({ pressed }) => [
-                    styles.todayPlanChip,
-                    todayPlan.recoveryProtection === suggestion && styles.todayPlanChipSelected,
-                    pressed && styles.quickLinkPressed,
-                  ]}
-                >
-                  <AppText
-                    style={[
-                      styles.todayPlanChipText,
-                      todayPlan.recoveryProtection === suggestion && styles.todayPlanChipTextSelected,
-                    ]}
-                  >
-                    {suggestion}
-                  </AppText>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-
+          <AppText style={styles.navTitle}>Today logistics</AppText>
+          <AppText style={styles.todayPlanSubtitle}>What needs your attention today for medications and appointments?</AppText>
           <View style={styles.todayPlanLogistics}>
-            <AppText style={styles.todayPlanLabel}>Today logistics</AppText>
             {medicationsQuery.isLoading && visibleTodayMedications.length === 0 ? (
               <AppText style={styles.careEmptyText}>Loading medications.</AppText>
             ) : visibleTodayMedications.length > 0 ? (
@@ -2430,128 +2449,513 @@ export default function TodayScreen() {
               </View>
             )}
           </View>
+        </View>
 
-          <View style={styles.todayPlanSection}>
-            <AppText style={styles.todayPlanLabel}>Tomorrow plan</AppText>
-            <AppText style={styles.todayPlanPrompt}>What needs energy tomorrow?</AppText>
-            <TextInput
-              value={todayPlan.tomorrowEnergy}
-              onChangeText={(value) => updateTodayPlanField("tomorrowEnergy", value)}
-              placeholder="Appointment, work, errands, care tasks..."
-              placeholderTextColor="#9ca3af"
-              multiline
-              textAlignVertical="top"
-              style={styles.todayPlanInput}
-            />
-
-            <AppText style={styles.todayPlanPrompt}>What can be prepared tonight?</AppText>
-            <TextInput
-              value={todayPlan.prepareTonight}
-              onChangeText={(value) => updateTodayPlanField("prepareTonight", value)}
-              placeholder="Medication, clothes, notes, quieter evening..."
-              placeholderTextColor="#9ca3af"
-              multiline
-              textAlignVertical="top"
-              style={styles.todayPlanInput}
-            />
-            <View style={styles.todayPlanChipRow}>
-              {DEFAULT_TOMORROW_PREP_OPTIONS.map((suggestion) => (
-                <Pressable
-                  key={suggestion}
-                  onPress={() => updateTodayPlanField("prepareTonight", suggestion)}
-                  style={({ pressed }) => [
-                    styles.todayPlanChip,
-                    todayPlan.prepareTonight === suggestion && styles.todayPlanChipSelected,
-                    pressed && styles.quickLinkPressed,
-                  ]}
-                >
-                  <AppText
-                    style={[
-                      styles.todayPlanChipText,
-                      todayPlan.prepareTonight === suggestion && styles.todayPlanChipTextSelected,
-                    ]}
-                  >
-                    {suggestion}
-                  </AppText>
-                </Pressable>
-              ))}
+        <View style={styles.dailyIntelligenceCard}>
+          <AppText style={styles.dailyIntelligenceLabel}>Today’s guidance</AppText>
+          {deferredInsightsReady ? (
+            <>
+              <AppText style={styles.dailyIntelligenceTitle}>{adaptiveDailyDashboard.guidance}</AppText>
+              <AppText style={styles.dailyIntelligenceBody}>{adaptiveDailyDashboard.stateSummary}</AppText>
+            </>
+          ) : (
+            <View style={styles.guidancePlaceholderStack}>
+              <CalmSkeleton height={18} width="72%" />
+              <CalmSkeleton height={14} width="94%" />
+              <CalmSkeleton height={14} width="82%" />
             </View>
+          )}
+        </View>
 
-            <AppText style={styles.todayPlanPrompt}>What can stay smaller tomorrow?</AppText>
-            <View style={styles.todayPlanChipRow}>
-              {DEFAULT_TOMORROW_SMALLER_OPTIONS.map((suggestion) => (
-                <Pressable
-                  key={suggestion}
-                  onPress={() => updateTodayPlanField("tomorrowSmaller", suggestion)}
-                  style={({ pressed }) => [
-                    styles.todayPlanChip,
-                    todayPlan.tomorrowSmaller === suggestion && styles.todayPlanChipSelected,
-                    pressed && styles.quickLinkPressed,
-                  ]}
-                >
-                  <AppText
-                    style={[
-                      styles.todayPlanChipText,
-                      todayPlan.tomorrowSmaller === suggestion && styles.todayPlanChipTextSelected,
-                    ]}
-                  >
-                    {suggestion}
-                  </AppText>
-                </Pressable>
-              ))}
+        <View style={styles.todayPlanCard}>
+          <View style={styles.todayPlanHeader}>
+            <View style={styles.todayPlanHeaderCopy}>
+              <AppText style={styles.navTitle}>Today’s plan</AppText>
+              <AppText style={styles.todayPlanSubtitle}>One realistic focus, one thing to keep smaller.</AppText>
             </View>
-
-            <AppText style={styles.todayPlanPrompt}>What recovery matters tonight?</AppText>
-            <TextInput
-              value={todayPlan.recoveryTonight}
-              onChangeText={(value) => updateTodayPlanField("recoveryTonight", value)}
-              placeholder="Sleep, quiet, lower stimulation, food, rest..."
-              placeholderTextColor="#9ca3af"
-              multiline
-              textAlignVertical="top"
-              style={styles.todayPlanInput}
-            />
-          </View>
-
-          <View style={styles.todayPlanRecoveryCard}>
-            <AppText style={styles.todayPlanLabel}>What helped you recently?</AppText>
-            <AppText style={styles.todayPlanRecoveryText}>
-              Save one useful support so future guidance can notice what works.
-            </AppText>
-            <TextInput
-              value={todayPlan.whatHelped}
-              onChangeText={(value) => updateTodayPlanField("whatHelped", value)}
-              placeholder="Quieter evening, hydration, smaller task list..."
-              placeholderTextColor="#9ca3af"
-              multiline
-              textAlignVertical="top"
-              style={styles.todayPlanInput}
-            />
-            <View style={styles.todayPlanChipRow}>
-              {DEFAULT_RECOVERY_STRATEGIES.map((suggestion) => (
+            <View style={styles.todayPlanHeaderActions}>
+              {savedTodayPlan && !isTodayPlanExpanded ? (
                 <Pressable
-                  key={suggestion}
-                  onPress={() => updateTodayPlanField("whatHelped", suggestion)}
+                  onPress={() => void toggleTodayPlanComplete()}
                   style={({ pressed }) => [
-                    styles.todayPlanChip,
-                    todayPlan.whatHelped === suggestion && styles.todayPlanChipSelected,
+                    styles.todayPlanSecondaryButton,
+                    savedTodayPlan.isComplete && styles.todayPlanSecondaryButtonComplete,
                     pressed && styles.quickLinkPressed,
                   ]}
                 >
                   <AppText
                     style={[
-                      styles.todayPlanChipText,
-                      todayPlan.whatHelped === suggestion && styles.todayPlanChipTextSelected,
+                      styles.todayPlanSecondaryButtonText,
+                      savedTodayPlan.isComplete && styles.todayPlanSecondaryButtonTextComplete,
                     ]}
                   >
-                    {suggestion}
+                    {savedTodayPlan.isComplete ? "Done for today" : "Mark done"}
                   </AppText>
                 </Pressable>
-              ))}
+              ) : null}
+              {isTodayPlanExpanded ? (
+                <Pressable
+                  onPress={() => void saveTodayPlanSection("today")}
+                  disabled={todayPlanSaveStates.today === "saving"}
+                  style={({ pressed }) => [
+                    styles.todayPlanSaveButton,
+                    todayPlanSaveStates.today === "saved" && styles.todayPlanSaveButtonSaved,
+                    pressed && styles.quickLinkPressed,
+                  ]}
+                >
+                  <AppText
+                    style={[
+                      styles.todayPlanSaveButtonText,
+                      todayPlanSaveStates.today === "saved" && styles.todayPlanSaveButtonTextSaved,
+                    ]}
+                  >
+                    {getTodayPlanSaveLabel(todayPlanSaveStates.today)}
+                  </AppText>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={() => openTodayPlanEditor("today")}
+                  style={({ pressed }) => [styles.todayPlanSecondaryButton, pressed && styles.quickLinkPressed]}
+                >
+                  <AppText style={styles.todayPlanSecondaryButtonText}>View / Edit Today’s Plan</AppText>
+                </Pressable>
+              )}
             </View>
           </View>
 
-          {recentTodayPlans.filter((plan) => plan.date !== today).length > 0 ? (
+          {savedTodayPlan && !isTodayPlanExpanded ? (
+            <View style={styles.todayPlanSavedCard}>
+              <View style={styles.todayPlanSavedHeader}>
+                <AppText style={styles.todayPlanSavedTitle}>Saved for today</AppText>
+                <AppText style={styles.todayPlanSavedMeta}>
+                  {savedTodayPlan.isComplete ? "Done for today" : `Updated ${new Date(savedTodayPlan.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`}
+                </AppText>
+              </View>
+              {savedTodayPlan.mainPriority ? (
+                <AppText style={styles.todayPlanSavedLine}>Main priority: {savedTodayPlan.mainPriority}</AppText>
+              ) : null}
+              {savedTodayPlan.energyLevel ? (
+                <AppText style={styles.todayPlanSavedLine}>Energy today: {savedTodayPlan.energyLevel}</AppText>
+              ) : null}
+              {savedTodayPlan.staySmaller.length > 0 || savedTodayPlan.staySmallerCustom ? (
+                <AppText style={styles.todayPlanSavedLine}>
+                  Keep smaller: {joinPlanSelections(savedTodayPlan.staySmaller, savedTodayPlan.staySmallerCustom)}
+                </AppText>
+              ) : null}
+              {savedTodayPlan.recoveryProtection.length > 0 || savedTodayPlan.recoveryProtectionCustom ? (
+                <AppText style={styles.todayPlanSavedLine}>
+                  Recovery support: {joinPlanSelections(savedTodayPlan.recoveryProtection, savedTodayPlan.recoveryProtectionCustom)}
+                </AppText>
+              ) : null}
+            </View>
+          ) : null}
+
+          {isTodayPlanExpanded ? (
+            <>
+              <View style={styles.todayPlanSection}>
+                <AppText style={styles.todayPlanLabel}>Main priority</AppText>
+                <AppText style={styles.todayPlanPrompt}>What matters most today?</AppText>
+                <View style={styles.todayPlanChipRow}>
+                  {todayPlanPrioritySuggestions.map((suggestion) => (
+                    <Pressable
+                      key={suggestion}
+                      onPress={() => updateTodayPlanField("mainPriority", suggestion)}
+                      style={({ pressed }) => [
+                        styles.todayPlanChip,
+                        todayPlan.mainPriority === suggestion && styles.todayPlanChipSelected,
+                        pressed && styles.quickLinkPressed,
+                      ]}
+                    >
+                      <AppText
+                        style={[
+                          styles.todayPlanChipText,
+                          todayPlan.mainPriority === suggestion && styles.todayPlanChipTextSelected,
+                        ]}
+                      >
+                        {suggestion}
+                      </AppText>
+                    </Pressable>
+                  ))}
+                </View>
+                <TextInput
+                  value={todayPlan.mainPriority}
+                  onChangeText={(value) => updateTodayPlanField("mainPriority", value)}
+                  placeholder="Add your own"
+                  placeholderTextColor="#9ca3af"
+                  multiline
+                  textAlignVertical="top"
+                  style={styles.todayPlanInput}
+                />
+              </View>
+
+              <View style={styles.todayPlanSection}>
+                <AppText style={styles.todayPlanLabel}>Energy today</AppText>
+                <AppText style={styles.todayPlanPrompt}>What does energy look like today?</AppText>
+                <TextInput
+                  value={todayPlan.energyLevel}
+                  onChangeText={(value) => updateTodayPlanField("energyLevel", value)}
+                  placeholder="Low, medium, high, or a short note"
+                  placeholderTextColor="#9ca3af"
+                  multiline
+                  textAlignVertical="top"
+                  style={styles.todayPlanInput}
+                />
+                <View style={styles.todayPlanChipRow}>
+                  {["Low", "Medium", "High"].map((suggestion) => (
+                    <Pressable
+                      key={suggestion}
+                      onPress={() => updateTodayPlanField("energyLevel", suggestion)}
+                      style={({ pressed }) => [
+                        styles.todayPlanChip,
+                        todayPlan.energyLevel === suggestion && styles.todayPlanChipSelected,
+                        pressed && styles.quickLinkPressed,
+                      ]}
+                    >
+                      <AppText
+                        style={[
+                          styles.todayPlanChipText,
+                          todayPlan.energyLevel === suggestion && styles.todayPlanChipTextSelected,
+                        ]}
+                      >
+                        {suggestion}
+                      </AppText>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.todayPlanSection}>
+                <AppText style={styles.todayPlanLabel}>Keep smaller</AppText>
+                <AppText style={styles.todayPlanPrompt}>What can stay lighter today?</AppText>
+                <View style={styles.todayPlanChipRow}>
+                  {DEFAULT_STAY_SMALLER_OPTIONS.map((suggestion) => (
+                    <Pressable
+                      key={suggestion}
+                      onPress={() => toggleTodayPlanMultiSelect("staySmaller", suggestion)}
+                      style={({ pressed }) => [
+                        styles.todayPlanChip,
+                        todayPlan.staySmaller.includes(suggestion) && styles.todayPlanChipSelected,
+                        pressed && styles.quickLinkPressed,
+                      ]}
+                    >
+                      <AppText
+                        style={[
+                          styles.todayPlanChipText,
+                          todayPlan.staySmaller.includes(suggestion) && styles.todayPlanChipTextSelected,
+                        ]}
+                      >
+                        {suggestion}
+                      </AppText>
+                    </Pressable>
+                  ))}
+                </View>
+                <TextInput
+                  value={todayPlan.staySmallerCustom}
+                  onChangeText={(value) => updateTodayPlanCustomField("staySmallerCustom", value)}
+                  placeholder="Add your own"
+                  placeholderTextColor="#9ca3af"
+                  multiline
+                  textAlignVertical="top"
+                  style={styles.todayPlanInput}
+                />
+              </View>
+
+              <View style={styles.todayPlanSection}>
+                <AppText style={styles.todayPlanLabel}>Recovery support</AppText>
+                <AppText style={styles.todayPlanPrompt}>What helps protect energy today?</AppText>
+                <View style={styles.todayPlanChipRow}>
+                  {DEFAULT_RECOVERY_STRATEGIES.map((suggestion) => (
+                    <Pressable
+                      key={suggestion}
+                      onPress={() => toggleTodayPlanMultiSelect("recoveryProtection", suggestion)}
+                      style={({ pressed }) => [
+                        styles.todayPlanChip,
+                        todayPlan.recoveryProtection.includes(suggestion) && styles.todayPlanChipSelected,
+                        pressed && styles.quickLinkPressed,
+                      ]}
+                    >
+                      <AppText
+                        style={[
+                          styles.todayPlanChipText,
+                          todayPlan.recoveryProtection.includes(suggestion) && styles.todayPlanChipTextSelected,
+                        ]}
+                      >
+                        {suggestion}
+                      </AppText>
+                    </Pressable>
+                  ))}
+                </View>
+                <TextInput
+                  value={todayPlan.recoveryProtectionCustom}
+                  onChangeText={(value) => updateTodayPlanCustomField("recoveryProtectionCustom", value)}
+                  placeholder="Add your own"
+                  placeholderTextColor="#9ca3af"
+                  multiline
+                  textAlignVertical="top"
+                  style={styles.todayPlanInput}
+                />
+              </View>
+            </>
+          ) : null}
+        </View>
+
+        <View style={styles.todayPlanCard}>
+          <View style={styles.todayPlanHeader}>
+            <View style={styles.todayPlanHeaderCopy}>
+              <AppText style={styles.navTitle}>Tomorrow’s plan</AppText>
+              <AppText style={styles.todayPlanSubtitle}>Make tomorrow easier before it arrives.</AppText>
+            </View>
+            <View style={styles.todayPlanHeaderActions}>
+              {isTomorrowPlanExpanded ? (
+                <Pressable
+                  onPress={() => void saveTodayPlanSection("tomorrow")}
+                  disabled={todayPlanSaveStates.tomorrow === "saving"}
+                  style={({ pressed }) => [
+                    styles.todayPlanSaveButton,
+                    todayPlanSaveStates.tomorrow === "saved" && styles.todayPlanSaveButtonSaved,
+                    pressed && styles.quickLinkPressed,
+                  ]}
+                >
+                  <AppText
+                    style={[
+                      styles.todayPlanSaveButtonText,
+                      todayPlanSaveStates.tomorrow === "saved" && styles.todayPlanSaveButtonTextSaved,
+                    ]}
+                  >
+                    {getTodayPlanSaveLabel(todayPlanSaveStates.tomorrow)}
+                  </AppText>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={() => openTodayPlanEditor("tomorrow")}
+                  style={({ pressed }) => [styles.todayPlanSecondaryButton, pressed && styles.quickLinkPressed]}
+                >
+                  <AppText style={styles.todayPlanSecondaryButtonText}>View / Edit Tomorrow’s Plan</AppText>
+                </Pressable>
+              )}
+            </View>
+          </View>
+
+          {savedTodayPlan && !isTomorrowPlanExpanded ? (
+            <View style={styles.todayPlanSavedCard}>
+              <View style={styles.todayPlanSavedHeader}>
+                <AppText style={styles.todayPlanSavedTitle}>Saved for tomorrow</AppText>
+                <AppText style={styles.todayPlanSavedMeta}>
+                  Updated {new Date(savedTodayPlan.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                </AppText>
+              </View>
+              {savedTodayPlan.tomorrowEnergy ? (
+                <AppText style={styles.todayPlanSavedLine}>Needs energy: {savedTodayPlan.tomorrowEnergy}</AppText>
+              ) : null}
+              {savedTodayPlan.prepareTonight.length > 0 || savedTodayPlan.prepareTonightCustom ? (
+                <AppText style={styles.todayPlanSavedLine}>
+                  Prepare tonight: {joinPlanSelections(savedTodayPlan.prepareTonight, savedTodayPlan.prepareTonightCustom)}
+                </AppText>
+              ) : null}
+              {savedTodayPlan.tomorrowSmaller.length > 0 || savedTodayPlan.tomorrowSmallerCustom ? (
+                <AppText style={styles.todayPlanSavedLine}>
+                  Keep smaller tomorrow: {joinPlanSelections(savedTodayPlan.tomorrowSmaller, savedTodayPlan.tomorrowSmallerCustom)}
+                </AppText>
+              ) : null}
+              {savedTodayPlan.recoveryTonight ? (
+                <AppText style={styles.todayPlanSavedLine}>Recovery tonight: {savedTodayPlan.recoveryTonight}</AppText>
+              ) : null}
+            </View>
+          ) : null}
+
+          {isTomorrowPlanExpanded ? (
+            <View style={styles.todayPlanSection}>
+              <AppText style={styles.todayPlanLabel}>Tomorrow plan</AppText>
+              <AppText style={styles.todayPlanPrompt}>What needs energy tomorrow?</AppText>
+              <TextInput
+                value={todayPlan.tomorrowEnergy}
+                onChangeText={(value) => updateTodayPlanField("tomorrowEnergy", value)}
+                placeholder="Appointment, work, errands, care tasks..."
+                placeholderTextColor="#9ca3af"
+                multiline
+                textAlignVertical="top"
+                style={styles.todayPlanInput}
+              />
+
+              <AppText style={styles.todayPlanPrompt}>What can be prepared tonight?</AppText>
+              <View style={styles.todayPlanChipRow}>
+                {DEFAULT_TOMORROW_PREP_OPTIONS.map((suggestion) => (
+                  <Pressable
+                    key={suggestion}
+                    onPress={() => toggleTodayPlanMultiSelect("prepareTonight", suggestion)}
+                    style={({ pressed }) => [
+                      styles.todayPlanChip,
+                      todayPlan.prepareTonight.includes(suggestion) && styles.todayPlanChipSelected,
+                      pressed && styles.quickLinkPressed,
+                    ]}
+                  >
+                    <AppText
+                      style={[
+                        styles.todayPlanChipText,
+                        todayPlan.prepareTonight.includes(suggestion) && styles.todayPlanChipTextSelected,
+                      ]}
+                    >
+                      {suggestion}
+                    </AppText>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                value={todayPlan.prepareTonightCustom}
+                onChangeText={(value) => updateTodayPlanCustomField("prepareTonightCustom", value)}
+                placeholder="Add your own"
+                placeholderTextColor="#9ca3af"
+                multiline
+                textAlignVertical="top"
+                style={styles.todayPlanInput}
+              />
+
+              <AppText style={styles.todayPlanPrompt}>What can stay smaller tomorrow?</AppText>
+              <View style={styles.todayPlanChipRow}>
+                {DEFAULT_TOMORROW_SMALLER_OPTIONS.map((suggestion) => (
+                  <Pressable
+                    key={suggestion}
+                    onPress={() => toggleTodayPlanMultiSelect("tomorrowSmaller", suggestion)}
+                    style={({ pressed }) => [
+                      styles.todayPlanChip,
+                      todayPlan.tomorrowSmaller.includes(suggestion) && styles.todayPlanChipSelected,
+                      pressed && styles.quickLinkPressed,
+                    ]}
+                  >
+                    <AppText
+                      style={[
+                        styles.todayPlanChipText,
+                        todayPlan.tomorrowSmaller.includes(suggestion) && styles.todayPlanChipTextSelected,
+                      ]}
+                    >
+                      {suggestion}
+                    </AppText>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                value={todayPlan.tomorrowSmallerCustom}
+                onChangeText={(value) => updateTodayPlanCustomField("tomorrowSmallerCustom", value)}
+                placeholder="Add your own"
+                placeholderTextColor="#9ca3af"
+                multiline
+                textAlignVertical="top"
+                style={styles.todayPlanInput}
+              />
+
+              <AppText style={styles.todayPlanPrompt}>Recovery matters tonight</AppText>
+              <TextInput
+                value={todayPlan.recoveryTonight}
+                onChangeText={(value) => updateTodayPlanField("recoveryTonight", value)}
+                placeholder="Sleep, quiet, lower stimulation, food, rest..."
+                placeholderTextColor="#9ca3af"
+                multiline
+                textAlignVertical="top"
+                style={styles.todayPlanInput}
+              />
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.todayPlanCard}>
+          <View style={styles.todayPlanHeader}>
+            <View style={styles.todayPlanHeaderCopy}>
+              <AppText style={styles.navTitle}>What helped you recently?</AppText>
+              <AppText style={styles.todayPlanSubtitle}>
+                Save useful supports so future guidance can notice what works.
+              </AppText>
+            </View>
+            <View style={styles.todayPlanHeaderActions}>
+              {isWhatHelpedExpanded ? (
+                <Pressable
+                  onPress={() => void saveTodayPlanSection("whatHelped")}
+                  disabled={todayPlanSaveStates.whatHelped === "saving"}
+                  style={({ pressed }) => [
+                    styles.todayPlanSaveButton,
+                    todayPlanSaveStates.whatHelped === "saved" && styles.todayPlanSaveButtonSaved,
+                    pressed && styles.quickLinkPressed,
+                  ]}
+                >
+                  <AppText
+                    style={[
+                      styles.todayPlanSaveButtonText,
+                      todayPlanSaveStates.whatHelped === "saved" && styles.todayPlanSaveButtonTextSaved,
+                    ]}
+                  >
+                    {getTodayPlanSaveLabel(todayPlanSaveStates.whatHelped)}
+                  </AppText>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={() => openTodayPlanEditor("whatHelped")}
+                  style={({ pressed }) => [styles.todayPlanSecondaryButton, pressed && styles.quickLinkPressed]}
+                >
+                  <AppText style={styles.todayPlanSecondaryButtonText}>Update what helped</AppText>
+                </Pressable>
+              )}
+            </View>
+          </View>
+
+          {savedTodayPlan && !isWhatHelpedExpanded ? (
+            <View style={styles.todayPlanSavedCard}>
+              <View style={styles.todayPlanSavedHeader}>
+                <AppText style={styles.todayPlanSavedTitle}>Saved support notes</AppText>
+                <AppText style={styles.todayPlanSavedMeta}>
+                  Updated {new Date(savedTodayPlan.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                </AppText>
+              </View>
+              {savedTodayPlan.whatHelped.length > 0 || savedTodayPlan.whatHelpedCustom ? (
+                <AppText style={styles.todayPlanSavedLine}>
+                  What helped: {joinPlanSelections(savedTodayPlan.whatHelped, savedTodayPlan.whatHelpedCustom)}
+                </AppText>
+              ) : (
+                <AppText style={styles.todayPlanSavedLine}>No supports saved yet.</AppText>
+              )}
+            </View>
+          ) : null}
+
+          {isWhatHelpedExpanded ? (
+            <>
+              <AppText style={styles.todayPlanRecoveryText}>
+                Save one useful support so future guidance can notice what works.
+              </AppText>
+              <View style={styles.todayPlanChipRow}>
+                {DEFAULT_RECOVERY_STRATEGIES.map((suggestion) => (
+                  <Pressable
+                    key={suggestion}
+                    onPress={() => toggleTodayPlanMultiSelect("whatHelped", suggestion)}
+                    style={({ pressed }) => [
+                      styles.todayPlanChip,
+                      todayPlan.whatHelped.includes(suggestion) && styles.todayPlanChipSelected,
+                      pressed && styles.quickLinkPressed,
+                    ]}
+                  >
+                    <AppText
+                      style={[
+                        styles.todayPlanChipText,
+                        todayPlan.whatHelped.includes(suggestion) && styles.todayPlanChipTextSelected,
+                      ]}
+                    >
+                      {suggestion}
+                    </AppText>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                value={todayPlan.whatHelpedCustom}
+                onChangeText={(value) => updateTodayPlanCustomField("whatHelpedCustom", value)}
+                placeholder="Add your own"
+                placeholderTextColor="#9ca3af"
+                multiline
+                textAlignVertical="top"
+                style={styles.todayPlanInput}
+              />
+            </>
+          ) : null}
+        </View>
+
+        {recentTodayPlans.filter((plan) => plan.date !== today).length > 0 ? (
+          <View style={styles.todayPlanCard}>
             <View style={styles.todayPlanHistoryCard}>
               <AppText style={styles.todayPlanLabel}>Recent plans</AppText>
               <View style={styles.todayPlanHistoryList}>
@@ -2568,8 +2972,10 @@ export default function TodayScreen() {
                         {plan.energyLevel ? (
                           <AppText style={styles.todayPlanHistoryText}>Energy today: {plan.energyLevel}</AppText>
                         ) : null}
-                        {plan.staySmaller ? (
-                          <AppText style={styles.todayPlanHistoryText}>Keep smaller: {plan.staySmaller}</AppText>
+                        {plan.staySmaller.length > 0 || plan.staySmallerCustom ? (
+                          <AppText style={styles.todayPlanHistoryText}>
+                            Keep smaller: {joinPlanSelections(plan.staySmaller, plan.staySmallerCustom)}
+                          </AppText>
                         ) : null}
                       </View>
                       <AppText style={styles.todayPlanHistoryStatus}>{plan.isComplete ? "Done" : "Saved"}</AppText>
@@ -2577,8 +2983,8 @@ export default function TodayScreen() {
                   ))}
               </View>
             </View>
-          ) : null}
-        </View>
+          </View>
+        ) : null}
 
       </ScrollView>
     </AppScreen>

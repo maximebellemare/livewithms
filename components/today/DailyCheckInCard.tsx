@@ -18,11 +18,12 @@ type DailyCheckInCardProps = {
   saveMomentTitle?: string;
   saveMomentBody?: string;
   postSaveInsight?: string;
-  onViewInsights: () => void;
+  onViewInsights?: () => void;
   saveFooterText?: string;
   supportMode?: "default" | "low-energy";
   compressionMode?: "standard" | "reduced";
   noteStarterLimit?: number;
+  showReflectionSection?: boolean;
 };
 
 function getHydrationNote(waterGlasses: string) {
@@ -56,6 +57,7 @@ export default function DailyCheckInCard({
   supportMode = "default",
   compressionMode = "standard",
   noteStarterLimit = 3,
+  showReflectionSection = true,
 }: DailyCheckInCardProps) {
   const [showBodySignals, setShowBodySignals] = useState(true);
   const [showNotes, setShowNotes] = useState(false);
@@ -251,39 +253,41 @@ export default function DailyCheckInCard({
         ) : null}
       </View>
 
-      <View style={styles.sectionCard}>
-        <Pressable
-          onPress={() => setShowNotes((current) => !current)}
-          style={({ pressed }) => [styles.sectionToggle, pressed && styles.sectionTogglePressed]}
-        >
-          <View style={styles.sectionToggleHeader}>
-            <AppText style={styles.sectionTitle}>Today's reflection</AppText>
-            <AppText style={styles.sectionHelper}>{reflectionSupport.helper}</AppText>
-          </View>
-          <AppText style={styles.sectionToggleText}>{showNotes ? "Hide" : "Add"}</AppText>
-        </Pressable>
+      {showReflectionSection ? (
+        <View style={styles.sectionCard}>
+          <Pressable
+            onPress={() => setShowNotes((current) => !current)}
+            style={({ pressed }) => [styles.sectionToggle, pressed && styles.sectionTogglePressed]}
+          >
+            <View style={styles.sectionToggleHeader}>
+              <AppText style={styles.sectionTitle}>Today's reflection</AppText>
+              <AppText style={styles.sectionHelper}>{reflectionSupport.helper}</AppText>
+            </View>
+            <AppText style={styles.sectionToggleText}>{showNotes ? "Hide" : "Add"}</AppText>
+          </Pressable>
 
-        {showNotes ? (
-          <View style={styles.sectionContent}>
-            <View style={styles.reflectionPromptCard}>
-              <AppText style={styles.reflectionPromptLabel}>Today's question</AppText>
-              <AppText style={styles.reflectionPromptText}>{activeReflectionPrompt.question}</AppText>
+          {showNotes ? (
+            <View style={styles.sectionContent}>
+              <View style={styles.reflectionPromptCard}>
+                <AppText style={styles.reflectionPromptLabel}>Today's question</AppText>
+                <AppText style={styles.reflectionPromptText}>{activeReflectionPrompt.question}</AppText>
+              </View>
+              <View style={styles.fieldGroup}>
+                <AppText style={styles.fieldLabel}>Your note</AppText>
+                <TextInput
+                  multiline
+                  placeholder={activeReflectionPrompt.placeholder}
+                  placeholderTextColor="#9ca3af"
+                  value={draft.notes}
+                  onChangeText={(notes) => onChange({ ...draft, notes })}
+                  style={styles.notesInput}
+                  textAlignVertical="top"
+                />
+              </View>
             </View>
-            <View style={styles.fieldGroup}>
-              <AppText style={styles.fieldLabel}>Your note</AppText>
-              <TextInput
-                multiline
-                placeholder={activeReflectionPrompt.placeholder}
-                placeholderTextColor="#9ca3af"
-                value={draft.notes}
-                onChangeText={(notes) => onChange({ ...draft, notes })}
-                style={styles.notesInput}
-                textAlignVertical="top"
-              />
-            </View>
-          </View>
-        ) : null}
-      </View>
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={styles.actionSection}>
         <AppButton
@@ -302,7 +306,7 @@ export default function DailyCheckInCard({
             </View>
             {postSaveInsight ? <AppText style={styles.savedInsight}>{postSaveInsight}</AppText> : null}
             {saveFooterText ? <AppText style={styles.savedReturnText}>{saveFooterText}</AppText> : null}
-            <AppButton label="View Insights" onPress={onViewInsights} variant="secondary" />
+            {onViewInsights ? <AppButton label="View Insights" onPress={onViewInsights} variant="secondary" /> : null}
           </View>
         ) : null}
         {saveState === "error" ? (

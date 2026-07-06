@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const REFERRAL_STORAGE_KEY = "livewithms_affiliate_ref";
 const REFERRAL_COOKIE_KEY = "livewithms_affiliate_ref";
+const REFERRAL_STORAGE_META_KEY = "livewithms_affiliate_ref_meta";
 const REFERRAL_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 const PENDING_REFERRAL_STORAGE_KEY = "livewithms_pending_referral_code";
 
@@ -49,11 +50,46 @@ const readReferralCookie = () => {
   return decodeURIComponent(cookieValue.split("=").slice(1).join("="));
 };
 
+const readReferralStorageMeta = () => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(REFERRAL_STORAGE_META_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const isStoredReferralFresh = (meta: unknown) => {
+  if (!meta || typeof meta !== "object") return false;
+  const capturedAt = "capturedAt" in meta && typeof meta.capturedAt === "string" ? Date.parse(meta.capturedAt) : NaN;
+  if (Number.isNaN(capturedAt)) return false;
+  return Date.now() - capturedAt <= REFERRAL_COOKIE_MAX_AGE * 1000;
+};
+
+const clearStoredReferral = () => {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.removeItem(REFERRAL_STORAGE_KEY);
+  window.localStorage.removeItem(REFERRAL_STORAGE_META_KEY);
+  document.cookie =
+    `${REFERRAL_COOKIE_KEY}=; path=/; max-age=0; SameSite=Lax`;
+};
+
 export const getStoredReferral = () => {
   if (typeof window === "undefined") return null;
 
   const stored = window.localStorage.getItem(REFERRAL_STORAGE_KEY);
-  if (stored) return stored;
+  if (stored) {
+    if (isStoredReferralFresh(readReferralStorageMeta())) {
+      return stored;
+    }
+
+    clearStoredReferral();
+  }
 
   return readReferralCookie();
 };
@@ -65,6 +101,13 @@ export const storeReferral = (ref: string) => {
   if (!normalizedRef) return;
 
   window.localStorage.setItem(REFERRAL_STORAGE_KEY, normalizedRef);
+  window.localStorage.setItem(
+    REFERRAL_STORAGE_META_KEY,
+    JSON.stringify({
+      code: normalizedRef,
+      capturedAt: new Date().toISOString(),
+    }),
+  );
   document.cookie =
     `${REFERRAL_COOKIE_KEY}=${encodeURIComponent(normalizedRef)}; path=/; max-age=${REFERRAL_COOKIE_MAX_AGE}; SameSite=Lax`;
 };
@@ -94,7 +137,7 @@ export const getReferralPrefill = (search?: string | null) => {
   if (typeof window === "undefined" && !search) return "";
 
   const params = new URLSearchParams(search ?? window.location.search);
-  const directRef = params.get("ref") || params.get("affiliate");
+  const directRef = params.get("ref") || params.get("affiliate") || params.get("creator");
   if (directRef) return normalizeReferral(directRef);
 
   const pendingRef = getPendingReferralCode();

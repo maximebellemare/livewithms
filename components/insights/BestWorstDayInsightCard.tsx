@@ -52,7 +52,7 @@ export default function BestWorstDayInsightCard({ insight }: BestWorstDayInsight
       <AppText style={styles.contextText}>Based on your recent entries</AppText>
       <AppText style={styles.summary}>{insight.sentence}</AppText>
       <AppText style={styles.helperText}>
-        Looking at your steadier days can help you spot conditions that may have made things feel a bit easier.
+        Looking at your more stable days can help you spot conditions that may have made things feel a bit easier.
       </AppText>
 
       <View style={styles.compareRow}>

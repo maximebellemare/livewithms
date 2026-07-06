@@ -144,8 +144,8 @@ export default function AffiliateDetailScreen() {
           <AppText style={styles.referralLinkText}>{affiliate.referralLink}</AppText>
           <AppButton label="Copy referral link" onPress={() => handleCopy(affiliate.referralLink)} variant="secondary" />
           <AppButton label="Copy promo code" onPress={() => handleCopy(affiliate.promoCode ?? "")} variant="secondary" />
-          <AppButton label="Copy invite message" onPress={() => handleCopy(affiliate.inviteMessage)} variant="secondary" />
-          <AppButton label="Share invite message" onPress={() => handleShareInvite(affiliate.inviteMessage)} variant="secondary" />
+          <AppButton label="Copy creator invite" onPress={() => handleCopy(affiliate.inviteMessage)} variant="secondary" />
+          <AppButton label="Share creator invite" onPress={() => handleShareInvite(affiliate.inviteMessage)} variant="secondary" />
         </View>
 
         <View style={styles.card}>
