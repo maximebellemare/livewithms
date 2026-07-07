@@ -27,7 +27,7 @@ export default function CompleteScreen() {
     }
 
     setErrorMessage(null);
-    await growth.maybePromptForReview({
+    void growth.maybePromptForReview({
       trigger: "onboarding_completed",
     });
     router.replace("/today");

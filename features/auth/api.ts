@@ -103,23 +103,45 @@ export const authApi = {
     return { error };
   },
   async signUp(email: string, password: string): Promise<SignUpResult> {
+    const signupStartedAt = Date.now();
     console.log("[auth] signup start", {
       email,
     });
 
-    const { data, error } = await withTimeout(supabase.auth.signUp({ email, password }), 15000, "Supabase sign up");
+    let data: Awaited<ReturnType<typeof supabase.auth.signUp>>["data"] | null = null;
+    let error: Awaited<ReturnType<typeof supabase.auth.signUp>>["error"] | null = null;
+
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const response = await withTimeout(supabase.auth.signUp({ email, password }), 15000, "Supabase sign up");
+      data = response.data;
+      error = response.error;
+
+      if (!error) {
+        break;
+      }
+
+      const retryMeta = getAuthErrorMeta(error);
+      console.error("[auth] signup failure", {
+        email,
+        attempt,
+        durationMs: Date.now() - signupStartedAt,
+        message: retryMeta.message,
+        code: retryMeta.code,
+        status: retryMeta.status,
+        timedOut: retryMeta.timedOut,
+        networkFailure: retryMeta.networkFailure,
+        duplicateEmail: retryMeta.duplicateEmail,
+      });
+
+      if (attempt >= 2 || !isRetryableSignUpError(error)) {
+        break;
+      }
+
+      await pause(900 * attempt);
+    }
 
     if (error) {
       const meta = getAuthErrorMeta(error);
-      console.error("[auth] signup failure", {
-        email,
-        message: meta.message,
-        code: meta.code,
-        status: meta.status,
-        timedOut: meta.timedOut,
-        networkFailure: meta.networkFailure,
-        duplicateEmail: meta.duplicateEmail,
-      });
 
       if (isRetryableSignUpError(error)) {
         console.log("[auth] signup recovery start", {
@@ -136,6 +158,7 @@ export const authApi = {
               email,
               strategy: "session",
               userId: recoveredSession.user.id,
+              durationMs: Date.now() - signupStartedAt,
             });
             return {
               error: null,
@@ -172,6 +195,7 @@ export const authApi = {
               email,
               strategy: "sign-in",
               userId: signInRecovery.data.session.user.id,
+              durationMs: Date.now() - signupStartedAt,
             });
             return {
               error: null,
@@ -190,6 +214,11 @@ export const authApi = {
         email,
         hasSession: Boolean(data.session),
         userId: data.user?.id ?? null,
+        durationMs: Date.now() - signupStartedAt,
+      });
+      console.log("[signup] auth completed in Xms", {
+        email,
+        durationMs: Date.now() - signupStartedAt,
       });
     }
 

@@ -1,11 +1,52 @@
+import { appSecureStore } from "../../lib/secure-store";
 import { loadPersonalizationMemory, savePersonalizationMemory } from "../personalization-memory/storage";
 import { DEFAULT_REMINDER_SETTINGS, saveReminderSettings } from "../reminders/storage";
 import type { OnboardingDraft } from "./types";
 import { deriveOnboardingSupportPreference } from "./personalization";
 
+const ONBOARDING_DRAFT_KEY_PREFIX = "livewithms.onboarding-draft";
+
 function cleanCustomValue(value: string) {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function getOnboardingDraftKey(userId: string) {
+  return `${ONBOARDING_DRAFT_KEY_PREFIX}.${userId}`;
+}
+
+export async function loadOnboardingDraftSnapshot(userId: string): Promise<Partial<OnboardingDraft> | null> {
+  if (!userId) {
+    return null;
+  }
+
+  const raw = await appSecureStore.getItem(getOnboardingDraftKey(userId));
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<OnboardingDraft>;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function persistLocalOnboardingDraftSnapshot(userId: string, draft: OnboardingDraft) {
+  if (!userId) {
+    return;
+  }
+
+  await appSecureStore.setItem(getOnboardingDraftKey(userId), JSON.stringify(draft));
+}
+
+export async function clearLocalOnboardingDraftSnapshot(userId: string) {
+  if (!userId) {
+    return;
+  }
+
+  await appSecureStore.deleteItem(getOnboardingDraftKey(userId));
 }
 
 export async function persistOnboardingDraftSnapshot(draft: OnboardingDraft) {

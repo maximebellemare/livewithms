@@ -23,6 +23,45 @@ async function pause(ms: number) {
   });
 }
 
+async function bootstrapSignupProfile(userId: string) {
+  const bootstrapStartedAt = Date.now();
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      console.log("[profile] profile creation start", {
+        userId,
+        source: "signup-bootstrap",
+        attempt,
+      });
+      await profileApi.createFallbackProfile(userId);
+      console.log("[profile] profile creation success", {
+        userId,
+        source: "signup-bootstrap",
+        attempt,
+      });
+      console.log("[signup] profile bootstrap completed in Xms", {
+        userId,
+        attempt,
+        durationMs: Date.now() - bootstrapStartedAt,
+      });
+      return;
+    } catch (error) {
+      console.error("[profile] profile creation failure", {
+        userId,
+        source: "signup-bootstrap",
+        attempt,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      if (attempt >= 3) {
+        return;
+      }
+
+      await pause(700 * attempt);
+    }
+  }
+}
+
 export default function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -78,47 +117,28 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         };
       }
 
+      const signupStartedAt = Date.now();
       const result = await authApi.signUp(email, password);
       if (result.error) {
         logger.warn("Sign up failed", { error: result.error.message });
         console.error("[auth] signup failed in provider", {
           email,
           message: result.error.message,
+          durationMs: Date.now() - signupStartedAt,
         });
         return result;
       }
 
       if (result.session?.user?.id) {
-        for (let attempt = 1; attempt <= 2; attempt += 1) {
-          try {
-            console.log("[profile] profile creation start", {
-              userId: result.session.user.id,
-              source: "signup-bootstrap",
-              attempt,
-            });
-            await profileApi.createFallbackProfile(result.session.user.id);
-            console.log("[profile] profile creation success", {
-              userId: result.session.user.id,
-              source: "signup-bootstrap",
-              attempt,
-            });
-            break;
-          } catch (error) {
-            console.error("[profile] profile creation failure", {
-              userId: result.session.user.id,
-              source: "signup-bootstrap",
-              attempt,
-              error: error instanceof Error ? error.message : String(error),
-            });
-
-            if (attempt >= 2) {
-              break;
-            }
-
-            await pause(800);
-          }
-        }
+        void bootstrapSignupProfile(result.session.user.id);
       }
+
+      console.log("[signup] total signup duration", {
+        email,
+        userId: result.session?.user?.id ?? null,
+        durationMs: Date.now() - signupStartedAt,
+      });
+
       return result;
     },
     [],

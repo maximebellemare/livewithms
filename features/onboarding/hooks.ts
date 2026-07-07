@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/hooks";
 import { useCompleteOnboarding, useMyProfile, useSaveProfileStep } from "../profile/hooks";
 import type { ProfileUpdateInput } from "../profile/api";
@@ -20,6 +20,11 @@ import {
 } from "./personalization";
 import { loadPersonalizationMemory } from "../personalization-memory/storage";
 import { loadReminderSettings } from "../reminders/storage";
+import {
+  clearLocalOnboardingDraftSnapshot,
+  loadOnboardingDraftSnapshot,
+  persistLocalOnboardingDraftSnapshot,
+} from "./preferences";
 
 const EMPTY_DRAFT: OnboardingDraft = {
   display_name: "",
@@ -67,6 +72,20 @@ function shouldRetryProfileWrite(error: unknown) {
   );
 }
 
+function hasProfileUpdateInput(input: ProfileUpdateInput | null | undefined): input is ProfileUpdateInput {
+  return Boolean(input) && Object.keys(input).length > 0;
+}
+
+function mergeProfileUpdateInput(
+  current: ProfileUpdateInput | null | undefined,
+  next: ProfileUpdateInput,
+): ProfileUpdateInput {
+  return {
+    ...(current ?? {}),
+    ...next,
+  };
+}
+
 export function useOnboarding() {
   const { user } = useAuth();
   const profileQuery = useMyProfile(user?.id);
@@ -74,6 +93,30 @@ export function useOnboarding() {
   const completeOnboardingMutation = useCompleteOnboarding();
   const [draft, setDraft] = useState<OnboardingDraft>(EMPTY_DRAFT);
   const [consent, setConsent] = useState<ConsentState>(EMPTY_CONSENT);
+  const pendingStepPayloadRef = useRef<ProfileUpdateInput | null>(null);
+  const activeStepSavePromiseRef = useRef<Promise<boolean> | null>(null);
+  const hydratedLocalDraftUserIdRef = useRef<string | null>(null);
+  const lastPersistedDraftKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id || hydratedLocalDraftUserIdRef.current === user.id) {
+      return;
+    }
+
+    hydratedLocalDraftUserIdRef.current = user.id;
+
+    void loadOnboardingDraftSnapshot(user.id).then((localDraft) => {
+      if (!localDraft) {
+        return;
+      }
+
+      setDraft((current) => ({
+        ...EMPTY_DRAFT,
+        ...current,
+        ...localDraft,
+      }));
+    });
+  }, [user?.id]);
 
   useEffect(() => {
     const profile = profileQuery.data;
@@ -141,57 +184,104 @@ export function useOnboarding() {
     };
   }, []);
 
-  async function saveStep(input: ProfileUpdateInput): Promise<boolean> {
-    if (!user?.id || saveProfileStep.isPending) {
-      return false;
+  useEffect(() => {
+    if (!user?.id) {
+      return;
     }
 
-    try {
-      for (let attempt = 1; attempt <= 2; attempt += 1) {
-        try {
-          console.log("[onboarding] step save start", {
-            userId: user.id,
-            payload: input,
-            attempt,
-          });
-          await saveProfileStep.mutateAsync({ userId: user.id, input });
-          console.log("[onboarding] step save success", {
-            userId: user.id,
-            payload: input,
-            attempt,
-          });
-          return true;
-        } catch (error) {
-          const normalizedError = normalizeError(error);
-          console.error("[onboarding] step save failure", {
-            userId: user.id,
-            payload: input,
-            attempt,
-            message: normalizedError.message,
-            code: normalizedError.code,
-            details: normalizedError.details,
-            hint: normalizedError.hint,
-          });
+    const serializedDraft = JSON.stringify(draft);
+    if (lastPersistedDraftKeyRef.current === serializedDraft) {
+      return;
+    }
 
-          if (attempt >= 2 || !shouldRetryProfileWrite(error)) {
-            return false;
-          }
+    lastPersistedDraftKeyRef.current = serializedDraft;
+    void persistLocalOnboardingDraftSnapshot(user.id, draft);
+  }, [draft, user?.id]);
 
-          await pause(700);
+  async function flushQueuedStepSave() {
+    if (!user?.id || !hasProfileUpdateInput(pendingStepPayloadRef.current)) {
+      return true;
+    }
+
+    const payload = pendingStepPayloadRef.current;
+    pendingStepPayloadRef.current = null;
+    const startedAt = Date.now();
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        await saveProfileStep.mutateAsync({ userId: user.id, input: payload });
+        console.log("[onboarding] slide save completed in Xms", {
+          userId: user.id,
+          attempt,
+          durationMs: Date.now() - startedAt,
+          payload,
+        });
+        return true;
+      } catch (error) {
+        const normalizedError = normalizeError(error);
+        console.error("[onboarding] slide save failed", {
+          userId: user.id,
+          attempt,
+          durationMs: Date.now() - startedAt,
+          message: normalizedError.message,
+          code: normalizedError.code,
+          details: normalizedError.details,
+          hint: normalizedError.hint,
+        });
+
+        if (attempt >= 3 || !shouldRetryProfileWrite(error)) {
+          pendingStepPayloadRef.current = mergeProfileUpdateInput(pendingStepPayloadRef.current, payload);
+          void trackDiagnosticEvent("onboarding_slide_save_failed", {
+            code: normalizedError.code ?? "unknown",
+          });
+          return false;
+        }
+
+        await pause(500 * attempt);
+      }
+    }
+
+    pendingStepPayloadRef.current = mergeProfileUpdateInput(pendingStepPayloadRef.current, payload);
+    return false;
+  }
+
+  function scheduleQueuedStepSave() {
+    if (activeStepSavePromiseRef.current) {
+      return activeStepSavePromiseRef.current;
+    }
+
+    const runner = (async () => {
+      let success = true;
+
+      while (hasProfileUpdateInput(pendingStepPayloadRef.current)) {
+        const flushed = await flushQueuedStepSave();
+        success = success && flushed;
+        if (!flushed) {
+          break;
         }
       }
-    } catch (error) {
-      const normalizedError = normalizeError(error);
-      console.error("[onboarding] step save failure", {
-        userId: user.id,
-        payload: input,
-        message: normalizedError.message,
-        code: normalizedError.code,
-        details: normalizedError.details,
-        hint: normalizedError.hint,
-      });
+
+      return success;
+    })();
+
+    activeStepSavePromiseRef.current = runner.finally(() => {
+      activeStepSavePromiseRef.current = null;
+      if (hasProfileUpdateInput(pendingStepPayloadRef.current)) {
+        scheduleQueuedStepSave();
+      }
+    });
+
+    return activeStepSavePromiseRef.current;
+  }
+
+  async function saveStep(input: ProfileUpdateInput): Promise<boolean> {
+    if (!user?.id) {
       return false;
     }
+
+    pendingStepPayloadRef.current = mergeProfileUpdateInput(pendingStepPayloadRef.current, input);
+    void scheduleQueuedStepSave();
+    return true;
   }
 
   async function completeOnboarding(): Promise<boolean> {
@@ -215,6 +305,7 @@ export function useOnboarding() {
     };
 
     try {
+      const completionStartedAt = Date.now();
       logger.info("Completing onboarding", {
         userId: user.id,
         input,
@@ -234,9 +325,10 @@ export function useOnboarding() {
             userId: user.id,
             input,
           });
-          console.log("[onboarding] completion save success", {
+          console.log("[onboarding] final completion completed in Xms", {
             userId: user.id,
             attempt,
+            durationMs: Date.now() - completionStartedAt,
           });
           success = true;
           break;
@@ -267,8 +359,8 @@ export function useOnboarding() {
         userId: user.id,
         payload,
       });
-      await profileQuery.refetch();
-      await trackEvent("onboarding_completed", {
+      await clearLocalOnboardingDraftSnapshot(user.id);
+      void trackEvent("onboarding_completed", {
         userId: user.id,
         focus: getSelectedOnboardingFocus(draft) ?? "unknown",
         priority: getSelectedOnboardingPriority(draft) ?? "unknown",
@@ -309,7 +401,7 @@ export function useOnboarding() {
     setConsent,
     saveStep,
     completeOnboarding,
-    isSavingStep: saveProfileStep.isPending,
+    isSavingStep: false,
     isCompleting: completeOnboardingMutation.isPending,
   };
 }

@@ -470,6 +470,7 @@ export const profileApi = {
     }
 
     const payload = buildProfileUpsertPayload(userId, input);
+    const updateStartedAt = Date.now();
 
     console.log("[profile] profile update start", {
       userId,
@@ -486,21 +487,25 @@ export const profileApi = {
       });
     }
 
-    let writeResult = await updateExistingProfileRow(userId, payload);
+    let writeResult = await withTimeout(updateExistingProfileRow(userId, payload), 10000, "Profile update");
     let writeContext = "profile_update_existing";
 
     if (!writeResult.error && !writeResult.data) {
       console.log("[profile] profile update missing row, attempting insert", {
         userId,
       });
-      writeResult = await insertProfileRow(payload);
+      writeResult = await withTimeout(insertProfileRow(payload), 10000, "Profile insert missing row");
       writeContext = "profile_insert_missing";
 
       if (writeResult.error) {
         const details = getSupabaseErrorDetails(writeResult.error);
         const message = `${details.message} ${details.details ?? ""}`.toLowerCase();
         if (message.includes("duplicate") || message.includes("already exists") || message.includes("23505")) {
-          writeResult = await updateExistingProfileRow(userId, payload);
+          writeResult = await withTimeout(
+            updateExistingProfileRow(userId, payload),
+            10000,
+            "Profile update after insert conflict",
+          );
           writeContext = "profile_update_after_insert_conflict";
         }
       }
@@ -549,6 +554,7 @@ export const profileApi = {
     console.log("[profile] profile update success", {
       userId,
       context: writeContext,
+      durationMs: Date.now() - updateStartedAt,
     });
 
     return normalizeProfile(data as ProfileRow, userId);
