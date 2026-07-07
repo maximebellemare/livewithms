@@ -21,7 +21,7 @@ import { deriveGentleContinuityFeedback } from "../../../../features/checkins/co
 import type { DailyCheckIn } from "../../../../features/checkins/types";
 import { useGrowthState } from "../../../../features/growth/hooks";
 import { useAiInsightsSummary } from "../../../../features/insights/hooks";
-import { applyLowEnergyModeOverride, useLowEnergyMode } from "../../../../features/low-energy-mode/hooks";
+import { applyLowEnergyModeOverride } from "../../../../features/low-energy-mode/hooks";
 import { useAppointments } from "../../../../features/appointments/hooks";
 import type { Appointment } from "../../../../features/appointments/types";
 import { useMedications } from "../../../../features/medications/hooks";
@@ -529,7 +529,7 @@ function getRecentActionCard(
       return {
         title: "A small support tool can still help",
         body: "You recently used a Program. Another short reset is there if today needs a softer pace.",
-        actionLabel: "Open Programs",
+        actionLabel: "View Programs",
         route: "/programs" as const,
       };
     case "reminder_enabled":
@@ -885,27 +885,6 @@ function getDailyReflectionPrompt(todayEntry: DailyCheckIn | null, draft: DailyC
   );
 }
 
-function getLowEnergyQuickActions(adaptiveProfile: ReturnType<typeof buildAdaptiveProfile>) {
-  if (adaptiveProfile.brainFogTrend === "high") {
-    return [
-      { label: "Open Coach", route: "/coach" as const },
-      { label: "Low-energy tool", route: "/programs" as const },
-    ];
-  }
-
-  if (adaptiveProfile.stressTrend === "elevated") {
-    return [
-      { label: "Calm Reset", route: "/coach" as const },
-      { label: "Open Programs", route: "/programs" as const },
-    ];
-  }
-
-  return [
-    { label: "Short reflection", route: "/coach" as const },
-    { label: "Open Programs", route: "/programs" as const },
-  ];
-}
-
 function mapCheckInsToLongitudinalEntries(entries: DailyCheckIn[]): LongitudinalEntry[] {
   return entries.map((entry) => {
     const timestamp = entry.updated_at || entry.created_at;
@@ -941,7 +920,7 @@ export default function TodayScreen() {
   const saveCheckIn = useSaveDailyCheckIn();
   const programProgress = useProgramProgress();
   const reminderSettings = useReminderSettings();
-  const lowEnergyMode = useLowEnergyMode();
+  const lowEnergyMode = { enabled: false } as const;
   const premium = usePremium();
   const [draft, setDraft] = useState<DailyCheckInDraft>(getEmptyCheckInDraft());
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -1314,7 +1293,6 @@ export default function TodayScreen() {
     () => getProgramToolById(adaptiveProfile.secondarySuggestedProgram),
     [adaptiveProfile.secondarySuggestedProgram],
   );
-  const lowEnergyQuickActions = useMemo(() => getLowEnergyQuickActions(adaptiveProfile), [adaptiveProfile]);
   const postCheckInMoment = useMemo(
     () =>
       derivePostCheckInMoment({
@@ -1479,13 +1457,12 @@ export default function TodayScreen() {
           (suggestedProgram ? 1 : 0) +
           (secondarySuggestedProgram ? 1 : 0) +
           (wins.length > 0 ? 1 : 0),
-        actionCount: todayGuidance.actions.length + 3 + (lowEnergyQuickActions.length > 0 ? lowEnergyQuickActions.length : 0),
+        actionCount: todayGuidance.actions.length + 3,
         hasAiSummary: Boolean(aiSummaryQuery.data?.summary),
       }),
     [
       aiSummaryQuery.data?.summary,
       longitudinalAnalysis.adaptiveState.primary,
-      lowEnergyQuickActions.length,
       recentActionCard,
       reflectionFeed.length,
       secondarySuggestedProgram,
@@ -1499,11 +1476,10 @@ export default function TodayScreen() {
     () =>
       deriveDecisionLoad({
         actionCount: todayGuidance.actions.length + 3,
-        optionCount: lowEnergyQuickActions.length + (secondarySuggestedProgram ? 1 : 0),
+        optionCount: secondarySuggestedProgram ? 1 : 0,
         hasSecondaryChoices: Boolean(recentActionCard || suggestedProgram),
       }),
     [
-      lowEnergyQuickActions.length,
       recentActionCard,
       secondarySuggestedProgram,
       suggestedProgram,
@@ -2291,7 +2267,6 @@ export default function TodayScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          adaptiveProfile.lowEnergyMode && styles.contentLowEnergy,
           {
             paddingBottom: Math.max(120, insets.bottom + 96),
           },
@@ -2346,26 +2321,6 @@ export default function TodayScreen() {
             <AppText style={styles.warningBody}>
               Today’s check-in is still here, and the rest can settle in shortly.
             </AppText>
-          </View>
-        ) : null}
-
-        {adaptiveProfile.lowEnergyMode ? (
-          <View style={styles.warningCard}>
-            <AppText style={styles.warningTitle}>Low-Energy Mode is on</AppText>
-            <AppText style={styles.warningBody}>
-              The layout is simplified to reduce reading and decision load.
-            </AppText>
-            <View style={styles.guidanceActions}>
-              {lowEnergyQuickActions.map((action) => (
-                <Pressable
-                  key={`${action.route}-${action.label}`}
-                  onPress={() => router.push(action.route)}
-                  style={({ pressed }) => [styles.guidanceAction, pressed && styles.quickLinkPressed]}
-                >
-                  <AppText style={styles.guidanceActionText}>{action.label}</AppText>
-                </Pressable>
-              ))}
-            </View>
           </View>
         ) : null}
 
@@ -3000,9 +2955,6 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingHorizontal: 20,
     gap: 16,
-  },
-  contentLowEnergy: {
-    gap: 20,
   },
   header: {
     gap: 4,

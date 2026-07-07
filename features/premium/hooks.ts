@@ -216,7 +216,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       setStatus("free");
       setRevenueCatEntitlementActive(false);
       setCurrentOffering(null);
-      setOfferingsErrorMessage("Premium pricing and purchases are not available in this testing environment.");
+      setOfferingsErrorMessage("Subscription pricing and purchases are not available in this testing environment.");
       setRevenueCatDebugSnapshot(revenueCatClient.getDebugSnapshot());
       refreshStateRef.current = resetRevenueCatFailureState();
       setIsLoading(false);
@@ -265,7 +265,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       setOfferingsErrorMessage(
         offering
           ? null
-          : "Pricing is still settling in. You can try again a little later, and the rest of the app still works normally.",
+          : "Pricing is still settling in. You can try again a little later.",
       );
       if (__DEV__) {
         console.log("[startup] RevenueCat init end", {
@@ -320,7 +320,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       };
       setOfferingsErrorMessage(
         grace.showMessage
-          ? "Premium details are taking a moment to refresh. Your access should settle shortly."
+          ? "Subscription details are taking a moment to refresh. Your access should settle shortly."
           : nextFailureState.hitCap
             ? "Pricing is taking longer than usual to appear. Try again a little later."
             : "Pricing and purchases are not ready just yet. You can try again in a little while.",
@@ -395,11 +395,11 @@ export function PremiumProvider({ children }: PropsWithChildren) {
 
   const purchasePlan = useCallback<PremiumContextValue["purchasePlan"]>(async (plan, options) => {
     if (!subscriptionsEnabled || !user?.id) {
-      return { success: false, message: "Premium purchases are not available in this build right now." };
+      return { success: false, message: "Subscriptions are not available in this build right now." };
     }
 
     if (!shouldUseRevenueCatNativeStore()) {
-      return { success: false, message: "Premium purchases are not available in this testing environment." };
+      return { success: false, message: "Subscriptions are not available in this testing environment." };
     }
 
     setIsPurchasing(true);
@@ -449,12 +449,12 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       if (!restoredEntitlementActive) {
         return {
           success: false,
-          message: `No active Premium subscription was found for this ${Platform.OS === "android" ? "Google Play account" : "Apple ID"}.`,
+          message: `No active subscription was found for this ${Platform.OS === "android" ? "Google Play account" : "Apple ID"}.`,
         };
       }
 
       await refreshPremiumStatus({ force: true });
-      return { success: true, message: "Premium restored." };
+      return { success: true, message: "Access restored." };
     } catch (error) {
       const normalizedError = normalizeError(error);
       await trackDiagnosticEvent("restore_failed", {

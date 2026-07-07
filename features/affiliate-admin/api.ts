@@ -70,7 +70,7 @@ function buildInviteMessage(input: {
     "Your referral link is:",
     input.referralLink,
     "",
-    "When someone joins LiveWithMS using your code and becomes Premium, you’ll earn commission.",
+    "When someone joins LiveWithMS using your code and starts a subscription, you’ll earn commission.",
     "",
     "You can log into the LiveWithMS app with this email to view your Creator Dashboard.",
   ].join("\n");

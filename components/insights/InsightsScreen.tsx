@@ -4795,7 +4795,7 @@ export default function InsightsScreen() {
 
             {premium.hasPremiumAccess ? (
               <View style={styles.aiCard}>
-                <AppText style={styles.takeawayTitle}>Premium pattern intelligence</AppText>
+                <AppText style={styles.takeawayTitle}>Pattern intelligence</AppText>
                 <AppText style={styles.sectionBody}>
                   Deeper correlations, clusters, recovery patterns, and longer-term comparisons.
                 </AppText>
@@ -4811,7 +4811,7 @@ export default function InsightsScreen() {
               </View>
             ) : (
               <View style={styles.premiumLockCard}>
-                <AppText style={styles.premiumLockTitle}>Premium pattern intelligence</AppText>
+                <AppText style={styles.premiumLockTitle}>Pattern intelligence</AppText>
                 <AppText style={styles.premiumLockBody}>
                   Your subscription includes deeper correlations, symptom clusters, recovery patterns, energy observations, and longer-term comparisons.
                 </AppText>

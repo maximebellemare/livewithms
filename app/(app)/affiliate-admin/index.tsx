@@ -673,7 +673,7 @@ export default function AffiliateAdminDashboardScreen() {
             <View style={styles.statsGrid}>
               <StatCard label="Today's clicks" value={String(todayClicks)} />
               <StatCard label="Today's installs" value={String(todayInstalls)} />
-              <StatCard label="Today's Premium subscribers" value={String(todayPremiumSubscribers)} />
+              <StatCard label="Today's subscribers" value={String(todayPremiumSubscribers)} />
               <StatCard label="Today's revenue" value={formatCurrency(todayRevenue)} />
               <StatCard label="Monthly revenue" value={formatCurrency(monthlyRevenue)} />
               <StatCard label="Lifetime revenue" value={formatCurrency(lifetimeRevenue)} />
@@ -772,7 +772,7 @@ export default function AffiliateAdminDashboardScreen() {
 
             <SectionCard
               title="Recent purchases"
-              subtitle="Recent Premium purchase and renewal revenue attributed to affiliates."
+              subtitle="Recent subscription purchase and renewal revenue attributed to affiliates."
             >
               {recentPurchases.length === 0 ? (
                 <AppText style={styles.sectionBody}>No purchases yet in this range.</AppText>

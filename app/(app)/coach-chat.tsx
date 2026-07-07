@@ -297,7 +297,7 @@ export default function CoachChatScreen() {
     }
 
     if (hasReachedFreeCoachLimit) {
-      setChatError("You’ve used today’s included AI Coach messages. Premium keeps Coach available for deeper reflection.");
+      setChatError("Coach needs an active subscription before a new conversation can continue.");
       setLastFailedMessage(nextMessage);
       return;
     }

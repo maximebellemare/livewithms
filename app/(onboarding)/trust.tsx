@@ -35,12 +35,6 @@ export default function PersonalizedSummaryScreen() {
             </View>
           ))}
         </View>
-
-        <View style={styles.noteCard}>
-          <AppText style={styles.noteText}>
-            LiveWithMS may help you notice patterns and stay organized, but it does not diagnose, treat, or replace clinical care.
-          </AppText>
-        </View>
       </View>
     </OnboardingScaffold>
   );
@@ -92,16 +86,5 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "#4b5563",
     lineHeight: 22,
-  },
-  noteCard: {
-    backgroundColor: "#fffaf6",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#f1e1d4",
-    padding: 16,
-  },
-  noteText: {
-    color: "#8b6a4f",
-    lineHeight: 21,
   },
 });

@@ -1281,7 +1281,7 @@ export default function CommunityScreen() {
                   disabled={!safeTrim(commentBody) || savingComment || freeCommentLimitReached}
                 />
                 {freeCommentLimitReached ? (
-                  <AppButton label="Start Premium" variant="secondary" onPress={() => router.push("/premium")} />
+                  <AppButton label="Start subscription" variant="secondary" onPress={() => router.push("/premium")} />
                 ) : null}
               </View>
             ) : null}
@@ -1364,7 +1364,7 @@ export default function CommunityScreen() {
                   />
                   <AppButton label="Cancel" variant="secondary" onPress={resetComposer} />
                   {freePostLimitReached ? (
-                    <AppButton label="Start Premium" variant="secondary" onPress={() => router.push("/premium")} />
+                    <AppButton label="Start subscription" variant="secondary" onPress={() => router.push("/premium")} />
                   ) : null}
                 </View>
               </View>

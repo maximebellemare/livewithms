@@ -144,7 +144,7 @@ export default function CreatorDashboardScreen() {
         <View style={styles.statsGrid}>
           <StatCard label="Total clicks" value={String(dashboard.totalClicks)} />
           <StatCard label="Total installs" value={String(dashboard.totalInstalls)} />
-          <StatCard label="Premium subscribers" value={String(dashboard.premiumSubscribers)} />
+          <StatCard label="Subscribers" value={String(dashboard.premiumSubscribers)} />
           <StatCard label="Pending commission" value={formatCurrency(dashboard.pendingCommission)} />
           <StatCard label="Paid commission" value={formatCurrency(dashboard.paidCommission)} />
           <StatCard label="Lifetime commission" value={formatCurrency(dashboard.lifetimeCommission)} />
@@ -171,7 +171,7 @@ export default function CreatorDashboardScreen() {
 
         <SectionCard
           title="Recent commissions"
-          subtitle="Recent Premium purchase and renewal commissions attributed to your referrals."
+          subtitle="Recent subscription purchase and renewal commissions attributed to your referrals."
         >
           {dashboard.recentCommissions.length === 0 ? (
             <AppText style={styles.emptyText}>No commissions yet.</AppText>

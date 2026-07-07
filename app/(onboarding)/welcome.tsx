@@ -9,7 +9,7 @@ import { trackEvent } from "../../lib/events";
 const PROMISE_POINTS = [
   "Track symptoms and energy without making the day feel clinical.",
   "See patterns that may help you stay organized over time.",
-  "Use AI support, nutrition tools, brain games, and community when they help.",
+  "Use AI support, nutrition tools, brain games, and community support in one place.",
 ] as const;
 
 export default function WelcomeScreen() {

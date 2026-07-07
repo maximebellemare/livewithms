@@ -162,13 +162,15 @@ export default function FuturePaywallScreen({
     "Track symptoms, notice patterns, talk things through with Coach, and stay organized with one calm plan for daily life with MS.";
   const heroBody =
     "Full access includes symptom tracking, insights, Coach, nutrition support, brain games, doctor-visit preparation, and community support.";
+  const paywallScreenTitle = anyTrial?.days === 3 ? "Start your LiveWithMS trial" : "Get full access to LiveWithMS";
+  const heroEyebrow = anyTrial?.days === 3 ? "Start your LiveWithMS trial" : "Full access to LiveWithMS";
   const purchaseLabel = premium.isPurchasing
     ? selectedPlanTrial?.days === 3
       ? "Starting 3-Day Free Trial..."
-      : "Starting Premium..."
+      : "Starting subscription..."
     : selectedPlanTrial?.days === 3
       ? "Start 3-Day Free Trial"
-      : "Start Premium";
+      : "Start subscription";
   const purchaseCaption = selectedPlanTrial
     ? `Cancel anytime before the trial ends to avoid being charged.`
     : "Subscription renews automatically unless canceled before renewal.";
@@ -229,7 +231,7 @@ export default function FuturePaywallScreen({
       });
       const successMessage = selectedPlanTrial
         ? `${selectedPlanTrial.fullLabel} started.`
-        : "Premium access started.";
+        : "Subscription started.";
       setPurchaseSuccessMessage(successMessage);
       Alert.alert("You're in.", successMessage, [{ text: "Continue", onPress: onClose }]);
       return;
@@ -237,7 +239,7 @@ export default function FuturePaywallScreen({
 
     if (result.message && !result.cancelled) {
       setPurchaseError(result.message);
-      Alert.alert("Unable to start Premium", result.message);
+      Alert.alert("Unable to start subscription", result.message);
     }
   };
 
@@ -250,8 +252,8 @@ export default function FuturePaywallScreen({
       await trackEvent("restore_completed", {
         status: "success",
       });
-      setRestoreMessage(result.message ?? "Premium restored.");
-      Alert.alert("Premium restored.", result.message ?? "Premium restored.", [
+      setRestoreMessage(result.message ?? "Access restored.");
+      Alert.alert("Access restored.", result.message ?? "Access restored.", [
         { text: "Continue", onPress: onClose },
       ]);
       return;
@@ -274,12 +276,12 @@ export default function FuturePaywallScreen({
   };
 
   return (
-    <AppScreen title="LiveWithMS Premium" subtitle="Full access to your personalized MS support tools.">
+    <AppScreen title={paywallScreenTitle} subtitle="Full access to your personalized MS support tools.">
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.heroCard}>
           <View pointerEvents="none" style={styles.heroGlowPrimary} />
           <View pointerEvents="none" style={styles.heroGlowSecondary} />
-          <AppText style={styles.heroEyebrow}>LiveWithMS Premium</AppText>
+          <AppText style={styles.heroEyebrow}>{heroEyebrow}</AppText>
           <AppText style={styles.heroTitle}>{heroTitle}</AppText>
           <AppText style={styles.heroSubtitle}>{heroSubtitle}</AppText>
           <AppText style={styles.heroBody}>{heroBody}</AppText>
@@ -335,7 +337,7 @@ export default function FuturePaywallScreen({
                     disabled={premium.isLoading}
                   />
                   <AppButton
-                    label={premium.isRestoring ? "Restoring..." : "Restore purchases"}
+                    label={premium.isRestoring ? "Restoring..." : "Restore existing purchase"}
                     onPress={() => void handleRestore()}
                     variant="secondary"
                     disabled={premium.isRestoring}
@@ -388,9 +390,12 @@ export default function FuturePaywallScreen({
           <AppText style={styles.sectionTitle}>Billing and restore</AppText>
           <Pressable style={styles.restoreCallout} onPress={() => void handleRestore()}>
             <AppText style={styles.restoreCalloutText}>
-              {premium.isRestoring ? "Restoring..." : "Restore Purchases"}
+              {premium.isRestoring ? "Restoring..." : "Restore existing purchase"}
             </AppText>
           </Pressable>
+          <AppText style={styles.disclosureText}>
+            Already subscribed with this Apple ID or Google Play account? Restore access here.
+          </AppText>
           <AppText style={styles.disclosureText}>
             {Platform.OS === "android"
               ? "Billing is handled securely through Google Play with localized Play Store pricing."

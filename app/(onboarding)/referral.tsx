@@ -87,7 +87,7 @@ export default function ReferralScreen() {
   return (
     <OnboardingScaffold
       title="Supporting a creator?"
-      subtitle="If someone recommended LiveWithMS, enter their code below so they receive credit if you become a Premium member."
+      subtitle="If someone recommended LiveWithMS, enter their code below so they receive credit if you start a subscription."
       step={9}
       totalSteps={ONBOARDING_STEPS.length}
       onBack={handleSkip}
@@ -103,7 +103,7 @@ export default function ReferralScreen() {
             <AppText style={styles.successEmoji}>❤️</AppText>
             <AppText style={styles.successTitle}>You're supporting {supportedCreatorName}!</AppText>
             <AppText style={styles.successBody}>
-              {supportedCreatorName} will receive credit if you become a Premium member.
+              {supportedCreatorName} will receive credit if you start a subscription.
             </AppText>
           </View>
         ) : (

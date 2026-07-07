@@ -447,7 +447,7 @@ export const revenueCatClient = {
 
   async purchasePlan(userId: string, plan: PremiumPlan, options?: PremiumPurchaseOptions): Promise<RevenueCatPurchaseResult> {
     if (!shouldUseRevenueCatNativeStore()) {
-      throw new Error("Premium purchases are not available in this testing environment.");
+      throw new Error("Subscriptions are not available in this testing environment.");
     }
 
     await revenueCatClient.configureRevenueCat(userId);

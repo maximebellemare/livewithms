@@ -2419,7 +2419,7 @@ export default function ProgramsScreen() {
           openTool(tool.id);
         }}
         accessibilityRole="button"
-        accessibilityLabel={isLocked ? title + ". Subscription required. Start Premium." : "Open " + title}
+        accessibilityLabel={isLocked ? title + ". Subscription required. Start subscription." : "Open " + title}
         style={({ pressed }) => [
           styles.operationalToolCard,
           isSelected && styles.operationalToolCardSelected,
@@ -2438,7 +2438,7 @@ export default function ProgramsScreen() {
         <AppText style={styles.toolWhenToUse}>{tool.whenToUse}</AppText>
         <AppText style={styles.toolOutcome}>{outcome}</AppText>
         <View style={styles.toolFooter}>
-          <AppText style={styles.toolOpenLabel}>{isLocked ? "Start Premium" : isSelected ? "Open below" : "Open tool"}</AppText>
+          <AppText style={styles.toolOpenLabel}>{isLocked ? "Start subscription" : isSelected ? "Open below" : "Open tool"}</AppText>
         </View>
       </Pressable>
     );
@@ -2514,7 +2514,7 @@ export default function ProgramsScreen() {
           </View>
           {!hasGuidedPrograms ? (
             <AppButton
-              label="Start Premium"
+              label="Start subscription"
               onPress={() => router.push("/premium?source=programs")}
               variant="secondary"
             />

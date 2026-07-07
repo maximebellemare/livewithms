@@ -1,4 +1,3 @@
-import { setLowEnergyModeEnabled } from "../low-energy-mode/hooks";
 import { loadPersonalizationMemory, savePersonalizationMemory } from "../personalization-memory/storage";
 import { DEFAULT_REMINDER_SETTINGS, saveReminderSettings } from "../reminders/storage";
 import type { OnboardingDraft } from "./types";
@@ -37,7 +36,6 @@ export async function persistOnboardingSupportStyle(choice: OnboardingDraft["sup
     onboardingComplexityToleranceOverride: preference.complexityTolerance,
     updatedAt: new Date().toISOString(),
   });
-  await setLowEnergyModeEnabled(preference.lowEnergyMode);
 }
 
 export async function resetOnboardingSupportPreferences() {
@@ -60,7 +58,6 @@ export async function resetOnboardingSupportPreferences() {
   });
 
   await Promise.all([
-    setLowEnergyModeEnabled(false),
     saveReminderSettings(DEFAULT_REMINDER_SETTINGS),
   ]);
 }

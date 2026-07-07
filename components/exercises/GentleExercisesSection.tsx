@@ -1083,7 +1083,7 @@ export default function GentleExercisesSection({
         <View style={styles.resultCard}>
           <AppText style={styles.resultTitle}>Subscription required</AppText>
           <AppText style={styles.resultBody}>Refresh or start your subscription to keep using exercises.</AppText>
-          <AppButton label="Start Premium" onPress={() => router.push("/premium?source=exercises-limit")} variant="primary" />
+          <AppButton label="Start subscription" onPress={() => router.push("/premium?source=exercises-limit")} variant="primary" />
           <AppButton
             label="Try another exercise"
             onPress={() => {
@@ -1111,7 +1111,7 @@ export default function GentleExercisesSection({
           {!hasPremiumAccess ? (
             <>
               <AppText style={styles.resultBody}>Replay becomes available again once your subscription is active.</AppText>
-              <AppButton label="Start Premium" onPress={() => router.push("/premium?source=exercise-replay")} variant="primary" />
+              <AppButton label="Start subscription" onPress={() => router.push("/premium?source=exercise-replay")} variant="primary" />
             </>
           ) : null}
           <AppButton
@@ -1427,7 +1427,7 @@ export default function GentleExercisesSection({
         <View style={styles.limitCard}>
           <AppText style={styles.limitTitle}>Subscription required</AppText>
           <AppText style={styles.limitBody}>Exercise access opens once your subscription is active.</AppText>
-          <AppButton label="Start Premium" onPress={() => router.push("/premium?source=exercises-limit")} variant="secondary" />
+          <AppButton label="Start subscription" onPress={() => router.push("/premium?source=exercises-limit")} variant="secondary" />
         </View>
       ) : null}
 

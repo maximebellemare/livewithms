@@ -18,7 +18,6 @@ import {
   getSelectedOnboardingPriority,
   mapStoredSupportStyleToOnboardingChoice,
 } from "./personalization";
-import { loadLowEnergyModeState } from "../low-energy-mode/storage";
 import { loadPersonalizationMemory } from "../personalization-memory/storage";
 import { loadReminderSettings } from "../reminders/storage";
 
@@ -102,8 +101,8 @@ export function useOnboarding() {
   useEffect(() => {
     let cancelled = false;
 
-    void Promise.all([loadPersonalizationMemory(), loadLowEnergyModeState(), loadReminderSettings()]).then(
-      ([memory, lowEnergyMode, reminderSettings]) => {
+    void Promise.all([loadPersonalizationMemory(), loadReminderSettings()]).then(
+      ([memory, reminderSettings]) => {
         if (cancelled) {
           return;
         }
@@ -114,9 +113,9 @@ export function useOnboarding() {
             current.support_style ||
             mapStoredSupportStyleToOnboardingChoice({
               supportStyle: memory.onboardingSupportStyleOverride ?? memory.preferredSupportStyle,
-              lowEnergyMode: lowEnergyMode.enabled,
+              lowEnergyMode: false,
             }),
-          low_energy_mode: lowEnergyMode.enabled,
+          low_energy_mode: false,
           reminder_preference: reminderSettings.enabled ? "enable" : "skip",
           hardest_challenges:
             current.hardest_challenges.length > 0

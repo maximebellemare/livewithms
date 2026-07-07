@@ -43,7 +43,6 @@ import { logger } from "../../lib/logger";
 import { trackRetryTriggered } from "../../lib/events";
 import { useGrowthState } from "../../features/growth/hooks";
 import { useSlowScreenDiagnostics } from "../../lib/observability";
-import { useLowEnergyMode } from "../../features/low-energy-mode/hooks";
 import { usePremium } from "../../features/premium/hooks";
 import {
   incrementFoodAnalysisUsage,
@@ -1637,7 +1636,7 @@ export function NutritionScreenContent() {
           <AppText style={styles.nutritionCardBody}>
             Nutrition support needs an active subscription before meal plans, grocery lists, and swaps can keep updating here.
           </AppText>
-          <AppButton label="Start Premium" onPress={() => router.push("/premium?source=nutrition-meal-plan")} variant="secondary" />
+          <AppButton label="Start subscription" onPress={() => router.push("/premium?source=nutrition-meal-plan")} variant="secondary" />
         </View>
       )}
     </View>
@@ -2079,7 +2078,6 @@ export default function CareScreen() {
   const medicationsLoading = medicationsQuery.isLoading && !medicationsQuery.data;
   const careNotesLoading = careNotesQuery.isLoading && !careNotesQuery.data;
   const [showInactiveMedications, setShowInactiveMedications] = useState(false);
-  const lowEnergyMode = useLowEnergyMode();
   const careLoadWarnings = useMemo(() => {
     const warnings: string[] = [];
 
@@ -2919,19 +2917,11 @@ export default function CareScreen() {
     >
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView
-        contentContainerStyle={[styles.content, lowEnergyMode.enabled && styles.contentLowEnergy]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         keyboardShouldPersistTaps="handled"
       >
-        {lowEnergyMode.enabled ? (
-          <View style={styles.lowEnergyBanner}>
-            <AppText style={styles.lowEnergyBannerText}>
-              Simplified layout is active.
-            </AppText>
-          </View>
-        ) : null}
-
         {careLoadWarningMessage ? (
           <View style={styles.warningBanner}>
             <AppText style={styles.warningBannerTitle}>Some care details could not sync yet.</AppText>
@@ -3824,9 +3814,6 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
     gap: 18,
   },
-  contentLowEnergy: {
-    gap: 20,
-  },
   heroCard: {
     backgroundColor: "#fff3e8",
     borderRadius: 24,
@@ -3839,19 +3826,6 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 12 },
     elevation: 8,
-  },
-  lowEnergyBanner: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#eadfd6",
-    backgroundColor: "#fffaf6",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  lowEnergyBannerText: {
-    color: "#6b7280",
-    fontSize: 13,
-    lineHeight: 19,
   },
   warningBanner: {
     borderRadius: 16,

@@ -10,7 +10,7 @@ export default function PaywallHero() {
     <View style={styles.container}>
       <View pointerEvents="none" style={styles.glowPrimary} />
       <View pointerEvents="none" style={styles.glowSecondary} />
-      <AppText style={styles.eyebrow}>LiveWithMS Premium</AppText>
+      <AppText style={styles.eyebrow}>Full access to LiveWithMS</AppText>
       <AppText style={styles.title}>{positioning.heroTitle}</AppText>
       <AppText style={styles.subtitle}>{positioning.heroSubtitle}</AppText>
       <AppText style={styles.body}>{positioning.heroBody}</AppText>

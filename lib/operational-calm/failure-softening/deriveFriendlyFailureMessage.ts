@@ -24,7 +24,7 @@ export function deriveFriendlyFailureMessage(error: unknown) {
   }
 
   if (kind === "subscription") {
-    return "Your Premium status is taking a moment to catch up. Your access should settle shortly.";
+    return "Your subscription status is taking a moment to catch up. Your access should settle shortly.";
   }
 
   if (kind === "sync") {

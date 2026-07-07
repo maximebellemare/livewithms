@@ -1644,7 +1644,7 @@ export default function CoachScreen() {
               ) : null}
             </View>
             <AppButton
-              label={hasReachedFreeCoachLimit ? "Start Premium" : "Talk it through"}
+              label={hasReachedFreeCoachLimit ? "Start subscription" : "Talk it through"}
               onPress={() =>
                 hasReachedFreeCoachLimit
                   ? router.push("/premium?source=coach-limit")
@@ -1926,7 +1926,7 @@ export default function CoachScreen() {
                   onPress={() => router.push("/premium?source=coach-context")}
                   style={({ pressed }) => [styles.premiumCtaButton, pressed && styles.actionCardPressed]}
                 >
-                  <AppText style={styles.premiumCtaText}>Start Premium</AppText>
+                  <AppText style={styles.premiumCtaText}>Start subscription</AppText>
                 </Pressable>
               </View>
             ) : null}
@@ -2123,7 +2123,7 @@ export default function CoachScreen() {
             <AppButton
               label={
                 hasReachedFreeCoachLimit
-                  ? "Start Premium"
+                  ? "Start subscription"
                   : sendCoachMessage.isPending
                     ? "Sending..."
                     : "Send message"
@@ -2137,7 +2137,7 @@ export default function CoachScreen() {
             />
             {hasReachedFreeCoachLimit ? (
               <AppText style={styles.limitNote}>
-                Free AI Coach access refreshes daily. Premium keeps Coach available for deeper reflection.
+                Coach needs an active subscription before a new conversation can continue.
               </AppText>
             ) : null}
             {chatError ? (
@@ -2166,7 +2166,7 @@ export default function CoachScreen() {
                   />
                 ) : null}
                 {hasReachedFreeCoachLimit ? (
-                  <AppButton label="Start Premium" onPress={() => router.push("/premium?source=coach-limit")} />
+                  <AppButton label="Start subscription" onPress={() => router.push("/premium?source=coach-limit")} />
                 ) : null}
               </View>
             ) : null}

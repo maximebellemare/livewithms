@@ -646,7 +646,7 @@ export default function HealthSummaryScreen() {
       subtitle="A practical briefing of recent patterns, changes, and appointment topics."
     >
       <ScrollView
-        contentContainerStyle={[styles.content, lowEnergyMode.enabled && styles.contentLowEnergy]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <Pressable
@@ -663,13 +663,6 @@ export default function HealthSummaryScreen() {
           <AppText style={styles.heroBody}>
             Review what changed, what stayed stable, and what may be useful to discuss.
           </AppText>
-          {lowEnergyMode.enabled ? (
-            <View style={styles.lowEnergyBanner}>
-              <AppText style={styles.lowEnergyBannerText}>
-                Low Energy Mode is showing fewer sections.
-              </AppText>
-            </View>
-          ) : null}
           <View style={styles.rangeToggle}>
             {[7, 30].map((option) => (
               <Pressable
@@ -903,9 +896,6 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
     gap: 18,
   },
-  contentLowEnergy: {
-    gap: 20,
-  },
   backButton: {
     alignSelf: "flex-start",
     borderRadius: 999,
@@ -940,19 +930,6 @@ const styles = StyleSheet.create({
   heroBody: {
     color: "#4b5563",
     lineHeight: 23,
-  },
-  lowEnergyBanner: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#eadfd6",
-    backgroundColor: "#fffaf6",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  lowEnergyBannerText: {
-    color: "#6b7280",
-    fontSize: 13,
-    lineHeight: 19,
   },
   rangeToggle: {
     flexDirection: "row",

@@ -160,7 +160,7 @@ export function deriveLowEnergyAdaptation(input: AdaptiveSupportInput): LowEnerg
       active: true,
       title: "Gentler adaptive support",
       body: guardEmotionalSupportCopy(
-        `Premium can keep things quieter, shorter, and a little lighter during heavier stretches. ${support.lowPressureGuidance[0] ?? ""}`.trim(),
+        `Your subscription can keep things quieter, shorter, and a little lighter during heavier stretches. ${support.lowPressureGuidance[0] ?? ""}`.trim(),
       ),
     };
   }
@@ -168,7 +168,7 @@ export function deriveLowEnergyAdaptation(input: AdaptiveSupportInput): LowEnerg
   return {
     active: false,
     title: "Adaptive support is available",
-    body: guardEmotionalSupportCopy("Premium can gently simplify the app when a calmer pace would help."),
+    body: guardEmotionalSupportCopy("Your subscription can gently simplify the app when a calmer pace would help."),
   };
 }
 

@@ -9,7 +9,7 @@ import AppScreen from "../../../../components/ui/AppScreen";
 import AppText from "../../../../components/ui/AppText";
 import { useDeleteAccount } from "../../../../features/account/hooks";
 import { useAuth } from "../../../../features/auth/hooks";
-import { useLowEnergyMode } from "../../../../features/low-energy-mode/hooks";
+import { getSubscriptionCtaLabel } from "../../../../features/premium/display";
 import { canAccessPremiumFeature } from "../../../../features/premium/entitlements";
 import { usePremium } from "../../../../features/premium/hooks";
 import { shouldShowPremiumInternalDebug } from "../../../../features/premium/tester-overrides";
@@ -227,17 +227,14 @@ export default function ProfileScreen() {
     reminderEnabled: reminders.enabled,
   });
   const showInternalPremiumDebug = shouldShowPremiumInternalDebug(user?.email) || premium.testerPremiumOverrideActive;
-  const lowEnergyMode = useLowEnergyMode();
   const calmEnvironment = useCalmEnvironment();
   const darkMode = calmEnvironment.appearance === "dark";
   const profileContentStyle = [
     styles.content,
-    lowEnergyMode.enabled && styles.contentSimplified,
     darkMode && styles.contentDark,
   ];
   const cardStyle = [
     styles.card,
-    lowEnergyMode.enabled && styles.cardSimplified,
     darkMode && styles.cardDark,
   ];
   const hasSubscriptionAccess = premium.revenueCatEntitlementActive;
@@ -681,7 +678,7 @@ export default function ProfileScreen() {
             <AppText style={styles.premiumNote}>
               {hasSubscriptionAccess
                 ? `Your subscription is managed securely through ${Platform.OS === "ios" ? "Apple" : "Google Play"}.`
-                : "If you already subscribed with this Apple ID or Google Play account, restore purchases here."}
+                : "Already subscribed with this Apple ID or Google Play account? Restore access here."}
             </AppText>
             <View style={styles.accountActions}>
               {hasSubscriptionAccess ? (
@@ -692,13 +689,13 @@ export default function ProfileScreen() {
                 />
               ) : (
                 <AppButton
-                  label="Start Premium"
+                  label={getSubscriptionCtaLabel(premium.currentOffering)}
                   onPress={() => router.push("/premium?source=profile")}
                   variant="primary"
                 />
               )}
               <AppButton
-                label={premium.isRestoring ? "Restoring..." : "Restore purchases"}
+                label={premium.isRestoring ? "Restoring..." : "Restore existing purchase"}
                 onPress={() => void handleRestorePurchases()}
                 variant="secondary"
                 disabled={premium.isRestoring}
@@ -743,23 +740,6 @@ export default function ProfileScreen() {
                 })}
               </View>
             </View>
-            <PreferenceRow
-              title="Low Energy Mode"
-              description="Simplifies this screen and reduces visual layers."
-              value={lowEnergyMode.enabled}
-              onValueChange={(value) => {
-                void lowEnergyMode.setEnabled(value);
-              }}
-              disabled={lowEnergyMode.isLoading}
-            />
-            {lowEnergyMode.enabled ? (
-              <View style={styles.settingImpactCard}>
-                <AppText style={styles.preferenceTitle}>Low Energy Mode is active</AppText>
-                <AppText style={styles.preferenceDescription}>
-                  Profile is showing tighter sections with fewer visual details.
-                </AppText>
-              </View>
-            ) : null}
           </View>
         </View>
 
@@ -1033,10 +1013,6 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
     gap: 18,
   },
-  contentSimplified: {
-    paddingHorizontal: 18,
-    gap: 12,
-  },
   contentDark: {
     backgroundColor: "#111827",
   },
@@ -1056,12 +1032,6 @@ const styles = StyleSheet.create({
     shadowRadius: 22,
     shadowOffset: { width: 0, height: 12 },
     elevation: 7,
-  },
-  cardSimplified: {
-    padding: 14,
-    gap: 12,
-    borderRadius: 18,
-    borderColor: "#ead8ca",
   },
   cardDark: {
     backgroundColor: "#f8fafc",

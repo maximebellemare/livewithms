@@ -38,8 +38,8 @@ export function deriveCalmEnvironment(input: CalmEnvironmentInput): CalmEnvironm
 
   const title = active ? "Calmer environment is active" : "Calm environment is available";
   const body = active
-    ? "Premium can keep motion softer, layouts quieter, and reading a little easier during heavier stretches."
-    : "Premium can gently reduce stimulation and make the app feel roomier when a calmer environment helps.";
+    ? "Your subscription can keep motion softer, layouts quieter, and reading a little easier during heavier stretches."
+    : "Your subscription can gently reduce stimulation and make the app feel roomier when a calmer environment helps.";
 
   return {
     available,
