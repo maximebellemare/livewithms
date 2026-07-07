@@ -2,12 +2,12 @@
   "expo": {
     "name": "LiveWithMS",
     "description": "A calm, emotionally safe support environment for people living with MS. Designed to reduce overwhelm, support steadiness, and make difficult periods feel lighter and more manageable.",
-    "version": "1.1.6",
+    "version": "1.1.7",
     "scheme": "com.livewithms.app",
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.livewithms.app",
-      "buildNumber": "91",
+      "buildNumber": "92",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "LiveWithMS uses the camera when you choose to take a food photo for nutrition analysis.",

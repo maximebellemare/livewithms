@@ -122,20 +122,6 @@ function getPerfTimestamp() {
   return Date.now();
 }
 
-function getGreeting() {
-  const hour = new Date().getHours();
-
-  if (hour < 12) {
-    return "Good morning";
-  }
-
-  if (hour < 18) {
-    return "Good afternoon";
-  }
-
-  return "Good evening";
-}
-
 function formatLongDate(date: string) {
   return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, {
     weekday: "long",
@@ -467,6 +453,16 @@ function getStreakCelebrationMessage(streak: number) {
   }
 
   return "Check-in saved.";
+}
+
+function getMomentumHeadline(todayEntry: DailyCheckIn | null) {
+  return todayEntry ? "Check-in saved for today" : "Start your check-in streak";
+}
+
+function getMomentumSupportCopy(todayEntry: DailyCheckIn | null) {
+  return todayEntry
+    ? "Today’s check-in is already in place, and your insights can keep building from here."
+    : "One small check-in can help your future insights.";
 }
 
 function getCutoffDate(days: number) {
@@ -970,7 +966,6 @@ export default function TodayScreen() {
   const lastSavedSnapshotRef = useRef(getDraftSnapshot(getEmptyCheckInDraft()));
   const lastTrackedLifecycleKeyRef = useRef<string | null>(null);
   const recentReflectionCardIdsRef = useRef<string[]>([]);
-  const greeting = useMemo(() => getGreeting(), []);
   const currentHour = useMemo(() => new Date().getHours(), []);
   useEffect(() => {
     console.log("[perf][today] shell rendered", {
@@ -2307,10 +2302,18 @@ export default function TodayScreen() {
       >
         <View style={styles.overviewCard}>
           <View pointerEvents="none" style={styles.overviewGlow} />
-          <AppText style={styles.todayDate}>
-            {formatLongDate(today)}
-            {todayEntry ? " • Check-in saved ✓" : ""}
-          </AppText>
+          <View pointerEvents="none" style={styles.overviewGlowWarm} />
+          <View style={styles.overviewBadgeRow}>
+            <View style={styles.momentumIconWrap}>
+              <AppText style={styles.momentumIcon}>☀︎</AppText>
+            </View>
+            <View style={styles.overviewBadgeTextWrap}>
+              <AppText style={styles.overviewEyebrow}>Today&apos;s momentum</AppText>
+              <AppText style={styles.todayDate}>{formatLongDate(today)}</AppText>
+            </View>
+          </View>
+          <AppText style={styles.overviewHeadline}>{getMomentumHeadline(todayEntry)}</AppText>
+          <AppText style={styles.overviewSupportText}>{getMomentumSupportCopy(todayEntry)}</AppText>
           <View style={styles.streakPill}>
             <AppText style={styles.streakPillText}>{streakLabel}</AppText>
           </View>
@@ -3036,28 +3039,78 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "rgba(255, 255, 255, 0.58)",
   },
-  greeting: {
-    fontSize: 14,
-    fontWeight: "700",
+  overviewGlowWarm: {
+    position: "absolute",
+    bottom: -64,
+    left: -6,
+    width: 208,
+    height: 152,
+    borderRadius: 999,
+    backgroundColor: "rgba(254, 120, 26, 0.14)",
+  },
+  overviewBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  momentumIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fffaf5",
+    borderWidth: 1,
+    borderColor: "#f1d3ba",
+    shadowColor: "rgba(120, 71, 29, 0.18)",
+    shadowOpacity: 1,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+  momentumIcon: {
+    fontSize: 20,
+    lineHeight: 24,
+    color: "#d7660e",
+  },
+  overviewBadgeTextWrap: {
+    flex: 1,
+    gap: 3,
+  },
+  overviewEyebrow: {
+    fontSize: 13,
+    fontWeight: "800",
     color: "#c25d10",
     textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
   todayDate: {
     fontSize: 14,
     color: "#8b5a2b",
     fontWeight: "600",
   },
+  overviewHeadline: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: "800",
+    color: "#1f2937",
+  },
+  overviewSupportText: {
+    color: "#5f4a38",
+    lineHeight: 22,
+    fontSize: 15,
+  },
   streakPill: {
     alignSelf: "flex-start",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#f2d8c4",
-    backgroundColor: "#fffaf6",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    borderColor: "#efc8aa",
+    backgroundColor: "#fffdfb",
+    paddingHorizontal: 13,
+    paddingVertical: 8,
   },
   streakPillText: {
-    color: "#9a4b0c",
+    color: "#a04b12",
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "700",

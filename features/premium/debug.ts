@@ -16,11 +16,11 @@ export async function loadPremiumDebugOverride() {
   try {
     const raw = await appSecureStore.getItem(PREMIUM_DEBUG_OVERRIDE_KEY);
     if (raw === null) {
-      return DEV_PREMIUM_OVERRIDE;
+      return false;
     }
     return raw === "true";
   } catch {
-    return DEV_PREMIUM_OVERRIDE;
+    return false;
   }
 }
 

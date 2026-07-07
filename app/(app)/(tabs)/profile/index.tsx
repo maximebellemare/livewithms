@@ -605,7 +605,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={cardStyle}>
-          <AppText style={styles.sectionKicker}>Premium</AppText>
+          <AppText style={styles.sectionKicker}>Subscription</AppText>
           <AppText style={styles.sectionTitle}>Subscription</AppText>
           <View style={styles.premiumCard}>
             <View style={styles.premiumHeader}>
@@ -615,12 +615,12 @@ export default function ProfileScreen() {
                 </AppText>
                 <AppText style={styles.premiumBody}>
                   {hasSubscriptionAccess
-                    ? `Your LiveWithMS subscription is active and managed securely through ${Platform.OS === "ios" ? "Apple" : "Google Play"}.`
-                    : "LiveWithMS now requires an active subscription to continue using the app. Start Premium or restore a previous purchase to keep going."}
+                    ? "You have full access to LiveWithMS."
+                    : "Start your 3-day free trial to access LiveWithMS."}
                 </AppText>
               </View>
               <AppText style={[styles.premiumBadge, hasSubscriptionAccess && styles.premiumBadgeActive]}>
-                {hasSubscriptionAccess ? "Active" : "Required"}
+                {hasSubscriptionAccess ? "Subscription active" : "Subscription required"}
               </AppText>
             </View>
             {__DEV__ && premium.debugPremiumOverrideActive ? (
@@ -680,8 +680,8 @@ export default function ProfileScreen() {
             ) : null}
             <AppText style={styles.premiumNote}>
               {hasSubscriptionAccess
-                ? "You can manage your subscription or restore purchases anytime from here."
-                : "If you already subscribed with this Apple ID or Google Play account, try Restore Purchases first."}
+                ? `Your subscription is managed securely through ${Platform.OS === "ios" ? "Apple" : "Google Play"}.`
+                : "If you already subscribed with this Apple ID or Google Play account, restore purchases here."}
             </AppText>
             <View style={styles.accountActions}>
               {hasSubscriptionAccess ? (
@@ -694,7 +694,7 @@ export default function ProfileScreen() {
                 <AppButton
                   label="Start Premium"
                   onPress={() => router.push("/premium?source=profile")}
-                  variant="secondary"
+                  variant="primary"
                 />
               )}
               <AppButton
@@ -1162,22 +1162,22 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   premiumCard: {
-    gap: 14,
+    gap: 12,
     borderRadius: 20,
-    backgroundColor: "#fff5eb",
+    backgroundColor: "#fff8f1",
     borderWidth: 1,
-    borderColor: "#efcbb0",
+    borderColor: "#f2d3bb",
     padding: 16,
   },
   premiumHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 12,
   },
   premiumCopy: {
     flex: 1,
-    gap: 6,
+    gap: 4,
   },
   premiumTitle: {
     fontSize: 18,
@@ -1192,11 +1192,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "#ffffff",
     color: "#b45309",
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: "700",
     paddingHorizontal: 10,
     paddingVertical: 6,
+    overflow: "hidden",
   },
   premiumBadgeActive: {
     backgroundColor: "#e8f5ea",

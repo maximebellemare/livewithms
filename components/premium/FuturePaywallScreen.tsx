@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import AppButton from "../ui/AppButton";
-import CalmSkeleton from "../ui/CalmSkeleton";
 import AppScreen from "../ui/AppScreen";
 import AppText from "../ui/AppText";
 import PlanOptionCard from "./PlanOptionCard";
@@ -150,10 +149,10 @@ export default function FuturePaywallScreen({
   const yearlyPackage = premium.currentOffering?.yearly ?? null;
   const selectedPackage = premium.currentOffering?.[selectedPlan] ?? null;
   const showPlans = !premium.hasPremiumAccess;
-  const expoGoPricingFallback = isExpoGo() && !premium.currentOffering;
-  const showLoadingPricingShell = premium.isLoading && !premium.currentOffering && !premium.offeringsErrorMessage;
-  const monthlyPrice = expoGoPricingFallback ? "Monthly plan" : getLocalizedStorePrice(monthlyPackage);
-  const yearlyPrice = expoGoPricingFallback ? "Yearly plan" : getLocalizedStorePrice(yearlyPackage);
+  const pricingReady = Boolean(monthlyPackage && yearlyPackage);
+  const pricingUnavailable = showPlans && !pricingReady;
+  const monthlyPrice = getLocalizedStorePrice(monthlyPackage);
+  const yearlyPrice = getLocalizedStorePrice(yearlyPackage);
   const selectedPlanTrial = getTrialDetails(selectedPackage);
   const yearlyTrial = getTrialDetails(yearlyPackage);
   const monthlyTrial = getTrialDetails(monthlyPackage);
@@ -164,11 +163,11 @@ export default function FuturePaywallScreen({
   const heroBody =
     "Full access includes symptom tracking, insights, Coach, nutrition support, brain games, doctor-visit preparation, and community support.";
   const purchaseLabel = premium.isPurchasing
-    ? selectedPlanTrial
-      ? `Starting ${selectedPlanTrial.shortLabel.toLowerCase()}...`
+    ? selectedPlanTrial?.days === 3
+      ? "Starting 3-Day Free Trial..."
       : "Starting Premium..."
-    : selectedPlanTrial
-      ? `Start ${selectedPlanTrial.shortLabel.toLowerCase()}`
+    : selectedPlanTrial?.days === 3
+      ? "Start 3-Day Free Trial"
       : "Start Premium";
   const purchaseCaption = selectedPlanTrial
     ? `Cancel anytime before the trial ends to avoid being charged.`
@@ -176,6 +175,34 @@ export default function FuturePaywallScreen({
   const blockedAccessCopy = requiredAccess
     ? "A LiveWithMS subscription is required to continue. Start your trial or subscription to keep your tracking, Coach, nutrition, programs, and community support in one place."
     : null;
+
+  useEffect(() => {
+    if (!__DEV__) {
+      return;
+    }
+
+    console.log("[paywall] pricing state", {
+      currentOfferingIdentifier: premium.revenueCatDebugSnapshot.selectedOfferingIdentifier ?? null,
+      monthlyLoaded: Boolean(monthlyPackage),
+      yearlyLoaded: Boolean(yearlyPackage),
+      pricingReady,
+      offeringsErrorMessage: premium.offeringsErrorMessage,
+      isLoading: premium.isLoading,
+    });
+
+    if (!pricingReady && (isExpoGo() || premium.offeringsErrorMessage)) {
+      console.log("[paywall] pricing may require TestFlight or a real device when products are unavailable", {
+        expoGo: isExpoGo(),
+      });
+    }
+  }, [
+    monthlyPackage,
+    yearlyPackage,
+    pricingReady,
+    premium.offeringsErrorMessage,
+    premium.isLoading,
+    premium.revenueCatDebugSnapshot.selectedOfferingIdentifier,
+  ]);
 
   const handlePurchase = async () => {
     if (!selectedPackage || premium.isPurchasing) {
@@ -291,89 +318,69 @@ export default function FuturePaywallScreen({
 
         {showPlans ? (
           <>
-            {showLoadingPricingShell ? (
-              <View style={styles.statusCard}>
-                <AppText style={styles.sectionTitle}>Loading pricing</AppText>
-                <AppText style={styles.statusBody}>
-                  Checking the latest App Store or Google Play pricing for this device.
-                </AppText>
-                <View style={styles.loadingSkeletonGroup}>
-                  <CalmSkeleton width="64%" height={12} />
-                  <CalmSkeleton width="86%" height={12} />
-                </View>
-              </View>
-            ) : null}
-
-            {premium.offeringsErrorMessage ? (
+            {pricingUnavailable ? (
               <View style={styles.statusCard}>
                 <AppText style={styles.sectionTitle}>Pricing is taking a moment</AppText>
-                <AppText style={styles.statusBody}>{premium.offeringsErrorMessage}</AppText>
-                <AppButton
-                  label={premium.isLoading ? "Retrying..." : "Retry pricing"}
-                  onPress={() => {
-                    void trackRetryTriggered("premium-refresh");
-                    void premium.refreshPremiumStatus();
-                  }}
-                  variant="secondary"
-                  disabled={premium.isLoading}
-                />
+                <AppText style={styles.statusBody}>
+                  We couldn’t load subscription options right now. Please check your connection and try again.
+                </AppText>
+                <View style={styles.statusActions}>
+                  <AppButton
+                    label={premium.isLoading ? "Retrying..." : "Retry pricing"}
+                    onPress={() => {
+                      void trackRetryTriggered("premium-refresh");
+                      void premium.refreshPremiumStatus();
+                    }}
+                    variant="secondary"
+                    disabled={premium.isLoading}
+                  />
+                  <AppButton
+                    label={premium.isRestoring ? "Restoring..." : "Restore purchases"}
+                    onPress={() => void handleRestore()}
+                    variant="secondary"
+                    disabled={premium.isRestoring}
+                  />
+                  {requiredAccess ? (
+                    <Pressable style={styles.unavailableSignOutButton} onPress={onRequiredExit}>
+                      <AppText style={styles.unavailableSignOutText}>Sign out</AppText>
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
             ) : null}
 
-            <View style={styles.pricingSummaryCard}>
-              <AppText style={styles.sectionTitle}>Choose your plan</AppText>
-              <AppText style={styles.statusBody}>
-                Yearly is selected by default for the best overall value. Monthly stays available if you want a more flexible option.
-              </AppText>
-              <View style={styles.pricingSnapshot}>
-                <View style={styles.pricingPill}>
-                  <AppText style={styles.pricingLabel}>Monthly</AppText>
-                  {showLoadingPricingShell ? (
-                    <CalmSkeleton width="70%" height={28} radius={10} />
-                  ) : (
-                    <>
-                      <AppText style={styles.pricingValue}>{monthlyPrice}</AppText>
-                      <AppText style={styles.pricingHint}>{getPlanRenewalCopy("monthly", monthlyPackage)}</AppText>
-                    </>
-                  )}
+            {pricingReady ? (
+              <>
+                <View style={styles.planSelectionHeader}>
+                  <AppText style={styles.sectionTitle}>Choose your plan</AppText>
+                  <AppText style={styles.statusBody}>
+                    Yearly is selected by default for the best overall value. Monthly stays available if you want a more flexible option.
+                  </AppText>
                 </View>
-                <View style={styles.pricingPill}>
-                  <AppText style={styles.pricingLabel}>Yearly</AppText>
-                  {showLoadingPricingShell ? (
-                    <CalmSkeleton width="74%" height={28} radius={10} />
-                  ) : (
-                    <>
-                      <AppText style={styles.pricingValue}>{yearlyPrice}</AppText>
-                      <AppText style={styles.pricingHint}>{getPlanRenewalCopy("yearly", yearlyPackage)}</AppText>
-                    </>
-                  )}
-                </View>
-              </View>
-            </View>
 
-            <PlanOptionCard
-              plan="yearly"
-              title="Yearly"
-              price={yearlyPrice}
-              subtitle={getPlanRenewalCopy("yearly", yearlyPackage)}
-              detail="Best value for ongoing support, insights, Coach, and nutrition planning."
-              badge="Best Value"
-              selected={selectedPlan === "yearly"}
-              onPress={() => handleSelectPlan("yearly")}
-              disabled={showLoadingPricingShell}
-            />
+                <PlanOptionCard
+                  plan="yearly"
+                  title="Yearly"
+                  price={yearlyPrice}
+                  subtitle={getPlanRenewalCopy("yearly", yearlyPackage)}
+                  detail="Best value for ongoing support, insights, Coach, and nutrition planning."
+                  badge="Best Value"
+                  selected={selectedPlan === "yearly"}
+                  onPress={() => handleSelectPlan("yearly")}
+                />
 
-            <PlanOptionCard
-              plan="monthly"
-              title="Monthly"
-              price={monthlyPrice}
-              subtitle={getPlanRenewalCopy("monthly", monthlyPackage)}
-              detail="Flexible monthly access to the full LiveWithMS experience."
-              badge="Flexible"
-              selected={selectedPlan === "monthly"}
-              onPress={() => handleSelectPlan("monthly")}
-              disabled={showLoadingPricingShell}
-            />
+                <PlanOptionCard
+                  plan="monthly"
+                  title="Monthly"
+                  price={monthlyPrice}
+                  subtitle={getPlanRenewalCopy("monthly", monthlyPackage)}
+                  detail="Flexible monthly access to the full LiveWithMS experience."
+                  badge="Flexible"
+                  selected={selectedPlan === "monthly"}
+                  onPress={() => handleSelectPlan("monthly")}
+                />
+              </>
+            ) : null}
           </>
         ) : null}
 
@@ -399,20 +406,20 @@ export default function FuturePaywallScreen({
         </View>
 
         <View style={styles.actions}>
-          {showPlans ? (
+          {showPlans && pricingReady ? (
             <>
               <AppButton
                 label={purchaseLabel}
                 onPress={() => void handlePurchase()}
-                disabled={!selectedPackage || premium.isPurchasing || premium.isLoading}
+                disabled={!pricingReady || !selectedPackage || premium.isPurchasing || premium.isLoading}
               />
               <AppText style={styles.purchaseHint}>{purchaseCaption}</AppText>
             </>
-          ) : (
+          ) : !showPlans ? (
             <AppButton label="Continue" onPress={onClose} />
-          )}
+          ) : null}
 
-          {requiredAccess ? (
+          {pricingUnavailable ? null : requiredAccess ? (
             <Pressable style={styles.secondaryButton} onPress={onRequiredExit}>
               <AppText style={styles.secondaryText}>Sign out</AppText>
             </Pressable>
@@ -568,51 +575,19 @@ const styles = StyleSheet.create({
     color: colors.textBody,
     lineHeight: 20,
   },
-  pricingSummaryCard: {
-    backgroundColor: "#fffdfb",
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#efd7c4",
-    padding: 18,
+  statusActions: {
     gap: 10,
   },
-  pricingSnapshot: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
+  unavailableSignOutButton: {
+    paddingVertical: 10,
+    alignItems: "center",
   },
-  pricingPill: {
-    flex: 1,
-    flexBasis: 160,
-    minWidth: 150,
-    backgroundColor: "#fff6ee",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#efcfb6",
-    padding: 14,
-    gap: 4,
-  },
-  pricingLabel: {
-    color: "#c25d10",
-    fontSize: 12,
+  unavailableSignOutText: {
+    color: colors.textMuted,
     fontWeight: "700",
-    textTransform: "uppercase",
   },
-  pricingValue: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: "700",
-    lineHeight: 28,
-    flexShrink: 1,
-  },
-  pricingHint: {
-    color: "#8b6a4f",
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  loadingSkeletonGroup: {
+  planSelectionHeader: {
     gap: 8,
-    marginTop: 2,
   },
   disclosureCard: {
     backgroundColor: "#fff7f1",
