@@ -1,0 +1,1089 @@
+{% liquid
+  assign hero_badge = section.settings.hero_badge | default: 'Daily support for life with MS'
+  assign app_store_url = section.settings.app_store_url | default: '#'
+  assign google_play_url = section.settings.google_play_url | default: '#'
+%}
+
+<section class="lwm-homepage" id="livewithms-homepage-{{ section.id }}">
+  <style>
+    #shopify-section-{{ section.id }} {
+      --lwm-orange: #fe781a;
+      --lwm-orange-deep: #cf5d08;
+      --lwm-orange-soft: #fff3e9;
+      --lwm-orange-wash: #fff8f3;
+      --lwm-cream: #fffdfb;
+      --lwm-ink: #172033;
+      --lwm-copy: #5f6778;
+      --lwm-line: rgba(23, 32, 51, 0.1);
+      --lwm-shadow: 0 28px 60px rgba(23, 32, 51, 0.12);
+      --lwm-shadow-soft: 0 16px 38px rgba(23, 32, 51, 0.08);
+      color: var(--lwm-ink);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-homepage,
+    #shopify-section-{{ section.id }} .lwm-homepage * {
+      box-sizing: border-box;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-shell {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 0 20px 88px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-stack {
+      display: grid;
+      gap: 28px;
+      padding-top: 26px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-card,
+    #shopify-section-{{ section.id }} .lwm-hero,
+    #shopify-section-{{ section.id }} .lwm-final-cta,
+    #shopify-section-{{ section.id }} .lwm-faq {
+      position: relative;
+      overflow: hidden;
+      border-radius: 30px;
+      background: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.65);
+      box-shadow: var(--lwm-shadow-soft);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-hero {
+      background:
+        radial-gradient(circle at top right, rgba(255, 255, 255, 0.34), transparent 34%),
+        radial-gradient(circle at bottom left, rgba(255, 232, 215, 0.28), transparent 28%),
+        linear-gradient(135deg, #ff9450 0%, #fe781a 48%, #de650c 100%);
+      color: #ffffff;
+      box-shadow: 0 34px 70px rgba(159, 67, 0, 0.24);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-hero-grid,
+    #shopify-section-{{ section.id }} .lwm-section,
+    #shopify-section-{{ section.id }} .lwm-faq-inner,
+    #shopify-section-{{ section.id }} .lwm-final-grid {
+      padding: 32px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-hero-grid {
+      display: grid;
+      gap: 28px;
+      align-items: center;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-copy-stack,
+    #shopify-section-{{ section.id }} .lwm-section-heading,
+    #shopify-section-{{ section.id }} .lwm-proof-list,
+    #shopify-section-{{ section.id }} .lwm-feature-copy,
+    #shopify-section-{{ section.id }} .lwm-value-copy,
+    #shopify-section-{{ section.id }} .lwm-final-copy {
+      display: grid;
+      gap: 16px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      width: fit-content;
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      font-size: 1.08rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-eyebrow::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.12);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-homepage h1,
+    #shopify-section-{{ section.id }} .lwm-homepage h2,
+    #shopify-section-{{ section.id }} .lwm-homepage h3,
+    #shopify-section-{{ section.id }} .lwm-homepage h4,
+    #shopify-section-{{ section.id }} .lwm-homepage p {
+      margin: 0;
+      font: inherit;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-homepage h1,
+    #shopify-section-{{ section.id }} .lwm-homepage h2,
+    #shopify-section-{{ section.id }} .lwm-homepage h3,
+    #shopify-section-{{ section.id }} .lwm-homepage h4 {
+      color: inherit;
+      letter-spacing: -0.03em;
+      line-height: 1.04;
+      font-weight: 800;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-homepage h1 {
+      font-size: clamp(3rem, 5.6vw, 5.8rem);
+      max-width: 10.5ch;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-homepage h2 {
+      font-size: clamp(2.2rem, 4vw, 3.6rem);
+      color: var(--lwm-ink);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-homepage h3 {
+      font-size: clamp(1.55rem, 2vw, 2.15rem);
+      color: var(--lwm-ink);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-lead {
+      max-width: 60ch;
+      font-size: 1.54rem;
+      line-height: 1.74;
+      color: rgba(255, 255, 255, 0.92);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-copy,
+    #shopify-section-{{ section.id }} .lwm-faq-answer,
+    #shopify-section-{{ section.id }} .lwm-disclaimer,
+    #shopify-section-{{ section.id }} .lwm-section-heading p,
+    #shopify-section-{{ section.id }} .lwm-feature-copy p,
+    #shopify-section-{{ section.id }} .lwm-value-copy p,
+    #shopify-section-{{ section.id }} .lwm-final-copy p {
+      color: var(--lwm-copy);
+      line-height: 1.74;
+      font-size: 1.56rem;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-hero-note {
+      font-size: 1.42rem;
+      line-height: 1.72;
+      color: rgba(255, 255, 255, 0.78);
+      max-width: 55ch;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 60px;
+      padding: 16px 24px;
+      border-radius: 18px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1.08rem;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-button:hover,
+    #shopify-section-{{ section.id }} .lwm-button:focus {
+      transform: translateY(-1px);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-button-primary {
+      background: #ffffff;
+      color: var(--lwm-orange-deep);
+      box-shadow: 0 16px 30px rgba(106, 36, 0, 0.18);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-button-secondary {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-button-solid {
+      background: var(--lwm-orange);
+      color: #ffffff;
+      box-shadow: 0 18px 32px rgba(254, 120, 26, 0.24);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-button-outline {
+      background: #ffffff;
+      color: var(--lwm-orange-deep);
+      border: 1px solid rgba(254, 120, 26, 0.2);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-hero-visual {
+      display: grid;
+      gap: 12px;
+      align-content: center;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-collage {
+      display: grid;
+      grid-template-columns: minmax(0, 0.88fr) minmax(0, 0.64fr);
+      gap: 12px;
+      align-items: end;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-shot,
+    #shopify-section-{{ section.id }} .lwm-gallery-shot {
+      position: relative;
+      border-radius: 30px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow: 0 24px 48px rgba(97, 38, 0, 0.18);
+      min-height: 128px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-shot img,
+    #shopify-section-{{ section.id }} .lwm-gallery-shot img,
+    #shopify-section-{{ section.id }} .lwm-story-shot img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-shot--tall {
+      min-height: 220px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-shot--small {
+      min-height: 102px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-shot-fallback,
+    #shopify-section-{{ section.id }} .lwm-story-fallback,
+    #shopify-section-{{ section.id }} .lwm-gallery-fallback {
+      height: 100%;
+      width: 100%;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-shot-fallback {
+      color: rgba(255, 255, 255, 0.88);
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 28%),
+        linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+    }
+
+    #shopify-section-{{ section.id }} .lwm-proof-list {
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    #shopify-section-{{ section.id }} .lwm-proof {
+      display: grid;
+      gap: 10px;
+      padding: 22px 22px 20px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-proof strong {
+      font-size: 1.38rem;
+      font-weight: 800;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-proof span {
+      color: rgba(255, 255, 255, 0.82);
+      line-height: 1.72;
+      font-size: 1.34rem;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-section-heading {
+      margin-bottom: 28px;
+      max-width: 760px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-section-heading--center {
+      text-align: center;
+      max-width: 820px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-value-grid,
+    #shopify-section-{{ section.id }} .lwm-story-grid,
+    #shopify-section-{{ section.id }} .lwm-feature-grid,
+    #shopify-section-{{ section.id }} .lwm-gallery-grid,
+    #shopify-section-{{ section.id }} .lwm-faq-grid {
+      display: grid;
+      gap: 22px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-value-card,
+    #shopify-section-{{ section.id }} .lwm-story-card,
+    #shopify-section-{{ section.id }} .lwm-feature-card,
+    #shopify-section-{{ section.id }} .lwm-gallery-card,
+    #shopify-section-{{ section.id }} .lwm-faq-item {
+      background: #ffffff;
+      border-radius: 26px;
+      border: 1px solid var(--lwm-line);
+      box-shadow: var(--lwm-shadow-soft);
+      overflow: hidden;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-value-card,
+    #shopify-section-{{ section.id }} .lwm-feature-card {
+      padding: 32px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-value-kicker,
+    #shopify-section-{{ section.id }} .lwm-story-kicker,
+    #shopify-section-{{ section.id }} .lwm-feature-kicker {
+      color: var(--lwm-orange-deep);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 1.14rem;
+      font-weight: 800;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-story-card {
+      display: grid;
+      gap: 0;
+      background: linear-gradient(180deg, #fffdfa 0%, #ffffff 100%);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-story-shot {
+      min-height: 142px;
+      background: var(--lwm-orange-wash);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-story-copy {
+      padding: 30px;
+      display: grid;
+      gap: 18px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-story-fallback,
+    #shopify-section-{{ section.id }} .lwm-gallery-fallback {
+      background: linear-gradient(180deg, #fffaf6 0%, #fff1e5 100%);
+      color: var(--lwm-ink);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-feature-grid {
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    #shopify-section-{{ section.id }} .lwm-feature-card {
+      display: grid;
+      gap: 14px;
+      background: linear-gradient(180deg, #ffffff 0%, #fffdfa 100%);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-feature-icon {
+      width: 54px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(254, 120, 26, 0.16), rgba(254, 120, 26, 0.06));
+      border: 1px solid rgba(254, 120, 26, 0.14);
+      color: var(--lwm-orange-deep);
+      font-weight: 800;
+      font-size: 1.15rem;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-gallery-card {
+      display: grid;
+      gap: 0;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-gallery-shot {
+      min-height: 150px;
+      background: var(--lwm-orange-wash);
+      box-shadow: none;
+      border: 0;
+      border-bottom: 1px solid var(--lwm-line);
+      border-radius: 0;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-gallery-copy {
+      padding: 24px;
+      display: grid;
+      gap: 14px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-gallery-copy h3 {
+      font-size: 1.62rem;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-faq-inner {
+      display: grid;
+      gap: 26px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-faq-item {
+      padding: 24px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-faq-item h3 {
+      margin-bottom: 10px;
+      font-size: 1.26rem;
+      color: var(--lwm-ink);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-final-cta {
+      background:
+        radial-gradient(circle at top right, rgba(254, 120, 26, 0.12), transparent 30%),
+        linear-gradient(180deg, #fffaf6 0%, #ffffff 100%);
+    }
+
+    #shopify-section-{{ section.id }} .lwm-final-grid {
+      display: grid;
+      gap: 20px;
+      align-items: center;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-disclaimer {
+      padding: 0 8px;
+      font-size: 1.3rem;
+      color: #6a7282;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-cta-inline {
+      display: grid;
+      gap: 18px;
+      align-items: center;
+      justify-items: start;
+      margin-top: 18px;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-cta-inline--center {
+      justify-items: center;
+      text-align: center;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-arrow-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--lwm-orange-deep);
+      font-size: 1.38rem;
+      font-weight: 800;
+      line-height: 1.4;
+      animation: lwm-arrow-bounce 1.35s ease-in-out infinite;
+    }
+
+    #shopify-section-{{ section.id }} .lwm-arrow-note::before {
+      content: "➜";
+      color: var(--lwm-orange);
+      font-size: 1.95rem;
+      line-height: 1;
+      display: inline-block;
+      animation: lwm-arrow-point 1.35s ease-in-out infinite;
+    }
+
+    @keyframes lwm-arrow-bounce {
+      0%, 100% {
+        transform: translateX(0);
+      }
+      50% {
+        transform: translateX(6px);
+      }
+    }
+
+    @keyframes lwm-arrow-point {
+      0%, 100% {
+        transform: translateX(0);
+      }
+      50% {
+        transform: translateX(8px);
+      }
+    }
+
+    @media screen and (min-width: 750px) {
+      #shopify-section-{{ section.id }} .lwm-shell {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+
+      #shopify-section-{{ section.id }} .lwm-stack {
+        gap: 38px;
+        padding-top: 34px;
+      }
+
+      #shopify-section-{{ section.id }} .lwm-hero-grid,
+      #shopify-section-{{ section.id }} .lwm-section,
+      #shopify-section-{{ section.id }} .lwm-faq-inner,
+      #shopify-section-{{ section.id }} .lwm-final-grid {
+        padding: 46px;
+      }
+
+      #shopify-section-{{ section.id }} .lwm-proof-list,
+      #shopify-section-{{ section.id }} .lwm-value-grid,
+      #shopify-section-{{ section.id }} .lwm-gallery-grid,
+      #shopify-section-{{ section.id }} .lwm-faq-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      #shopify-section-{{ section.id }} .lwm-story-grid,
+      #shopify-section-{{ section.id }} .lwm-feature-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media screen and (min-width: 990px) {
+      #shopify-section-{{ section.id }} .lwm-hero-grid {
+        grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+        gap: 42px;
+        padding: 54px;
+      }
+
+      #shopify-section-{{ section.id }} .lwm-cta-inline {
+        grid-auto-flow: column;
+        justify-content: start;
+      }
+
+      #shopify-section-{{ section.id }} .lwm-cta-inline--center {
+        grid-auto-flow: row;
+        justify-content: center;
+      }
+
+      #shopify-section-{{ section.id }} .lwm-proof-list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      #shopify-section-{{ section.id }} .lwm-value-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      #shopify-section-{{ section.id }} .lwm-story-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      #shopify-section-{{ section.id }} .lwm-feature-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      #shopify-section-{{ section.id }} .lwm-gallery-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      #shopify-section-{{ section.id }} .lwm-final-grid {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+    }
+  </style>
+
+  <div class="lwm-shell">
+    <div class="lwm-stack">
+      <div class="lwm-hero">
+        <div class="lwm-hero-grid">
+          <div class="lwm-copy-stack">
+            <span class="lwm-eyebrow">{{ hero_badge }}</span>
+            <h1>Daily MS support that helps life feel more manageable.</h1>
+            <p class="lwm-lead">
+              Track symptoms, protect energy, organize appointments and medications, use AI-guided support, and build calmer routines in one beautifully simple app.
+            </p>
+            <div class="lwm-actions">
+              <a class="lwm-button lwm-button-primary" href="{{ app_store_url }}">Download on the App Store</a>
+              <a class="lwm-button lwm-button-secondary" href="{{ google_play_url }}">Get it on Google Play</a>
+            </div>
+            <p class="lwm-hero-note">
+              Created for people living with MS who want clearer daily support, better organization, and more confidence in what to do next. Not a replacement for medical care.
+            </p>
+
+            <div class="lwm-proof-list">
+              <div class="lwm-proof">
+                <strong>One calm home base</strong>
+                <span>Check-ins, planning, nutrition, support tools, and community in one place.</span>
+              </div>
+              <div class="lwm-proof">
+                <strong>Designed for real energy limits</strong>
+                <span>Short flows, gentle structure, and less friction on hard days.</span>
+              </div>
+              <div class="lwm-proof">
+                <strong>Built to help you notice patterns</strong>
+                <span>See what may be changing over time without turning life into spreadsheets.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="lwm-hero-visual" aria-label="LiveWithMS app screenshots">
+            <div class="lwm-collage">
+              <div class="lwm-shot lwm-shot--tall">
+                {% if section.settings.hero_primary_image != blank %}
+                  {{
+                    section.settings.hero_primary_image
+                    | image_url: width: 900
+                    | image_tag:
+                      loading: 'lazy',
+                      widths: '360, 540, 720, 900',
+                      sizes: '(min-width: 990px) 34vw, 100vw'
+                  }}
+                {% else %}
+                  <div class="lwm-shot-fallback">
+                    Upload a strong Today or Coach screen here for the main hero screenshot.
+                  </div>
+                {% endif %}
+              </div>
+              <div class="lwm-shot lwm-shot--small">
+                {% if section.settings.hero_secondary_image != blank %}
+                  {{
+                    section.settings.hero_secondary_image
+                    | image_url: width: 700
+                    | image_tag:
+                      loading: 'lazy',
+                      widths: '280, 420, 560, 700',
+                      sizes: '(min-width: 990px) 24vw, 45vw'
+                  }}
+                {% else %}
+                  <div class="lwm-shot-fallback">
+                    Upload a second supporting screenshot here.
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lwm-card">
+        <div class="lwm-section">
+          <div class="lwm-section-heading lwm-section-heading--center">
+            <h2>MS can make simple decisions feel heavier than they should.</h2>
+            <p>
+              LiveWithMS gives you one place to check in, stay organized, and move through the day with more clarity. Instead of juggling symptoms, routines, food decisions, appointments, and mental overload separately, the app helps bring them together in a calmer way.
+            </p>
+          </div>
+
+          <div class="lwm-value-grid">
+            <article class="lwm-value-card">
+              <div class="lwm-value-copy">
+                <span class="lwm-value-kicker">Less mental clutter</span>
+                <h3>Know what needs your attention today.</h3>
+                <p>Daily check-ins, logistics, and planning prompts help reduce the “where do I even start?” feeling.</p>
+              </div>
+            </article>
+            <article class="lwm-value-card">
+              <div class="lwm-value-copy">
+                <span class="lwm-value-kicker">More useful reflection</span>
+                <h3>See patterns without needing to overthink every entry.</h3>
+                <p>Track symptoms, sleep, mood, stress, and hydration, then review clear summaries that stay cautious and readable.</p>
+              </div>
+            </article>
+            <article class="lwm-value-card">
+              <div class="lwm-value-copy">
+                <span class="lwm-value-kicker">Support that fits real life</span>
+                <h3>Use practical tools when the day feels harder.</h3>
+                <p>Coach, nutrition support, brain games, care planning, and community are there when you need structure, not noise.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <div class="lwm-card">
+        <div class="lwm-section">
+          <div class="lwm-section-heading">
+            <h2>The app is built around how support actually needs to feel.</h2>
+            <p>
+              Clean, warm, and highly usable on a difficult day. Every screen is designed to help you act faster, think less, and stay connected to what matters.
+            </p>
+            <div class="lwm-cta-inline">
+              <span class="lwm-arrow-note">Download here when you are ready to start.</span>
+              <div class="lwm-actions">
+                <a class="lwm-button lwm-button-solid" href="{{ app_store_url }}">Download on the App Store</a>
+                <a class="lwm-button lwm-button-outline" href="{{ google_play_url }}">Get it on Google Play</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="lwm-story-grid">
+            <article class="lwm-story-card">
+              <div class="lwm-story-shot">
+                {% if section.settings.today_image != blank %}
+                  {{
+                    section.settings.today_image
+                    | image_url: width: 1000
+                    | image_tag:
+                      loading: 'lazy',
+                      widths: '420, 620, 820, 1000',
+                      sizes: '(min-width: 990px) 28vw, 100vw'
+                  }}
+                {% else %}
+                  <div class="lwm-story-fallback">Upload a Today screen screenshot here.</div>
+                {% endif %}
+              </div>
+              <div class="lwm-story-copy">
+                <span class="lwm-story-kicker">Today</span>
+                <h3>Start the day with a calmer picture of what matters.</h3>
+                <p>Today brings check-ins, medications, appointments, guidance, and planning into one daily command center that feels supportive rather than overwhelming.</p>
+              </div>
+            </article>
+
+            <article class="lwm-story-card">
+              <div class="lwm-story-shot">
+                {% if section.settings.track_image != blank %}
+                  {{
+                    section.settings.track_image
+                    | image_url: width: 1000
+                    | image_tag:
+                      loading: 'lazy',
+                      widths: '420, 620, 820, 1000',
+                      sizes: '(min-width: 990px) 28vw, 100vw'
+                  }}
+                {% else %}
+                  <div class="lwm-story-fallback">Upload a Track screen screenshot here.</div>
+                {% endif %}
+              </div>
+              <div class="lwm-story-copy">
+                <span class="lwm-story-kicker">Track</span>
+                <h3>Turn daily symptoms into insight you can actually use.</h3>
+                <p>Log fatigue, pain, mood, brain fog, sleep, and more in a few taps, then look back on trends that may be worth watching or discussing with your clinician.</p>
+              </div>
+            </article>
+
+            <article class="lwm-story-card">
+              <div class="lwm-story-shot">
+                {% if section.settings.coach_image != blank %}
+                  {{
+                    section.settings.coach_image
+                    | image_url: width: 1000
+                    | image_tag:
+                      loading: 'lazy',
+                      widths: '420, 620, 820, 1000',
+                      sizes: '(min-width: 990px) 28vw, 100vw'
+                  }}
+                {% else %}
+                  <div class="lwm-story-fallback">Upload a Coach screen screenshot here.</div>
+                {% endif %}
+              </div>
+              <div class="lwm-story-copy">
+                <span class="lwm-story-kicker">Coach</span>
+                <h3>Talk through overwhelm, planning, food, symptoms, or uncertainty.</h3>
+                <p>The AI Coach helps organize thoughts and suggest next steps in a calmer, more grounded way when your mind feels crowded.</p>
+              </div>
+            </article>
+
+            <article class="lwm-story-card">
+              <div class="lwm-story-shot">
+                {% if section.settings.care_image != blank %}
+                  {{
+                    section.settings.care_image
+                    | image_url: width: 1000
+                    | image_tag:
+                      loading: 'lazy',
+                      widths: '420, 620, 820, 1000',
+                      sizes: '(min-width: 990px) 28vw, 100vw'
+                  }}
+                {% else %}
+                  <div class="lwm-story-fallback">Upload a Care or Nutrition screenshot here.</div>
+                {% endif %}
+              </div>
+              <div class="lwm-story-copy">
+                <span class="lwm-story-kicker">Care</span>
+                <h3>Keep appointments, medications, nutrition support, and summaries close by.</h3>
+                <p>From daily medication reminders to “Is this inflammatory?” food checks, the Care experience helps you stay more organized without adding more friction.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <div class="lwm-card">
+        <div class="lwm-section">
+          <div class="lwm-section-heading">
+            <h2>Why people keep coming back to LiveWithMS</h2>
+            <p>
+              The app is not just a tracker. It becomes a daily support system that helps you remember, reflect, plan, and move through harder moments with more confidence.
+            </p>
+          </div>
+
+          <div class="lwm-feature-grid">
+            <article class="lwm-feature-card">
+              <div class="lwm-feature-icon">01</div>
+              <div class="lwm-feature-copy">
+                <span class="lwm-feature-kicker">Daily check-ins</span>
+                <h3>Capture how the day feels in under a minute.</h3>
+                <p>Track energy, mood, stress, fatigue, sleep, hydration, and body signals without turning it into a long task.</p>
+              </div>
+            </article>
+            <article class="lwm-feature-card">
+              <div class="lwm-feature-icon">02</div>
+              <div class="lwm-feature-copy">
+                <span class="lwm-feature-kicker">Pattern insight</span>
+                <h3>Notice what may be moving together.</h3>
+                <p>Look for possible links between sleep, hydration, stress, symptoms, and energy using language that stays cautious and understandable.</p>
+              </div>
+            </article>
+            <article class="lwm-feature-card">
+              <div class="lwm-feature-icon">03</div>
+              <div class="lwm-feature-copy">
+                <span class="lwm-feature-kicker">AI-guided support</span>
+                <h3>Get help organizing thoughts on difficult days.</h3>
+                <p>Use Coach when you need to think through symptoms, appointments, meals, stress, or planning without staring at a blank page.</p>
+              </div>
+            </article>
+            <article class="lwm-feature-card">
+              <div class="lwm-feature-icon">04</div>
+              <div class="lwm-feature-copy">
+                <span class="lwm-feature-kicker">Nutrition</span>
+                <h3>Check foods and build practical meal support.</h3>
+                <p>Use food analysis, adaptive meal planning, and grocery support to make nutrition choices feel more manageable.</p>
+              </div>
+            </article>
+            <article class="lwm-feature-card">
+              <div class="lwm-feature-icon">05</div>
+              <div class="lwm-feature-copy">
+                <span class="lwm-feature-kicker">Programs</span>
+                <h3>Open the right tool for the moment you are in.</h3>
+                <p>Reduce overwhelm, reset breathing, prepare for appointments, and use guided tools built for fatigue, pacing, and mental overload.</p>
+              </div>
+            </article>
+            <article class="lwm-feature-card">
+              <div class="lwm-feature-icon">06</div>
+              <div class="lwm-feature-copy">
+                <span class="lwm-feature-kicker">Brain games</span>
+                <h3>Support focus, memory, and working attention gently.</h3>
+                <p>Short exercises help create a steadier rhythm for attention and concentration without feeling childish or noisy.</p>
+              </div>
+            </article>
+            <article class="lwm-feature-card">
+              <div class="lwm-feature-icon">07</div>
+              <div class="lwm-feature-copy">
+                <span class="lwm-feature-kicker">Community</span>
+                <h3>Read practical support from people who understand MS.</h3>
+                <p>Ask questions, learn from lived experience, and stay connected to a calmer style of community discussion.</p>
+              </div>
+            </article>
+            <article class="lwm-feature-card">
+              <div class="lwm-feature-icon">08</div>
+              <div class="lwm-feature-copy">
+                <span class="lwm-feature-kicker">Care organization</span>
+                <h3>Keep medications, appointments, and care notes easier to find.</h3>
+                <p>Bring the practical side of MS life together so you spend less time searching and more time staying steady.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <div class="lwm-card">
+        <div class="lwm-section">
+          <div class="lwm-section-heading">
+            <h2>A closer look inside the app</h2>
+            <p>
+              These screens are from the actual LiveWithMS app experience. Use them to show people exactly what daily support looks like before they download.
+            </p>
+          </div>
+
+          <div class="lwm-gallery-grid">
+            <article class="lwm-gallery-card">
+              <div class="lwm-gallery-shot">
+                {% if section.settings.programs_image != blank %}
+                  {{
+                    section.settings.programs_image
+                    | image_url: width: 900
+                    | image_tag:
+                      loading: 'lazy',
+                      widths: '360, 540, 720, 900',
+                      sizes: '(min-width: 990px) 22vw, 100vw'
+                  }}
+                {% else %}
+                  <div class="lwm-gallery-fallback">Upload a Programs & support tools screenshot here.</div>
+                {% endif %}
+              </div>
+              <div class="lwm-gallery-copy">
+                <h3>Support tools for real moments</h3>
+                <p>Open guided tools for overwhelm, breathing resets, appointment prep, fatigue pacing, and mental overload the moment you need them.</p>
+              </div>
+            </article>
+
+            <article class="lwm-gallery-card">
+              <div class="lwm-gallery-shot">
+                {% if section.settings.community_image != blank %}
+                  {{
+                    section.settings.community_image
+                    | image_url: width: 900
+                    | image_tag:
+                      loading: 'lazy',
+                      widths: '360, 540, 720, 900',
+                      sizes: '(min-width: 990px) 22vw, 100vw'
+                  }}
+                {% else %}
+                  <div class="lwm-gallery-fallback">Upload a Community screenshot here.</div>
+                {% endif %}
+              </div>
+              <div class="lwm-gallery-copy">
+                <h3>Community that stays practical</h3>
+                <p>Read category-based discussions and shared experiences from people who understand the day-to-day realities of MS.</p>
+              </div>
+            </article>
+
+            <article class="lwm-gallery-card">
+              <div class="lwm-gallery-shot">
+                {% if section.settings.profile_image != blank %}
+                  {{
+                    section.settings.profile_image
+                    | image_url: width: 900
+                    | image_tag:
+                      loading: 'lazy',
+                      widths: '360, 540, 720, 900',
+                      sizes: '(min-width: 990px) 22vw, 100vw'
+                  }}
+                {% else %}
+                  <div class="lwm-gallery-fallback">Upload a Profile or settings screenshot here.</div>
+                {% endif %}
+              </div>
+              <div class="lwm-gallery-copy">
+                <h3>Personalize the experience</h3>
+                <p>Keep the app feeling calm, supportive, and tailored to how you actually want to use it day to day.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <div class="lwm-faq">
+        <div class="lwm-faq-inner">
+          <div class="lwm-section-heading">
+            <h2>Frequently asked questions</h2>
+            <p>Clear answers for people deciding whether LiveWithMS fits the kind of support they need.</p>
+          </div>
+
+          <div class="lwm-faq-grid">
+            <article class="lwm-faq-item">
+              <h3>Is LiveWithMS medical advice?</h3>
+              <p class="lwm-faq-answer">No. LiveWithMS is designed for education, daily organization, reflection, and support. It does not replace medical advice or care from a qualified clinician.</p>
+            </article>
+            <article class="lwm-faq-item">
+              <h3>Can I track symptoms and energy?</h3>
+              <p class="lwm-faq-answer">Yes. You can track fatigue, pain, brain fog, mood, stress, sleep, hydration, and other day-to-day factors that may help you notice patterns over time.</p>
+            </article>
+            <article class="lwm-faq-item">
+              <h3>Does the app help with difficult days?</h3>
+              <p class="lwm-faq-answer">That is exactly what it is designed for. LiveWithMS combines check-ins, planning, Coach, nutrition support, routines, and calmer tools to help you decide what matters next.</p>
+            </article>
+            <article class="lwm-faq-item">
+              <h3>Is there support beyond tracking?</h3>
+              <p class="lwm-faq-answer">Yes. Alongside tracking, the app includes AI-guided reflection, nutrition support, short cognitive exercises, practical tools, care organization, and community support.</p>
+            </article>
+            <article class="lwm-faq-item">
+              <h3>Can I use it if I’m newly diagnosed?</h3>
+              <p class="lwm-faq-answer">Yes. Whether you are newly diagnosed or have been living with MS for years, the app is designed to help you stay organized and supported in everyday life.</p>
+            </article>
+            <article class="lwm-faq-item">
+              <h3>What kind of access do I start with?</h3>
+              <p class="lwm-faq-answer">LiveWithMS is a subscription app with full access and trial-based onboarding, so you can explore the complete experience rather than a cut-down version.</p>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <div class="lwm-final-cta">
+        <div class="lwm-final-grid">
+          <div class="lwm-final-copy">
+            <h2>Make daily MS support easier to return to.</h2>
+            <p>
+              LiveWithMS helps turn scattered notes, mental load, symptom changes, food questions, and planning stress into one calm place you can trust day after day.
+            </p>
+          </div>
+          <div class="lwm-cta-inline lwm-cta-inline--center">
+            <span class="lwm-arrow-note">Start here with your download.</span>
+            <div class="lwm-actions">
+              <a class="lwm-button lwm-button-solid" href="{{ app_store_url }}">Download on the App Store</a>
+              <a class="lwm-button lwm-button-outline" href="{{ google_play_url }}">Get it on Google Play</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% if section.settings.show_disclaimer %}
+        <p class="lwm-disclaimer">
+          LiveWithMS is for education, reflection, organization, and daily support. It does not diagnose, treat, cure, or prevent any disease and does not replace medical advice, diagnosis, or treatment from a qualified healthcare professional.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "LiveWithMS App Homepage",
+  "settings": [
+    {
+      "type": "text",
+      "id": "hero_badge",
+      "label": "Hero badge",
+      "default": "Daily support for life with MS"
+    },
+    {
+      "type": "text",
+      "id": "app_store_url",
+      "label": "App Store URL",
+      "default": "https://apps.apple.com/"
+    },
+    {
+      "type": "text",
+      "id": "google_play_url",
+      "label": "Google Play URL",
+      "default": "https://play.google.com/store"
+    },
+    {
+      "type": "image_picker",
+      "id": "hero_primary_image",
+      "label": "Hero primary screenshot"
+    },
+    {
+      "type": "image_picker",
+      "id": "hero_secondary_image",
+      "label": "Hero secondary screenshot"
+    },
+    {
+      "type": "image_picker",
+      "id": "today_image",
+      "label": "Today screenshot"
+    },
+    {
+      "type": "image_picker",
+      "id": "track_image",
+      "label": "Track screenshot"
+    },
+    {
+      "type": "image_picker",
+      "id": "coach_image",
+      "label": "Coach screenshot"
+    },
+    {
+      "type": "image_picker",
+      "id": "care_image",
+      "label": "Care or Nutrition screenshot"
+    },
+    {
+      "type": "image_picker",
+      "id": "programs_image",
+      "label": "Programs screenshot"
+    },
+    {
+      "type": "image_picker",
+      "id": "community_image",
+      "label": "Community screenshot"
+    },
+    {
+      "type": "image_picker",
+      "id": "profile_image",
+      "label": "Profile screenshot"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_disclaimer",
+      "label": "Show disclaimer",
+      "default": true
+    }
+  ],
+  "presets": [
+    {
+      "name": "LiveWithMS App Homepage"
+    }
+  ]
+}
+{% endschema %}

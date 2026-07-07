@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
 import { Alert, Clipboard, InteractionManager, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
-import * as ImagePicker from "expo-image-picker";
 import AppButton from "../ui/AppButton";
 import AppScreen from "../ui/AppScreen";
 import AppText from "../ui/AppText";
@@ -966,7 +965,6 @@ export function NutritionScreenContent() {
   const [foodAnalysisUsageCount, setFoodAnalysisUsageCount] = useState(0);
   const [foodAnalysisStatus, setFoodAnalysisStatus] = useState<"idle" | "analyzing">("idle");
   const [foodAnalysisMessage, setFoodAnalysisMessage] = useState<string | null>(null);
-  const [pendingFoodImageUri, setPendingFoodImageUri] = useState<string | null>(null);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [showNutritionPlanner, setShowNutritionPlanner] = useState(false);
   const [expandedMealPlanDays, setExpandedMealPlanDays] = useState<string[]>(["Day 1"]);
@@ -1260,7 +1258,7 @@ export function NutritionScreenContent() {
     ? "Food checks are ready whenever you need them."
     : `${Math.max(FREE_FOOD_ANALYSIS_LIMIT - foodAnalysisUsageCount, 0)} free analyses left today.`;
 
-  const handleFoodAnalysis = async (value?: string, source: "search" | "photo" | "barcode" = "search") => {
+  const handleFoodAnalysis = async (value?: string, source: "search" | "barcode" = "search") => {
     if (!canUseFoodAnalysis) {
       setFoodAnalysisMessage("Nutrition tools are ready when you need another check.");
       router.push("/premium?source=nutrition-food-analysis");
@@ -1276,99 +1274,22 @@ export function NutritionScreenContent() {
     }
 
     setFoodAnalysisStatus("analyzing");
-    setFoodAnalysisMessage(source === "photo" ? "Analyzing photo..." : source === "barcode" ? "Checking packaged food..." : "Analyzing food...");
+    setFoodAnalysisMessage(source === "barcode" ? "Checking packaged food..." : "Analyzing food...");
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 250));
       setFoodSearchInput(nextAnalysis.name);
       setFoodAnalysis(nextAnalysis);
-      setPendingFoodImageUri(null);
       if (user?.id && !premium.hasPremiumAccess) {
         const nextCount = await incrementFoodAnalysisUsage(user.id, getTodayDateString());
         setFoodAnalysisUsageCount(nextCount);
       }
       setNutritionMessage(null);
-      setFoodAnalysisMessage(source === "photo" ? "Photo analysis ready ✓" : "Food analysis ready ✓");
+      setFoodAnalysisMessage("Food analysis ready ✓");
     } catch {
       setFoodAnalysisMessage("Food analysis could not be completed. Please try again.");
     } finally {
       setFoodAnalysisStatus("idle");
-    }
-  };
-
-  const handlePhotoFoodAnalysis = async () => {
-    if (!canUseFoodAnalysis) {
-      setFoodAnalysisMessage("Nutrition tools are ready when you need another check.");
-      router.push("/premium?source=nutrition-food-analysis");
-      return;
-    }
-
-    try {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) {
-        setFoodAnalysisMessage("Camera permission is needed to take a food photo. You can use manual search here.");
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.7,
-      });
-
-      if (result.canceled) {
-        return;
-      }
-
-      const uri = result.assets?.[0]?.uri;
-      if (!uri) {
-        setFoodAnalysisMessage("Camera scanning works on a real iPhone build. You can use manual search here.");
-        return;
-      }
-
-      setPendingFoodImageUri(uri);
-      setFoodAnalysisMessage("We found the photo. What food should we analyze?");
-      setFoodSearchInput("");
-    } catch {
-      setFoodAnalysisMessage("Camera scanning works on a real iPhone build. You can use manual search here.");
-    }
-  };
-
-  const handleUploadFoodPhoto = async () => {
-    if (!canUseFoodAnalysis) {
-      setFoodAnalysisMessage("Nutrition tools are ready when you need another check.");
-      router.push("/premium?source=nutrition-food-analysis");
-      return;
-    }
-
-    try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        setFoodAnalysisMessage("Photo library permission is needed to upload a food image. You can use manual search here.");
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.7,
-      });
-
-      if (result.canceled) {
-        return;
-      }
-
-      const uri = result.assets?.[0]?.uri;
-      if (!uri) {
-        setFoodAnalysisMessage("Photo upload works on a real iPhone build. You can use manual search here.");
-        return;
-      }
-
-      setPendingFoodImageUri(uri);
-      setFoodAnalysisMessage("We found the photo. What food should we analyze?");
-      setFoodSearchInput("");
-    } catch {
-      setFoodAnalysisMessage("Photo upload works on a real iPhone build. You can use manual search here.");
     }
   };
 
@@ -1656,47 +1577,21 @@ export function NutritionScreenContent() {
         <View style={styles.foodAnalysisCard}>
           <View style={styles.medicationHeader}>
             <View style={styles.itemHeaderCopy}>
-              <AppText style={styles.itemTitle}>Is this inflammatory?</AppText>
-              <AppText style={styles.itemMeta}>Food check</AppText>
+              <AppText style={styles.itemTitle}>Is this food inflammatory?</AppText>
+              <AppText style={styles.itemMeta}>Food analyzer</AppText>
             </View>
             <AppText style={[styles.badge, styles.nutritionBadge]}>Useful tool</AppText>
           </View>
           <AppText style={styles.body}>
-            This can help you understand whether a food may be inflammatory. It does not replace medical advice.
+            Enter a food or meal and LiveWithMS will give you a general inflammation-informed breakdown.
           </AppText>
-          <View style={styles.scannerModeRow}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void handlePhotoFoodAnalysis()}
-              style={({ pressed }) => [styles.scannerModePill, pressed && styles.collapseRowPressed]}
-            >
-              <AppText style={styles.scannerModePillText}>Take food photo</AppText>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void handleUploadFoodPhoto()}
-              style={({ pressed }) => [styles.scannerModePill, pressed && styles.collapseRowPressed]}
-            >
-              <AppText style={styles.scannerModePillText}>Upload photo</AppText>
-            </Pressable>
-            <View style={[styles.scannerModePill, styles.scannerModePillActive]}>
-              <AppText style={[styles.scannerModePillText, styles.scannerModePillTextActive]}>Search manually</AppText>
-            </View>
-          </View>
-          {pendingFoodImageUri ? (
-            <View style={styles.nutritionUpgradeCard}>
-              <AppText style={styles.nutritionCardBody}>
-                Image selected. Visual AI analysis is not available yet, so confirm the food name below to analyze it.
-              </AppText>
-            </View>
-          ) : null}
           <AppText style={styles.emptyHint}>{foodAnalysisUsageLabel}</AppText>
           <View style={styles.fieldGroup}>
             <AppText style={styles.fieldLabel}>Food or product</AppText>
             <TextInput
               value={foodSearchInput}
               onChangeText={setFoodSearchInput}
-              placeholder="Try chips, frozen pizza, protein bar..."
+              placeholder="Example: grilled chicken with rice and avocado"
               placeholderTextColor="#9ca3af"
               style={styles.input}
               returnKeyType="search"
@@ -1715,7 +1610,7 @@ export function NutritionScreenContent() {
             ))}
           </View>
           <AppButton
-            label={foodAnalysisStatus === "analyzing" ? "Checking a food..." : "Check a food"}
+            label={foodAnalysisStatus === "analyzing" ? "Analyzing food..." : "Analyze food"}
             onPress={() => void handleFoodAnalysis()}
             variant="secondary"
             disabled={foodAnalysisStatus === "analyzing"}
@@ -1724,8 +1619,7 @@ export function NutritionScreenContent() {
             <AppText
               style={
                 foodAnalysisMessage.includes("could not") ||
-                foodAnalysisMessage.includes("subscription") ||
-                foodAnalysisMessage.includes("needs camera")
+                foodAnalysisMessage.includes("subscription")
                   ? styles.errorText
                   : styles.successText
               }
@@ -4006,32 +3900,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 19,
     fontWeight: "700",
-  },
-  scannerModeRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  scannerModePill: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    backgroundColor: "#f9fafb",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  scannerModePillActive: {
-    borderColor: "#f3dfd1",
-    backgroundColor: "#fff4ec",
-  },
-  scannerModePillText: {
-    color: "#6b7280",
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: "700",
-  },
-  scannerModePillTextActive: {
-    color: "#9a4a11",
   },
   clearFiltersButton: {
     borderRadius: 999,
