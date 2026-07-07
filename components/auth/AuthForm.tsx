@@ -23,6 +23,7 @@ type AuthFormProps = {
   showEmail?: boolean;
   showPassword?: boolean;
   showConfirmPassword?: boolean;
+  topAction?: ReactNode;
   footer?: ReactNode;
   children?: ReactNode;
 };
@@ -44,11 +45,13 @@ export default function AuthForm({
   showEmail = true,
   showPassword = false,
   showConfirmPassword = false,
+  topAction,
   footer,
   children,
 }: AuthFormProps) {
   return (
     <AppScreen title={title} subtitle={subtitle}>
+      {topAction ? <View style={styles.topAction}>{topAction}</View> : null}
       <View style={styles.card}>
         <View style={styles.form}>
         {showEmail ? (
@@ -96,6 +99,10 @@ export default function AuthForm({
 }
 
 const styles = StyleSheet.create({
+  topAction: {
+    marginHorizontal: spacing.screenX,
+    marginBottom: 14,
+  },
   card: {
     marginHorizontal: spacing.screenX,
     borderRadius: radii.cardLarge,

@@ -1038,7 +1038,14 @@ export default function CommunityScreen() {
     () => (selectedCategory ? visiblePosts.filter((post) => post.category === selectedCategory) : []),
     [selectedCategory, visiblePosts],
   );
-  const recentThreads = useMemo(() => visiblePosts.slice(0, 5), [visiblePosts]);
+  const starterThreads = useMemo(
+    () => visiblePosts.filter((post) => post.isStarter).slice(0, 6),
+    [visiblePosts],
+  );
+  const recentThreads = useMemo(
+    () => visiblePosts.filter((post) => !post.isStarter).slice(0, 5),
+    [visiblePosts],
+  );
 
   useEffect(() => {
     if (!__DEV__ || !selectedPost) {
@@ -1132,6 +1139,39 @@ export default function CommunityScreen() {
               ))}
             </View>
             <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderCopy}>
+                  <AppText style={styles.sectionTitle}>Featured discussions</AppText>
+                  <AppText style={styles.sectionSubtitle}>
+                    Choose a topic and share what helps in your day-to-day life.
+                  </AppText>
+                </View>
+              </View>
+              <View style={styles.starterPromptRow}>
+                {starterThreads.slice(0, 4).map((post) => (
+                  <Pressable
+                    key={`starter-chip-${post.id}`}
+                    accessibilityRole="button"
+                    onPress={() => void openPost(post)}
+                    style={({ pressed }) => [styles.starterPromptChip, pressed && styles.pressed]}
+                  >
+                    <AppText style={styles.starterPromptChipLabel}>Join discussion</AppText>
+                    <AppText style={styles.starterPromptChipText}>{post.title}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+              {starterThreads.map((post) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  canInteract={canInteractWithPost(post)}
+                  onPress={() => void openPost(post)}
+                  onReact={(reactionType) => void reactToPost(post, reactionType)}
+                  onReport={() => reportPost(post)}
+                />
+              ))}
+            </View>
+            <View style={styles.section}>
               {communityActivitySummary.newReplies.length > 0 ? (
                 <View style={styles.section}>
                   <AppText style={styles.sectionTitle}>New replies</AppText>
@@ -1152,7 +1192,7 @@ export default function CommunityScreen() {
                   ))}
                 </View>
               ) : null}
-              <AppText style={styles.sectionTitle}>{loadFailed ? "Starter discussions" : "Recent activity"}</AppText>
+              <AppText style={styles.sectionTitle}>{loadFailed ? "More discussion prompts" : "Recent activity"}</AppText>
               {communityActivitySummary.recentActivity.length > 0 ? (
                 communityActivitySummary.recentActivity.map((item) => (
                   <Pressable
@@ -1171,7 +1211,7 @@ export default function CommunityScreen() {
                     <AppText style={styles.activityBody}>{item.actorDisplayName}: {item.preview}</AppText>
                   </Pressable>
                 ))
-              ) : (
+              ) : recentThreads.length > 0 ? (
                 recentThreads.map((post) => (
                   <PostCard
                     key={post.id}
@@ -1182,6 +1222,13 @@ export default function CommunityScreen() {
                     onReport={() => reportPost(post)}
                   />
                 ))
+              ) : (
+                <View style={styles.emptyCard}>
+                  <AppText style={styles.emptyTitle}>Start a conversation.</AppText>
+                  <AppText style={styles.emptyText}>
+                    Open a featured discussion above or create a post in any category.
+                  </AppText>
+                </View>
               )}
             </View>
           </View>
@@ -1230,7 +1277,9 @@ export default function CommunityScreen() {
             {visibleComments.length === 0 ? (
               <View style={styles.emptyCard}>
                 <AppText style={styles.emptyTitle}>No replies yet.</AppText>
-                <AppText style={styles.emptyText}>Share a practical response if you have one.</AppText>
+                <AppText style={styles.emptyText}>
+                  Share your experience if something here feels familiar or helpful.
+                </AppText>
               </View>
             ) : (
               visibleComments.map((comment) => (
@@ -1378,7 +1427,9 @@ export default function CommunityScreen() {
             ) : categoryThreads.length === 0 ? (
               <View style={styles.emptyCard}>
                 <AppText style={styles.emptyTitle}>No posts here yet.</AppText>
-                <AppText style={styles.emptyText}>Start with a practical question or something that helped.</AppText>
+                <AppText style={styles.emptyText}>
+                  Start a post with a practical question, a small win, or something that helped.
+                </AppText>
               </View>
             ) : (
               categoryThreads.map((post) => (
@@ -1854,6 +1905,33 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     color: colors.textBody,
+  },
+  starterPromptRow: {
+    gap: 10,
+  },
+  starterPromptChip: {
+    backgroundColor: colors.surfaceWarm,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 4,
+    ...shadows.soft,
+  },
+  starterPromptChipLabel: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "800",
+    color: colors.accent,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  starterPromptChipText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "700",
+    color: colors.text,
   },
   message: {
     borderRadius: radii.card,

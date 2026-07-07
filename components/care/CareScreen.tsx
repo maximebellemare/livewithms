@@ -42,10 +42,7 @@ import { logger } from "../../lib/logger";
 import { trackRetryTriggered } from "../../lib/events";
 import { useGrowthState } from "../../features/growth/hooks";
 import { useSlowScreenDiagnostics } from "../../lib/observability";
-import { usePremium } from "../../features/premium/hooks";
 import {
-  incrementFoodAnalysisUsage,
-  loadFoodAnalysisUsage,
   loadNutritionPreferences,
   loadSavedNutritionMeals,
   normalizeNutritionState,
@@ -409,7 +406,6 @@ const PREP_PREFERENCES = [
   { label: "No-cook options", description: "Ready-to-eat meals and snack plates." },
 ] as const;
 const BUDGET_PREFERENCES = ["Budget-friendly", "Flexible", "Higher convenience"] as const;
-const FREE_FOOD_ANALYSIS_LIMIT = 3;
 
 function summarizeNutritionMealPlanShape(value: unknown) {
   if (!value || typeof value !== "object") {
@@ -944,7 +940,6 @@ function CareSectionPlaceholder({ lines = 3 }: { lines?: number }) {
 
 export function NutritionScreenContent() {
   const { user } = useAuth();
-  const premium = usePremium();
   const growth = useGrowthState();
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [selectedNutritionFilters, setSelectedNutritionFilters] = useState<string[]>([]);
@@ -962,7 +957,6 @@ export function NutritionScreenContent() {
   const [savedMealPlans, setSavedMealPlans] = useState<SavedNutritionMeal[]>([]);
   const [mealPlanStatus, setMealPlanStatus] = useState<"idle" | "generating">("idle");
   const [mealPlanError, setMealPlanError] = useState<string | null>(null);
-  const [foodAnalysisUsageCount, setFoodAnalysisUsageCount] = useState(0);
   const [foodAnalysisStatus, setFoodAnalysisStatus] = useState<"idle" | "analyzing">("idle");
   const [foodAnalysisMessage, setFoodAnalysisMessage] = useState<string | null>(null);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
@@ -1076,25 +1070,6 @@ export function NutritionScreenContent() {
     };
   }, [resetNutritionState, user?.id]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!user?.id) {
-      setFoodAnalysisUsageCount(0);
-      return;
-    }
-
-    void loadFoodAnalysisUsage(user.id, getTodayDateString()).then((count) => {
-      if (!cancelled) {
-        setFoodAnalysisUsageCount(count);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
   const persistNutritionPreferences = useCallback(async (mealPlan: ReturnType<typeof buildAdaptiveMealPlan> | null = adaptiveMealPlan) => {
     if (!user?.id) {
       return;
@@ -1201,7 +1176,7 @@ export function NutritionScreenContent() {
   }, [mealPlanSectionY]);
 
   const handleSaveCurrentMealPlan = useCallback(async () => {
-    if (!user?.id || !adaptiveMealPlan || !premium.hasPremiumAccess) {
+    if (!user?.id || !adaptiveMealPlan) {
       return;
     }
 
@@ -1220,7 +1195,7 @@ export function NutritionScreenContent() {
     } catch {
       setNutritionMessage("Meal plan could not be saved right now.");
     }
-  }, [adaptiveMealPlan, getMealPlanSaveId, mealPlanGoal, premium.hasPremiumAccess, user?.id]);
+  }, [adaptiveMealPlan, getMealPlanSaveId, mealPlanGoal, user?.id]);
 
   const handleLoadSavedMealPlan = (savedPlan: SavedNutritionMeal) => {
     const nextPlan = savedPlan.plan as ReturnType<typeof buildAdaptiveMealPlan> | null;
@@ -1253,18 +1228,9 @@ export function NutritionScreenContent() {
     }
   };
 
-  const canUseFoodAnalysis = premium.hasPremiumAccess || foodAnalysisUsageCount < FREE_FOOD_ANALYSIS_LIMIT;
-  const foodAnalysisUsageLabel = premium.hasPremiumAccess
-    ? "Food checks are ready whenever you need them."
-    : `${Math.max(FREE_FOOD_ANALYSIS_LIMIT - foodAnalysisUsageCount, 0)} free analyses left today.`;
+  const foodAnalysisUsageLabel = "Enter a food or meal to get a general nutrition-informed breakdown.";
 
   const handleFoodAnalysis = async (value?: string, source: "search" | "barcode" = "search") => {
-    if (!canUseFoodAnalysis) {
-      setFoodAnalysisMessage("Nutrition tools are ready when you need another check.");
-      router.push("/premium?source=nutrition-food-analysis");
-      return;
-    }
-
     const nextValue = value ?? foodSearchInput;
     const nextAnalysis = analyzeFood(nextValue);
 
@@ -1280,10 +1246,6 @@ export function NutritionScreenContent() {
       await new Promise((resolve) => setTimeout(resolve, 250));
       setFoodSearchInput(nextAnalysis.name);
       setFoodAnalysis(nextAnalysis);
-      if (user?.id && !premium.hasPremiumAccess) {
-        const nextCount = await incrementFoodAnalysisUsage(user.id, getTodayDateString());
-        setFoodAnalysisUsageCount(nextCount);
-      }
       setNutritionMessage(null);
       setFoodAnalysisMessage("Food analysis ready ✓");
     } catch {
@@ -1296,12 +1258,6 @@ export function NutritionScreenContent() {
   const handleGenerateAdaptiveMealPlan = async () => {
     if (!mealPlanGoal || !dietStyle) {
       setMealPlanError("Choose your goal and eating style first.");
-      return;
-    }
-
-    if (!premium.hasPremiumAccess && adaptiveMealPlan) {
-      setMealPlanError("Your subscription needs to refresh before meal updates are available.");
-      router.push("/premium?source=nutrition-meal-updates");
       return;
     }
 
@@ -1319,7 +1275,7 @@ export function NutritionScreenContent() {
         allergies: mealPlanAllergies,
         prepPreference: mealPlanPrep,
         budgetPreference: mealPlanBudget,
-        premium: premium.hasPremiumAccess,
+        premium: true,
       });
       setAdaptiveMealPlan(plan);
       setShowNutritionPlanner(false);
@@ -1327,10 +1283,10 @@ export function NutritionScreenContent() {
       setShowAllMealPlanDays(false);
       await persistNutritionPreferences(plan);
       await growth.recordEvent("nutrition_meal_plan_generated", {
-        premium: premium.hasPremiumAccess,
+        premium: true,
         days: plan.plan.length,
       });
-      setNutritionMessage(adaptiveMealPlan ? "Meal plan updated ✓" : premium.hasPremiumAccess ? "Meal plan generated." : "1-day meal plan generated.");
+      setNutritionMessage(adaptiveMealPlan ? "Meal plan updated ✓" : "Meal plan generated.");
     } catch {
       setMealPlanError("Meal plan could not be generated. Please try again.");
       setNutritionMessage(null);
@@ -1426,9 +1382,7 @@ export function NutritionScreenContent() {
           <AppText style={styles.itemTitle}>{adaptiveMealPlan.title}</AppText>
           <AppText style={styles.itemMeta}>{mealPlanGoal}</AppText>
         </View>
-        <AppText style={[styles.badge, premium.hasPremiumAccess ? styles.badgeActive : styles.badgeInactive]}>
-          {premium.hasPremiumAccess ? "Active plan" : "Preview"}
-        </AppText>
+        <AppText style={[styles.badge, styles.badgeActive]}>Active plan</AppText>
       </View>
       <AppText style={styles.itemNotes}>{adaptiveMealPlan.focus}</AppText>
       <View style={styles.groceryListCard}>
@@ -1449,11 +1403,9 @@ export function NutritionScreenContent() {
           </Pressable>
         ) : null}
       </View>
-      {premium.hasPremiumAccess ? (
-        <View style={styles.itemActions}>
-          <AppButton label="Today's meals" onPress={handleViewCurrentPlan} variant="secondary" />
-        </View>
-      ) : null}
+      <View style={styles.itemActions}>
+        <AppButton label="Today's meals" onPress={handleViewCurrentPlan} variant="secondary" />
+      </View>
       {adaptiveMealPlan.plan.map((day, index) => {
         const isExpanded = expandedMealPlanDays.includes(day.day);
         const summary = typeof day.meals[0] === "string"
@@ -1523,43 +1475,32 @@ export function NutritionScreenContent() {
           disabled={mealPlanStatus === "generating"}
         />
       </View>
-      {premium.hasPremiumAccess ? (
-        <>
-          <View style={styles.groceryListCard}>
-            <AppText style={styles.nutritionCardTitle}>Grocery list</AppText>
-            {Object.entries(adaptiveMealPlan.groceries).map(([category, items]) => (
-              <AppText key={category} style={styles.nutritionCardBody}>
-                <AppText style={styles.nutritionDetailLabel}>{category}: </AppText>
-                {items.join(", ")}
-              </AppText>
-            ))}
-          </View>
-          <View style={styles.itemActions}>
-            <AppButton label="Share grocery list" onPress={() => void handleShareAdaptiveGroceryList()} variant="secondary" />
-            <AppButton
-              label={groceryCopyFeedbackVisible ? "✓ Copied" : "Copy grocery list"}
-              onPress={() => handleCopyGroceryList(`${adaptiveMealPlan.title} grocery list`, adaptiveMealPlan.groceries)}
-              variant="secondary"
-            />
-            <AppButton
-              label={currentMealPlanSaved ? "Meal plan saved ✓" : "Save this meal plan"}
-              onPress={() => void handleSaveCurrentMealPlan()}
-              variant="secondary"
-              disabled={currentMealPlanSaved}
-            />
-          </View>
-          <AppText style={styles.emptyHint}>
-            {currentMealPlanSaved ? "Saved plans appear below." : "Save this meal plan to reopen it later from Saved Plans below."}
+      <View style={styles.groceryListCard}>
+        <AppText style={styles.nutritionCardTitle}>Grocery list</AppText>
+        {Object.entries(adaptiveMealPlan.groceries).map(([category, items]) => (
+          <AppText key={category} style={styles.nutritionCardBody}>
+            <AppText style={styles.nutritionDetailLabel}>{category}: </AppText>
+            {items.join(", ")}
           </AppText>
-        </>
-      ) : (
-        <View style={styles.nutritionUpgradeCard}>
-          <AppText style={styles.nutritionCardBody}>
-            Nutrition support needs an active subscription before meal plans, grocery lists, and swaps can keep updating here.
-          </AppText>
-          <AppButton label="Start subscription" onPress={() => router.push("/premium?source=nutrition-meal-plan")} variant="secondary" />
-        </View>
-      )}
+        ))}
+      </View>
+      <View style={styles.itemActions}>
+        <AppButton label="Share grocery list" onPress={() => void handleShareAdaptiveGroceryList()} variant="secondary" />
+        <AppButton
+          label={groceryCopyFeedbackVisible ? "✓ Copied" : "Copy grocery list"}
+          onPress={() => handleCopyGroceryList(`${adaptiveMealPlan.title} grocery list`, adaptiveMealPlan.groceries)}
+          variant="secondary"
+        />
+        <AppButton
+          label={currentMealPlanSaved ? "Meal plan saved ✓" : "Save this meal plan"}
+          onPress={() => void handleSaveCurrentMealPlan()}
+          variant="secondary"
+          disabled={currentMealPlanSaved}
+        />
+      </View>
+      <AppText style={styles.emptyHint}>
+        {currentMealPlanSaved ? "Saved plans appear below." : "Save this meal plan to reopen it later from Saved Plans below."}
+      </AppText>
     </View>
   ) : null;
 
@@ -1664,7 +1605,6 @@ export function NutritionScreenContent() {
             </View>
             <View style={styles.list}>
               {(showEasierAlternatives ? foodAnalysis.easyAlternatives : foodAnalysis.alternatives)
-                .slice(0, premium.hasPremiumAccess ? undefined : 3)
                 .map((alternative) => (
                   <View key={alternative} style={styles.alternativeRow}>
                     <AppText style={styles.alternativeBullet}>•</AppText>
@@ -1682,9 +1622,7 @@ export function NutritionScreenContent() {
                 <AppText style={styles.itemTitle}>Current plan</AppText>
                 <AppText style={styles.itemMeta}>Saved in this device</AppText>
               </View>
-              <AppText style={[styles.badge, premium.hasPremiumAccess ? styles.badgeActive : styles.badgeInactive]}>
-                {premium.hasPremiumAccess ? "Current plan" : "Preview"}
-              </AppText>
+              <AppText style={[styles.badge, styles.badgeActive]}>Current plan</AppText>
             </View>
             <AppText style={styles.nutritionCardBody}>You selected: {adaptiveMealPlan.dietStyle}</AppText>
             <AppText style={styles.nutritionCardBody}>
@@ -1853,10 +1791,8 @@ export function NutritionScreenContent() {
                   ? adaptiveMealPlan
                     ? "Updating meal plan..."
                     : "Generating meal plan..."
-                  : premium.hasPremiumAccess
-                    ? adaptiveMealPlan
-                      ? "Regenerate plan"
-                      : "Build my nutrition plan"
+                  : adaptiveMealPlan
+                    ? "Regenerate plan"
                     : "Build my nutrition plan"
               }
               onPress={() => void handleGenerateAdaptiveMealPlan()}
@@ -1871,42 +1807,40 @@ export function NutritionScreenContent() {
 
         {generatedMealPlanContent}
 
-        {premium.hasPremiumAccess ? (
-          <View style={styles.nutritionSection}>
-            <AppText style={styles.sectionLabel}>Saved plans</AppText>
-            {savedMealPlans.length > 0 ? (
-              <View style={styles.list}>
-                {savedMealPlans.map((savedPlan) => (
-                  <View key={savedPlan.id} style={styles.nutritionMealCard}>
-                    <View style={styles.medicationHeader}>
-                      <View style={styles.itemHeaderCopy}>
-                        <AppText style={styles.itemTitle}>{savedPlan.title}</AppText>
-                        <AppText style={styles.itemMeta}>
-                          {savedPlan.goal ? `${savedPlan.goal} • ` : ""}
-                          {savedPlan.dietStyle ?? savedPlan.category}
-                        </AppText>
-                      </View>
-                      <AppText style={[styles.badge, styles.badgeActive]}>Saved</AppText>
+        <View style={styles.nutritionSection}>
+          <AppText style={styles.sectionLabel}>Saved plans</AppText>
+          {savedMealPlans.length > 0 ? (
+            <View style={styles.list}>
+              {savedMealPlans.map((savedPlan) => (
+                <View key={savedPlan.id} style={styles.nutritionMealCard}>
+                  <View style={styles.medicationHeader}>
+                    <View style={styles.itemHeaderCopy}>
+                      <AppText style={styles.itemTitle}>{savedPlan.title}</AppText>
+                      <AppText style={styles.itemMeta}>
+                        {savedPlan.goal ? `${savedPlan.goal} • ` : ""}
+                        {savedPlan.dietStyle ?? savedPlan.category}
+                      </AppText>
                     </View>
-                    <AppText style={styles.itemNotes}>
-                      Saved {new Date(savedPlan.savedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}.
-                    </AppText>
-                    <View style={styles.itemActions}>
-                      <AppButton label="Open plan" onPress={() => handleLoadSavedMealPlan(savedPlan)} variant="secondary" />
-                      <AppButton label="Remove" onPress={() => void handleRemoveSavedMealPlan(savedPlan.id)} variant="secondary" />
-                    </View>
+                    <AppText style={[styles.badge, styles.badgeActive]}>Saved</AppText>
                   </View>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.nutritionUpgradeCard}>
-                <AppText style={styles.nutritionCardBody}>
-                  Save a generated meal plan to revisit it later without rebuilding everything.
-                </AppText>
-              </View>
-            )}
-          </View>
-        ) : null}
+                  <AppText style={styles.itemNotes}>
+                    Saved {new Date(savedPlan.savedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}.
+                  </AppText>
+                  <View style={styles.itemActions}>
+                    <AppButton label="Open plan" onPress={() => handleLoadSavedMealPlan(savedPlan)} variant="secondary" />
+                    <AppButton label="Remove" onPress={() => void handleRemoveSavedMealPlan(savedPlan.id)} variant="secondary" />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.nutritionUpgradeCard}>
+              <AppText style={styles.nutritionCardBody}>
+                Save a generated meal plan to revisit it later without rebuilding everything.
+              </AppText>
+            </View>
+          )}
+        </View>
 
         {nutritionMessage ? <AppText style={styles.successText}>{nutritionMessage}</AppText> : null}
       </View>
