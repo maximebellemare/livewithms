@@ -5,6 +5,7 @@ import type { ProfileUpdateInput } from "../profile/api";
 import { normalizeError } from "../../lib/errors";
 import { trackDiagnosticEvent, trackEvent } from "../../lib/events";
 import { logger } from "../../lib/logger";
+import { logMetaOnboardingCompleted } from "../../lib/meta-sdk";
 import type { ConsentState, OnboardingDraft } from "./types";
 import {
   buildOnboardingGoals,
@@ -372,6 +373,7 @@ export function useOnboarding() {
         lowEnergyMode: draft.low_energy_mode,
         reminders: draft.reminder_preference,
       });
+      void logMetaOnboardingCompleted();
       return true;
     } catch (error) {
       const normalizedError = normalizeError(error);

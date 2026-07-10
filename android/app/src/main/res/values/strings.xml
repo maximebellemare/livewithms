@@ -1,3 +1,5 @@
 <resources>
   <string name="app_name">LiveWithMS</string>
+  <string name="facebook_app_id">2593488501121035</string>
+  <string name="fb_login_protocol_scheme">fb2593488501121035</string>
 </resources>

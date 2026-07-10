@@ -12,6 +12,7 @@ import { appSecureStore } from "../lib/secure-store";
 import { trackDiagnosticEvent, trackEvent } from "../lib/events";
 import { flushQueuedCheckInSaves } from "../features/checkins/api";
 import { markReviewSessionAsNegativeExperience } from "../features/growth/storage";
+import { initializeMetaSdk } from "../lib/meta-sdk";
 
 const DAILY_OPEN_TRACKING_KEY = "livewithms.analytics.daily-open";
 
@@ -60,6 +61,10 @@ export default function AppProviders({ children }: PropsWithChildren) {
     console.log("[startup] app startup", {
       timestamp: new Date().toISOString(),
     });
+  }, []);
+
+  useEffect(() => {
+    void initializeMetaSdk();
   }, []);
 
   useEffect(() => {

@@ -9,6 +9,9 @@ const supabaseAnonKey =
 const revenueCatIosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || "";
 const revenueCatAndroidApiKey = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY || "";
 const revenueCatApiKey = Platform.OS === "android" ? revenueCatAndroidApiKey : revenueCatIosApiKey;
+const metaAppId = process.env.EXPO_PUBLIC_META_APP_ID || "2593488501121035";
+const metaDisplayName = process.env.EXPO_PUBLIC_META_DISPLAY_NAME || "LiveWithMS";
+const metaClientToken = process.env.EXPO_PUBLIC_META_CLIENT_TOKEN || "";
 const appScheme = "com.livewithms.app" as const;
 const bundleIdentifier = "com.livewithms.app" as const;
 
@@ -51,6 +54,9 @@ const env = {
   revenueCatIosApiKey,
   revenueCatAndroidApiKey,
   revenueCatApiKey,
+  metaAppId,
+  metaDisplayName,
+  metaClientToken,
   isSupabaseConfigured,
   isRevenueCatConfigured,
   appScheme,
